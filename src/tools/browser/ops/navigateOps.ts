@@ -13,6 +13,7 @@ import {
   noteEmulatedPage,
   originApproved,
   originOf,
+  sessionAttached,
 } from '../../../integrations/browser/browserSession.js'
 import { carryEmulation, emulationActive, emulationSummary } from '../../../integrations/browser/browserEmulation.js'
 import { ensureScratchpadDir } from '../../../platform/files/scratchpad.js'
@@ -21,8 +22,11 @@ import { RECOVERED_NOTE, isDriverTimeout, relayNamedFailure } from './failures.j
 import { type LiveSession, deepTextOf, failedNavigationWords, pageWhere, preview, targetSurface } from './page.js'
 import { downloadWords } from './downloads.js'
 import { errorPageSettled, markAct, settleAfterAct } from './settle.js'
-import { actOriginGate } from './targets.js'
+import { actOriginGate, selectorMissWords } from './targets.js'
 import type { OpDone, OpRun } from './ops.js'
+import type { OwnerKey } from '../../../engine/run-owner/ownerKey.js'
+import type { Input } from './schema.js'
+import { withDeadline } from '../../../platform/async/deadline.js'
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
 
 export async function openOp({ input, owner, tab, context, sessionAtEntry, crashedAtEntry, signalFor, acting }: OpRun): Promise<OpDone> {
@@ -144,7 +148,43 @@ export async function openOp({ input, owner, tab, context, sessionAtEntry, crash
   return { result, outcome }
 }
 
-export async function waitForOp(s: LiveSession, { input, signalFor }: OpRun, deadline: number, t0: number, waited: string): Promise<OpDone> {
+function pageHoldsText(needle: string, rendered: boolean): boolean {
+  const norm = (x: string): string => x.replace(/\s+/g, ' ').trim().toLowerCase()
+  return norm((rendered ? document.body?.innerText : document.body?.textContent) ?? '').includes(norm(needle))
+}
+
+async function textElsewhere(owner: OwnerKey, s: LiveSession, needle: string, frame: Input['frame']): Promise<string> {
+  if (frame === undefined) {
+    const children = s.page.frames().filter(f => f.parentFrame() !== null)
+    const held = await Promise.all(
+      children.map(child =>
+        sessionAttached(s) && !originApproved(owner, originOf(child.url()))
+          ? false
+          : withDeadline(child.evaluate(pageHoldsText, needle, true).catch(passedOverAs(false)), 1000, () => false, { unref: true }),
+      ),
+    )
+    const at = held.indexOf(true)
+    if (at !== -1) return `; child frame ${at + 1} (${children[at]!.url().split('?')[0]}) holds it (set frame to wait there)`
+  }
+  const unrendered = await targetSurface(s, frame).evaluate(pageHoldsText, needle, false).catch(passedOverAs(false))
+  return unrendered ? '; the page holds it in content that is not rendered (extract with a selector reads hidden content)' : ''
+}
+
+async function waitMissWords(owner: OwnerKey, s: LiveSession, input: Input, deadline: number): Promise<string> {
+  const where = pageWhere(s)
+  if (input.selector) {
+    const state = input.state ?? 'visible'
+    const stood =
+      state === 'hidden'
+        ? `${input.selector} is still present and visible after the ${deadline}ms deadline`
+        : await selectorMissWords(s, input.selector, deadline, input.frame, state)
+    return ` (${state}) failed at ${where}: ${stood}`
+  }
+  if (input.text !== undefined) return ` failed at ${where}: not in the page's rendered text within the ${deadline}ms deadline${await textElsewhere(owner, s, input.text, input.frame)}`
+  return ` failed: no navigation within the ${deadline}ms deadline; the tab stayed at ${where}`
+}
+
+export async function waitForOp(s: LiveSession, { input, owner, signalFor }: OpRun, deadline: number, t0: number, waited: string): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
   try {
@@ -159,14 +199,7 @@ export async function waitForOp(s: LiveSession, { input, signalFor }: OpRun, dea
         state === 'hidden' ? 'hidden/gone' : state === 'visible' ? 'present and visible' : 'present (attached)'
       result = `waitFor selector ${input.selector}: ${landedState} after ${Date.now() - t0}ms at ${pageWhere(s)}`
     } else if (input.text !== undefined) {
-      await targetSurface(s, input.frame).waitForFunction(
-        (needle: string) => {
-          const norm = (x: string): string => x.replace(/\s+/g, ' ').trim().toLowerCase()
-          return norm(document.body?.innerText ?? '').includes(norm(needle))
-        },
-        { timeout: deadline, polling: 'raf', signal: signalFor(s) },
-        input.text,
-      )
+      await targetSurface(s, input.frame).waitForFunction(pageHoldsText, { timeout: deadline, polling: 'raf', signal: signalFor(s) }, input.text, true)
       result = `waitFor text "${preview(input.text)}": present after ${Date.now() - t0}ms at ${pageWhere(s)}`
     } else if (s.nav.seq > s.nav.seen) {
       await s.page
@@ -187,7 +220,7 @@ export async function waitForOp(s: LiveSession, { input, signalFor }: OpRun, dea
     }
   } catch (err) {
     if (isDriverTimeout(err)) {
-      result = `waitFor ${waited}: deadline ${deadline}ms exceeded (the event never arrived) at ${pageWhere(s)}`
+      result = `waitFor ${waited}${await waitMissWords(owner, s, input, deadline)}`
       outcome = 'failed'
       return { result, outcome }
     }

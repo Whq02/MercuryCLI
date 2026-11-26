@@ -57,4 +57,5 @@ prove-browser-transfer-boundaries.ts
 prove-browser-upload-clear.ts
 prove-browser-upload-share.ts
 prove-browser-uploads.ts
+prove-browser-wait-misses.ts
 prove-open-url-words.ts

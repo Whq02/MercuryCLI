@@ -143,7 +143,7 @@ console.log('§3 a selector that matches nothing fails by name, at the deadline,
     check(`${label}: a selector miss is the tool's own sentence while the driver's timeout class carries the bundle's name`, miss.outcome === 'failed' && miss.result.includes('#never-here') && miss.result.includes('600ms') && !/Waiting for selector/.test(miss.result), miss.result, 'isDriverTimeout in src/tools/browser/ops/failures.ts must know the timeout the driver wraps as "Waiting for selector … failed" by its cause, since the built bundle renames the TimeoutError class')
   }
   const textMiss = await run({ op: 'waitFor', text: 'NEVER APPEARS', timeoutMs: 500 })
-  check('waitFor text: the miss names the text and the deadline', textMiss.outcome === 'failed' && textMiss.result.includes('NEVER APPEARS') && textMiss.result.includes('deadline 500ms exceeded'), textMiss.result, 'the waitFor text miss in src/tools/browser/ops/navigateOps.ts must name the text and the deadline')
+  check('waitFor text: the miss names the text and the deadline', textMiss.outcome === 'failed' && textMiss.result.includes('NEVER APPEARS') && textMiss.result.includes('within the 500ms deadline'), textMiss.result, 'the waitFor text miss in src/tools/browser/ops/navigateOps.ts must name the text and the deadline')
 }
 
 console.log('§4 a selector the tree printed for framed content: no token offered, and the act fails at once naming the frame')

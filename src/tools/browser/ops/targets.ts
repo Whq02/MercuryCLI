@@ -87,6 +87,20 @@ function framedTargetWords(selector: string, frameUrl: string): string {
   return `${selector} lives inside a child frame (${frameUrl}); set frame to its index from extract or a unique URL substring`
 }
 
+export async function selectorMissWords(
+  s: LiveSession,
+  selector: string,
+  deadline: number,
+  frame: Input['frame'],
+  watched: 'visible' | 'attached',
+  absentNote = '',
+): Promise<string> {
+  const attached = watched === 'visible' ? await targetSurface(s, frame).$(selector).catch(passedOverAs(null)) : null
+  if (attached) return `${selector} is present but never became visible within the ${deadline}ms deadline (hidden or zero-sized — acts need a visible target; waitFor state:"attached" can read its arrival)`
+  const framed = frame === undefined ? await framedOnly(s, selector) : null
+  return framed !== null ? framedTargetWords(selector, framed) : `no element for selector ${selector} within the ${deadline}ms deadline${absentNote}${framesDiagnosis(s)}`
+}
+
 export async function resolveActTarget(
   s: LiveSession,
   selector: string,
@@ -104,17 +118,7 @@ export async function resolveActTarget(
       .setVisibility('visible')
       .waitHandle({ signal })) as ElementHandle<Element>
   } catch (err) {
-    if (isDriverTimeout(err)) {
-      const attached = await surface.$(selector).catch(passedOverAs(null))
-      const framedLate = attached || frame !== undefined ? null : await framedOnly(s, selector)
-      throw new Error(
-        attached
-          ? `${selector} is present but never became visible within the ${deadline}ms deadline (hidden or zero-sized — acts need a visible target; waitFor state:"attached" can read its arrival)`
-          : framedLate !== null
-            ? framedTargetWords(selector, framedLate)
-            : `no element for selector ${selector} within the ${deadline}ms deadline (the act auto-waits; the element never appeared)${framesDiagnosis(s)}`,
-      )
-    }
+    if (isDriverTimeout(err)) throw new Error(await selectorMissWords(s, selector, deadline, frame, 'visible', ' (the act auto-waits; the element never appeared)'))
     throw err
   }
 }
