@@ -129,8 +129,6 @@ t.section('§1 the projection is exhaustive and honest')
 
 t.section('§2 journey: header + CREW lead row + mouse return')
 {
-  const ROOT_ROW = 3
-  const CHILD_ROW = 4
   const CHILD_RAIL_ROW = 'poise probe · runni…'
   const VIEW_ADDRESS = 'viewing poise probe'
 
@@ -199,12 +197,13 @@ t.section('§2 journey: header + CREW lead row + mouse return')
     const iMain = idxOf(0, f => leadMarked(f) && childRunning(f) && !inView(f))
     t.check(`at main, the lead row reads Mercury Lead and wears the › mark (its chat is the view); the child's row reads "${CHILD_RAIL_ROW}" — the .34 rail keeps the name whole and cuts the verb (137a2c1214)`, iMain >= 0, iMain >= 0 ? '' : 'no frame with the marked Mercury Lead row and the child row; rerun with --frames <dir> and read drill-120x40.txt to see what the CREW rail painted')
     const mf = frames[iMain] ?? { rows: [] as string[] }
+    const titleIdx = mf.rows.findIndex(r => /^crew \d+\b/.test(r))
     const rootIdx = mf.rows.findIndex(r => /✶ Mercury Lead/.test(r))
     const childIdx = mf.rows.findIndex(r => r.includes(CHILD_RAIL_ROW))
     t.check(
-      `CREW lists Mercury Lead first at row ${ROOT_ROW} and the child under it`,
-      iMain >= 0 && rootIdx + 1 === ROOT_ROW && childIdx + 1 === CHILD_ROW,
-      `lead@${rootIdx + 1} child@${childIdx + 1} · the CREW rail must list Mercury Lead first and the child directly under it; rerun with --frames <dir> and read drill-120x40.txt`,
+      'CREW lists Mercury Lead on the first row under its title and the child directly under it',
+      iMain >= 0 && titleIdx >= 0 && rootIdx === titleIdx + 1 && childIdx === rootIdx + 1,
+      `title@${titleIdx + 1} lead@${rootIdx + 1} child@${childIdx + 1} · the CREW rail must list Mercury Lead on the row under its "crew N" title and the child directly under it; rerun with --frames <dir> and read drill-120x40.txt`,
     )
 
     const iView = idxOf(
