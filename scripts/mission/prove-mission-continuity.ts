@@ -96,7 +96,7 @@ section('§1 arming writes the card')
 section('§2 a blocked stop advances the card')
 {
   const hook = stopClosure(S1)
-  const verdict = await hook.callback([user(`/mission ${GOAL}`), asst('still working on the parser')])
+  const verdict = await hook.callback([user(`/goal ${GOAL}`), asst('still working on the parser')])
   check('the stop is refused (mission not met)', verdict === false, String(verdict))
   const card = readMissionCard(S1)
   check('the card advanced to check 1', card?.iterations === 1, String(card?.iterations))
@@ -107,12 +107,12 @@ section('§3 the itemised close settles the card')
 {
   const hook = stopClosure(S1)
   const bare = await hook.callback([
-    user(`/mission ${GOAL}`),
+    user(`/goal ${GOAL}`),
     asst(`suite green, pushed.\n${MISSION_MET_SENTINEL}`),
   ])
   check('a bare completion line is held, not met: the close names no criterion lines', bare === false && hook.errorMessage.includes('no criterion lines'), hook.errorMessage)
   const verdict = await hook.callback([
-    user(`/mission ${GOAL}`),
+    user(`/goal ${GOAL}`),
     asst(`1. ${GOAL} — suite green on CI run 42, pushed as 9f1c2d\n${MISSION_MET_SENTINEL}`),
   ])
   check('the stop passes on the itemised close: one evidence line per criterion, then the completion line', verdict === true, hook.errorMessage)
