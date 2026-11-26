@@ -223,7 +223,7 @@ try {
   const env = childEnv(home, `http://127.0.0.1:${port}/api/v1`)
   const ledger = join(home, '.model-use.json')
   const birth: Send[] = [
-    { requireAwait: true, awaitText: '+ new session · n', awaitStableTicks: 3, data: 'n' },
+    { requireAwait: true, awaitText: '+ new · n', awaitStableTicks: 3, data: 'n' },
     { requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '' },
   ]
   const openPicker: Send[] = [

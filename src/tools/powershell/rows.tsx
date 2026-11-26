@@ -8,8 +8,6 @@ import { ShellProgressMessage } from '../../screen/shell-output/ShellProgressMes
 import { ShellTimeDisplay } from '../../screen/shell-output/ShellTimeDisplay.js'
 import { OutputLine } from '../../screen/shell-output/OutputLine.js'
 import { ToolCardMarker } from '../../screen/widgets/toolCardMeta.js'
-import { KeyboardShortcutHint } from '../../screen/theme/KeyboardShortcutHint.js'
-import { DOWN_ARROW } from '../../screen/theme/rowGlyphs.js'
 import type { ProgressMessage } from '../../engine/message-shapes/message.js'
 import type { PowerShellProgress } from '../kit/toolProgress.js'
 import type { ToolResultBlockParam } from '../../engine/message-shapes/wire.js'
@@ -82,7 +80,7 @@ function EmptyRow({ content }: { content: PSResult }): React.ReactNode {
     return (
       <MessageResponse height={1}>
         <Text color={FAINT} dimColor>
-          Running in the background — <KeyboardShortcutHint shortcut={DOWN_ARROW} action="manage" parens />
+          Running in the background
         </Text>
       </MessageResponse>
     )

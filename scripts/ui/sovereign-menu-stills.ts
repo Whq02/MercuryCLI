@@ -49,7 +49,7 @@ export function composeSovereignMenu(cols: number, rows: number, options: Sovere
         pinnedVal: null,
         warn: null,
         detail: row.detail ?? null,
-        detailExtra: ['this session  default (default)'],
+        detailExtra: [],
       }
     }
     const value = saved[row.env] ?? null
@@ -62,7 +62,7 @@ export function composeSovereignMenu(cols: number, rows: number, options: Sovere
       pinnedVal: null,
       warn: menuRowWarning(row, value),
       detail: row.detail ?? null,
-      detailExtra: [`this session  ${value ?? 'default'} (${value === null ? 'default' : 'saved'})`],
+      detailExtra: [],
     }
   })
   const selIdx = list.findIndex(row => row.env === SOVEREIGN_ROW_ENV)
@@ -70,10 +70,10 @@ export function composeSovereignMenu(cols: number, rows: number, options: Sovere
   const m = {
     entries,
     selIdx,
-    summary: { profile: `r${changed} · ${changed > 0 ? `custom · ${changed} set` : 'default'}`, harness: 'helm' },
+    summary: { profile: changed > 0 ? `${changed} set` : 'default', harness: 'helm' },
     environment: { model: 'Opus 5', critter: 'Octopus', critterHue: '#B07BE0', dirBase: 'orchard-src', dirTail: '' },
-    statusRight: changed > 0 ? `${changed} choice saved — applies to new sessions` : 'changes reach new sessions',
-    legend: '↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts · esc back',
+    statusRight: changed > 0 ? 'applies to new sessions' : 'changes reach new sessions',
+    legend: '↑↓ move · ↵ change · ⌫ default · a receipts · esc back',
   }
   const menu = core.composeBootMenu(cols, rows, m) as { lines: string[] }
   const { placed } = core.placeBlock(menu.lines, rows) as { placed: string[] }

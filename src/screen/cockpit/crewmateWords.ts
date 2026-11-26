@@ -4,7 +4,6 @@ const VIEWING_WORD = 'viewing'
 export const CREW_MAIN_CHAT_KEY = 'm main chat'
 export const CREW_OPEN_IN_VIEW_KEY = '↵ open in the view'
 export const MAIN_CHAT_CARD_LINE = 'THE MAIN CHAT — what you type goes to this agent'
-const MAIN_CHAT_RETURN_HINT = `m on ${LEAD_ROW_NAME} returns the ${MAIN_CHAT_WORD}`
 const MAIN_CHAT_HAND_BACK_HINT = `m on ${LEAD_ROW_NAME} hands the ${MAIN_CHAT_WORD} back`
 export const BACK_HINT = `${LEAD_ROW_NAME} in the rail goes back`
 export const COMPACT_BACK_HINT = `${LEAD_ROW_NAME} in the activity screen goes back`
@@ -108,17 +107,6 @@ export function crewmateUsageWords(name: string, model: string, facts: { input: 
 
 export function crewmateCommandUnreachableWords(name: string, command: string): string {
   return `/${command} could not reach ${name}'s record — nothing changed`
-}
-
-export function crewmateSendClause(target: CrewmateWordsState): string {
-  if (target.live !== false) return `↵ sends to ${target.name}`
-  return target.local === true ? `↵ refused — r in ${CREW_VIEW_DOOR} resumes ${target.name}` : `↵ resumes ${target.name} with your line`
-}
-
-export function crewmateComposerHint(target: CrewmateWordsState, viewed: CrewmateViewedState, escapeOwned = false): string {
-  const esc = escapeOwned || viewed === null ? '' : viewed.live === false ? ` · ${ESC_BACK_HINT}` : ` · esc interrupts ${viewed.name}`
-  const ret = target.pinned ? ` · ${MAIN_CHAT_RETURN_HINT}` : ''
-  return `${crewmateSendClause(target)}${esc}${ret}`
 }
 
 export const CREWMATE_BETWEEN_TURNS_DETAIL = `it is between turns and nothing drains a queued line — r in ${CREW_VIEW_DOOR} resumes it from its transcript`

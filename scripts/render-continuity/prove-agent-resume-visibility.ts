@@ -36,7 +36,7 @@ const has = (f: Frame, needle: string | RegExp): boolean =>
   f.rows.some(r => (typeof needle === 'string' ? r.includes(needle) : needle.test(r)))
 const viewOf = (f: Frame): string | undefined => {
   for (const r of f.rows) {
-    const m = /↵ sends to ([a-z]+) probe/.exec(r)
+    const m = /viewing ([a-z]+) probe/.exec(r)
     if (m) return `${m[1]} probe`
   }
   return undefined
@@ -122,9 +122,9 @@ t.section("§2 words typed at main while a crewmate runs are the session's own t
     keepFrames('steer-120x40', screens)
     const timed = screens.filter(f => f.atMs !== -1)
     const childRunning = (f: Frame): boolean => f.rows.some(r => r.includes(CHILD_RAIL_ROW))
-    const iView = timed.findIndex(f => viewOf(f) === 'poise probe' && has(f, 'sends to poise probe'))
+    const iView = timed.findIndex(f => viewOf(f) === 'poise probe' && has(f, 'composer → poise probe'))
     t.check(
-      "one click on the running crewmate's CREW row opens it in the view (the composer addresses it, ↵ sends to it)",
+      "one click on the running crewmate's CREW row opens it in the view (status names viewing and composer target)",
       iView >= 0,
       iView >= 0 ? `frame @${timed[iView]!.atMs}` : 'no view frame in the series',
     )
@@ -222,9 +222,9 @@ t.section('§3 one composer, one draft: the draft rides the view swap into eithe
       '6000:spawn both probes\\r',
       { awaitText: [ALPHA_ROW, BETA_ROW], afterPrevMs: 1000, settleMs: 0, text: 'draft-main-text' },
       { awaitText: 'draft-main-text', afterPrevMs: 1000, settleMs: 0, targetText: ALPHA_ROW },
-      { awaitText: 'sends to alpha probe', afterPrevMs: 1500, settleMs: 0, targetText: LEAD_ROW_TEXT },
-      { awaitText: ['draft-main-text', BETA_ROW], awaitAbsent: 'sends to alpha probe', afterPrevMs: 1000, settleMs: 0, targetText: BETA_ROW },
-      { awaitText: 'sends to beta probe', afterPrevMs: 1500, settleMs: 0, targetText: LEAD_ROW_TEXT },
+      { awaitText: 'viewing alpha probe', afterPrevMs: 1500, settleMs: 0, targetText: LEAD_ROW_TEXT },
+      { awaitText: ['draft-main-text', BETA_ROW], awaitAbsent: 'viewing alpha probe', afterPrevMs: 1000, settleMs: 0, targetText: BETA_ROW },
+      { awaitText: 'viewing beta probe', afterPrevMs: 1500, settleMs: 0, targetText: LEAD_ROW_TEXT },
     ],
     seconds: 26,
     cols: 120,

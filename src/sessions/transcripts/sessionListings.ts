@@ -18,7 +18,7 @@ import type {
   PersistedWorktreeSession,
   TranscriptMessage,
 } from './transcriptEntries.js'
-import { sortSessionListings } from './transcriptEntries.js'
+import { compareSessionListings, sortSessionListings } from './transcriptEntries.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import {
   decodeTranscriptBuffer,
@@ -180,7 +180,7 @@ function newestPerKey(logs: SessionListing[], keyOf: (log: SessionListing) => st
     const key = keyOf(log)
     if (!key) continue
     const existing = byKey.get(key)
-    if (!existing || log.modified.getTime() > existing.modified.getTime()) {
+    if (!existing || compareSessionListings(log, existing) < 0) {
       byKey.set(key, log)
     }
   }
@@ -542,7 +542,7 @@ async function progressivePage(
     0,
     initialEnrichCount,
   )
-  numberInOrder(logs)
+  numbered(logs)
   const merged = mergeSessionReadFailures(priorFailures, readFailures)
   return {
     logs,
@@ -918,6 +918,7 @@ type LiteLabelFacts = {
   prRepository?: string
   endedOnError?: boolean
   lastTimestamp?: string
+  lastUsedAt?: number
 }
 
 async function enrichListing(
@@ -963,6 +964,7 @@ async function enrichListing(
     ...(facts.prUrl !== undefined ? { prUrl: facts.prUrl } : {}),
     ...(facts.prRepository !== undefined ? { prRepository: facts.prRepository } : {}),
     ...(facts.endedOnError !== undefined ? { endedOnError: facts.endedOnError } : {}),
+    ...(facts.lastUsedAt !== undefined ? { lastUsedAt: facts.lastUsedAt } : {}),
     ...(projectPath !== undefined ? { projectPath } : {}),
   }
 }

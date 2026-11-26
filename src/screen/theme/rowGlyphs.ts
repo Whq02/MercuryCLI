@@ -1,7 +1,6 @@
 export const BLACK_CIRCLE = '●'
 export const BULLET_OPERATOR = '∙'
 export const TEARDROP_ASTERISK = '✻'
-export const DOWN_ARROW = '↓'
 export const CHANNEL_ARROW = '←'
 export const DIAMOND_OPEN = '◇'
 export const FLAG_ICON = '⚑'

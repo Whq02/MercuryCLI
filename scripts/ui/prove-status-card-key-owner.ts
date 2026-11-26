@@ -24,7 +24,6 @@ const { getDefaultAppState } = await import('../../src/screen/app-state/AppState
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const { Select } = await import('../../src/screen/select/Select.tsx')
 const { FocusedSessionStatusRow, escBackHint } = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
-const { crewmateComposerHint } = await import('../../src/screen/cockpit/crewmateWords.ts')
 const { ComposerFooter } = await import('../../src/screen/composer/ComposerFooter.tsx')
 const { CompactWorkSummary } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
 const { useHoldsEscape } = await import('../../src/screen/keys/useEscapeOwned.ts')
@@ -46,13 +45,6 @@ for (const [name, state] of [['running', status], ['interrupting', { ...status, 
   const hint = Reflect.apply(escBackHint, undefined, [live, state, true, true, true]) as string
   check(`${name}: a card leaves the status row no Escape action`, !/\besc\b/.test(hint), `${hint} — escBackHint in src/screen/chat/SwitchboardTagBar.tsx must drop the esc clause when its escapeOwned argument is true`)
   check(`${name}: other hint clauses are unchanged`, hint === escBackHint(live, state, true, true).split(' · ').filter(part => !part.startsWith('esc ')).join(' · '), `${hint} — with escapeOwned true escBackHint in src/screen/chat/SwitchboardTagBar.tsx must remove only the esc clause and keep the others`)
-}
-for (const pinned of [false, true]) for (const running of [false, true]) {
-  const target = { name: 'helper', pinned, live: running }
-  const viewed = { name: 'helper', live: running }
-  const hint = crewmateComposerHint(target, viewed, true)
-  check(`crewmate pinned=${pinned} running=${running}: no Escape action under a card`, !/\besc\b/.test(hint), `${hint} — crewmateComposerHint in src/screen/cockpit/crewmateWords.ts must drop the esc clause when its escapeOwned argument is true`)
-  check(`crewmate pinned=${pinned} running=${running}: other hint clauses are unchanged`, hint === crewmateComposerHint(target, viewed).split(' · ').filter(part => !part.startsWith('esc ')).join(' · '), `${hint} — with escapeOwned true crewmateComposerHint in src/screen/cockpit/crewmateWords.ts must remove only the esc clause`)
 }
 let roster: { rows: WorkRowV1[]; mission: never[]; samples: never[] } = { rows: [], mission: [], samples: [] }
 const project = join(home, 'fixture')
@@ -91,11 +83,13 @@ for (const [columns, rows, view] of [[120, 40, 'lead'], [213, 60, 'lead'], [213,
   try {
     await settledFrame(scene, frame => frame.includes('esc ') && frame.includes('sessions on'))
     const before = scene.screen()
-    const footerWords = view === 'lead' ? 'esc interrupt' : view === 'running-crew' ? 'esc interrupts helper' : 'esc back to'
     const escLines = (frame: string): string[] => frame.split('\n').filter(line => /\besc\b/.test(line) && !line.includes('esc declines'))
-    const expectedCount = view === 'lead' ? 3 : 2
-    const footerAt = view === 'lead' ? 1 : 0
-    check(`${label}: with no card the line under the composer and the compact line each name Escape's action`, escLines(before).length === expectedCount && escLines(before)[footerAt]!.includes(footerWords) && escLines(before)[expectedCount - 1]!.includes('esc interrupts'), escLines(before).map(line => line.trim()).join(' | '))
+    const expectedCount = view === 'lead' ? 3 : 1
+    check(
+      `${label}: with no card the rows that carry Escape name its action`,
+      escLines(before).length === expectedCount && (view !== 'lead' || escLines(before)[1]!.includes('esc interrupt')) && escLines(before)[expectedCount - 1]!.includes('esc interrupts'),
+      escLines(before).map(line => line.trim()).join(' | '),
+    )
     open()
     await settledFrame(scene, frame => frame.includes('Confirmation'))
     const during = scene.screen()
