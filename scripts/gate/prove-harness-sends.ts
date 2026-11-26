@@ -19,8 +19,8 @@ const helper = await import('../lib/bootFace.ts').catch(() => null)
 const fires = (line: string): boolean => helper !== null && helper.paintsBootFaceReady(line)
 const NEEDLE = '↑↓ choose'
 const STORED_NEEDLE = /↑↓/
-const FACE_LOCKUP = /^\s*>_ {2}· {2}↵ {2}·(?: {2}m menu {2}·)? {2}↑↓\s*$/
-const FACE_COMPACT = /^\s*│ >_ · ↵(?: · m menu)? · ↑↓\s*│\s*$/
+const FACE_LOCKUP = /^\s*>_ {5}↵ {5}(?:m menu {5})?↑↓\s*$/
+const FACE_COMPACT = /^\s*│ >_ {3}↵(?: {3}m menu)? {3}↑↓\s*│\s*$/
 const isBootFaceLine = (line: string): boolean => FACE_LOCKUP.test(line) || FACE_COMPACT.test(line)
 
 function filesUnder(dir: string, keep: (path: string) => boolean, out: string[] = []): string[] {
@@ -53,12 +53,12 @@ console.log('\n§1 the words the helper waits for')
 {
   check('one helper owns the pattern (scripts/lib/bootFace.ts)', helper !== null && typeof helper.BOOT_FACE_READY === 'string' && typeof helper.paintsBootFaceReady === 'function' && typeof helper.arenaBootFacePass === 'function')
   for (const [label, line, expected] of [
-    ['the lockup with the menu key', '>_  ·  ↵  ·  m menu  ·  ↑↓', true],
-    ['the lockup without it', '>_  ·  ↵  ·  ↑↓', true],
-    ['the compact face', '│ >_ · ↵ · ↑↓ │', true],
-    ['the compact face with the menu key', '│ >_ · ↵ · m menu · ↑↓ │', true],
-    ['the same icons with their gaps skipped by the painter', '>_·↵·↑↓', true],
-    ['the face before its card is up', '>_  ·  ↵', false],
+    ['the lockup with the menu key', '>_     ↵     m menu     ↑↓', true],
+    ['the lockup without it', '>_     ↵     ↑↓', true],
+    ['the compact face', '│ >_   ↵   ↑↓ │', true],
+    ['the compact face with the menu key', '│ >_   ↵   m menu   ↑↓ │', true],
+    ['the same icons with their gaps skipped by the painter', '>_↵↑↓', true],
+    ['the face before its card is up', '>_     ↵', false],
     ["the board's SESSIONS legend", '↑↓ choose · ↵ enter · n new · p pause', false],
     ['a permission card', '↑↓ choose · ↵ confirm · esc cancel · tab amend', false],
     ['a setup card', '↑↓ choose · ↵ pick · esc keeps your model', false],
@@ -73,7 +73,7 @@ console.log('\n§1 the words the helper waits for')
         '│ ❯ New Session                    │',
       ].every(line => line.includes(kitFaceReady)) &&
       [
-        '>_  ·  ↵',
+        '>_     ↵',
         '│ SESSIONS              + new session · n │',
         '↑↓ choose · ↵ enter · n new · p pause',
         '↑↓ choose · ↵ confirm · esc cancel · tab amend',
