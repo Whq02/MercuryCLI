@@ -111,7 +111,6 @@ src/commands/critter/index.ts	critter	process	module	Load-time table with no loc
 src/commands/daemon/index.ts	command	process	module	Load-time table with no local writer
 src/commands/defaultprovider/index.ts	defaultprovider	process	module	Load-time table with no local writer
 src/commands/effort/EffortPopup.tsx	EFFORT_POPUP_HINT	process	module	immutable string constant; census matched pure String.prototype.replace
-src/commands/effort/EffortPopup.tsx	EffortApplyContext	process	module	Load-time definition shared by all callers
 src/commands/effort/effort.tsx	HELP_TOKENS	process	module	Load-time lookup with no local writer
 src/commands/effort/index.ts	effort	process	module	load-time data; no local writer
 src/commands/exit/ExitFlow.tsx	FAREWELLS	process	module	Load-time list with no local writer

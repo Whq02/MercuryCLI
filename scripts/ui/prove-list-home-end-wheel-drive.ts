@@ -163,9 +163,9 @@ const pickerWindow = (lines: string[]): string[] => {
   const right = title.indexOf('│', title.indexOf('Mercury · model'))
   return left < 0 || right < 0 ? lines : lines.map(l => l.slice(left, right + 1))
 }
-const focusBoxRow = (lines: string[]): number => pickerWindow(lines).findIndex(l => l.includes('│ │ '))
+const focusRow = (lines: string[]): number => pickerWindow(lines).findIndex(l => l.includes('│ ❯ '))
 const modelId = (line: string): string => /\bclaude-[\w.-]+(?=\s)/.exec(line)?.[0] ?? ''
-const focusedModelId = (lines: string[]): string => modelId(pickerWindow(lines)[focusBoxRow(lines)] ?? '')
+const focusedModelId = (lines: string[]): string => modelId(pickerWindow(lines)[focusRow(lines)] ?? '')
 const outsideOf = (lines: string[], left: number): string => lines.map(l => l.slice(0, left)).join('\n')
 
 if (CASE === undefined || CASE === 'picker') {
@@ -175,7 +175,7 @@ if (CASE === undefined || CASE === 'picker') {
     ...enterChat,
     { atTick: 999, requireAwait: true, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 2, data: '/model' },
     { afterPrevTicks: 3, data: '\r' },
-    { requireAwait: true, awaitText: '│ │ ', awaitStableTicks: 3, mark: 'picker', data: WHEEL_DOWN },
+    { requireAwait: true, awaitText: '│ ❯ ', awaitStableTicks: 3, mark: 'picker', data: WHEEL_DOWN },
     { afterPrevTicks: 3, data: WHEEL_DOWN },
     { afterPrevTicks: 5, data: '', mark: 'wheeled' },
     { afterPrevTicks: 1, data: WHEEL_UP },
@@ -192,9 +192,9 @@ if (CASE === undefined || CASE === 'picker') {
   const back = c.marks.get('wheeled-back') ?? []
   const end = c.marks.get('end') ?? []
   const homeF = c.marks.get('home') ?? []
-  check('the picker opened with a focus box', picker.some(l => l.includes('Mercury · model')) && focusBoxRow(picker) >= 0, `the /model picker must open with a highlighted row inside its box: ${picker.slice(2, 8).join(' | ')}`)
+  check('the picker opened with a focused row', picker.some(l => l.includes('Mercury · model')) && focusRow(picker) >= 0, `the /model picker must open with a highlighted row inside its box: ${picker.slice(2, 8).join(' | ')}`)
   const left = Math.max(0, pickerLeft(picker))
-  const r0 = focusBoxRow(picker)
+  const r0 = focusRow(picker)
   const models = pickerWindow(picker).map(modelId).filter(id => id !== '')
   const opened = focusedModelId(picker)
   const moved = focusedModelId(wheeled)
@@ -207,7 +207,7 @@ if (CASE === undefined || CASE === 'picker') {
   check('two wheel notches down move the highlight two models down the picker, one model a notch', first >= 0 && models[first + 2] !== undefined && moved === models[first + 2], `the wheel must move the picker highlight one model per notch: ${opened} → ${moved}; expected ${models[first + 2]}`)
   check('one notch up brings it back up one model', first >= 0 && models[first + 1] !== undefined && returned === models[first + 1], `a wheel notch up must move the picker highlight up one model: ${moved} → ${returned}; expected ${models[first + 1]}`)
   check('the columns left of the picker (the chat beneath) are unchanged by the wheel', outsideOf(picker, left) === outsideOf(wheeled, left), 'the wheel must act on the picker only and never scroll or redraw the chat beneath it')
-  check('End moves the highlight to the last row (the window at the tail, nothing folded below)', focusBoxRow(end) > r0 && !moreBelow(end), `End must jump the picker highlight to the last row and show the tail: row ${focusBoxRow(end)}; folded below: ${moreBelow(end)}`)
+  check('End moves the highlight to the last row (the window at the tail, nothing folded below)', focusRow(end) > r0 && !moreBelow(end), `End must jump the picker highlight to the last row and show the tail: row ${focusRow(end)}; folded below: ${moreBelow(end)}`)
   check('Home returns the highlight to the first stop, the top provider heading (the window at the head, nothing folded above)', homeF.some(l => /│ ❯ [A-Z.]+ · /.test(l)) && !moreAbove(homeF), `Home must put the picker highlight on the first provider heading and show the head: heading ${homeF.find(l => l.includes('❯')) ?? '(none)'}; folded above: ${moreAbove(homeF)}`)
 }
 

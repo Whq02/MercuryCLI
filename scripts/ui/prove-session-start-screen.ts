@@ -62,8 +62,9 @@ function seedHistory(home: string, cwd: string): void {
   mkdirSync(dir, { recursive: true })
   prompts.forEach((prompt, i) => {
     const sid = sessionIds[i]!
-    const row = { ...createUserMessage({ content: prompt }), sessionId: sid, cwd, parentUuid: null }
-    writeFileSync(join(dir, `${sid}.jsonl`), encodeSeedTranscript([row], sid, `2026-10-12T0${8 + i}:00:00.000Z`))
+    const stamp = `2026-10-12T${String(8 + i).padStart(2, '0')}:00:00.000Z`
+    const row = { ...createUserMessage({ content: prompt }), timestamp: stamp, sessionId: sid, cwd, parentUuid: null }
+    writeFileSync(join(dir, `${sid}.jsonl`), encodeSeedTranscript([row], sid, stamp))
   })
   const engines = [
     [{ model: 'claude-fable-5-1', at: '2026-10-12T08:44:49.631Z' }, { model: 'claude-sonnet-5-5', at: '2026-10-12T09:04:03.000Z' }],

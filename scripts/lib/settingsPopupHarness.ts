@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { FRAME_INTERVAL_MS } from '../../src/screen/renderer/constants.js'
 import instances from '../../src/screen/renderer/instances.js'
-
+import { pinRecorderTerminal } from './proofHome.ts'
 export function pinSourceRef(argv: string[] = process.argv): string | undefined {
   const at = argv.indexOf('--source-ref')
   const ref = at < 0 ? undefined : argv[at + 1]
@@ -37,6 +37,7 @@ export const KEY = {
 }
 
 export function pinScratchHome(prefix: string): string {
+  pinRecorderTerminal()
   const home = mkdtempSync(join(tmpdir(), `${prefix}-`))
   process.env.MERCURY_CONFIG_DIR = home
   process.env.MERCURY_CREDENTIAL_STORE = 'file'

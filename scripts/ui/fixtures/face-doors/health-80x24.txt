@@ -1,7 +1,7 @@
 
 
 
-           (>_) MERCURY · health check
+           MERCURY · health check
 
            NEXT
              open /logins to re-verify                     ◓ stale
