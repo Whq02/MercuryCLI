@@ -205,32 +205,6 @@ function berthOf(g: Grid): Berth {
 const cardRows = (b: Berth): number => b.cardTop < 0 ? 0 : b.cardBottom - b.cardTop + 1
 const spriteTop = (b: Berth): number => b.cardTop + Math.ceil((cardRows(b) - 3) / 2)
 
-type Card = { left: number; right: number; top: number; bottom: number; artRows: number; artWidth: number }
-function cardOf(g: Grid, name: string): Card {
-  const t = text(g)
-  const nameRow = rowWith(g, name)
-  const none: Card = { left: -1, right: -1, top: -1, bottom: -1, artRows: 0, artWidth: 0 }
-  if (nameRow < 0) return none
-  const line = t[nameRow]!
-  const at = line.indexOf(name)
-  const left = line.lastIndexOf('│', at)
-  const right = line.indexOf('│', at)
-  let top = -1
-  let bottom = -1
-  for (let r = nameRow - 1; r >= 0; r--) if (t[r]![left] === '╭') { top = r; break }
-  for (let r = nameRow + 1; r < t.length; r++) if (t[r]![left] === '╰') { bottom = r; break }
-  if (left < 0 || right < 0 || top < 0 || bottom < 0) return none
-  let artRows = 0
-  let artWidth = 0
-  for (let r = top + 1; r < bottom; r++) {
-    const run = t[r]!.slice(left + 1, right).match(/[▀▄█]+/g)
-    if (!run) continue
-    artRows++
-    artWidth = Math.max(artWidth, ...run.map(m => m.length))
-  }
-  return { left, right, top, bottom, artRows, artWidth }
-}
-
 function paneBottom(g: Grid, left: number, right: number): number {
   const t = text(g)
   for (let r = t.length - 1; r > 0; r--) if (t[r]![left] === '╰' && t[r]![right] === '╯') return r
@@ -359,15 +333,15 @@ try {
     check(`${cols}×${rows} grow: once the stats stack the sprite sits on the box’s lower three rows (the verb line, the stats, the bottom border)`, after.y === after.cardTop + 1, `sprite top ${after.y}, card top ${after.cardTop}`)
     check(`${cols}×${rows} grow: the sprite moves down one row as the box grows from three rows to four, its middle following the box’s middle`, after.y === before.y + 1 && before.cardTop === after.cardTop, `sprite top ${before.y} → ${after.y}, card top ${before.cardTop} → ${after.cardTop}`)
   }
-  console.log('§12 /critter opens the picker with the small sprite on every card, at 178 and at 60 columns')
+  console.log('§12 /critter opens the picker with the four-row list and one live sprite, at 178 and at 60 columns')
   const pickerWide = await capture('picker-178x51', homeFor('picker-178'), 178, 51, [onReady('/critter\r', 'landing')], 'Session theme')
   const pickerNarrow = await capture('picker-60x40', homeFor('picker-60'), 60, 40, [{ requireAwait: true, awaitText: keyHintLabel('⇧← concourse'), awaitSettleTicks: 6, data: '/critter\r', mark: 'landing' }], 'Session theme')
-  for (const [cols, shot, rowsExpected] of [[178, pickerWide, 1], [60, pickerNarrow, 2]] as const) {
-    const cards = ['[1] crab', '[2] octopus', '[3] jellyfish', '[4] clam'].map(name => cardOf(shot.grid, name))
-    check(`${cols} columns: the four cards paint with their names`, cards.every(c => c.top >= 0 && c.bottom > c.top), cards.map(c => `${c.top}..${c.bottom}`).join(' '))
-    check(`${cols} columns: every card is eight rows with three sprite rows and the sprite nine cells wide`, cards.every(c => c.bottom - c.top === 7 && c.artRows === 3 && c.artWidth === 9), cards.map(c => `${c.bottom - c.top + 1} rows, art ${c.artRows}×${c.artWidth}`).join(' · '))
-    check(`${cols} columns: every card is eighteen columns wide`, cards.every(c => c.right - c.left === 17), cards.map(c => `${c.right - c.left + 1}`).join(' '))
-    check(`${cols} columns: the cards sit on ${rowsExpected} row${rowsExpected > 1 ? 's' : ''}`, new Set(cards.map(c => c.top)).size === rowsExpected, [...new Set(cards.map(c => c.top))].join(','))
+  for (const [cols, shot] of [[178, pickerWide], [60, pickerNarrow]] as const) {
+    const lines = text(shot.grid)
+    const rows = ['[1] crab', '[2] octopus', '[3] jellyfish', '[4] clam'].map(name => lines.findIndex(line => line.includes(name)))
+    check(`${cols} columns: the four rows paint in order with [1]–[4]`, rows.every(r => r >= 0) && rows[0]! < rows[1]! && rows[1]! < rows[2]! && rows[2]! < rows[3]!, rows.join(','))
+    const artRows = rows[0]! >= 0 ? lines.slice(rows[0]!, rows[0]! + 3).filter(line => /[▀▄]{9}/.test(line)).length : 0
+    check(`${cols} columns: one live 3×9 sprite paints beside the list and the active row marks current`, artRows === 3 && rows.some(r => r >= 0 && lines[r]!.includes('current')) && rows.some(r => r >= 0 && lines[r]!.includes('❯ ')), `artRows=${artRows}`)
     check(`${cols} columns: the landing before /critter carries the box sprite alone`, !text(shot.marks['landing']!).some(line => line.includes('[1] crab')))
   }
   const companion = await capture('companion-178x51', homeFor('companion-178'), 178, 51, [onReady('/companion tip\r', 'landing'), { requireAwait: true, awaitText: 'Unknown command', awaitSettleTicks: 6, data: '', mark: 'answer' }], 'Unknown command')

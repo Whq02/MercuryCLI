@@ -2,7 +2,7 @@ import React from 'react'
 import { Box, Text } from '../../themedRenderer.js'
 import { useRegisterOverlay } from '../../overlays/overlayHooks.js'
 import { useMercuryTokens } from '../../widgets/useMercuryTokens.js'
-import { browseKeysFor, CONCOURSE_HELP_KEY, managerPaneKeysFor, regionKeysFor, withoutManagerPaneKeys } from '../controlManifest.js'
+import { browseKeysFor, CONCOURSE_HELP_KEY, managerPaneKeysFor, regionKeysFor, withoutManagerPaneKeys, type BoardSelectionClass } from '../controlManifest.js'
 import { InteractiveRow } from '../../widgets/InteractiveRow.js'
 import { gitOfferDescription } from '../GitOfferCard.js'
 import { FloatingPopup } from '../../overlays/PopupGutter.js'
@@ -132,14 +132,15 @@ export function CapacityAskModal({
   )
 }
 
-export function ConcourseKeyAtlas({ cols, rows, chat, reducedStage = false, splitOn = false }: { cols: number; rows: number; chat: boolean; reducedStage?: boolean; splitOn?: boolean }): React.ReactNode {
+export function ConcourseKeyAtlas({ cols, rows, chat, reducedStage = false, splitOn = false, selection }: { cols: number; rows: number; chat: boolean; reducedStage?: boolean; splitOn?: boolean; selection?: BoardSelectionClass }): React.ReactNode {
   const t = useMercuryTokens()
   useRegisterOverlay('concourse-help')
   const stage = { newSession: !reducedStage }
+  const listStage = selection !== undefined && selection !== 'none' ? { ...stage, selection } : stage
   const sections: Array<{ title: string; keys: ReadonlyArray<{ keys: string; label: string }> }> = [
     { title: 'BROWSE', keys: [...browseKeysFor({ chatPresent: chat }), CONCOURSE_HELP_KEY] },
     { title: 'NEEDS YOU (rail)', keys: regionKeysFor('rail', stage) },
-    { title: 'SESSIONS (list)', keys: [...managerPaneKeysFor(stage), ...withoutManagerPaneKeys(regionKeysFor('list', stage))] },
+    { title: 'SESSIONS (list)', keys: [...managerPaneKeysFor({ ...stage, paused: selection === 'paused' }), ...withoutManagerPaneKeys(regionKeysFor('list', listStage))] },
     { title: 'LIVE VIEW (its composer)', keys: regionKeysFor('live', stage) },
     ...(!reducedStage && splitAvailableAt(cols, rows)
       ? [

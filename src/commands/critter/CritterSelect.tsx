@@ -1,12 +1,11 @@
 import * as React from 'react'
 import { Box, Text, useInput } from '../../screen/themedRenderer.js'
-import { useTerminalSize } from '../../screen/fullscreen-layout/useTerminalSize.js'
-import { claimHover, releaseHover, useHoverOwner } from '../../screen/widgets/useHoverOwned.js'
 import { SQUARE_DOCK_ART_LINES, critterDefForKey } from '../../screen/cockpit/critterData.js'
-import { DUNE, FAINT, TEAL } from '../../screen/theme/mercuryPalette.js'
+import { FAINT, TEAL } from '../../screen/theme/mercuryPalette.js'
 import { CommandCenter, SectionHeader } from '../../screen/widgets/components.js'
 import { AnimatedCritterArt } from '../../screen/widgets/AnimatedCritterArt.js'
-import { GLYPH } from '../../screen/theme/glyphs.js'
+import { InteractiveRow } from '../../screen/widgets/InteractiveRow.js'
+import { GLYPH, padTo } from '../../screen/theme/glyphs.js'
 import {
   ALL_CRITTERS,
   getSessionAccent,
@@ -14,21 +13,14 @@ import {
   persistSessionCritter,
 } from '../../screen/widgets/sessionAccent.js'
 import { useInteractiveList } from '../../screen/widgets/useInteractiveList.js'
-import { useDeclaredCursor } from '../../screen/renderer/bindings/use-declared-cursor.js'
 
-function CritterCard({ on, ...box }: { on: boolean } & React.ComponentProps<typeof Box>): React.ReactNode {
-  const cursorRef = useDeclaredCursor({ line: 0, column: 0, active: on })
-  return <Box ref={cursorRef} {...box} />
-}
-
+const NAME_CELL_WIDTH = 16
 
 export function CritterSelect({ onClose }: { onClose: () => void }): React.ReactNode {
   const activeIndex = Math.max(
     0,
     ALL_CRITTERS.findIndex(c => c.key === getSessionAccent().key),
   )
-  const paneCols = useTerminalSize().columns
-  const oneRow = paneCols >= 84
   const dockDefs = React.useMemo(() => ALL_CRITTERS.map(c => critterDefForKey(c.key)), [])
 
   const nav = useInteractiveList({
@@ -36,7 +28,7 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
     rowId: c => c.key,
     idNamespace: 'critter',
     initialId: ALL_CRITTERS[activeIndex]?.key,
-    orientation: oneRow ? 'horizontal' : { grid: { columns: 2 } },
+    orientation: 'vertical',
     onClose,
     actions: [
       {
@@ -61,19 +53,21 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
     ],
   })
 
-  useInput((input, _key) => {
+  useInput((input, key) => {
+    if (key.leftArrow) {
+      nav.moveTo(Math.max(0, nav.selectedIndex - 1))
+      return
+    }
+    if (key.rightArrow) {
+      nav.moveTo(Math.min(ALL_CRITTERS.length - 1, nav.selectedIndex + 1))
+      return
+    }
     const n = Number(input)
     if (Number.isInteger(n) && n >= 1 && n <= ALL_CRITTERS.length) nav.moveTo(n - 1)
   })
 
   const sel = nav.selectedIndex
   const liveActive = getSessionAccent().key
-  const hoverBase = React.useId()
-  const hoverOwner = useHoverOwner()
-  const hovered =
-    hoverOwner != null && hoverOwner.startsWith(`${hoverBase}:`)
-      ? Number(hoverOwner.slice(hoverBase.length + 1))
-      : -1
 
   return (
     <CommandCenter
@@ -83,62 +77,31 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
       footer={(nav.hints ? nav.hints + ' · ' : '') + `${nav.motionHint} / click move`}
     >
       <SectionHeader>Session theme</SectionHeader>
-      <Text color={FAINT}>
-        pick a critter — it themes the whole harness (frame · deck · headers) · the status spine stays fixed
-      </Text>
-      <Box flexDirection="row" flexWrap="wrap" marginTop={1} width={oneRow ? undefined : 38}>
-        {ALL_CRITTERS.map((c, i) => {
-          const on = i === sel
-          const active = c.key === liveActive
-          const def = dockDefs[i]!
-          return (
-            <CritterCard
-              on={on}
-              key={c.key}
-              borderStyle="round"
-              borderColor={on || hovered === i ? c.accent : DUNE}
-              marginRight={1}
-              marginBottom={1}
-              flexDirection="column"
-              alignItems="center"
-              width={18}
-              onClick={() => nav.moveTo(i)}
-              onMouseEnter={() => claimHover(`${hoverBase}:${i}`)}
-              onMouseLeave={() => releaseHover(`${hoverBase}:${i}`)}
-            >
-              {}
-              {}
-              <Box
-                height={SQUARE_DOCK_ART_LINES}
-                flexDirection="column"
-                justifyContent="flex-end"
-              >
-                <AnimatedCritterArt def={def} square specimen />
-              </Box>
-              <Box marginTop={1}>
-                <Text bold color={c.accent}>
-                  [{i + 1}] {c.name}
+      <Box flexDirection="row">
+        <Box flexDirection="column" width={27} flexShrink={0}>
+          {ALL_CRITTERS.map((c, i) => {
+            const on = i === sel
+            const active = c.key === liveActive
+            return (
+              <InteractiveRow key={c.key} {...nav.rowProps(c, i)} height={1}>
+                <Text wrap="truncate-end">
+                  <Text color={on ? c.accent : FAINT}>{on ? `${GLYPH.prompt} ` : '  '}</Text>
+                  <Text bold={on} color={c.accent}>{padTo(`[${i + 1}] ${c.name}`, NAME_CELL_WIDTH)}</Text>
+                  {active ? <Text color={TEAL}>current</Text> : null}
                 </Text>
-              </Box>
-              <Box onClick={(e) => { e.stopImmediatePropagation(); nav.activate(i) }}>
-                <Text color={on ? c.accent : FAINT}>{GLYPH.prompt} launch </Text>
-                {active ? <Text color={TEAL}>{GLYPH.done} ready</Text> : <Text color={FAINT}>{GLYPH.pending}</Text>}
-              </Box>
-            </CritterCard>
-          )
-        })}
+              </InteractiveRow>
+            )
+          })}
+        </Box>
+        <Box marginLeft={4} height={SQUARE_DOCK_ART_LINES} flexDirection="column" justifyContent="flex-end" flexShrink={0}>
+          <AnimatedCritterArt def={dockDefs[sel]!} square specimen />
+        </Box>
       </Box>
       {nav.note ? (
         <Box marginTop={1}>
           <Text color={TEAL}>{nav.note}</Text>
         </Box>
-      ) : (
-        <Box marginTop={1}>
-          <Text color={FAINT}>
-            ↵ / click launch switches live (morphs + recolors); the status colours (teal·amber·crimson) are the same in Oasis dark and True Black; Black and white paints none
-          </Text>
-        </Box>
-      )}
+      ) : null}
     </CommandCenter>
   )
 }

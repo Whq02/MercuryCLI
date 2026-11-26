@@ -197,6 +197,7 @@ reg(
     'src/screen/model-picker/ModelPicker.tsx',
     'src/screen/session-chooser/SessionBrowser.tsx',
     'src/screen/mcp/ElicitationDialog.tsx',
+    'src/commands/critter/CritterSelect.tsx',
     'src/commands/mcp/McpPopup.tsx',
  'src/screen/agents/studio/AgentStudio.tsx',
  'src/screen/agents/studio/StudioEditor.tsx',
@@ -253,11 +254,6 @@ reg(
   ],
   'direct-control',
   'the interview preview workspace (MERCURY INTERVIEW IN-25): option rows and footer rows are single-purpose click targets with Select-owner parity — a click selects the CLICKED row; keyboard is complete without the pointer (the input-graph journey prover)',
-)
-reg(
-  ['src/commands/critter/CritterSelect.tsx'],
-  'direct-control',
-  'authored-art cards: border-paint hover via the ONE global owner (a bg fill shows through sprite holes); state/actions ride useInteractiveList; card click selects, the launch line activates',
 )
 reg(
   ['src/screen/fullscreen-layout/frame.tsx', 'src/screen/fullscreen-layout/panes.tsx'],
