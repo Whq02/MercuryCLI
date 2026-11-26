@@ -97,8 +97,8 @@ writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { reducedMotio
 if (driver.kind !== 'posix-pty') throw new Error(`no POSIX pty capture driver on this host (${driver.kind})`)
 const CTRL_W = '\x17'
 const PICKER = 'Mercury · model'
-const focusRow = (window: string): string => `│ │ Opus 4\\.6 {2,}[^\\n│]*\\b${window} ctx`
-const GROUP_TOP = '\\A(?![\\s\\S]*│ │ Opus 4\\.6 )(?=[\\s\\S]*│ ❯ [A-Z.]+ · )'
+const focusRow = (window: string): string => `│ ❯ Opus 4\\.6 {2,}[^\\n│]*\\b${window} ctx`
+const GROUP_TOP = '\\A(?![\\s\\S]*│ ❯ Opus 4\\.6 )(?=[\\s\\S]*│ ❯ [A-Z.]+ · )'
 const sends: Send[] = [
   { atTick: 999, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 3, data: '\r' },
   { atTick: 999, requireAwait: true, awaitText: 'ready · ', minTick: 5, awaitSettleTicks: 3, data: '/model' },
@@ -143,7 +143,7 @@ const pickerWindow = (lines: string[]): string[] => {
   const right = title.indexOf('│', at)
   return left < 0 || right < 0 ? lines : lines.map(l => l.slice(left, right + 1))
 }
-const focusLine = (lines: string[]): string => (pickerWindow(lines).find(l => l.includes('│ │ ')) ?? '').split('│ │ ')[1]?.replace(/\s+│.*$/, '').trim() ?? ''
+const focusLine = (lines: string[]): string => (pickerWindow(lines).find(l => l.includes('│ ❯ ')) ?? '').split('│ ❯ ')[1]?.replace(/\s+│.*$/, '').trim() ?? ''
 const nameOf = (row: string): string => row.split(/\s{2,}/)[0] ?? ''
 const windowOf = (row: string): string => /(\d+k|\d+M) ctx/.exec(row)?.[1] ?? ''
 const anthropicGroup = (frame: string[]): string[] => {
@@ -166,7 +166,7 @@ const toggled = marks.get('toggled') ?? []
 const back = marks.get('toggled-back') ?? []
 const top = marks.get('group-top') ?? []
 check('the drive delivered every send (exit 0)', res.status === 0, `the vshot.py drive of /model did not deliver every send (exit ${res.status}); read the stderr tail printed above and run scripts/ui/vshot.py by hand`)
-check('the picker opened with the current row boxed', opened.some(l => l.includes('Mercury · model')) && opened.some(l => /│ │ \S.* {2,}current {2,}/.test(l)), `/model must open with the current model row boxed; check the picker under src/commands/model/picker. Boxed rows: ${opened.filter(l => l.includes('│ │')).join(' | ')}`)
+check('the picker opened with the current row focused', opened.some(l => l.includes('Mercury · model')) && pickerWindow(opened).some(l => /│ ❯ \S.* {2,}current {2,}/.test(l)), `/model must open with the current model row focused; check the picker under src/screen/model-picker. Focused rows: ${pickerWindow(opened).filter(l => l.includes('│ ❯')).join(' | ')}`)
 const group = anthropicGroup(top)
 const names = group.map(nameOf)
 console.log(`  [record] the Anthropic group: ${names.join(' · ')}`)

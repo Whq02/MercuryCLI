@@ -13,8 +13,10 @@ import {
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import { vshotBudgetScale } from '../lib/captureDriver.ts'
 import { argValue, parseJobs } from '../lib/captureJobs.ts'
+import { pinRecorderTerminal } from '../lib/proofHome.ts'
 import { SETTLE_LAW } from '../ui/visualBaseline.ts'
 
+pinRecorderTerminal()
 const OUT = argValue(process.argv, '--out') ?? join(import.meta.dir, 'baselines')
 mkdirSync(OUT, { recursive: true })
 const JOBS = parseJobs(process.argv)

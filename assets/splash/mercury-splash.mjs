@@ -453,7 +453,7 @@ const rippleEnabled = () =>
 
 function brandLine() {
   return (
-    accentFg() + '(>_) ' + hexFg(IVORY, T256.cream) + 'MERCURY' + R +
+    hexFg(IVORY, T256.cream) + 'MERCURY' + R +
     hexFg(FAINT, T256.faint) + (cancelled ? ' · launch cancelled' : ' · starting') + R
   )
 }
