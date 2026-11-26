@@ -107,8 +107,8 @@ const deployEnv = (): NodeJS.ProcessEnv => ({
   MERCURY_CREDENTIAL_STORE: 'file',
   ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
 })
-const deploy = (): { rc: number; out: string } => {
-  const r = spawnSync('bash', [DEPLOY, '--allow-dirty'], { cwd: REPO, encoding: 'utf8', env: deployEnv(), maxBuffer: 1 << 26 })
+const deploy = (extraEnv: Record<string, string> = {}): { rc: number; out: string } => {
+  const r = spawnSync('bash', [DEPLOY, '--allow-dirty'], { cwd: REPO, encoding: 'utf8', env: { ...deployEnv(), ...extraEnv }, maxBuffer: 1 << 26 })
   return { rc: r.status ?? -1, out: `${r.stdout ?? ''}${r.stderr ?? ''}` }
 }
 const buildsDir = join(runtime, 'builds')
@@ -272,6 +272,38 @@ try {
     check('the deploy log says kept for the lsof-only build folder', fourth.out.includes(`kept`) && fourth.out.includes(lsofBuild), fourth.out.split('\n').filter(l => /kept|deployed/.test(l)).join(' | '))
     await killChild(holder)
     check('the previous 40-process folder (now free) was pruned once its processes exited', !existsSync(join(buildsDir, 'aaaaaaaaaaaa-11111111')), buildFolders().join(', '))
+  }
+
+  section('§6 fail-closed inventory: failing ps or unexpected lsof failure keeps a folder; normal unused check still prunes it')
+  {
+    const probeBuild = join(buildsDir, 'cccccccccccc-33333333')
+    mkdirSync(probeBuild, { recursive: true })
+    writeFileSync(join(probeBuild, 'manifest.json'), JSON.stringify({ ...repoManifest, buildTree: 'c'.repeat(40) }, null, 2))
+    writeFileSync(join(probeBuild, 'mercury.mjs'), 'console.log("Mercury 0.0.0-failclosed")\n')
+    const basePath = process.env.PATH ?? '/usr/bin:/bin'
+    const makeStub = (dirName: string, tool: string, body: string): string => {
+      const dir = join(SCRATCH, dirName)
+      mkdirSync(dir, { recursive: true })
+      const p = join(dir, tool)
+      writeFileSync(p, `#!/bin/sh\n${body}\n`)
+      spawnSync('chmod', ['+x', p])
+      return `${dir}:${basePath}`
+    }
+
+    const psFailPath = makeStub('stub-ps-fail', 'ps', 'exit 1')
+    const rPs = deploy({ PATH: psFailPath })
+    check('failing ps keeps the build folder instead of treating failed inventory as unused', rPs.rc === 0 && existsSync(probeBuild) && rPs.out.includes('kept') && rPs.out.includes(probeBuild), `rc=${rPs.rc} exists=${existsSync(probeBuild)}`)
+
+    const lsofFail2Path = makeStub('stub-lsof-fail2', 'lsof', 'exit 2')
+    const rLsof2 = deploy({ PATH: lsofFail2Path })
+    check('unexpected lsof exit 2 keeps the build folder', rLsof2.rc === 0 && existsSync(probeBuild) && rLsof2.out.includes('kept') && rLsof2.out.includes(probeBuild), `rc=${rLsof2.rc} exists=${existsSync(probeBuild)}`)
+
+    const lsofErr1Path = makeStub('stub-lsof-err1', 'lsof', 'echo "lsof: unexpected permission failure" >&2; exit 1')
+    const rLsof1 = deploy({ PATH: lsofErr1Path })
+    check('unexpected lsof stderr with exit 1 keeps the build folder', rLsof1.rc === 0 && existsSync(probeBuild) && rLsof1.out.includes('kept') && rLsof1.out.includes(probeBuild), `rc=${rLsof1.rc} exists=${existsSync(probeBuild)}`)
+
+    const rNormal = deploy()
+    check('normal deploy prunes the unused folder once ps and lsof succeed and report no match', rNormal.rc === 0 && !existsSync(probeBuild), `rc=${rNormal.rc} builds=${buildFolders().join(', ')}`)
   }
 } finally {
   await cleanup()

@@ -1,3 +1,4 @@
+import { crewmatePickerSeat } from '../composer/crewmateCommands.js';
 import { featureReached } from '../../platform/substrate/featureReached.js';
 import type { UUID } from 'node:crypto';
 import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
@@ -84,6 +85,7 @@ export function useChatSubmitTools({ store, setAppState, addNotification, remove
     (currentMessages: Message[], newMessages: Message[], controller: AbortController, model: string) => {
       const state = store.getState();
       const context: ProcessUserInputContext = {
+        crewmateSeat: command => crewmatePickerSeat(state, command),
         options: {
           commands: commandsRef.current,
           debug,

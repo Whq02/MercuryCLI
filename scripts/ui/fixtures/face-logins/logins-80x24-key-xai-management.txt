@@ -1,5 +1,5 @@
 
-   (>_) MERCURY · logins
+   MERCURY · logins
    xAI management key (optional) Optional management key from console.x.ai's
    settings page unlocks the team usage meter. Stored auth-scoped (mode 600);
    XAI_MANAGEMENT_API_KEY wins. key: ▌ ↵ stores · empty/esc skips; API key
