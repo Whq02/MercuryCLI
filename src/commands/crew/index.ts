@@ -76,7 +76,7 @@ const call: LocalCommandCall = async (args: string, context) => {
     const { dispatchToAgent } = await import('../../crew/crewmates/dispatch.js')
     const receipt = await dispatchToAgent({
       clientMessageId: `crew-${randomUUID().replace(/-/g, '').slice(0, 12)}`,
-      requestedAddress: { agentId: seat.agentId },
+      requestedAddress: { agentId: seat.agentId, seatId: seat.seatId },
       requestedDisposition: 'start-turn',
       instruction: prompt,
       attachments: [],
@@ -86,7 +86,7 @@ const call: LocalCommandCall = async (args: string, context) => {
       value:
         receipt.state === 'delivered'
           ? `· dispatched to ${seat.displayName} (${seat.seatId}) — ${receipt.disposition ?? 'started-turn'} · ${receipt.clientMessageId} (use /crew activity or /crew seats for completion)`
-          : `· send ${receipt.state} — ${receipt.reason ?? 'not delivered'}`,
+          : `· send ${receipt.state} to ${seat.displayName} (${seat.seatId}) — ${receipt.reason ?? 'not delivered'}`,
     }
   }
 

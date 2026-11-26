@@ -1,5 +1,6 @@
 prove-acp-seat-client.ts
 prove-activity-classifier.ts
+prove-addressed-seat-send.ts
 prove-bounded-work.ts
 prove-continuity-handoffs.ts
 prove-conversations-inbox.ts
