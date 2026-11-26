@@ -156,7 +156,6 @@ async function captureFaceFrames(): Promise<Record<string, string>> {
   const environment = { model: 'fable', critter: 'Crab', critterHue: '#DD4444', dirBase: 'orchard', dirTail: '' }
   const libraryM = {
     title: 'agents',
-    summaryTitle: 'AGENTS',
     summaryRows: agentFaceSummaryRows(counts),
     environment,
     entries: built.rows.map(agentFaceEntryOf),
@@ -201,7 +200,6 @@ async function captureFaceFrames(): Promise<Record<string, string>> {
   const validation = computeStudioValidation({ doc: snap.doc, existingAgents: [], base: undefined, mode: 'create' })
   const formM = {
     title: 'agents',
-    summaryTitle: 'AGENTS',
     summaryRows: agentFaceSummaryRows(counts),
     environment,
     entries: agentFormRowIds('create').map(id => agentFormEntryOf(id, snap)),
@@ -230,7 +228,6 @@ async function captureFaceFrames(): Promise<Record<string, string>> {
   const modelRows = getAgentModelPickerRows(fixtureCatalogue)
   const pickM = {
     title: 'agents',
-    summaryTitle: 'AGENTS',
     summaryRows: agentFaceSummaryRows(counts),
     environment,
     entries: modelRows.map(r => ({

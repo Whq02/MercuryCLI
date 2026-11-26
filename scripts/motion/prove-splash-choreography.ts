@@ -156,7 +156,7 @@ console.log('── SPLASH choreography: the one-scene motion laws ──')
   const last = pf[pf.length - 1]!
   const lastTxt = frameText(framesDir, last.i)
   check('LAW 5: converges to the settled hero + hint at the new geometry',
-    lastTxt.some(l => l.includes('(>_)')) && lastTxt.some(l => l.includes('starting…')))
+    lastTxt.some(l => l.includes('█')) && lastTxt.some(l => /─{16,}/.test(l)) && lastTxt.some(l => l.includes('starting…')))
 }
 
 {

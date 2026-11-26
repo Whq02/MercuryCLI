@@ -1,3 +1,4 @@
+import figures from 'figures'
 import assert from 'node:assert/strict'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -84,7 +85,7 @@ try {
       check(cols + ': Retry reads the endpoint again without closing the picker', await waitFor(() => attempts > before && m.screen().includes('still registered'), 5000) && dispatched === 0)
       if (hasRemove) {
         m.push(KEY.down)
-        assert.ok(await waitFor(() => m.lines().some(line => line.includes('› ') && line.includes('Remove this endpoint')) || m.screen().includes('│ │ Hand GLM · Remove this endpoint'), 5000), m.screen())
+        assert.ok(await waitFor(() => m.lines().some(line => new RegExp(`│\\s+${figures.pointer} Hand GLM · Remove this endpoint`).test(line)), 5000), m.screen())
         m.push(KEY.enter)
         check(cols + ': removal confirms in the open picker', await waitFor(() => m.screen().includes('Removed custom endpoint llmhost · nothing else changed'), 5000))
       }

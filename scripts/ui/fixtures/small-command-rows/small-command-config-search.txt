@@ -1,19 +1,20 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH               │╭                                                                                                                ╮│
-  start                 ││ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────╮ ││
-                        ││ │ ▖▟▆▙▗ Mercury · config                                                                                     │ ││
-NEXT                    ││ │ project · 86 settings · 1 set by you                                                                       │ ││
-  · /health — health…   │╰ │                                                                                                            │ ╯│
-  · /memory — memory    │  │ / journal                                                                                                  │  │
-  · /mission — set a…   │  │                                                                                                            │  │
+workbench               │                                                                                                                  │
+  start                 │  ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────╮  │
+                        │  │ Mercury · config                                                                                           │  │
+next                    │  │ project · 86 settings · 1 set by you                                                                       │  │
+  /health               │  │                                                                                                            │  │
+  /memory               │  │ / journal                                                                                                  │  │
+  /mission              │  │                                                                                                            │  │
                         │  │   Session journal                   off                                                                    │  │
-FILES · project         │  │   Journal on the entry page         off                                                                    │  │
-  ↵ or click · browse   │  │                                                                                                            │  │
+files · project         │  │   Journal on the entry page         off                                                                    │  │
+  ↵ browse              │  │                                                                                                            │  │
                         │  │                                                                                                            │  │
-VITALS                  │  │                                                                                                            │  │
-  · spend $0.00         │  │                                                                                                            │  │
-  · ctx 0% · 1000k      │  │                                                                                                            │  │
-  · health — run /health│  │                                                                                                            │  │
+vitals                  │  │                                                                                                            │  │
+  spend $0.00           │  │                                                                                                            │  │
+  ctx 0% · 1000k        │  │                                                                                                            │  │
+  health — run /health  │  │                                                                                                            │  │
+                        │  │                                                                                                            │  │
                         │  │                                                                                                            │  │
                         │  │                                                                                                            │  │
                         │  │                                                                                                            │  │
@@ -44,7 +45,6 @@ VITALS                  │  │                                                
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
  ready · Opus 5.5 · high                                                                                                   project  ⇧← back
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                                         │
+│❯ Type a prompt, or / for commands                                                                                                        │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line · shift + ← concourse
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

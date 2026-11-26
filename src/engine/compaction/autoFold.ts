@@ -392,13 +392,14 @@ function settleFoldError(opts: {
     const refusal = crewmateAsked
       ? crewmateFoldNothingWords(askingCrewmateName(toolUseContext), message)
       : message
-    if (!crewmateAsked) queuedFold?.complete()
+    const consumedCommands = !crewmateAsked ? queuedFold?.complete() : undefined
     return {
       wasFolded: false,
       ...priorFailureField,
       measuredRawTokenCount,
       refusal,
       declined: true,
+      ...(consumedCommands !== undefined && consumedCommands.length > 0 ? { consumedCommands } : {}),
     }
   }
   logError(error)
@@ -449,6 +450,7 @@ export async function autoFoldIfNeeded(
   refusal?: string
   paused?: true
   declined?: true
+  consumedCommands?: ReturnType<NonNullable<ReturnType<typeof beginQueuedFold>>['complete']>
 }> {
   const priorFailures = tracking?.consecutiveFailures
   const forced = overflowSignal !== undefined
@@ -458,6 +460,7 @@ export async function autoFoldIfNeeded(
     refusal?: string
     paused?: true
     declined?: true
+    consumedCommands?: ReturnType<NonNullable<ReturnType<typeof beginQueuedFold>>['complete']>
   }): AutoFoldResult => ({
     wasFolded: false,
     ...(priorFailures !== undefined ? { consecutiveFailures: priorFailures } : {}),
@@ -626,8 +629,13 @@ export async function autoFoldIfNeeded(
         const refusal = crewmateAsked
           ? crewmateFoldNothingWords(askingCrewmateName(toolUseContext), line)
           : line
-        if (!crewmateAsked) queuedFold?.complete()
-        return notFolded({ measuredRawTokenCount, refusal, declined: true })
+        const consumedCommands = !crewmateAsked ? queuedFold?.complete() : undefined
+        return notFolded({
+          measuredRawTokenCount,
+          refusal,
+          declined: true,
+          ...(consumedCommands !== undefined && consumedCommands.length > 0 ? { consumedCommands } : {}),
+        })
       }
       restoreFiles = projection.restoreFiles
     }
@@ -676,7 +684,7 @@ export async function autoFoldIfNeeded(
       summaryModel: foldChoice.model,
     })
 
-    queuedFold?.complete()
+    const consumedCommands = queuedFold?.complete()
 
     return {
       wasFolded: true,
@@ -685,6 +693,7 @@ export async function autoFoldIfNeeded(
       consecutiveRapidRefills,
       ...(rapidRefillBreakerTripped ? { rapidRefillBreakerTripped: true } : {}),
       measuredRawTokenCount,
+      ...(consumedCommands !== undefined && consumedCommands.length > 0 ? { consumedCommands } : {}),
     }
   } catch (error) {
     return settleFoldError({

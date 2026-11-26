@@ -181,7 +181,6 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
       })),
       selIdx: list.selectedIndex,
       title: 'profiles',
-      summaryTitle: 'PROFILES',
       summaryRows: profiles.filter(profile => profile.current).map(profile => ({ key: 'This one', value: profile.name })),
       environment: bootEnvironment(mainModel, process.cwd()),
       statusRight: !read.ok ? 'the profile list could not be read' : said?.where === 'status' ? said.text : `${profiles.length} profile${profiles.length === 1 ? '' : 's'}`,

@@ -5,7 +5,6 @@ export interface SplashHintSegment {
 }
 
 export interface SplashCardRow {
-  icon: string
   label: string
   ctx: string
   dim?: boolean
@@ -19,7 +18,6 @@ export interface SplashComposeOpts {
   stripLines: (width: number) => string[]
   hintCinematic?: boolean
   glowWord?: GlowPhase | null
-  glowRow?: GlowPhase | null
 }
 
 export interface GlowPhase {
@@ -83,7 +81,6 @@ export interface BootMenuData {
   glowWord?: GlowPhase | null
   title?: string
   fitLabels?: boolean
-  summaryTitle?: string
   summaryRows?: readonly BootMenuSummaryRow[]
   noticeLine?: string | null
   moreHint?: string
@@ -116,7 +113,6 @@ export interface SplashCompactOpts {
   reserveKeyMap?: boolean
   pointer?: string
   glowWord?: GlowPhase | null
-  glowRow?: GlowPhase | null
 }
 
 export interface SplashCompactComposition {
@@ -146,7 +142,7 @@ export interface SplashCore {
   dividerLine(width: number): string
   wordTone(ch: string, x: number, W: number, phase?: GlowPhase | null): number[]
   wordToneGlow(phase: GlowPhase | null): (ch: string, x: number, W: number) => number[]
-  rampLabel(text: string, phase?: GlowPhase | null): string
+  rampLabel(text: string): string
   rampSample(u: number): number[]
   sampleFace(u: number): number[]
   boxTop(w: number, bc: string): string
@@ -160,7 +156,6 @@ export interface SplashCore {
     selIdx: number,
     w: number,
     seps?: boolean,
-    glowRow?: GlowPhase | null,
   ): { lines: string[]; rowLines: number[] }
   composeStrip(chips: SplashStripChips, w: number): string[]
   composeProjects(
@@ -171,7 +166,6 @@ export interface SplashCore {
   composeBootMenu(cols: number, rowsAvail: number, m: BootMenuData): BootMenuComposition
   composeBootMenuWide(cols: number, rowsAvail: number, m: BootMenuData, withHead?: boolean): BootMenuComposition | null
   composeBootMenuClassic(cols: number, rowsAvail: number, m: BootMenuData): BootMenuComposition
-  panelLines(title: string, contentLines: string[], w: number): string[]
   composeLockup(cols: number, rows: number, opts: SplashComposeOpts): SplashComposition
   composeCompactFace(cols: number, rows: number, opts: SplashCompactOpts): SplashCompactComposition
   placeBlock(block: string[], rows: number): { placed: string[]; top: number }
@@ -223,7 +217,6 @@ export function glowBoostAt(cellCenter: number, phase: GlowPhase | null): number
 export function glowSettled(elapsedMs: number): boolean
 export const GLOW_TICK_MS: number
 export const WORD_W: number
-export const CARD_LABEL_W: number
 export function vis(s: string): number
 export function cpWidth(cp: number): number
 export const MARK_RE: RegExp

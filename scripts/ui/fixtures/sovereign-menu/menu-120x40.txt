@@ -1,40 +1,40 @@
 
-                                    ■ ────────────────··· (>_) ···──────────────── ■
+                                    ────────────────────────────────────────────────
 
                                  ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                      ⌁ boot menu
+                                                       boot menu
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │                                                                │  │ ❯ Sovereign mode                           │
-   │ TRUST COMBO                                                    │  │                                            │
-   │   Content-rule wards                              default (on) │  │ What it controls                           │
-   │   Debug tool (real debugger)                      default (on) │  │ Interactive boots start in sovereign mode  │
-   │   C/C++ IDE lane (clangd)                         default (on) │  │ (as if --sovereign was passed) with no     │
-   │ ❯ Sovereign mode                                            on │  │ permission prompts for files, commands,    │
-   │ ▲ nothing asks or stops you — every action runs as you         │  │ or computer use. Saving this row is        │
-   │                                                                │  │ standing consent; the launch confirmation  │
-   │ COMPUTER USE                                                   │  │ dialog, root notice, settings deny rules,  │
-   │   Computer use                                    default (on) │  │ and computer-use terminal/focus guards     │
-   │   Access type                  default (full · sovereign mode) │  │ still apply. Headless runs (run) and       │
-   │                                                                │  │ … (the trail continues — taller terminal)  │
-   │ SAMPLES                                                        │  ╰────────────────────────────────────────────╯
-   │   Samples                                        default (off) │  ╭────────────────────────────────────────────╮
-   │                                                                │  │ LAUNCH SUMMARY                             │
-   │ AGENTS                                                         │  │ Saved      r1 · custom · 1 set             │
-   │   Crewmates                                       default (on) │  │ Harness    helm                            │
-   │                                                                │  │ Readiness  ● ready                         │
-   │ MISCELLANEOUS                                                  │  ╰────────────────────────────────────────────╯
-   │   Launch animation                                default (on) │  ╭────────────────────────────────────────────╮
-   │   Godot language lanes                           default (off) │  │ ENVIRONMENT                                │
-   │   Godot control surface (VULCAN)                 default (off) │  │ Mercury    Opus 5                          │
-   │   Unity dev lanes                                default (off) │  │ Critter    Octopus                         │
-   │ … 8 more below                                                 │  │ Dir        orchard-src                     │
-   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  1 choice saved — applies to new sessions                                                    │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   Sovereign mode
+   │ TRUST COMBO                                                    │
+   │   Content-rule wards                              default (on) │   What it controls
+   │   Debug tool                                      default (on) │   Interactive boots start in sovereign mode
+   │   C/C++ IDE lane (clangd)                         default (on) │   (as if --sovereign was passed) with no
+   │ ❯ Sovereign mode                                            on │   permission prompts for files, commands,
+   │ ▲ nothing asks or stops you — every action runs as you         │   or computer use. Saving this row is
+   │                                                                │   standing consent; the launch confirmation
+   │ COMPUTER USE                                                   │   dialog, root notice, settings deny rules,
+   │   Computer use                                    default (on) │   and computer-use terminal/focus guards
+   │   Access type                  default (full · sovereign mode) │   still apply. Headless runs (run) and
+   │                                                                │   daemon workers do not inherit it. The
+   │ SAMPLES                                                        │   computer ask card's last option also
+   │   Samples                                        default (off) │   turns this row on and saves it here.
+   │                                                                │
+   │ AGENTS                                                         │   Current value
+   │   Crewmates                                       default (on) │   on
+   │                                                                │   this session  1 (saved)
+   │ MISCELLANEOUS                                                  │
+   │   Launch animation                                default (on) │   When on
+   │   Godot language lanes                           default (off) │   ◦ interactive boots start in sovereign
+   │   Godot control surface (VULCAN)                 default (off) │   … (the trail continues — taller terminal)
+   │   Unity dev lanes                                default (off) │
+   │   Blender dev lanes                              default (off) │   Saved      r1 · custom · 1 set
+   │   Aseprite dev lanes                             default (off) │   Harness    helm
+   │   Cap failover posture                         default (offer) │
+   │   Session Concourse at boot                      default (off) │   Mercury    Opus 5
+   │ … 4 more below                                                 │   Critter    Octopus
+   ╰────────────────────────────────────────────────────────────────╯   Dir        orchard-src
+    1 choice saved — applies to new sessions
                           ↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts · esc back

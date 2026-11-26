@@ -34,8 +34,8 @@ for (const cols of [80, 100, 119, 120, 140, 200, 250]) {
               if (mainTop !== 1) fail(id, `mainTop ${mainTop} ≠ 1 (nothing paints above the panes)`)
               if (mainEnd !== mainTop + geo.mainRows - 1) fail(id, `mainBand end ${mainEnd} vs mainRows ${geo.mainRows}`)
               if (geo.statusTop !== mainTop + geo.mainRows) fail(id, `statusTop ${geo.statusTop} ≠ main end + 1`)
-              if (geo.helpTop !== geo.statusTop + 3) fail(id, `helpTop ${geo.helpTop} ≠ statusTop+3`)
-              if (geo.mainRows + 3 + 1 !== rows) fail(id, `main ${geo.mainRows} + status 3 + legend 1 ≠ rows ${rows}`)
+              if (geo.helpTop !== geo.statusTop + 1) fail(id, `helpTop ${geo.helpTop} ≠ statusTop+1`)
+              if (geo.mainRows + 1 + 1 !== rows) fail(id, `main ${geo.mainRows} + status 1 + legend 1 ≠ rows ${rows}`)
 
               if (needsYou === 0 && geo.railWindowRows !== 0) fail(id, `zero obligations budget ${geo.railWindowRows} ask rows`)
               if (needsYou > 0 && (geo.railWindowRows < 1 || geo.railWindowRows > Math.min(needsYou, RAIL_MAX_ROWS)))

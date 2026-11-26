@@ -67,7 +67,7 @@ export function resumeEntryOf(f: SessionPickerFlatRow): ResumeEntry {
     label: f.row.label,
     group: f.project,
     groupTitle: f.project,
-    summary: `last seen ${f.row.seen}${f.row.cleared ? ' · cleared' : ''} — ↵ opens it as the real chat`,
+    summary: `last seen ${f.row.seen}${f.row.cleared ? ' · cleared' : ''} — ↵ opens it`,
     valueLabel: f.row.cleared ? `${f.row.seen} · cleared` : f.row.seen,
     valueIsDefault: f.row.cleared !== true,
     pinnedVal: null,
@@ -95,7 +95,7 @@ export function resumeDetailLines(f: SessionPickerFlatRow): string[] {
     `last seen: ${f.row.seen}`,
     ...(f.row.cleared ? ['cleared — deliberately closed; resuming reopens it'] : []),
     '',
-    '↵ opens this session as the real chat —',
+    '↵ opens this session —',
     'the chat stop appears on the strip;',
     'this screen and the face stay beneath.',
     '',
@@ -127,9 +127,9 @@ export function resumeProjectDetailLines(p: BootProjectFact & { running?: number
     'highlighted: the sessions above show',
     'this repo alone (↑ walks back out)',
     '',
-    '↵ opens the newest chat there as the',
-    'real chat (a history-less repo births',
-    'one); the refusal paints on the row.',
+    '↵ opens the newest chat there',
+    '(a history-less repo births one);',
+    'the refusal paints on the row.',
   ];
 }
 
@@ -145,7 +145,7 @@ export function resumeSummaryRows(facts: {
   elsewhereCount: number;
   pendingMore: number;
   projectsCount?: number;
-}): Array<{ key: string; value: string; tone?: 'teal' | 'faint' }> {
+}): Array<{ key: string; value: string; tone?: 'faint' }> {
   return [
     { key: 'Scope', value: facts.scope === 'all' ? 'all history — every project' : 'this project' },
     {
@@ -156,7 +156,7 @@ export function resumeSummaryRows(facts: {
       ? [{ key: 'Repos', value: `${facts.projectsCount}` }]
       : []),
     ...(facts.pendingMore > 0 ? [{ key: 'Loading', value: `${facts.pendingMore} more…`, tone: 'faint' as const }] : []),
-    { key: 'Opens', value: '● a real chat, in place', tone: 'teal' },
+    { key: 'Opens', value: 'in place' },
   ];
 }
 
@@ -171,7 +171,7 @@ export function resumeStatusLine(facts: { loading: boolean; count: number; scope
   const pending = facts.pendingMore > 0 ? ` · loading ${facts.pendingMore} more…` : '';
   return facts.count === 0
     ? `no sessions to resume in ${scopeWord}${pending} — n births one`
-    : `${facts.count} session${facts.count === 1 ? '' : 's'} in ${scopeWord}${pending} · ↵ opens the real chat`;
+    : `${facts.count} session${facts.count === 1 ? '' : 's'} in ${scopeWord}${pending}`;
 }
 
 export function resumeLegendOf(scope: SessionScope, hasRows: boolean, projectsPresent = false): string {
@@ -483,7 +483,6 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
       entries,
       selIdx: selected !== null ? entryIndexOf(list.selectedIndex) : -1,
       title: merged ? 'sessions · projects' : 'resume session',
-      summaryTitle: merged ? 'SESSIONS · PROJECTS' : 'SESSIONS',
       summaryRows: resumeSummaryRows({
         scope,
         count: flat.length,

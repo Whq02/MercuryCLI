@@ -221,7 +221,7 @@ async function capture(tag: string, home: string, cols: number, rows: number, se
 const FACE_THEN_COMPOSER: Send[] = [
   { data: '\r', atTick: 999, awaitText: 'New Session', requireAwait: true, minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3 },
 ]
-const ctxRowOf = (frame: string): string => frame.split('\n').find(line => /·\s*ctx\b/.test(line))?.trim() ?? ''
+const ctxRowOf = (frame: string): string => frame.split('\n').find(line => /(?:·\s*|^ {2})ctx\b/.test(line))?.trim() ?? ''
 
 console.log("the ctx figure marks a GPT pin until the session's runner reports the live list — the built cockpit in a PTY at four sizes")
 console.log(`  bundle ${DIST}\n  fixture ${base}\n  scratch ${SCRATCH}`)
@@ -237,7 +237,7 @@ try {
       ? [
           ...FACE_THEN_COMPOSER,
           { data: '', atTick: 999, awaitText: '1050k', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'boot' },
-          { data: 'hello\r', atTick: 999, awaitText: 'ready · type a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
+          { data: 'hello\r', atTick: 999, awaitText: '/crewmates  /saturn  /health  /trace', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
           { data: '', atTick: 999, awaitText: '· 872k', requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'landed' },
           { data: '/model\r', atTick: 999, awaitText: readyText, requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
           { data: '\x1b', atTick: 999, awaitText: MODEL_PICKER_TITLE, requireAwait: true, minTick: 3, awaitSettleTicks: 2 },

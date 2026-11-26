@@ -1,40 +1,40 @@
                                                             
-                                    ■ ────────────────··· (>_) ···──────────────── ■
+                                    ────────────────────────────────────────────────
                                                             
                                  ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀ 
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀  
                                                             
-                                                        ⌁ agents
+                                                         agents
                                                             
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ Agent                                                          │  │ ❯ Inherit                                  │
-   │ ❯ Inherit                                              current │  │                                            │
-   │                                                                │  │ What it controls                           │
-   │ Mercury — Anthropic models                                     │  │ Use the same model as the parent session   │
-   │   fable                                                        │  │                                            │
-   │                                                                │  │ Current value                              │
-   │ Mercury — OpenAI models                                        │  │ current                                    │
-   │   gpt-6.2                                        needs sign-in │  │                                            │
-   │                                                                │  │                                            │
-   │ Mercury — Z.AI models                                          │  │                                            │
-   │   Z.AI — attach a key …                                sign in │  │                                            │
-   │   glm-5.3                                        needs sign-in │  │                                            │
-   │                                                                │  ╰────────────────────────────────────────────╯
-   │ Mercury — custom endpoint                                      │  ╭────────────────────────────────────────────╮
-   │   compat/qwen3                                                 │  │ AGENTS                                     │
-   ╰────────────────────────────────────────────────────────────────╯  │ Agents     2 active · 1 off                │
-                                                                       │ Issues     none                            │
-                                                                       │ Applies    ● live sessions see new agents  │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    fable                           │
-                                                                       │ Critter    Crab                            │
-                                                                       │ Dir        orchard                         │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  6 rows — the full catalogue; ↵ on a sign-in row opens Logins                                │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   Inherit                                      
+   │ Agent                                                          │                                                
+   │ ❯ Inherit                                              current │   What it controls                             
+   │                                                                │   Use the same model as the parent session     
+   │ Mercury — Anthropic models                                     │                                                
+   │   fable                                                        │   Current value                                
+   │                                                                │   current                                      
+   │ Mercury — OpenAI models                                        │                                                
+   │   gpt-6.2                                        needs sign-in │                                                
+   │                                                                │                                                
+   │ Mercury — Z.AI models                                          │                                                
+   │   Z.AI — attach a key …                                sign in │                                                
+   │   glm-5.3                                        needs sign-in │                                                
+   │                                                                │                                                
+   │ Mercury — custom endpoint                                      │                                                
+   │   compat/qwen3                                                 │                                                
+   ╰────────────────────────────────────────────────────────────────╯                                                
+                                                                                                                     
+                                                                                                                     
+                                                                                                                     
+                                                                                                                     
+                                                                                                                     
+                                                                        Agents     2 active · 1 off                  
+                                                                        Issues     none                              
+                                                                        Applies    ● live sessions see new agents    
+                                                                                                                     
+                                                                        Mercury    fable                             
+                                                                        Critter    Crab                              
+                                                                        Dir        orchard                           
+    6 rows — the full catalogue; ↵ on a sign-in row opens Logins                                                     
                                               ↑↓ move · ↵ pick · esc back

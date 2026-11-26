@@ -1,9 +1,9 @@
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
-import { allowEverything, ownerOf, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
+import { allowEverything, ownerOf, pixelOfPointOn, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
 import type { DesktopDriver, DesktopTreeElement } from '../../src/integrations/desktop/driver.ts'
-
+import { FILE_CLOSE_MS } from '../../src/tools/computer/call/schema.ts'
 const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
 const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
 const session = await import('../../src/integrations/desktop/desktopSession.ts')
@@ -42,7 +42,7 @@ const driver = resolved.driver as DesktopDriver & { acts: { act: string; detail:
 const context = toolContext()
 session.forgetDesktopOwner(ownerOf(context))
 let serial = 0
-const call = async (input: Record<string, unknown>) => resultOf(await ComputerTool.call(input as never, context, allowEverything, toolUseTurn(`file-fill-${++serial}`, 'Computer', input) as never))
+const call = async (input: Record<string, unknown>, ctx = context) => resultOf(await ComputerTool.call(input as never, ctx, allowEverything, toolUseTurn(`file-fill-${++serial}`, 'Computer', input) as never))
 const validate = async (input: Record<string, unknown>) => ComputerTool.validateInput!(input as never, context)
 const acts = (from: number) => driver.acts.slice(from).filter(a => a.act !== 'accessibilityTree' && a.act !== 'capture' && a.act !== 'releaseAll').map(a => a.act === 'keyTap' ? `keyTap ${[...(a.detail.modifiers as string[]), a.detail.key].join('+')}` : a.act)
 const upload = { role: 'AXButton', name: 'Upload File' }
@@ -186,5 +186,92 @@ section('§3 fields: the controls of a form with role, name and value, sized for
   session.forgetDesktopOwner(ownerOf(context))
   const permission = await ComputerTool.checkPermissions({ action: 'fields' } as never, context)
   check('fields asks like tree and is a read', permission.behavior === 'ask' && ComputerTool.isReadOnly({ action: 'fields' } as never) === true, JSON.stringify(permission))
+}
+
+section('§4 file on a page that already holds a dialog of its own (e.g. a modal composer)')
+{
+  const originalTree = driver.accessibilityTree.bind(driver)
+  let sheetMode: 'one-enter' | 'two-enter' | 'never' = 'one-enter'
+  let dialogDepth = 3
+  const sheet: DesktopTreeElement = { depth: 2, role: 'AXSheet', title: 'Open', value: null, frame: { x: 500, y: 200, width: 900, height: 600 } }
+  driver.accessibilityTree = async (targetApp, limits, signal) => {
+    const answer = await originalTree(targetApp, limits, signal)
+    if (!answer.ok) return answer
+    const clicked = driver.acts.findIndex(a => a.act === 'click' && (a.detail.at as { y: number }).y === 696)
+    const typed = clicked >= 0 && driver.acts.slice(clicked).some(a => a.act === 'typeText')
+    const enters = clicked >= 0 ? driver.acts.slice(clicked).filter(a => a.act === 'keyTap' && a.detail.key === 'enter').length : 0
+    const sheetClosed = (sheetMode === 'one-enter' && typed && enters >= 1) || (sheetMode === 'two-enter' && typed && enters >= 2)
+    const sheetOpen = clicked >= 0 && sheetMode !== 'never' && !sheetClosed
+    const elements = [...answer.value.elements]
+    let focused = answer.value.focused ?? null
+    if (limits.depth >= dialogDepth) {
+      const pageDialog: DesktopTreeElement = {
+        depth: dialogDepth,
+        role: 'AXGroup (AXApplicationDialog)',
+        title: 'Compose post',
+        value: null,
+        frame: sheetClosed ? { x: 350, y: 120, width: 600, height: 720 } : { x: 350, y: 180, width: 600, height: 600 },
+        focused: clicked >= 0 && !sheetOpen,
+      }
+      const webArea = elements.findIndex(row => row.role === 'AXWebArea')
+      elements.splice(webArea + 1, 0, pageDialog)
+      if (pageDialog.focused) focused = { ...pageDialog, depth: 0 }
+    }
+    if (sheetOpen) elements.push(sheet)
+    return { ...answer, value: { ...answer.value, elements, focused } }
+  }
+  const shot = await withScreenshot(ComputerTool, context, 'file-page-dialog-shot', { action: 'screenshot', full: true })
+  const uploadPixel = pixelOfPointOn(shot.screen, 650, 696)
+  for (const platform of ['darwin', 'linux', 'win32'] as const) {
+    asPlatform(platform)
+    dialogDepth = 3
+    sheetMode = 'one-enter'
+    driver.acts.length = 0
+    const from = driver.acts.length
+    const started = Date.now()
+    const uploaded = await call({ action: 'file', target: upload, path: resume, settleMs: 0, capture: false })
+    const elapsed = Date.now() - started
+    check(
+      `${platform}: with a page dialog already open, a file sheet that closes on the first Enter succeeds with exact path keys, no stray Enter, and does not wait out FILE_CLOSE_MS`,
+      uploaded.outcome === 'succeeded' && uploaded.result.includes('the dialog opened and closed') && uploaded.result.includes('resume.pdf') && acts(from).join(',') === `click,${goToChord(platform)}typeText,keyTap enter` && driver.acts.slice(from).filter(a => a.act === 'typeText').map(a => a.detail.text).join('|') === resume && elapsed < FILE_CLOSE_MS / 2,
+      `${uploaded.outcome} (${elapsed}ms): ${uploaded.result}\n${acts(from).join(',')}`,
+    )
+  }
+  asPlatform('darwin')
+  dialogDepth = 15
+  sheetMode = 'one-enter'
+  driver.acts.length = 0
+  let from = driver.acts.length
+  let started = Date.now()
+  const byPixels = await call({ action: 'file', x: uploadPixel.x, y: uploadPixel.y, path: resume, settleMs: 0, capture: false }, shot.context)
+  let elapsed = Date.now() - started
+  check(
+    'by x/y with a deep page dialog past TREE_DEPTH_DEFAULT, the file sheet closes cleanly without a stray Enter or waiting out FILE_CLOSE_MS',
+    byPixels.outcome === 'succeeded' && byPixels.result.includes('the dialog opened and closed') && acts(from).join(',') === `click,${goToChord('darwin')}typeText,keyTap enter` && elapsed < FILE_CLOSE_MS / 2,
+    `${byPixels.outcome} (${elapsed}ms): ${byPixels.result}\n${acts(from).join(',')}`,
+  )
+  dialogDepth = 3
+  sheetMode = 'two-enter'
+  driver.acts.length = 0
+  from = driver.acts.length
+  started = Date.now()
+  const twoEnter = await call({ action: 'file', target: upload, path: resume, settleMs: 0, capture: false })
+  elapsed = Date.now() - started
+  check(
+    'with a page dialog already open, a file sheet that needs a second Enter still gets it and closes cleanly',
+    twoEnter.outcome === 'succeeded' && twoEnter.result.includes('the dialog opened and closed') && acts(from).join(',') === `click,${goToChord('darwin')}typeText,keyTap enter,keyTap enter` && elapsed < FILE_CLOSE_MS / 2,
+    `${twoEnter.outcome} (${elapsed}ms): ${twoEnter.result}\n${acts(from).join(',')}`,
+  )
+  sheetMode = 'never'
+  driver.acts.length = 0
+  from = driver.acts.length
+  const noSheet = await call({ action: 'file', target: upload, path: resume, durationMs: 200, settleMs: 0, capture: false })
+  check(
+    'with a page dialog already open and no file sheet opening, file fails naming no file dialog and types nothing',
+    noSheet.outcome === 'failed' && noSheet.result.includes('file failed:') && noSheet.result.includes('opened no file dialog within 200ms') && noSheet.result.includes('nothing typed') && acts(from).join(',') === 'click',
+    `${noSheet.outcome}: ${noSheet.result}\n${acts(from).join(',')}`,
+  )
+  asPlatform(hostPlatform)
+  driver.accessibilityTree = originalTree
 }
 finish('prove-computer-file-fill')

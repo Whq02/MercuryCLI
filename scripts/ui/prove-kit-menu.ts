@@ -13,7 +13,7 @@ import { SAMPLE_CATALOGUE, SAMPLE_STATES, STILLS, composeManager, faceFacts, rea
 
 const t = checker()
 
-type Row = { key: string; icon: string; label: string; ctx: string }
+type Row = { key: string; label: string; ctx: string }
 const rowsOf = (facts: Record<string, unknown>): Row[] => assembleCardRows(facts) as Row[]
 const keysOf = (facts: Record<string, unknown>): string[] => rowsOf(facts).map(r => r.key)
 const BASE = { cwdBase: 'proj', continueTarget: null, menuAvailable: true, projects: [] as unknown[] }
@@ -31,10 +31,10 @@ t.section('§1 — THE FACE AND BOOT MENU DOOR, BOTH HOSTS, EVERY WORLD')
   t.check("MCPs & Skills opens from Boot Menu with its ruled label and summary", kitEditor?.label === 'MCPs & Skills' && kitEditor?.summary === 'what the next session loads', JSON.stringify(kitEditor))
   t.check('menuAvailable: false drops both logins and Boot Menu', !keysOf({ ...FULL, menuAvailable: false }).includes('menu') && !keysOf({ ...FULL, menuAvailable: false }).includes('logins') && !keysOf({ ...CHAT, menuAvailable: false }).includes('menu'))
   t.check('the four no-history rows keep their exact bytes', JSON.stringify(rowsOf(FULL)) === JSON.stringify([
-    { key: 'new', icon: '✶', label: 'New Session', ctx: 'start fresh here' },
-    { key: 'logins', icon: '⚿', label: 'Logins/Keys', ctx: 'sign in to providers' },
-    { key: 'concourse', icon: '⊞', label: 'Session Manager (Concourse)', ctx: 'the live board' },
-    { key: 'menu', icon: '⊞', label: 'Boot Menu', ctx: 'configure boot env' },
+    { key: 'new', label: 'New Session', ctx: 'start fresh here' },
+    { key: 'logins', label: 'Logins/Keys', ctx: 'sign in to providers' },
+    { key: 'concourse', label: 'Session Manager (Concourse)', ctx: 'the live board' },
+    { key: 'menu', label: 'Boot Menu', ctx: 'configure boot env' },
   ]))
   t.check('Boot Menu stays LAST in both worlds', full[full.length - 1] === 'menu' && chat[chat.length - 1] === 'menu')
 
@@ -88,18 +88,17 @@ t.section("§3 — THE COMPOSER STAYS ONE: composeBootMenu's host fields are opt
     statusRight: 'no blocking issues detected — changes reach new sessions',
     legend: '↑↓ move · pgup/pgdn page · ↵ change (saved) · ⌫ default · a apply receipts · esc back',
   }
-  const explicit = { ...legacy, title: 'boot menu', summaryTitle: 'LAUNCH SUMMARY', moreHint: '… (the trail continues — taller terminal)', entries: legacyEntries.map(e => ({ ...e, inert: false })) }
+  const explicit = { ...legacy, title: 'boot menu', moreHint: '… (the trail continues — taller terminal)', entries: legacyEntries.map(e => ({ ...e, inert: false })) }
   for (const [cols, rows] of [[120, 40], [142, 44], [100, 30], [80, 24]] as const) {
     const a = (core.composeBootMenu(cols, rows, legacy) as { lines: string[] }).lines.join('\n')
     const b = (core.composeBootMenu(cols, rows, explicit) as { lines: string[] }).lines.join('\n')
     t.check(`${cols}x${rows}: absent host fields ≡ their explicit defaults (byte-identical)`, a === b)
-    t.check(`${cols}x${rows}: the boot menu keeps its caption and panels`, a.includes(cols >= 110 ? '⌁ boot menu' : '· boot menu') && (cols < 110 || (a.includes('LAUNCH SUMMARY') && a.includes('Saved') && a.includes('ENVIRONMENT'))))
+    t.check(`${cols}x${rows}: the boot menu keeps its caption and panels`, a.includes(cols >= 110 ? 'boot menu' : '· boot menu') && (cols < 110 || (a.includes('Saved') && a.includes('Harness') && a.includes('Mercury') && a.includes('Dir'))))
   }
   const inertM = {
     entries: sectionRows(EMPTY_KIT_CATALOGUE).map(row => kitEntryOf(row)),
     selIdx: -1,
     title: 'mcps & skills',
-    summaryTitle: 'NEXT SESSION',
     summaryRows: [{ key: 'MCPs', value: '0 on' }, { key: 'Skills', value: '0 on' }, { key: 'Applies', value: '● the next session', tone: 'teal' }],
     environment: { model: 'Opus 5', critter: 'Crab', critterHue: '#DD4444', dirBase: 'proj', dirTail: '' },
     statusRight: 'the next session starts with what is on',
@@ -116,7 +115,7 @@ t.section("§3 — THE COMPOSER STAYS ONE: composeBootMenu's host fields are opt
     }
     const plain = lines.map(l => l.replace(/\x1b\[[0-9;]*m/g, ''))
     t.check(`${cols}x${rows}: the empty manager composes (no throw) with both section titles verbatim and no ❯ on an inert line`, !threw && plain.some(l => l.includes('MCPs')) && plain.some(l => l.includes('Skills')) && !plain.some(l => l.includes('❯ no ')), threw ? 'threw' : plain.filter(l => /MCPs|Skills|❯/.test(l)).join(' | ').slice(0, 160))
-    t.check(`${cols}x${rows}: the manager wears its own caption and (wide) its NEXT SESSION panel — never the boot menu's Saved rows`, plain.some(l => l.includes(cols >= 110 ? '⌁ mcps & skills' : '· mcps & skills')) && !plain.some(l => l.includes('Saved')) && (cols < 110 || plain.some(l => l.includes('NEXT SESSION'))))
+    t.check(`${cols}x${rows}: the manager wears its own caption and (wide) its summary rows — never the boot menu's Saved rows`, plain.some(l => l.includes(cols >= 110 ? 'mcps & skills' : '· mcps & skills')) && !plain.some(l => l.includes('Saved')) && (cols < 110 || plain.some(l => l.includes('Applies'))))
     t.check(`${cols}x${rows}: the empty catalogue composes with ZERO entries too (no undefined-row read)`, (() => { try { core.composeBootMenu(cols, rows, { ...inertM, entries: [] }); return true } catch { return false } })())
   }
   t.check('the wide tier titles a section verbatim (groupTitle) — never an upper-cased MCPS', (core.composeBootMenu(120, 40, inertM) as { lines: string[] }).lines.some(l => l.includes('MCPs')) && !(core.composeBootMenu(120, 40, inertM) as { lines: string[] }).lines.some(l => l.includes('MCPS')))
@@ -164,7 +163,7 @@ t.section('§5 — THE STILLS: the face with the row (both worlds) and the manag
   t.check('the full-world still carries the five approved rows and no removed face rows', fullFace.includes('New Session') && fullFace.includes('Continue Last Session') && fullFace.includes('Logins/Keys') && fullFace.includes('Session Manager (Concourse)') && fullFace.includes('Boot Menu') && !fullFace.includes('MCPs & Skills') && !fullFace.includes('Health Check'))
   t.check('the --chat still carries Boot Menu and no Session Manager (Concourse)', chatFace.includes('Boot Menu') && !chatFace.includes('Session Manager (Concourse)'))
   const manager = readStill('manager-120x40') ?? ''
-  t.check('the manager still: two titled sections, the master row above its items in each, every state a word', manager.includes('MCPs') && manager.indexOf('MCPs') < manager.indexOf('Skills') && manager.includes('orchard-tools (extension)') && manager.indexOf('orchard-tools (extension)') < manager.indexOf('ext:orchard-tools:db') && manager.includes(' on') && manager.includes('NEXT SESSION'))
+  t.check('the manager still: two titled sections, the master row above its items in each, every state a word', manager.includes('MCPs') && manager.indexOf('MCPs') < manager.indexOf('Skills') && manager.includes('orchard-tools (extension)') && manager.indexOf('orchard-tools (extension)') < manager.indexOf('ext:orchard-tools:db') && manager.includes(' on') && manager.includes('Applies'))
   const mid = readStill('manager-120x40-midcycle') ?? ''
   t.check('the mid-cycle still speaks the tri-state in words (invocable · off · off (extension)) and the counts follow the EFFECTIVE states', mid.includes('invocable') && mid.includes('off (extension)') && mid.includes('1 on · 2 off') && mid.includes('1 on · 1 invocable · 3 off'))
 }

@@ -220,14 +220,14 @@ for (const [columns, rows] of [[160, 50], [177, 49], [213, 60]] as const) {
       if (paneRows === 9) {
         check(
           `${tag}, pane 9: vitals rail with the USAGE box standing and 1 free row names /health, the one section dropped, with no mark of more`,
-          rightText.includes('USAGE') && rightText.includes('short height — /health') && !rightText.includes('/health…') && !rightText.includes('/usage'),
+          rightText.includes('▆ usage') && rightText.includes('short height — /health') && !rightText.includes('/health…') && !rightText.includes('/usage'),
           rightText,
         )
       }
       if (paneRows === 10) {
         check(
           `${tag}, pane 10: vitals rail with the USAGE box standing and 2 free rows names /health alone`,
-          rightText.includes('USAGE') && rightText.includes('short height — /health') && !rightText.includes('/health…') && !rightText.includes('/usage'),
+          rightText.includes('▆ usage') && rightText.includes('short height — /health') && !rightText.includes('/health…') && !rightText.includes('/usage'),
           rightText,
         )
       }

@@ -1,40 +1,40 @@
 
-                                    ■ ────────────────··· (>_) ···──────────────── ■
+                                    ────────────────────────────────────────────────
 
                                  ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                        ⌁ logins
+                                                         logins
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ xAI (Grok)                                                     │  │ ❯ Sign in with your Grok account…          │
-   │ ❯ Sign in with your Grok account — SuperGrok / X Premium       │  │                                            │
-   │   Paste an API key (usage-based billing)                       │  │ Sign in with your Grok account             │
-   ╰────────────────────────────────────────────────────────────────╯  │ (SuperGrok / X Premium) or paste an        │
-                                                                       │ API key. xAI decides subscription          │
-                                                                       │ eligibility; consent may say Grok          │
-                                                                       │ Build.                                     │
-                                                                       │ API key: console.x.ai — sign in,           │
-                                                                       │ API Keys, create, paste it here.           │
-                                                                       │                                            │
-                                                                       │ esc — back to the roster                   │
-                                                                       │                                            │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ LOGINS                                     │
-                                                                       │ Families   22                              │
-                                                                       │ Signed in  4 of 22                         │
-                                                                       │ Ready      4 lanes                         │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    Opus 5                          │
-                                                                       │ Critter    Octopus                         │
-                                                                       │ Dir        orchard-src                     │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  xAI — Grok subscription or API key                                                          │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   Sign in with your Grok account…
+   │ xAI (Grok)                                                     │
+   │ ❯ Sign in with your Grok account — SuperGrok / X Premium       │   Sign in with your Grok account
+   │   Paste an API key (usage-based billing)                       │   (SuperGrok / X Premium) or paste an
+   ╰────────────────────────────────────────────────────────────────╯   API key. xAI decides subscription
+                                                                        eligibility; consent may say Grok
+                                                                        Build.
+                                                                        API key: console.x.ai — sign in,
+                                                                        API Keys, create, paste it here.
+
+                                                                        esc — back to the roster
+
+
+
+
+
+
+
+
+
+
+
+                                                                        Families   22
+                                                                        Signed in  4 of 22
+                                                                        Ready      4 lanes
+
+                                                                        Mercury    Opus 5
+                                                                        Critter    Octopus
+                                                                        Dir        orchard-src
+    xAI — Grok subscription or API key
                                               ↑↓ move · ↵ pick · esc back

@@ -179,7 +179,7 @@ if (sendRecs.length === sends.length) {
   check("the header stops advertising n while the composer holds focus (n is a letter there)", /\+ new session/.test(headerOf(typedFrame)) && !/\+ new session · n/.test(headerOf(typedFrame)), headerOf(typedFrame).trim().slice(0, 100))
   check('the streaming turn was NOT interrupted (no ⨯ Interrupted, no interrupted state on the row)', !/Interrupted|interrupted/.test(t(typedFrame)) && !/Interrupted|interrupted/.test(t(finalFrame)))
   check('split did not toggle (no width note from the s)', !/split needs/.test(t(typedFrame)))
-  check('the new row joins the board (the final frame after returning to it: two rows, two seats taken)', /SESSIONS/.test(t(finalFrame)) && /2\/5 seats/.test(t(finalFrame)), finalFrame.rows.filter(r => /READY TO REVIEW|WORKING|seats/.test(r)).map(r => r.trim().slice(-60)).join(' | '))
+  check('the new row joins the board (the final frame after returning to it: two rows, two seats taken)', /status & title/.test(t(finalFrame)) && /2\/5 seats/.test(t(finalFrame)), finalFrame.rows.filter(r => /ready to review|working|seats/.test(r)).map(r => r.trim().slice(-60)).join(' | '))
   const workersFile = join(daemonDir, 'concourse-workers.json')
   const records = Object.values((existsSync(workersFile) ? (JSON.parse(readFileSync(workersFile, 'utf8')) as { workers?: Record<string, { sessionId?: string }> }) : {}).workers ?? {})
   const born = new Set(records.map(w => w.sessionId))

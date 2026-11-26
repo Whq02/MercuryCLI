@@ -10,7 +10,6 @@ import { isLocalShellTask, type LocalShellTaskState } from '../../../engine/task
 import { killTask } from '../../../engine/tasks/local-shell/killShellTasks.js'
 import { isCrewmateTask, killAsyncCrewmate, type CrewmateTaskState } from '../../../engine/tasks/local-agent/crewmateTask.js'
 import type { TaskState } from '../../../engine/tasks/taskState.js'
-import { KeyboardShortcutHint } from '../../theme/KeyboardShortcutHint.js'
 import { CommandCenter, SectionHeader } from '../../widgets/components.js'
 import { WorkingGlyph } from '../../widgets/LiveGlyphs.js'
 import { computeSessionWindow } from '../../widgets/faces/SessionManagerView.js'
@@ -168,11 +167,26 @@ export function boardListView({ accent, crewmateTasks, armedWork, bootRecovery, 
   const selectedResumable = selected?.work !== undefined && selected.kind === 'agent' && !workRowRuns(selected.work)
   const anyAgentRunning = crewmateTasks.some(task => task.status === 'running')
 
+  const footerWarning = armedWork !== null ? crewStopHint(armedWork.name) : undefined
+  const footerParts: string[] = []
+  if (flat.length > 0) {
+    footerParts.push(
+      '↑↓ select',
+      'pgup/pgdn page',
+      `↵ ${selected?.kind === 'lead' ? `back to ${LEAD_ROW_NAME}` : 'open'}`,
+    )
+  }
+  if (armedWork === null && selectedStoppable) footerParts.push(selected?.work !== undefined ? 'x x stop' : 'x stop')
+  if (selectedResumable) footerParts.push('r resume')
+  if (anyAgentRunning) footerParts.push('X stop all')
+  footerParts.push('esc close')
+
   return (
     <CommandCenter elevated
       view={summaryEntry ? "activity" : "runs"}
       bodyOwnsPageKeys
-      footer="↑↓ move · pgup/pgdn page · ↵ open · esc close"
+      footerWarning={footerWarning}
+      footer={footerParts.join(' · ')}
       subtitle={subtitle}
       onClose={onDone}
       captureInput={false}
@@ -281,43 +295,6 @@ export function boardListView({ accent, crewmateTasks, armedWork, bootRecovery, 
             {sampleItems.filter(inWin).map(rowFor)}
           </Box>
         ) : null}
-
-        <Box marginTop={1}>
-          <Text dimColor>
-            {flat.length > 0 ? (
-              <>
-                <KeyboardShortcutHint shortcut="↑/↓" action="select" />
-                {' · '}
-                <KeyboardShortcutHint shortcut="Enter" action={selected?.kind === 'sample' ? 'open' : selected?.kind === 'lead' ? `back to ${LEAD_ROW_NAME}` : 'view'} />
-                {' · '}
-              </>
-            ) : null}
-            {armedWork !== null ? (
-              <>
-                <Text color={tokens.warning}>{crewStopHint(armedWork.name)}</Text>
-                {' · '}
-              </>
-            ) : selectedStoppable ? (
-              <>
-                <KeyboardShortcutHint shortcut="x" action={selected?.work !== undefined ? 'x stop' : 'stop'} />
-                {' · '}
-              </>
-            ) : null}
-            {selectedResumable ? (
-              <>
-                <KeyboardShortcutHint shortcut="r" action="resume" />
-                {' · '}
-              </>
-            ) : null}
-            {anyAgentRunning ? (
-              <>
-                <KeyboardShortcutHint shortcut="X" action="stop all" />
-                {' · '}
-              </>
-            ) : null}
-            <KeyboardShortcutHint shortcut="Esc" action="close" />
-          </Text>
-        </Box>
       </Box>
     </CommandCenter>
   )

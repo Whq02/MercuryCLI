@@ -1,19 +1,20 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH               │╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│
-  /crewmates off        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-                        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-NEXT                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
-  · /health — health…   │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
-  · /memory — memory    │                                                                                                                  │
-  · /mission — set a…   │                                                                                                                  │
-                        │ 15:53:51 [sam] ❯ start                                                                                           │
-FILES · project         │                                                                                                                  │
-  ↵ or click · browse   │ 15:53:51 [Mercury] Command rows ready.                                                                           │
+workbench               │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+  /crewmates off        │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+                        │   ▀▄▄▄▀▄▄▄▀                                                                                                      │
+next                    │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+  /health               │                                                                                                                  │
+  /memory               │                                                                                                                  │
+  /mission              │ 01:11:28 [sam] ❯ start                                                                                           │
                         │                                                                                                                  │
-VITALS                  │ ❯ /crewmates off                                                                                                 │
-  · spend $0.00         │   └ crewmates off for this session                                                                               │
-  · ctx 0% · 1000k      │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
-  · health — run /health│     running finishes                                                                                             │
+files · project         │ 01:11:28 [Mercury] Command rows ready.                                                                           │
+  ↵ browse              │                                                                                                                  │
+                        │ ❯ /crewmates off                                                                                                 │
+vitals                  │   └ crewmates off for this session                                                                               │
+  spend $0.00           │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
+  ctx 0% · 1000k        │     running finishes                                                                                             │
+  health — run /health  │                                                                                                                  │
+                        │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
@@ -44,7 +45,6 @@ VITALS                  │ ❯ /crewmates off                                  
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
  ready · Opus 5.5 · high                                                                                                   project  ⇧← back
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                                         │
+│❯ Type a prompt, or / for commands                                                                                                        │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line · shift + ← concourse
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

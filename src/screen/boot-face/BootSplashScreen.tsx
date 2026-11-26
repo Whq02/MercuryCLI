@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useLoad, useTimer } from '../effects/effects.js';
 import { getCwd } from '../../platform/files/cwd.js';
-import { adoptGroundFamily, createSplashCore, assembleCardRows, withProfilesRow, CARD_LABEL_W, WORD_W } from '../../../assets/splash/splash-core.mjs';
+import { adoptGroundFamily, createSplashCore, assembleCardRows, withProfilesRow, WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { useTheme } from '../theme/ThemeProvider.js';
 import {
   chatOnlyBoot,
@@ -271,7 +271,7 @@ export function BootSplashScreen(): React.ReactNode {
     [facts, concourseLive, plainWhy, chatBoot, liveCount, loginsCtx],
   );
   const composedRows: BootRow[] = useMemo(
-    () => withProfilesRow(cardRows, list => bootSplashCompositionOf({ isCompact, composedRows: list, selectedIndex: 0, core, columns, rows, modelDefaultDoor, stripHint, wordGlow: null, rowGlow: null, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint }).boxed),
+    () => withProfilesRow(cardRows, list => bootSplashCompositionOf({ isCompact, composedRows: list, selectedIndex: 0, core, columns, rows, modelDefaultDoor, stripHint, wordGlow: null, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint }).boxed),
     [cardRows, core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, chips],
   );
 
@@ -331,16 +331,11 @@ export function BootSplashScreen(): React.ReactNode {
 
 
   const wordGlow = useGreetingShimmer(rampStops, isCompact ? 0 : WORD_W);
-  const rowGlow = useGreetingShimmer(
-    rampStops,
-    isCompact ? 0 : CARD_LABEL_W,
-    `card:${selCleared ? -1 : list.selectedIndex}`,
-  );
 
   const selectedIndex = selCleared ? -1 : list.selectedIndex;
   const composition = useMemo(() => {
-    return bootSplashCompositionOf({ isCompact, composedRows, selectedIndex, core, columns, rows, modelDefaultDoor, stripHint, wordGlow, rowGlow, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint });
-  }, [core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, selectedIndex, composedRows, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
+    return bootSplashCompositionOf({ isCompact, composedRows, selectedIndex, core, columns, rows, modelDefaultDoor, stripHint, wordGlow, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint });
+  }, [core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, selectedIndex, composedRows, chips, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
 
   return bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpen, kitOpen, setKitOpen, profilesOpen, setProfilesOpen, healthOpen, setHealthOpen, saturnOpen, setSaturnOpen, agentsOpen, loginsOpen, setLoginsOpen, setAgentsOpen, closeLogins, loginsFamily, loginsBack, resumeOpen, setResumeOpen, facts, runningOf, openProject, composition, list, birthReceipt, core, isCompact, keyMapHint, updateLine, bottomRowWithNotice, KEY_MAP_ROW, composedRows, t, modelDefaultOpen, setModelDefaultOpen, setLoginsFamily, setLoginsBack });

@@ -6,8 +6,6 @@ import { resolveMercuryTokens } from '../../theme/mercuryTokens.js';
 import { useMercuryTokens } from '../../widgets/useMercuryTokens.js';
 import { keyHintLabel } from '../../widgets/keyHintLabel.js';
 import { rampSegments } from '../../widgets/focalRamp.js';
-import { useGreetingShimmer } from '../../widgets/useGreetingShimmer.js';
-import { displayWidth } from '../../theme/glyphs.js';
 import { useSessionAccent } from '../../widgets/sessionAccent.js';
 
 function ConcourseLockup(): React.ReactNode {
@@ -15,7 +13,6 @@ function ConcourseLockup(): React.ReactNode {
   const [theme] = useTheme()
   const sa = useSessionAccent()
   const ramp = resolveMercuryTokens(theme, sa.accent).focalRamp
-  const shimmer = useGreetingShimmer(ramp, displayWidth('MERCURY — SESSION CONCOURSE'))
   if (ramp.length <= 1) {
     return (
       <Text bold color={t.info} wrap="truncate-end">
@@ -25,7 +22,7 @@ function ConcourseLockup(): React.ReactNode {
   }
   return (
     <Text wrap="truncate-end">
-      {rampSegments('MERCURY — SESSION CONCOURSE', ramp, { shimmer }).map((s, i) => (
+      {rampSegments('MERCURY — SESSION CONCOURSE', ramp).map((s, i) => (
         <Text key={i} bold color={s.color}>
           {s.text}
         </Text>

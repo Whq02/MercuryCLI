@@ -20,7 +20,6 @@ import {
   movedToBackgroundByOperator,
   type ToolUseEntryV1,
 } from '../../engine/connector/shellRunning.js'
-import type { ToolFamily } from '../widgets/toolGlyphs.js'
 import { useSelectedMessageBg } from './messageActions.js'
 import { BASH_TOOL_NAME } from '../../tools/kit/names/bash.js'
 import { isUserInterruptResultText } from '../../engine/message-shapes/rejectionText.js'
@@ -32,10 +31,9 @@ function bold(n: number): React.ReactNode {
   return <Text bold>{n}</Text>
 }
 
-function counted(verb: string, n: number, noun: string, family: ToolFamily): Fragment {
+function counted(verb: string, n: number, noun: string): Fragment {
   return {
     verb,
-    family,
     rest: (
       <>
         {' '}
@@ -137,7 +135,6 @@ function buildFragments(args: {
   for (const commit of commits) {
     fragments.push({
       verb: commitVerb(commit.kind, active),
-      family: 'shell',
       rest: (
         <>
           {' '}
@@ -149,7 +146,6 @@ function buildFragments(args: {
   for (const push of pushes) {
     fragments.push({
       verb: active ? 'pushing' : 'pushed',
-      family: 'shell',
       rest: (
         <>
           {' '}
@@ -161,7 +157,6 @@ function buildFragments(args: {
   for (const branch of branches) {
     fragments.push({
       verb: branchVerb(branch.action, active),
-      family: 'shell',
       rest: (
         <>
           {' '}
@@ -173,7 +168,6 @@ function buildFragments(args: {
   for (const pr of prs) {
     fragments.push({
       verb: prActionVerb(pr.action, active),
-      family: 'shell',
       rest: (
         <>
           {' PR '}
@@ -184,15 +178,14 @@ function buildFragments(args: {
   }
 
   if (searchCount > 0) {
-    fragments.push(counted(active ? 'searching for' : 'searched for', searchCount, 'pattern', 'search'))
+    fragments.push(counted(active ? 'searching for' : 'searched for', searchCount, 'pattern'))
   }
   if (readCount > 0) {
-    fragments.push(counted(active ? 'reading' : 'read', readCount, 'file', 'read'))
+    fragments.push(counted(active ? 'reading' : 'read', readCount, 'file'))
   }
   if (listCount > 0) {
-    fragments.push(counted(active ? 'listing' : 'listed', listCount, 'directory', 'search'))
+    fragments.push(counted(active ? 'listing' : 'listed', listCount, 'directory'))
   }
-
   if (mcpCallCount > 0) {
     const cleanedServers = [
       ...new Set(
@@ -204,7 +197,6 @@ function buildFragments(args: {
     const serverLabel = cleanedServers.length > 0 ? cleanedServers.join(', ') : 'MCP'
     fragments.push({
       verb: active ? 'querying' : 'queried',
-      family: 'external',
       rest: (
         <>
           {' '}
@@ -221,31 +213,29 @@ function buildFragments(args: {
   }
 
   if (bashRan > 0) {
-    fragments.push(counted(active ? 'running' : 'ran', bashRan, 'bash command', 'shell'))
+    fragments.push(counted(active ? 'running' : 'ran', bashRan, 'bash command'))
   }
   if (bashBlocked > 0) {
-    fragments.push(counted('blocked', bashBlocked, 'bash command', 'shell'))
+    fragments.push(counted('blocked', bashBlocked, 'bash command'))
   }
   if (bashInterrupted > 0) {
-    fragments.push(counted('interrupted', bashInterrupted, 'bash command', 'shell'))
+    fragments.push(counted('interrupted', bashInterrupted, 'bash command'))
   }
 
   if (memoryReadCount > 0) {
-    fragments.push(counted(active ? 'recalling' : 'recalled', memoryReadCount, 'memory', 'memory'))
+    fragments.push(counted(active ? 'recalling' : 'recalled', memoryReadCount, 'memory'))
   }
   if (memorySearchCount > 0) {
     fragments.push({
       verb: active ? 'searching memory' : 'searched memory',
-      family: 'memory',
       rest: null,
     })
   }
   if (memoryWriteCount > 0) {
     fragments.push(
-      counted(active ? 'noting' : 'noted', memoryWriteCount, 'memory update', 'memory'),
+      counted(active ? 'noting' : 'noted', memoryWriteCount, 'memory update'),
     )
   }
-
   return fragments
 }
 
@@ -450,7 +440,6 @@ export function CollapsedReadSearchContent({
 
   return collapsedGroupView({
     selectedBg,
-    fragments,
     active,
     anyErrored,
     anyDenied,

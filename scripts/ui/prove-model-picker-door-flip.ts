@@ -125,7 +125,7 @@ async function walkToLoginDoorRow(picker: { frame: () => string; press: (keys: s
   for (let step = 0; step < 30; step++) {
     const lines = picker.frame().split('\n')
     const loginDoorAt = lines.findIndex(line => inner(line).startsWith('Claude Max login · '))
-    const boxedAt = lines.findIndex(line => line.includes('│ │ '))
+    const boxedAt = lines.findIndex(line => line.includes('│ ❯ '))
     if (boxedAt > loginDoorAt && loginDoorAt >= 0 && new RegExp(`\\s${id}\\s`).test(lines[boxedAt]!)) return true
     await picker.press('\x1b[B')
   }
@@ -135,7 +135,7 @@ async function walkToKeyDoorRow(picker: { frame: () => string; press: (keys: str
   for (let step = 0; step < 30; step++) {
     const lines = picker.frame().split('\n')
     const keyDoorAt = lines.findIndex(line => inner(line).startsWith('API key · '))
-    const boxedAt = lines.findIndex(line => line.includes('│ │ '))
+    const boxedAt = lines.findIndex(line => line.includes('│ ❯ '))
     if (boxedAt > keyDoorAt && keyDoorAt >= 0 && new RegExp(`\\s${id}\\s`).test(lines[boxedAt]!)) return true
     await picker.press('\x1b[B')
   }
@@ -149,7 +149,7 @@ section('§1 ↵ on the opus row under the key door while the daemon refuses the
   const frame = picker.frame()
   check('the heading names both doors and the login door is active', /ANTHROPIC · Claude Max login \+ API key · \d+ live/.test(frame) && /Claude Max login · .* · active/.test(frame), `the Anthropic heading and door rows must name both doors and mark the active one: see src/commands/model/picker/MercuryModelPicker.tsx · ${frame.split('\n').filter(l => l.includes('ANTHROPIC') || l.includes('login ·')).map(inner).join(' | ')}`)
   check('the opus stands under both doors, the sonnet under the login door alone', doorRowsOf(frame, OPUS).length === 2 && doorRowsOf(frame, SONNET).length === 1, `a model listed by both doors must stand under both door headings in the picker (src/commands/model/picker/MercuryModelPicker.tsx) · ${doorRowsOf(frame, OPUS).join(' || ')} · ${doorRowsOf(frame, SONNET).join(' || ')}`)
-  check('the cursor walks onto the opus row under the key door', await walkToKeyDoorRow(picker, OPUS), `the down key never reached an opus row under the API key door: see the door rows in src/commands/model/picker/MercuryModelPicker.tsx · ${picker.frame().split('\n').filter(line => line.includes('│ │ ') || line.includes('API key · …')).map(inner).join(' | ')}`)
+  check('the cursor walks onto the opus row under the key door', await walkToKeyDoorRow(picker, OPUS), `the down key never reached an opus row under the API key door: see the door rows in src/commands/model/picker/MercuryModelPicker.tsx · ${picker.frame().split('\n').filter(line => line.includes('│ ❯ ') || line.includes('API key · …')).map(inner).join(' | ')}`)
   await picker.press('\r')
   await flush(400)
   check('the receipt is the refusal', receipts.length === 1 && receipts[0]!.startsWith('The model switch was refused: the runner is mid-compaction (fixture)'), `a refused switch must end the pick with the refusal sentence: see src/commands/model/picker/apply.ts · ${receipts.join(' | ')}`)

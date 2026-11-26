@@ -119,12 +119,12 @@ try {
   resetChromeModeLatchForTests()
   const mountedHome = await mountOffscreen(wrap(h(CockpitActiveContext.Provider, { value: true }, h(MercuryHome, null))), 120, 40)
   try {
-    const painted = await waitFor(() => mountedHome.screen().includes('critter') && mountedHome.screen().includes('/model changes it'), 10000)
+    const painted = await waitFor(() => mountedHome.screen().includes('model') && mountedHome.screen().includes('/model'), 10000)
     const screen = mountedHome.screen()
     check(
-      'the welcome card labels the critter row critter and tells a stranger what the model row is',
-      painted && screen.includes('  critter ') && screen.includes('   the model this session runs on · /model changes it'),
-      `fix the critter and model rows in src/screen/fullscreen-layout/MercuryHome.tsx; screen: ${mountedHome.lines().filter(l => l.trim()).slice(0, 12).join(' | ')}`,
+      'the welcome card shows the model row with /model and drops the critter row',
+      painted && screen.includes('  model   ') && screen.includes('   /model') && !screen.includes('  critter '),
+      `fix the model row in src/screen/fullscreen-layout/MercuryHome.tsx; screen: ${mountedHome.lines().filter(l => l.trim()).slice(0, 12).join(' | ')}`,
     )
   } finally {
     mountedHome.unmount()

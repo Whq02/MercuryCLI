@@ -24,11 +24,18 @@ const rowOf = (frame: string, id: number): string | undefined => frame.split('\n
 const squash = (text: string): string => text.replace(/\s+/g, '')
 function paneOf(frame: string): string | null {
   const rows = frame.split('\n')
-  const head = rows.findIndex(row => row.includes('SETTING DETAIL'))
-  if (head < 0) return null
-  const right = rows[head]!.lastIndexOf('│')
-  const left = rows[head]!.lastIndexOf('│', right - 1)
-  return squash(rows.slice(head + 1).map(row => row.slice(left + 1, right)).join(''))
+  const top = rows.findIndex(row => row.includes('╭') && row.includes('╮'))
+  if (top < 0) return null
+  const left = rows[top]!.indexOf('╭')
+  const right = rows[top]!.indexOf('╮')
+  const col: string[] = []
+  for (let i = top; i < rows.length; i++) {
+    const row = rows[i]!
+    const ch = row[left]
+    if (i > top && ch !== '│' && ch !== '╰' && row.slice(0, right + 1).trim() !== '') break
+    col.push(row.slice(right + 1))
+  }
+  return squash(col.join(''))
 }
 const wholeWhereThePaneWraps = (frame: string, path: string): boolean => paneOf(frame)?.includes(squash(path)) ?? true
 const says = (frame: string, words: string): boolean => (paneOf(frame) ?? squash(frame)).includes(squash(words))
@@ -138,14 +145,14 @@ try {
     name: 'slim',
     sends: [...toThePage, key('1 · Profile 1', 'n'), key('Profile 2 created', DOWN + BACKSPACE), key('remove Profile 2?', '', 'confirm-wide'), key('(>_) profiles', '\ry' + ESC, 'confirm-slim'), key('↑↓ · r rename · esc back', BACKSPACE + 'y' + UP, 'closed'), key('❯ 1 · Profile 1', '', 'entered')],
     resizes: [{ afterMark: 'confirm-wide', cols: 24, rows: 10 }, { afterMark: 'entered', ...WIDE }],
-    readyText: 'SETTING DETAIL',
+    readyText: 'This one',
     after: install => existsSync(join(install.bin, 'mercury2')),
   })
   check('at 24 columns the confirm\'s line cannot be drawn whole, so ↵ and y remove nothing, esc closes it, and ⌫ then opens none: wide again the profile and its command stand, no confirm open', slim.after && rowOf(slim.frame('slim'), 2) !== undefined && !slim.frame('slim').includes('remove Profile 2?') && !slim.frame('entered').includes('⌫ remove'), `where bootMenuAsks (assets/splash/splash-core.mjs) answers that the line is not drawn, the keys of the open prompt must not act, esc and n excepted, and no prompt opens (${PAGE}); the command still stands: ${String(slim.after)}; wide again row 2 reads: ${rowOf(slim.frame('slim'), 2)?.trim() ?? 'no row'}`)
   const narrow = await drive(60, 20, { name: 'refused', sends: refusal, readyText: 'again.', stage: stranger })
   check('60x20: a refusal names its file whole, wrapped over the notice\'s lines', squash(narrow.frame('refused')).includes(squash(join(narrow.bin, 'mercury2'))), `below 110 columns a notice word longer than the line must wrap, not be cut: the notice lines of composeBootMenuClassic in assets/splash/splash-core.mjs; the screen reads: ${narrow.frame('refused').split('\n').map(line => line.trim()).filter(Boolean).slice(0, 8).join(' | ')}`)
   const short = await drive(120, 34, { name: 'refused', sends: refusal, readyText: 'again.', stage: stranger })
-  check('120x34: a refusal from the door is whole in the pane of a short wide window, the count in the status row', short.frame('refused').includes('SETTING DETAIL') && short.frame('refused').includes('again.') && wholeWhereThePaneWraps(short.frame('refused'), join(short.bin, 'mercury2')) && /System ready\s+│\s+1 profile\b/.test(short.frame('refused')), `what the page says in the pane must be held as a confirm's lines are, never dropped for room, and the status row keeps the count: detailOverrideConfirms and statusRight while a pane message shows (${PAGE})`)
+  check('120x34: a refusal from the door is whole in the pane of a short wide window, the count in the status row', paneOf(short.frame('refused')) !== null && short.frame('refused').includes('again.') && wholeWhereThePaneWraps(short.frame('refused'), join(short.bin, 'mercury2')) && /^\s+1 profile\b/m.test(short.frame('refused')), `what the page says in the pane must be held as a confirm's lines are, never dropped for room, and the status row keeps the count: detailOverrideConfirms and statusRight while a pane message shows (${PAGE})`)
   check('the page made no model call', fixture.messageRequests().length === 0, `a key of the profiles page reached the model API; the page must stay on the door in src/platform/profiles/profiles.ts`)
 } finally {
   await fixture.close()

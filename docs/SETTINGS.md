@@ -309,7 +309,7 @@ the server definitions themselves.
 Custom patience uses `patience.streamIdleSeconds`,
 `patience.quietStreamIdleSeconds`, `patience.fallbackCeilingSeconds` and
 `patience.recoveryBudgetMinutes`. Normal values are 360 seconds for an idle
-stream whose keep-alives are visible, 900 for a quiet stream, 900 for the
+stream whose keep-alives are visible, 900 for a silent stream, 900 for the
 non-streamed fallback and 20 minutes for recovery. Patient doubles those
 values. A custom object inherits normal values for omitted fields; a recovery
 budget of zero means no budget. `MERCURY_STREAM_IDLE_TIMEOUT_MS`,

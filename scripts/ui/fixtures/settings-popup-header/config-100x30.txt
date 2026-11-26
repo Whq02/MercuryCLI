@@ -1,30 +1,30 @@
   lanes             ╭──────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH           │                                                                              │
-  no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
-                    │ │ ▖▟▆▙▗ Mercury · config                                                   │ │
-NEXT                │ │ orchard · 84 settings · 1 set by you                                     │ │
-  · /health…        │ │                                                                          │ │
+workbench           │                                                                              │
+  no prompts yet    │ ╭──────────────────────────────────────────────────────────────────────────╮ │
+                    │ │ Mercury · config                                                         │ │
+next                │ │ orchard · 84 settings · 1 set by you                                     │ │
+  /health           │ │                                                                          │ │
                     │ │ / Search settings…                                                       │ │
-FILES · orchard     │ │                                                                          │ │
-  ↵ or click…       │ │ › Auto-compact                      on                                   │ │
+files · orchard     │ │                                                                          │ │
+  ↵ browse          │ │ › Auto-compact                      on                                   │ │
                     │ │   Auto-compact window               auto                                 │ │
-VITALS              │ │   Session concourse                 on                                   │ │
-  · spend —         │ │   Seats                             17 · this machine's reading          │ │
-  · ctx — · —       │ │   Tips                              on                                   │ │
-  · health — run…   │ │   Reduced motion                    off                                  │ │
+vitals              │ │   Session concourse                 on                                   │ │
+  spend —           │ │   Seats                             17 · this machine's reading          │ │
+  ctx — · —         │ │   Tips                              on                                   │ │
+  health — run…     │ │   Reduced motion                    off                                  │ │
                     │ │   Ping                              on                                   │ │
                     │ │   Account identity                  shown                                │ │
                     │ │   Zen mode — rails hidden           off                                  │ │
                     │ │   Motion                            auto · off                           │ │
-                    │ │   DuckDuckGo page scraping          on                                 ↓ │ │
-                    │ │ ↓ 73 more                                                                │ │
+                    │ │   DuckDuckGo page scraping          on                                   │ │
+                    │ │   JEV                               off · official                     ↓ │ │
+                    │ │ ↓ 72 more                                                                │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc closes │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │
                     │                                                                              │
                     ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                 │
+│❯ Type a prompt, or / for commands                                                                │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

@@ -2,9 +2,18 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
+const scratch = mkdtempSync(join(tmpdir(), 'mercury-key-hint-labels-'))
+process.env.MERCURY_CONFIG_DIR = scratch
 const t = checker()
+try {
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
+enableConfigs()
 const { keyHintLabel, MAC_MODIFIER_GLYPHS } = await import('../../src/screen/widgets/keyHintLabel.js')
 const manifest = await import('../../src/screen/concourse/controlManifest.js')
 
@@ -77,5 +86,9 @@ t.section('§4 — host-neutral vocabulary passes untouched everywhere')
   }
 }
 
+
+} finally {
+  removeScratch(scratch)
+}
 
 t.finish('prove-key-hint-labels')

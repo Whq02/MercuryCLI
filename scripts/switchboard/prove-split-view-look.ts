@@ -67,16 +67,16 @@ const env = {
 
 {
   const sends: Send[] = [
-    { data: 's', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 2 },
+    { data: 's', awaitText: 'status & title', requireAwait: true, awaitSettleTicks: 2 },
     { data: '', awaitText: 'tab chat pane', requireAwait: true, awaitSettleTicks: 2, mark: 'split-on' },
     { data: '\t', afterPrevTicks: 2 },
     { data: '', awaitText: 'tab board · s full board', requireAwait: true, awaitSettleTicks: 2, mark: 'chat-focused' },
     { data: 's', afterPrevTicks: 2 },
-    { data: '', awaitText: 'SESSIONS', awaitPattern: '\\A(?![\\s\\S]*(?:tab chat pane|tab board · s full board))', requireAwait: true, awaitSettleTicks: 2, mark: 'split-off' },
+    { data: '', awaitText: 'status & title', awaitPattern: '\\A(?![\\s\\S]*(?:tab chat pane|tab board · s full board))', requireAwait: true, awaitSettleTicks: 2, mark: 'split-off' },
   ]
   const out = join(OUT_DIR, 'split-view-140x40.json')
   const cfgPath = join(scratch, 'vshot-split.json')
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 900, readyText: 'SESSIONS', cols: 140, rows: 40, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 900, readyText: 'status & title', cols: 140, rows: 40, out }))
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })
   if (res.status !== 0) {
     console.error(`✗ vshot (140×40) failed: ${(res.stderr ?? '').slice(-600)}`)
@@ -94,19 +94,19 @@ const env = {
   console.log('L1 — the split frame stands')
   check('the chat pane leads with FOCUSED CHAT', has(mk('split-on'), 'FOCUSED CHAT'))
   check("no focused session ⇒ the board's own New Session grammar", has(mk('split-on'), '↵ new session'))
-  check('the board stands beside it (SESSIONS on the same frame)', has(mk('split-on'), 'SESSIONS'))
+  check('the board stands beside it (sessions on the same frame)', has(mk('split-on'), 'status & title'))
   check('the divider rule runs between the panes', has(mk('split-on'), '│'))
   check('the board pane paints no top panel beside the chat (no title bar, no crumb)', !has(mk('split-on'), 'SESSION CONCOURSE') && !has(mk('split-on'), 'BOOT ›') && !has(mk('split-on'), 'FOCUSED CHAT ›'))
   console.log('L2 — pane focus at a glance')
   check('the chat pane names the way back while it owns the keys', has(mk('chat-focused'), 'tab board · s full board'))
   console.log('L3 — the way back')
   check('s from the chat pane returns the full board (no chat pane header remains)', !has(mk('split-off'), 'tab chat pane') && !has(mk('split-off'), 'tab board · s full board'))
-  check('the board still stands whole', has(mk('split-off'), 'SESSIONS'))
+  check('the board still stands whole', has(mk('split-off'), 'status & title'))
 }
 
 {
   const sends: Send[] = [
-    { data: 's', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 2 },
+    { data: 's', awaitText: 'status & title', requireAwait: true, awaitSettleTicks: 2 },
     { data: '', awaitText: 'split needs 121', requireAwait: true, awaitSettleTicks: 1, mark: 'too-narrow' },
   ]
   const out = join(OUT_DIR, 'split-view-100x30.json')

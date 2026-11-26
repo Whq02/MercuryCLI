@@ -64,14 +64,14 @@ function columnOf(row: Cell[], needle: string, from: number): number {
 }
 function deriveAnchors(lines: string[], grid: Cell[][]): Anchors | null {
   const ctxRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('ctx '))
-  const healthHdrRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('HEALTH'))
-  const usageHdrRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('USAGE'))
+  const healthHdrRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('✓ health'))
+  const usageHdrRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('▆ usage'))
   if (ctxRow < 0 || healthHdrRow < 0 || usageHdrRow < 0) return null
   return {
     ctxRow,
     ctxCol: columnOf(grid[ctxRow]!, 'ctx ', RAIL_FROM),
     healthHdrRow,
-    healthHdrCol: columnOf(grid[healthHdrRow]!, 'HEALTH', RAIL_FROM),
+    healthHdrCol: columnOf(grid[healthHdrRow]!, '✓ health', RAIL_FROM),
     usageHdrRow,
   }
 }

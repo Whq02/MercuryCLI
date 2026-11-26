@@ -73,8 +73,8 @@ const CRIMSONC = [232, 85, 106]
 
 const MENU = [
   {"env":"MERCURY_WARDS","label":"Content-rule wards","group":"trust combo","summary":"denies edits/commands that break the mechanical house rules (stray hex colors · emoji in TUI code · force-push to main) and teaches the fix","detail":{"controls":"Deterministic rules over pending tool calls: a violating edit or command is denied with a short teaching note (which rule, what to do instead). Project rules extend via .mercury/wards.json; rules cost nothing until violated. Pairs with the self-check gate + Debug tool — the trust combo.","on":["new hex outside the theme tokens, emoji in TUI sources, and force-pushes to main are denied at the moment of the call","denials name the rule and the compliant alternative"],"off":["no content rules — the gate-time ratchets remain the only backstop"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (on)"},{"v":"0","l":"off"}]},
-  {"env":"MERCURY_DAP","label":"Debug tool (real debugger)","group":"trust combo","summary":"a real debugger the agent can drive (breakpoints, stepping, variables, evaluate) instead of print statements","detail":{"controls":"The Debug tool speaks the Debug Adapter Protocol to real debuggers (Python via debugpy, native code via lldb-dap). Launching a program under the debugger always asks permission first.","on":["the Debug tool joins the catalog","launch asks permission like any command execution","inspection (stacks, variables) rides the permitted session"],"off":["the tool is absent — identical to a build without it"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (on)"},{"v":"0","l":"off"}]},
-  {"env":"MERCURY_LSP_CPP","label":"C/C++ IDE lane (clangd)","group":"trust combo","summary":"C/C++ diagnostics with clang-tidy, rename, and source ⇄ header navigation through clangd","detail":{"controls":"The C/C++ language lane of the IDE bridge: finds clangd (PATH · Xcode · Homebrew llvm), starts it on the first C/C++ file touched, and answers through LspRead and LspRename. A compile database sharpens it when present (shown in /health).","on":["C/C++ files get diagnostics · rename · code actions · source ⇄ header jumps","clang-tidy findings ride the diagnostics","no clangd installed ⇒ the lane stays quiet"],"off":["C/C++ files fall back to plain-text editing — no language server"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (on)"},{"v":"0","l":"off"}]},
+  {"env":"MERCURY_DAP","label":"Debug tool","group":"trust combo","summary":"a debugger the agent can drive (breakpoints, stepping, variables, evaluate) instead of print statements","detail":{"controls":"The Debug tool speaks the Debug Adapter Protocol to debuggers (Python via debugpy, native code via lldb-dap). Launching a program under the debugger always asks permission first.","on":["the Debug tool joins the catalog","launch asks permission like any command execution","inspection (stacks, variables) rides the permitted session"],"off":["the tool is absent — identical to a build without it"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (on)"},{"v":"0","l":"off"}]},
+  {"env":"MERCURY_LSP_CPP","label":"C/C++ IDE lane (clangd)","group":"trust combo","summary":"C/C++ diagnostics with clang-tidy, rename, and source ⇄ header navigation through clangd","detail":{"controls":"The C/C++ language lane of the IDE bridge: finds clangd (PATH · Xcode · Homebrew llvm), starts it on the first C/C++ file touched, and answers through LspRead and LspRename. A compile database sharpens it when present (shown in /health).","on":["C/C++ files get diagnostics · rename · code actions · source ⇄ header jumps","clang-tidy findings ride the diagnostics","no clangd installed ⇒ the lane is inactive"],"off":["C/C++ files fall back to plain-text editing — no language server"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (on)"},{"v":"0","l":"off"}]},
   {"env":"MERCURY_SKIP_PERMISSIONS","label":"Sovereign mode","group":"trust combo","summary":"no permission question is asked — not for files, commands, or computer use; you take the wheel","detail":{"controls":"Interactive boots start in sovereign mode (as if --sovereign was passed) with no permission prompts for files, commands, or computer use. Saving this row is standing consent; the launch confirmation dialog, root notice, settings deny rules, and computer-use terminal/focus guards still apply. Headless runs (run) and daemon workers do not inherit it. The computer ask card's last option also turns this row on and saves it here.","on":["interactive boots start in sovereign mode (the crimson banner): no permission question is asked, computer use included","the launch consent dialog still confirms once","headless runs and daemon workers are unaffected"],"off":["every permission question is asked — files, commands, and the first act of the session for computer use; the CLI flag still works when passed by hand"]},"defaultFollows":null,"warnWhenOn":"nothing asks or stops you — every action runs as you","choices":[{"v":null,"l":"default (off)"},{"v":"1","l":"on"}]},
   {"env":"MERCURY_COMPUTER_USE","label":"Computer use","group":"computer use","summary":"the model sees the screen and drives the mouse and keyboard in the application in front, on a machine that has the desktop driver — off removes the Computer tool from new sessions","detail":{"controls":"Whether new sessions carry the Computer tool: screenshots, clicks, typed text, key chords, scrolls and drags in the application in front, on every model route that receives images. On is the default wherever the desktop driver resolves; a machine without the driver never sees the tool. How consent works is the Access type row below: asks, permissive or full, its default following Sovereign mode. Off removes the tool before any driver is touched — the rest of Mercury does not depend on it.","on":["the Computer tool is in the catalog when the desktop driver resolves","consent follows the Access type row below: the first act of the session asks by the application's name, or the application in front when the turn began never asks, or nothing asks; under Sovereign mode nothing asks","esc or ctrl+c ends the act in flight and the turn; one session drives at a time"],"off":["the Computer tool is absent from new sessions — identical to a build without it","no desktop driver is loaded"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (on)"},{"v":"0","l":"off"}]},
   {"env":"MERCURY_COMPUTER_ACCESS","label":"Access type","group":"computer use","summary":"asks: the first act of the session asks · permissive: the application in front when the turn began never asks, any other asks once · full: nothing asks","detail":{"controls":"How the Computer tool gets your consent. asks (the default): the first act of the session shows the card, which names the application in front and the act; a Yes covers every application for the session, and the timed grants cover every application for their span. permissive: the application in front at the turn's first Computer call — a screenshot counts — is the turn's home application, and acts in it never ask; an act that lands in any other application asks once, the same card, a Yes covering every application for the session; a new turn records a new home application. full: nothing asks. With Sovereign mode on nothing asks whatever is saved here; the saved value applies when Sovereign mode is off. Whatever the value, a deny rule in a settings file refuses its application, the terminal running Mercury is never typed into, an application that moved in front between the check and the act is refused, and one session drives at a time.","on":["asks: the first act of the session asks by the application's name (never under Sovereign mode, where nothing asks)","permissive: acts in the application in front when the turn began never ask; any other application asks once (never under Sovereign mode)","full: no act asks, in any application"],"off":["the default follows Sovereign mode: asks with it off, full with it on","a deny rule in a settings file still refuses; the terminal running Mercury and an application that moved in front are still refused"]},"defaultFollows":{"env":"MERCURY_SKIP_PERMISSIONS","value":"1","label":"default (full · sovereign mode)"},"warnWhenOn":null,"choices":[{"v":null,"l":"default (asks)"},{"v":"asks","l":"asks"},{"v":"permissive","l":"permissive"},{"v":"full","l":"full"}]},
@@ -82,10 +82,10 @@ const MENU = [
   {"env":"MERCURY_SESSION_SUBAGENTS","label":"Crewmates","group":"agents","summary":"whether a session may spawn crewmates — off removes the Crewmate tool from its roster and closes every spawn road; the concourse itself keeps launching sessions","detail":{"controls":"The crewmates switch of the sessions born after this choice. On (the default): the Crewmate tool is in the roster and the model delegates as it does today. Off: the Crewmate tool is absent from the roster — the model never sees it — and every road that would spawn a crewmate from inside the session (the tool, a skill fork, the fleet tools) answers one receipt naming /crewmates and this menu. Inside a session, /crewmates on|off (or this row, opened there) flips it at the next turn boundary — the tool leaves or rejoins the roster, reasoning restarts on the next turn, and a spawn already running finishes.","on":["the Crewmate tool is in the roster; skills and the fleet tools may spawn","a running session flips it any time with /crewmates off"],"off":["no Crewmate tool in the roster; every spawn road answers \"crewmates are off for this session\"","the concourse still launches sessions and crew seats","flip it back inside a session with /crewmates on"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (on)"},{"v":"0","l":"off"}]},
   {"env":"MERCURY_LAUNCH_RIPPLE","label":"Launch animation","group":"miscellaneous","summary":"the splash ripple on launch — turn off for the fastest boot handoff","detail":{"controls":"The circuit-trace ripple the splash plays while handing the session over. Off is the fast-boot lever: the splash paints once and hands over immediately. Reduced-motion (MERCURY_REDUCED_MOTION=1) also suppresses it; MERCURY_SPLASH=off skips the splash entirely.","on":["the authored launch ripple on truecolor terminals"],"off":["no animation — the fastest handoff to the session"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (on)"},{"v":"0","l":"off"}]},
   {"env":"MERCURY_GODOT","label":"Godot language lanes","group":"miscellaneous","summary":"GDScript IDE + debugger through your running Godot editor — outline, member search, navigation, breakpoints","detail":{"controls":"Arms both Godot lanes: the GDScript language server (outline · member search · navigation inside the Godot editor over loopback :6005) and the godot debug adapter (:6006) for the Debug tool. Activates in projects with project.godot when the editor is open; if the editor is closed, calls return a setup note immediately. Pairs with the Godot control surface (VULCAN) below.","on":[".gd files get the GDScript IDE ops through LspRead and LspRename","the Debug tool gains the 'godot' adapter (breakpoints in the running editor)","no project.godot or no running editor ⇒ an honest teaching note"],"off":["no Godot servers are ever dialed — identical to a build without it"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (off)"},{"v":"1","l":"on"}]},
-  {"env":"MERCURY_GODOT_TOOLS","label":"Godot control surface (VULCAN)","group":"miscellaneous","summary":"full editor control for Godot projects — scenes, nodes, resources, play-testing, runtime inspection, input simulation (163 ops)","detail":{"controls":"The agent drives your running Godot editor directly: scene and node editing (every change is one Ctrl+Z undo step), scripts, resources, animation, physics, audio, tilemaps, shaders — plus play-testing with live game inspection and input simulation. Arming it also shifts agent behavior: sessions and spawned crewmates learn to prefer editor state over hand-editing scene files. Needs the bundled mercury_vulcan addon installed in the project (the tool installs it on ask) and the editor open. Local and sandboxed: a token-authed loopback connection only; running code or simulating input always asks permission first. Pairs with the Godot language lanes above (symbols + breakpoints stay with LspRead and Debug).","on":["the Godot tool joins the catalog for the session (163 editor ops + extras); outside a Godot project it answers with a teaching note, and a project created mid-session is found at once","reads are free; edits ask like file edits and are undoable in the editor; play/input/execute always ask","agents shift behavior: editor-first workflow, play-test natively, memory keeps project facts"],"off":["no Godot tool, no connection, no addon writes — identical to an unarmed build"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (off)"},{"v":"1","l":"on"}]},
+  {"env":"MERCURY_GODOT_TOOLS","label":"Godot control surface (VULCAN)","group":"miscellaneous","summary":"full editor control for Godot projects — scenes, nodes, resources, play-testing, runtime inspection, input simulation","detail":{"controls":"The agent drives your running Godot editor directly: scene and node editing (every change is one Ctrl+Z undo step), scripts, resources, animation, physics, audio, tilemaps, shaders — plus play-testing with live game inspection and input simulation. Arming it also shifts agent behavior: sessions and spawned crewmates learn to prefer editor state over hand-editing scene files. Needs the bundled mercury_vulcan addon installed in the project (the tool installs it on ask) and the editor open. Local and sandboxed: a token-authed loopback connection only; running code or simulating input always asks permission first. Pairs with the Godot language lanes above (symbols + breakpoints stay with LspRead and Debug).","on":["the Godot tool joins the catalog for the session; outside a Godot project it answers with a teaching note, and a project created mid-session is found at once","reads are free; edits ask like file edits and are undoable in the editor; play/input/execute always ask","agents shift behavior: editor-first workflow, play-test natively, memory keeps project facts"],"off":["no Godot tool, no connection, no addon writes — identical to an unarmed build"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (off)"},{"v":"1","l":"on"}]},
   {"env":"MERCURY_UNITY","label":"Unity dev lanes","group":"miscellaneous","summary":"C# IDE + attach-to-editor debugging + editor bridge (play/scenes/tests) + headless test/build profiles for Unity projects — nothing is ever installed or run for you without asking","detail":{"controls":"Arms the Unity lanes in a project with Assets/ + ProjectSettings/: the C# language server lane (your own csharp-ls or OmniSharp from PATH — never auto-installed; /health teaches the install line when absent), the Debug tool's `unity` adapter (attaches to your RUNNING editor via the official Unity VS Code extension's adapter — the editor hosts the debuggee, so every gesture is an attach), the `Unity` tool driving your running editor over a token-authed loopback bridge (play mode, scenes, hierarchy, console, Test Runner — needs the bundled bridge package installed in the project, which the tool does on ask; play/test gestures always ask permission), and headless -batchmode test/build launch profiles the tool hands you to run yourself. Unity's own licensing applies to headless editor runs; if a run fails with Unity's licensing error, activating a license is yours to do (Unity Hub or -serial) — Mercury never checks or manages licenses, and never launches or installs the editor.","on":[".cs files in Unity projects get IDE ops through LspRead and LspRename (csharp-ls/OmniSharp from PATH)","the Debug tool gains the 'unity' adapter — breakpoints in your running editor (port from Library/EditorInstance.json)","the `Unity` tool joins the catalog in Unity projects — play/scenes/hierarchy/console/test runs through your running editor (bridge package installed on ask; reads are free, everything else asks)","headless test/build profiles appear; running them stays your act (the exact command is printed, license disclaimer included)"],"off":["no Unity surface exists — identical to a build without it"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (off)"},{"v":"1","l":"on"}]},
   {"env":"MERCURY_BLENDER","label":"Blender dev lanes","group":"miscellaneous","summary":".blend awareness + Blender bridge (scene/render/python) + headless render/python profiles + the debugpy attach recipe — Blender located (app bundle counts); never installed or enabled for you, started only with no window by the Blender tool","detail":{"controls":"Arms the Blender lanes: .blend discovery (bounded), the app located your way — a PATH blender, /Applications/Blender.app (the normal Mac install), Program Files, or a MERCURY_BLENDER_BIN pin — with its version probed, headless --background render/python launch profiles the tool hands you to run yourself (arguments in documented order — output before frame), the debugpy attach recipe: one line starts a listener inside Blender, then the Debug tool attaches over the landed debugpy road (the bundled debugpy serves when this build carries it), and the `Blender` tool driving your running Blender over a token-authed loopback bridge (scene/objects truth, blend opens, still renders, report tail, python_run — needs the bundled add-on installed to the user addon home, which the tool does on ask, and ENABLED in Blender's Preferences, which stays your act; python_run and renders always ask permission). Mercury never installs or enables Blender, and starts it only with no window, when the Blender tool is called.","on":["/health gains the Blender lane row (path + version, or the honest install line)","headless render/python profiles appear; running them stays your act (the exact command is printed)","the debug recipe row teaches listen-then-attach (breakpoints in your addon/script files)","the `Blender` tool joins the catalog beside .blend files, or anywhere Blender is located — scene/objects/render truth, blend opens, still renders, report tail, python_run through your running Blender (add-on installed on ask, enabled by you; reads are free, everything else asks)"],"off":["no Blender surface exists — identical to a build without it"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (off)"},{"v":"1","l":"on"}]},
-  {"env":"MERCURY_ASEPRITE","label":"Aseprite dev lanes","group":"miscellaneous","summary":"sprite awareness + the Aseprite batch door (sprite census, PNG/GIF/sprite-sheet exports, new sprites, Lua scripts) — Aseprite located (Steam and itch installs count), never installed or launched as a GUI for you","detail":{"controls":"Arms the Aseprite lanes: .aseprite/.ase discovery (bounded), the app located your way — a PATH aseprite, /Applications/Aseprite.app (the direct download), the Steam library, the win32 installer/itch homes, or a MERCURY_ASEPRITE_BIN pin (the road for source builds) — with its version probed, and the `Aseprite` tool driving the app's own batch mode: sprite census (layers, tags, frames, size), exports with the real CLI options (scaling, layer/tag selection, split files, sprite-sheet layouts with JSON metadata), new sprites, and Lua scripts. Every operation is a bounded background run of `aseprite -b` — the GUI is never started. Exports and new sprites ask permission naming the destination; running a script always asks (it is code). Mercury never installs or launches Aseprite for you.","on":["the `Aseprite` tool joins the catalog beside sprite files, or anywhere the app is located (creating from nothing works)","sprite census reads are free; exports and new sprites ask naming their files; Lua scripts always ask","no Aseprite on the box ⇒ honest teaching notes naming every install road"],"off":["no Aseprite surface exists — identical to a build without it"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (off)"},{"v":"1","l":"on"}]},
+  {"env":"MERCURY_ASEPRITE","label":"Aseprite dev lanes","group":"miscellaneous","summary":"sprite awareness + the Aseprite batch door (sprite census, PNG/GIF/sprite-sheet exports, new sprites, Lua scripts) — Aseprite located (Steam and itch installs count), never installed or launched as a GUI for you","detail":{"controls":"Arms the Aseprite lanes: .aseprite/.ase discovery (bounded), the app located your way — a PATH aseprite, /Applications/Aseprite.app (the direct download), the Steam library, the win32 installer/itch homes, or a MERCURY_ASEPRITE_BIN pin (the road for source builds) — with its version probed, and the `Aseprite` tool driving the app's own batch mode: sprite census (layers, tags, frames, size), exports with the CLI options (scaling, layer/tag selection, split files, sprite-sheet layouts with JSON metadata), new sprites, and Lua scripts. Every operation is a bounded background run of `aseprite -b` — the GUI is never started. Exports and new sprites ask permission naming the destination; running a script always asks (it is code). Mercury never installs or launches Aseprite for you.","on":["the `Aseprite` tool joins the catalog beside sprite files, or anywhere the app is located (creating from nothing works)","sprite census reads are free; exports and new sprites ask naming their files; Lua scripts always ask","no Aseprite on the box ⇒ honest teaching notes naming every install road"],"off":["no Aseprite surface exists — identical to a build without it"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (off)"},{"v":"1","l":"on"}]},
   {"env":"MERCURY_CAP_FAILOVER","label":"Cap failover posture","group":"miscellaneous","summary":"when the usage window of the family you run on caps out: the SLOT rung always asks first (a one-key switch to the same family's other signed-in slot with headroom; auto switches it unattended) · offer (default) adds the one-keypress cross-family handoff card to another signed-in family — nothing moves without your confirm · off waits for reset instead · auto hands off unattended and returns on the observed reset","detail":{"controls":"What happens when the usage window of the family the session runs on runs out mid-work — the same for every signed-in family, no favourite. TWO rungs. The SLOT rung (within the family — Anthropic's sign-in ⇄ managed key, OpenAI's subscription ⇄ API key): whenever the walled family's OTHER slot is signed in with headroom, the wall presents a one-key slot-switch card at EVERY posture — off included (the wall is never a dead end); at auto the slot switches unattended, receipted on the wall row and in the slot state. Nothing signs out; the next turn rides the other slot. The CROSS-FAMILY rung: offer (the default) — a reached window on the home family presents a one-keypress card (family · window · reset time · spend posture) that opens the model-transition preview; confirming hands the session to the readiest usable lane of the OTHER signed-in families — the most recent sign-in first — at a safe boundary; no usable second lane, no card. off — never leaves the family, never offers; work waits for the reset. auto: a reached window hands off unattended (daemon/overnight runs) — 80% and 90% warnings are words only. Return is symmetric: once the home family's window is OBSERVED to reset (a fresh reply says so, or the provider's own stated reset moment passes) and its credential is still signed in, the same posture offers or executes the way home. Signing the home family out ends the handoff — there is no home to return to. A slot switch back is the same one key (or s on the family's row in /logins) once the walled window resets.","on":["offer (the default): reached windows on the family you run on present the one-keypress handoff card to another signed-in family — nothing moves without your confirm, and no card appears without a usable second lane","auto: a walled slot switches to its family sibling unattended, and a capped family hands off cross-family at a safe boundary — receipted both ways","on the home window's observed reset, the same posture brings work home to the family it left"],"off":["the slot rung still asks: a walled slot with a signed-in sibling shows the one-key switch card","cross-family: never switches, never offers — a capped family waits for its reset (the pre-change default, selectable exactly)"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (offer)"},{"v":"off","l":"off"},{"v":"auto","l":"auto"}]},
   {"env":"MERCURY_CONCOURSE","label":"Session Concourse at boot","group":"miscellaneous","summary":"where a plain boot LANDS — the Concourse itself stays on either way: Off lands the Boot face · Auto lands the Concourse board when sessions are live or waiting · Always makes the board the boot home","detail":{"controls":"Sets where a boot lands (`--concourse-off` controls whether the Session Concourse is enabled). Off (default): a plain `mercury` launch lands on the Boot face, with the Concourse at shift+← and a face row away; a prompt argument or `--continue`/`--resume` goes straight to the chat, leaving existing background sessions untouched. Auto: lands on the Concourse board when more than one session is live or one is waiting on you, otherwise the Boot face. Always: the Concourse board is the boot home. Resolution reads one bounded records summary before the chat mounts, with no daemon call or fleet discovery.","on":["auto: >1 live session or a waiting question boots into the Concourse board","always: every boot lands on the Concourse board (the chat one shift+→ away)","existing sessions are never cancelled, hidden or mutated by any choice"],"off":["plain launches land the Boot face; the Concourse stays on — shift+← from the chat (or its face row) opens the board"]},"defaultFollows":null,"warnWhenOn":null,"choices":[{"v":null,"l":"default (off)"},{"v":"auto","l":"auto"},{"v":"always","l":"always"}]},
 ]
@@ -280,18 +280,13 @@ export function accentFamilyKeyOf(raw) {
 
 const GLOW = {
   TICK_MS: 80,
-  GREETING_MS: 10_000,
+  GREETING_MS: 2_700,
   EASE_IN_MS: 350,
-  EASE_OUT_MS: 1500,
-  LEG_MS_PER_CELL: 55,
-  LEG_MIN_MS: 1300,
-  LEG_MAX_MS: 3200,
-  LIFT: 0.85,
+  EASE_OUT_MS: 600,
+  LIFT: 0.45,
   GAIN_LEVELS: 5,
 }
 const glowRadius = span => Math.max(3, Math.min(8, Math.round(span * 0.28)))
-const glowLegMs = span =>
-  Math.max(GLOW.LEG_MIN_MS, Math.min(GLOW.LEG_MAX_MS, span * GLOW.LEG_MS_PER_CELL))
 const glowEnvelope = t => {
   if (t <= 0 || t >= GLOW.GREETING_MS) return 0
   const outStart = GLOW.GREETING_MS - GLOW.EASE_OUT_MS
@@ -301,9 +296,8 @@ const glowEnvelope = t => {
 }
 const glowPeakAt = (t, span) => {
   if (span <= 1) return 0
-  const leg = glowLegMs(span)
-  const tau = (t % (2 * leg)) / (2 * leg)
-  return ((1 - Math.cos(tau * 2 * Math.PI)) / 2) * (span - 1)
+  const u = Math.min(1, Math.max(0, t / GLOW.GREETING_MS))
+  return ((1 - Math.cos(u * Math.PI)) / 2) * (span - 1)
 }
 export function glowPhaseAt(elapsedMs, spanCells) {
   if (elapsedMs >= GLOW.GREETING_MS) return null
@@ -326,7 +320,7 @@ export const glowSettled = elapsedMs => elapsedMs >= GLOW.GREETING_MS
 export const GLOW_TICK_MS = GLOW.TICK_MS
 
 export const WORD_W = Math.max(...WORD.map(r => r.length))
-export const CARD_LABEL_W = 23
+const CARD_LABEL_W = 23
 
 const SGR_RE = /\x1b\[[0-9;]*m/g
 const cpWidth = cp => {
@@ -499,7 +493,6 @@ export function assembleCardRows(facts) {
   const rows = []
   rows.push({
     key: 'new',
-    icon: '✶',
     label: 'New Session',
     ctx: 'start fresh here',
   })
@@ -507,31 +500,29 @@ export function assembleCardRows(facts) {
     const ct = facts.continueTarget
     rows.push({
       key: 'continue',
-      icon: '↳',
       label: 'Continue Last Session',
       ctx: ct.cross ? `in ${ct.base}` : `${ct.base} · ${fmtAge(ct.ageMs)}`,
       ...(ct.dim ? { dim: true } : {}),
     })
   }
   if (facts.menuAvailable) {
-    rows.push({ key: 'logins', icon: '⚿', label: 'Logins/Keys', ctx: facts.loginsCtx ?? 'sign in to providers' })
+    rows.push({ key: 'logins', label: 'Logins/Keys', ctx: facts.loginsCtx ?? 'sign in to providers' })
   }
   if (facts.concourse) {
     rows.push({
       key: 'concourse',
-      icon: '⊞',
       label: 'Session Manager (Concourse)',
       ctx: facts.concourse.ctx,
       ...(facts.concourse.dim ? { dim: true } : {}),
     })
   }
-  if (facts.menuAvailable) rows.push({ key: 'menu', icon: '⊞', label: 'Boot Menu', ctx: 'configure boot env' })
+  if (facts.menuAvailable) rows.push({ key: 'menu', label: 'Boot Menu', ctx: 'configure boot env' })
   return rows
 }
 
 export function withProfilesRow(rows, boxed) {
   if (rows[rows.length - 1]?.key !== 'menu') return rows
-  const more = [...rows, { key: 'profiles', icon: '⊞', label: 'Profiles', ctx: 'separate logins and history' }]
+  const more = [...rows, { key: 'profiles', label: 'Profiles', ctx: 'separate logins and history' }]
   return boxed(more) ? more : rows
 }
 
@@ -643,12 +634,8 @@ function rasterHard(grid, toneAt) {
 const accentFg = () => hexFg(ACC_HEX, ACC.t256)
 
 function dividerLine(width) {
-  const sigil = '(>_)'
-  const dots = '···'
-  const fixed = 2 + 2 + dots.length + 1 + sigil.length + 1 + dots.length + 2 + 2
-  const seg = Math.max(2, Math.floor((width - fixed) / 2))
-  const line = '─'.repeat(seg)
-  return accentFg() + `■ ${line}${dots} ${sigil} ${dots}${line} ■` + R
+  const total = 16 + 2 * Math.max(2, Math.floor((width - 20) / 2))
+  return accentFg() + '─'.repeat(total) + R
 }
 
 const sampleFace = u => {
@@ -666,14 +653,12 @@ const wordTone = (ch, x, W, phase = null) => {
   return ch === 'R' ? face : mixc(ACC.deep, face, 0.5)
 }
 const wordToneGlow = phase => (ch, x, W) => wordTone(ch, x, W, phase)
-function rampLabel(text, phase = null) {
+function rampLabel(text) {
   if (!TRUECOLOR) return hexFg(IVORY, T256.cream) + text
   let out = ''
   let run = null
   for (let i = 0; i < text.length; i++) {
-    let u = (i + 0.5) / text.length
-    const boost = glowBoostAt(i + 0.5, phase)
-    if (boost > 0) u = u + boost * (1 - u)
+    const u = (i + 0.5) / text.length
     const sgr = rgbFg(sampleFace(u))
     if (sgr !== run) { out += sgr; run = sgr }
     out += text[i]
@@ -727,7 +712,7 @@ function composeHint(segments, withCard) {
   return s
 }
 
-function composeCard(rows, selIdx, w, seps = true, glowRow = null) {
+function composeCard(rows, selIdx, w, seps = true) {
   if (rows.length === 0) return { lines: [], rowLines: [] }
   const bc = paint(DUNE)
   const faint = hexFg(FAINT, T256.faint)
@@ -738,11 +723,9 @@ function composeCard(rows, selIdx, w, seps = true, glowRow = null) {
   const rowLines = []
   rows.forEach((r2, i) => {
     const sel = i === selIdx
-    const bar = sel ? paint(TEALC) + '▎' + R : ' '
     const caret = sel ? red + '❯ ' + R : '  '
-    const icon = (sel ? red : faint) + r2.icon + R
-    const label = (sel ? BOLD + rampLabel(r2.label.padEnd(labelW), glowRow) : (r2.dim ? hexFg(FAINT, T256.faint) : paint(MIDCREAM)) + r2.label.padEnd(labelW)) + R
-    const left = bar + caret + icon + ' ' + label
+    const label = (sel ? BOLD + rampLabel(r2.label.padEnd(labelW)) : (r2.dim ? hexFg(FAINT, T256.faint) : paint(MIDCREAM)) + r2.label.padEnd(labelW)) + R
+    const left = ' ' + caret + label
     const arrow = r2.dim ? ' ' : (sel ? red : faint) + '→' + R
     const ctxBudget = inner - vis(left) - 4
     let ctx = r2.ctx
@@ -794,18 +777,6 @@ function composeProjects(projects, selIdx, w) {
   lines.push('')
   lines.push(faint + ' ↑↓ pick · ↵ open there · esc back' + R)
   return { lines: lines.map(l => '  ' + l), rowLines }
-}
-
-function panelLines(title, contentLines, w) {
-  const bc = paint(DUNE)
-  const red = accentFg()
-  const inner = w - 2
-  return [
-    boxTop(inner, bc),
-    boxRow(' ' + red + BOLD + title + R, inner, bc),
-    ...contentLines.map(l => boxRow(clipVis(l, inner - 1), inner, bc)),
-    boxBot(inner, bc),
-  ]
 }
 
 const MENU_FLOOR_COLS = 64
@@ -877,6 +848,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   const cRows = []
   const cRowEntry = []
   let selLine = 0
+  let selEnd = 0
   let lastGroup = null
   m.entries.forEach((r2, i) => {
     if (r2.group !== lastGroup) {
@@ -918,31 +890,47 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
       cRowEntry.push(-1)
       cRows.push(' ' + paint(AMBERC) + '▲ ' + r2.warn + R)
     }
+    if (sel) selEnd = cRows.length - 1
   })
   const wordH = rasterHard(WORD).lines.length
   const headH = withHead ? 1 + rasterHard(HEADSTD).lines.length : 0
-  const leftInteriorBudget = Math.max(9, rowsAvail - headH - wordH - 10 - 3 - Math.max(0, legendLines.length - 1))
+  const leftInteriorBudget = Math.max(9, rowsAvail - headH - wordH - 8 - 2 - Math.max(0, legendLines.length - 1))
   let cShown = cRows
   let cShownEntry = cRowEntry
-  let windowLead = 0
   if (cRows.length > leftInteriorBudget) {
-    const visRows = leftInteriorBudget - 2
-    let start = Math.max(0, Math.min(selLine - (visRows >> 1), cRows.length - visRows))
-    let end = start + visRows
-    if (m.fitLabels && selLine + 1 < cRows.length && cRowEntry[selLine + 1] === -1 && selLine + 1 >= end) {
-      start = Math.min(cRows.length - visRows, start + 1)
+    let start = 0
+    let end = leftInteriorBudget - 1
+    if (selEnd < leftInteriorBudget - 1) {
+      start = 0
+      end = leftInteriorBudget - 1
+    } else if (selLine >= cRows.length - (leftInteriorBudget - 1)) {
+      end = cRows.length
+      start = cRows.length - (leftInteriorBudget - 1)
+    } else {
+      const visRows = leftInteriorBudget - 2
+      const lo = Math.max(1, selEnd - visRows + 1)
+      const hi = Math.min(selLine, cRows.length - visRows - 1)
+      start = Math.max(lo, Math.min(selLine - (visRows >> 1), hi))
       end = start + visRows
     }
     cShown = [
-      start > 0 ? ' ' + faint + `… ${start} more above` + R : ' ',
+      ...(start > 0 ? [' ' + faint + `… ${start} more above` + R] : []),
       ...cRows.slice(start, end),
-      end < cRows.length ? ' ' + faint + `… ${cRows.length - end} more below` + R : ' ',
+      ...(end < cRows.length ? [' ' + faint + `… ${cRows.length - end} more below` + R] : []),
     ]
-    cShownEntry = [-1, ...cRowEntry.slice(start, end), -1]
-    windowLead = 1
+    cShownEntry = [
+      ...(start > 0 ? [-1] : []),
+      ...cRowEntry.slice(start, end),
+      ...(end < cRows.length ? [-1] : []),
+    ]
   }
-  void windowLead
-  const leftPanel = panelLines('CONTROL PLANE', cShown, LEFT_W)
+  const bc = paint(DUNE)
+  const leftInner = LEFT_W - 2
+  const leftPanel = [
+    boxTop(leftInner, bc),
+    ...cShown.map(l => boxRow(clipVis(l, leftInner - 1), leftInner, bc)),
+    boxBot(leftInner, bc),
+  ]
 
   const textW = RIGHT_W - 5
   const detailLineW = RIGHT_W - 4
@@ -952,7 +940,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
     const d2 = r2.detail || null
     const pinned2 = r2.pinnedVal !== null && r2.pinnedVal !== undefined
     const rows2 = []
-    rows2.push(fixedRow(' ' + red + '❯ ' + R + BOLD + ivory + r2.label + R))
+    rows2.push(fixedRow(' ' + BOLD + ivory + r2.label + R))
     rows2.push(fixedRow(''))
     rows2.push(fixedRow(' ' + red + 'What it controls' + R))
     for (const l of wrapWords(d2 ? d2.controls : r2.summary, textW)) rows2.push(fixedRow(' ' + mid + l + R))
@@ -983,8 +971,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   const detailHead = row ? (m.fitLabels ? clipWords(row.detailLabel ?? row.label, RIGHT_W - 6) : row.label) : ''
   const dItems = m.detailOverride
     ? [
-        fixedRow(' ' + red + '❯ ' + R + BOLD + ivory + detailHead + R),
-        fixedRow(''),
+        ...(detailHead ? [fixedRow(' ' + BOLD + ivory + detailHead + R), fixedRow('')] : []),
         ...m.detailOverride.map(raw => wrapRow(raw, l => ' ' + mid + l + R)),
       ]
     : row
@@ -1009,9 +996,8 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
     : [
         kv('Saved', m.summary.profile),
         kv('Harness', m.summary.harness),
-        kv('Readiness', '', undefined) + paint(TEALC) + '● ready' + R,
       ]
-  const summaryPanel = panelLines(m.summaryTitle ?? 'LAUNCH SUMMARY', sRows, RIGHT_W)
+  const summaryBlock = sRows.length > 0 ? ['', ...sRows] : []
 
   const dirBudget = RIGHT_W - 2 - 1 - 1 - 11
   const fullTail = m.environment.dirTail
@@ -1028,20 +1014,8 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
     kv('Critter', m.environment.critter, m.environment.critterHue ? hexFg(m.environment.critterHue, ACC.t256) : accentFg()),
     kv('Dir', '', undefined) + ivory + dirBase + R + faint + dirTail + R,
   ]
-  const envPanel = panelLines('ENVIRONMENT', eRows, RIGHT_W)
+  const envBlock = ['', ...eRows]
 
-  const word = rasterHard(WORD, wordToneGlow(m.glowWord ?? null))
-  const headLines = withHead ? rasterHard(HEADSTD).lines : null
-  const chromeRows = (headLines ? 1 + headLines.length : 0) + word.lines.length + 10
-  const geometryBudget =
-    rowsAvail - chromeRows - summaryPanel.length - envPanel.length - 3
-  const maxDetailRows = Math.max(...m.entries.map(r2 => buildDetailItems(r2).length))
-  if (withHead && geometryBudget < maxDetailRows) return null
-  const detailBudget = Math.max(
-    8,
-    leftPanel.length - summaryPanel.length - envPanel.length - 3,
-    geometryBudget,
-  )
   const expandDetailRows = items =>
     items.map(item =>
       item.fixed !== undefined
@@ -1050,15 +1024,29 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
     )
   const dLines = expandDetailRows(dItems)
   const dRows = dLines.flat()
+  const word = rasterHard(WORD, wordToneGlow(m.glowWord ?? null))
+  const headLines = withHead ? rasterHard(HEADSTD).lines : null
+  const chromeRows = (headLines ? 1 + headLines.length : 0) + word.lines.length + 8 + Math.max(0, legendLines.length - 1)
+  const geometryBudget =
+    rowsAvail - chromeRows - summaryBlock.length - envBlock.length
+  const neededDetailRows = m.detailOverride
+    ? dRows.length
+    : Math.max(dRows.length, ...m.entries.map(r2 => expandDetailRows(buildDetailItems(r2)).flat().length))
+  if (withHead && (cRows.length > leftInteriorBudget || geometryBudget < neededDetailRows)) return null
+  const detailBudget = Math.max(
+    8,
+    leftPanel.length - summaryBlock.length - envBlock.length,
+    geometryBudget,
+  )
   let effectiveDetailBudget = detailBudget
   let keepSummary = true
   let keepEnv = true
   if (m.detailOverrideConfirms && dRows.length > effectiveDetailBudget) {
     keepEnv = false
-    effectiveDetailBudget += envPanel.length
+    effectiveDetailBudget += envBlock.length
     if (dRows.length > effectiveDetailBudget) {
       keepSummary = false
-      effectiveDetailBudget += summaryPanel.length
+      effectiveDetailBudget += summaryBlock.length
     }
   }
   const wholeLines = room => {
@@ -1078,31 +1066,21 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
       ? [...wholeLines(Math.max(0, effectiveDetailBudget - hintShown.length)), ...hintShown]
       : dRows
   const dPadded = [...dShown, ...Array(Math.max(0, effectiveDetailBudget - dShown.length)).fill('')]
-  const detailPanel = panelLines('SETTING DETAIL', dPadded, RIGHT_W)
 
   const lines = []
   if (headLines) lines.push('', ...headLines)
   lines.push('', dividerLine(word.width), '', ...word.lines, '')
-  lines.push(faint + '⌁ ' + (m.title ?? 'boot menu') + R)
+  lines.push(faint + (m.title ?? 'boot menu') + R)
   lines.push('')
   const zipStart = lines.length
   const rightCol = [
-    ...detailPanel,
-    ...(keepSummary ? summaryPanel : []),
-    ...(keepEnv ? envPanel : []),
-  ]
+    ...dPadded,
+    ...(keepSummary ? summaryBlock : []),
+    ...(keepEnv ? envBlock : []),
+  ].map(l => clipVis(l, RIGHT_W - 1))
   const totalW = LEFT_W + 2 + RIGHT_W
   lines.push(...zipCols(leftPanel, rightCol, LEFT_W, 2).map(l => padVis(l, totalW)))
-  const bc = paint(DUNE)
-  lines.push(
-    boxTop(totalW - 2, bc),
-    boxRow(
-      clipVis(' ' + paint(TEALC) + '● ' + R + ivory + 'System ready' + R + faint + `  │  ${m.statusRight}` + R, totalW - 3),
-      totalW - 2,
-      bc,
-    ),
-    boxBot(totalW - 2, bc),
-  )
+  lines.push(padVis(' ' + faint + clipVis(m.statusRight, totalW - 1) + R, totalW))
   const askCut = m.asking && m.detailOverrideConfirms && dRows.length > effectiveDetailBudget
   lines.push(...(askCut ? [paint(TEALC) + clipVis(m.asking, totalW) + R] : legendLines.map(line => faint + line + R)))
   const blockW = Math.max(...lines.map(vis))
@@ -1114,7 +1092,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   })
   const entryLines = []
   cShownEntry.forEach((entryIdx, k) => {
-    if (entryIdx >= 0) entryLines.push({ entry: entryIdx, line: zipStart + 2 + k })
+    if (entryIdx >= 0) entryLines.push({ entry: entryIdx, line: zipStart + 1 + k })
   })
   return { lines: centered, entryLines }
 }
@@ -1262,7 +1240,7 @@ function composeLockup(cols, rows, opts) {
   const strip = opts.stripLines(Math.min(cols - 2, 84))
   const stripHeight = strip.length + 1
   const stackOf = ch => (ch > 0 ? ch + stripHeight + 2 : 0)
-  const cardW = Math.min(cols - 2, opts.cardRows.some(r => r.ctx) ? 84 : Math.max(34, ...opts.cardRows.map(r => vis(r.label) + 12)))
+  const cardW = Math.min(cols - 2, opts.cardRows.some(r => r.ctx) ? 84 : Math.max(32, ...opts.cardRows.map(r => vis(r.label) + 10)))
   const baseNeed = std.lines.length + word.lines.length + 8
   const cardStack = ch => std.lines.length + word.lines.length + 6 + 1 + ch + stripHeight
   const wantFull =
@@ -1301,7 +1279,7 @@ function composeLockup(cols, rows, opts) {
       hintFor(wantCard),
     ]
     if (wantCard) {
-      const card = composeCard(opts.cardRows, opts.cardSel, cardW, false, opts.glowRow ?? null)
+      const card = composeCard(opts.cardRows, opts.cardSel, cardW, false)
       block.push(blank)
       cardAt = block.length
       cardIdx = card.rowLines
@@ -1311,7 +1289,7 @@ function composeLockup(cols, rows, opts) {
     wordRow = head.lines.length + 4 + wordCentre
   } else if (headlessCard) {
     cardShown = true
-    const card = composeCard(opts.cardRows, opts.cardSel, hlCardW, false, opts.glowRow ?? null)
+    const card = composeCard(opts.cardRows, opts.cardSel, hlCardW, false)
     block = [
       blank,
       dividerLine(word.width + 2),
@@ -1408,7 +1386,7 @@ function composeCompactFace(cols, rows, opts) {
     const selected = i === sel
     const gutter = ' ' + (selected ? red + pointer + R : ' ') + ' '
     const label = selected
-      ? BOLD + rampLabel(r.label, opts.glowRow ?? null) + R
+      ? BOLD + rampLabel(r.label) + R
       : (r.dim ? faint : paint(MIDCREAM)) + r.label + R
     const ctx = withCtx && r.ctx !== '' ? faint + ' · ' + r.ctx + R : ''
     return gutter + label + ctx
@@ -1481,7 +1459,7 @@ function composeCompactFace(cols, rows, opts) {
     rasterHard, dividerLine, wordTone, wordToneGlow, rampLabel, rampSample, sampleFace,
     boxTop, boxBot, boxSep, boxRow, clipVis,
     composeHint, composeCard, composeStrip, composeProjects, composeLockup, composeCompactFace, placeBlock,
-    composeBootMenu, composeBootMenuWide, composeBootMenuClassic, panelLines,
+    composeBootMenu, composeBootMenuWide, composeBootMenuClassic,
     vis, cpWidth, MARK_RE, padVis, wrapWords, zipCols, mixc,
     T256, CREAM, RED, VOID, FAINT, IVORY, MIDCREAM, DEEPRED, MIDRED, DUNE, PX,
     TEALC, AMBERC, CRIMSONC,

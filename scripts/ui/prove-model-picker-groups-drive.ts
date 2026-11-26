@@ -181,7 +181,7 @@ const pickerWindow = (lines: string[]): string[] => {
 const innerOf = (line: string): string => line.replace(/^.*?│ ?/, '').replace(/\s*│\s*$/, '').trim()
 const headingOf = (lines: string[], name: string): string => innerOf(lines.find(l => new RegExp(`[▾▸❯] ${name} · `).test(l)) ?? '')
 const headingRow = (lines: string[], name: string): number => lines.findIndex(l => new RegExp(`[▾▸❯] ${name} · `).test(l))
-const boxedRow = (lines: string[]): string => innerOf(lines.find(l => l.includes('│ │ ')) ?? '')
+const boxedRow = (lines: string[]): string => innerOf(lines.find(l => l.includes('│ ❯ ')) ?? '').replace(/^❯ /, '')
 const rowOf = (lines: string[], id: string): string => innerOf(lines.find(l => l.includes(`  ${id}  `) || l.includes(`  ${id}`)) ?? '')
 const groupRows = (lines: string[], name: string): string[] => {
   const at = headingRow(lines, name)
@@ -262,7 +262,7 @@ try {
     { requireAwait: true, awaitText: `/ ${SEAT_ID}`, awaitStableTicks: 3, data: '\r' },
     { requireAwait: true, awaitText: `Set model to ${SEAT_NAME}`, awaitStableTicks: 3, mark: 'back', data: '' },
     { requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 2, data: SHIFT_LEFT },
-    { requireAwait: true, awaitText: 'STATUS & TITLE', awaitStableTicks: 3, data: '' },
+    { requireAwait: true, awaitText: 'status & title', awaitStableTicks: 3, data: '' },
     ...birth,
     ...openPicker,
     { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'second', data: '' },

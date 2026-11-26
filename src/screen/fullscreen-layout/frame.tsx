@@ -156,8 +156,12 @@ export function fullscreenFrame({ bandFits, bottom, bottomFloat, centerFrame, ce
                         display={bandFits ? 'flex' : 'none'}
                         flexDirection="row"
                         flexShrink={0}
-                        width={sizeVal.columns}
+                        width={Math.max(0, sizeVal.columns - 2)}
+                        marginX={1}
                         borderStyle="round"
+                        borderTop={false}
+                        borderLeft={false}
+                        borderRight={false}
                         borderColor={t.borderStrong}
                         paddingX={1}
                         gap={1}

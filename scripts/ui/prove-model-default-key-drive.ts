@@ -39,7 +39,7 @@ const PICKER_GUTTER = 1
 const FACE_PICKER_TOP = 3
 const FACE_PICKER_BOTTOM = 46
 const BOARD_PICKER_TOP = 1
-const BOARD_PICKER_BOTTOM = 47
+const BOARD_PICKER_BOTTOM = 48
 const KEEP = process.env.MODEL_DEFAULT_KEY_KEEP === '1'
 
 let failures = 0
@@ -223,9 +223,9 @@ section('§1 the concourse: the door row names the pair, the bottom row names m,
   const c = capture('board', home, [], [
     ...boardSends,
     { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'picker', data: UP },
-    { requireAwait: true, awaitText: '│ Sonnet 4.6 ', awaitStableTicks: 3, data: UP },
-    { requireAwait: true, awaitText: '│ Sonnet 5 ', awaitStableTicks: 3, data: UP },
-    { requireAwait: true, awaitText: '│ Sonnet 5.5 ', awaitStableTicks: 3, data: CTRL_E },
+    { requireAwait: true, awaitText: '❯ Sonnet 4.6 ', awaitStableTicks: 3, data: UP },
+    { requireAwait: true, awaitText: '❯ Sonnet 5 ', awaitStableTicks: 3, data: UP },
+    { requireAwait: true, awaitText: '❯ Sonnet 5.5 ', awaitStableTicks: 3, data: CTRL_E },
     { requireAwait: true, awaitText: '[xhigh]', awaitStableTicks: 3, data: '\r' },
     { requireAwait: true, awaitText: 'Sonnet 5.5 · ', awaitStableTicks: 3, mark: 'picked', data: TAB },
     { requireAwait: true, awaitText: DOOR_FROM_LIVE_BOX, awaitStableTicks: 3, data: 'm' },
@@ -267,7 +267,7 @@ section('§2 --chat: the hint row without m menu, the bottom row names m, m open
   check('the hint row reads >_  ·  ↵  ·  ↑↓, m menu gone', trimmedRow(face, '>_  ·') === CHAT_HINT, trimmedRow(face, '>_  ·'))
   check('the bottom row names m beside the shift arrow', trimmedRow(face, SHIFT_ARROW) === `${SHIFT_ARROW} no chat open · ${PHRASE}`, trimmedRow(face, SHIFT_ARROW))
   check('m opens the picker over the face, centred inside its blank one-cell gutter (top row 3, its left border under its title, its bottom border inside the band)', rowWith(picker, 'Mercury · model') !== '' && pickerFrames(picker), `${pickerWords(picker)} · ${picker.slice(3, 8).join(' | ')}`)
-  check('the Boot Menu did not open and no row reads frontier:', picker.length > 0 && !picker.some(l => l.includes('CONTROL PLANE')) && !picker.some(l => l.includes('frontier:')))
+  check('the Boot Menu did not open and no row reads frontier:', picker.length > 0 && !picker.some(l => l.includes('TRUST COMBO')) && !picker.some(l => l.includes('frontier:')))
   check('the Anthropic heading reads the key door with its tail and the live count', anthropicKeyHeading(picker), headingOf(picker, ANTHROPIC_TITLE))
   check('esc closes the picker back to the face', trimmedRow(closed, '>_  ·') === CHAT_HINT && !closed.some(l => l.includes('Mercury · model')), trimmedRow(closed, '>_  ·'))
 }
@@ -323,13 +323,13 @@ section('§5 the setting off (engine.sessionDefaults false in settings.json): ev
   const homeChat = seededHome('off-chat', off)
   const b = capture('off-chat', homeChat, ['--chat'], [
     { atTick: 999, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'face', data: 'm' },
-    { requireAwait: true, awaitText: 'CONTROL PLANE', awaitStableTicks: 3, mark: 'menu', data: '' },
-  ], { total: 200, ready: ['CONTROL PLANE'] })
+    { requireAwait: true, awaitText: 'TRUST COMBO', awaitStableTicks: 3, mark: 'menu', data: '' },
+  ], { total: 200, ready: ['TRUST COMBO'] })
   check('the drive delivered every send (exit 0)', b.status === 0, `exit ${b.status}`)
   const face = b.marks.get('face') ?? []
   check('--chat: the hint row keeps m menu', trimmedRow(face, '>_  ·') === FULL_HINT, trimmedRow(face, '>_  ·'))
   check('--chat: the bottom row reads ⇧→ no chat open alone', trimmedRow(face, SHIFT_ARROW) === `${SHIFT_ARROW} no chat open`, trimmedRow(face, SHIFT_ARROW))
-  check('--chat: m opens the Boot Menu', (b.marks.get('menu') ?? []).some(l => l.includes('CONTROL PLANE')))
+  check('--chat: m opens the Boot Menu', (b.marks.get('menu') ?? []).some(l => l.includes('TRUST COMBO')))
 }
 
 section('§6 a fresh home with no sign-in: the bottom row stands at the height where the card would fill the terminal, and nothing moves where it already stood')
@@ -420,9 +420,9 @@ section('§8 the board with sessions keeps the new-session line as its first row
   const c = capture('board-with-sessions', home, [], [
     { atTick: 999, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: SHIFT_RIGHT },
     ...birth,
-    { requireAwait: true, awaitText: 'STATUS & TITLE', awaitStableTicks: 3, data: '' },
+    { requireAwait: true, awaitText: 'status & title', awaitStableTicks: 3, data: '' },
     ...birth,
-    { requireAwait: true, awaitText: 'STATUS & TITLE', awaitStableTicks: 3, mark: 'board', data: UP },
+    { requireAwait: true, awaitText: 'status & title', awaitStableTicks: 3, mark: 'board', data: UP },
     { afterPrevTicks: 3, data: UP },
     { afterPrevTicks: 3, data: UP },
     { afterPrevTicks: 4, data: '', mark: 'line' },
@@ -443,7 +443,7 @@ section('§8 the board with sessions keeps the new-session line as its first row
   const row = c.marks.get('row') ?? []
   const sessionPicker = c.marks.get('session-picker') ?? []
   const sessionPicked = c.marks.get('session-picked') ?? []
-  const headerAt = (lines: string[]): number => lines.findIndex(l => l.includes('STATUS & TITLE'))
+  const headerAt = (lines: string[]): number => lines.findIndex(l => l.includes('status & title'))
   const sessionRows = (lines: string[]): string[] => lines.filter(l => /new session · fixture-cwd/.test(l))
   check('two blank sessions stand on the board', sessionRows(board).length >= 2, sessionRows(board).map(l => l.trim().slice(0, 80)).join(' | '))
   check('the first row under the column header is the new-session line with its door words, unselected while a session row holds the cursor', headerAt(board) >= 0 && (board[headerAt(board) + 1] ?? '').includes(`  ${LINE} · Opus 5.5 · ●`) && !(board[headerAt(board) + 1] ?? '').includes(`▸ ${LINE}`), (board[headerAt(board) + 1] ?? '').trim())
@@ -467,7 +467,7 @@ if (CASE === undefined || CASE === 'session-effort') {
       { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 3, data: SHIFT_RIGHT },
       { requireAwait: true, awaitText: '+ new session · n', awaitSettleTicks: 3, data: 'n' },
         { requireAwait: true, awaitText: '← back', awaitSettleTicks: 4, data: `${ESC}[1;2D` },
-      { requireAwait: true, awaitText: 'STATUS & TITLE', awaitSettleTicks: 4, data: 'e' },
+      { requireAwait: true, awaitText: 'status & title', awaitSettleTicks: 4, data: 'e' },
       { requireAwait: true, awaitText: "sets this session's effort", awaitSettleTicks: 3, mark: 'effort-door', data: '\r' },
       { requireAwait: true, awaitText: 'effort → low', awaitSettleTicks: 4, mark: 'low-receipt', data: 'm' },
       { requireAwait: true, awaitText: 'Mercury · model', awaitSettleTicks: 5, mark: 'opened', data: CTRL_E },

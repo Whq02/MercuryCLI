@@ -4714,8 +4714,6 @@ src/screen/widgets/splashRuns.ts	SGR_TOKEN	process	module	global RegExp whose la
 src/screen/widgets/theme.ts	STATE_ROLE	process	module	Load-time table with no local writer
 src/screen/widgets/theme.ts	STATE_STYLE	process	module	Load-time table with no local writer
 src/screen/widgets/toolCardGrammar.ts	CARD_TO_SPINE	process	module	Load-time table with no local writer
-src/screen/widgets/toolGlyphs.ts	TOOL_FAMILY_BY_NAME	process	module	Load-time table with no local writer
-src/screen/widgets/toolGlyphs.ts	TOOL_FAMILY_MARKS	process	module	Load-time table with no local writer
 src/screen/workbench/attentionBridge.ts	STATE_MAP	process	module	Load-time table with no local writer
 src/screen/workbench/attentionBridge.ts	registered	process	module	idempotent one-time guard registering workbench attention gatherer
 src/screen/workbench/attentionBridge.ts	reported	owner	module	session level; module Map; replaced each gather, missing owner isolation — tracks active workbench attention subjects for retraction diffing

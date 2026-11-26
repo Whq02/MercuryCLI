@@ -134,7 +134,7 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
     let baselineStill = 0
     check(`${columns}x${rows} ${surface.view}: the real centre header and scaffold settle before opening`, await waitFor(() => {
       const now = scene.screen()
-      baselineStill = now === baseline && header.test(now) && ['transcript row', 'WORKBENCH', 'FILES · orchard', 'Type a prompt'].every(mark => now.includes(mark)) ? baselineStill + 1 : 0
+      baselineStill = now === baseline && header.test(now) && ['transcript row', 'workbench', 'files · orchard', 'Type a prompt'].every(mark => now.includes(mark)) ? baselineStill + 1 : 0
       baseline = now
       return baselineStill >= 3
     }, 8000), '', 'the chat scaffold never settled with the centre header, transcript, WORKBENCH, FILES and prompt rows on screen; look at src/screen/fullscreen-layout/FullscreenLayout.tsx and the harness in scripts/lib/settingsPopupHarness.ts')
@@ -170,7 +170,7 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
     if (surface.view === 'config') {
       check(`${label}: a full-height popup starts its gutter on the pane's first interior row, immediately below the top border`, gutter === headerRow + 1, '', `gutter row ${gutter + 1} vs border row ${headerRow + 1}; a full-height popup must put its gutter directly below the top border, see settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx`)
       const { PATIENCE_NORMAL, patienceWords } = await import('../../src/models/roads/patience.ts')
-      const specimen = 'Patience with a quiet model'
+      const specimen = 'Stream idle patience'
       const whole = `normal · ${patienceWords(PATIENCE_NORMAL)}`
       const row = after.find(line => line.includes(specimen))
       if (row === undefined) check(`${label}: only the 30-row popup is too short to list the row whose value overflows`, rows === 30)

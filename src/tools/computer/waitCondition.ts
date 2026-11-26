@@ -14,6 +14,20 @@ interface WaitCondition {
 }
 
 const DIALOG_ROLE = /\b(?:AXApplicationDialog|AXSystemDialog|AXSheet|AXDialog)\b/
+export function dialogCounts(tree: DesktopTree): Map<string, number> {
+  const counts = new Map<string, number>()
+  const keyOf = (element: { role: string; title: string | null }): string => JSON.stringify([element.role, element.title])
+  for (const element of tree.elements) {
+    if (!DIALOG_ROLE.test(element.role)) continue
+    const key = keyOf(element)
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  if (tree.focused != null && DIALOG_ROLE.test(tree.focused.role)) {
+    const key = keyOf(tree.focused)
+    if (!counts.has(key)) counts.set(key, 1)
+  }
+  return counts
+}
 const FRAME_ROW = /^AX(?:Application|Window|GrowArea)\b|\(AX(?:Close|Minimize|Zoom|FullScreen|Toolbar)Button\)$/
 const FRAME_SUBTREE = /^(?:AXMenuBar|AXScrollBar|TitleBar)\b/
 const TEXT_ROLE = /^AX(?:StaticText|WebArea|Heading|Table|Outline|List|Browser)\b/

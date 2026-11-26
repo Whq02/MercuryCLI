@@ -137,13 +137,13 @@ console.log('leg B — the concourse with a draft (the first press clears it AND
   const { home, fixturePath } = freshHome('draft')
   const DRAFT = 'zq-draft-zq'
   const c = capture('B-draft', ['node', BIN], [
-    { data: '\t', requireAwait: true, awaitText: 'LAST USED', awaitSettleTicks: 4 },
+    { data: '\t', requireAwait: true, awaitText: 'last used', awaitSettleTicks: 4 },
     { data: DRAFT, afterPrevTicks: 3 },
     { data: CTRL_C, requireAwait: true, awaitText: DRAFT, awaitSettleTicks: 2 },
     ...armThenExit,
   ], { cols: 120, rows: 40, total: 150, env: envFor(home, fixturePath) })
   const armed = c.marks.get('armed') ?? []
-  check('B: the notice paints bottom-left on the board', noticeBottomLeft(armed) && has(armed, 'SESSIONS'))
+  check('B: the notice paints bottom-left on the board', noticeBottomLeft(armed) && has(armed, 'status & title'))
   check("B: the first press kept its local meaning — the draft cleared (poison: the owner consuming the press)", !has(armed, DRAFT))
   check('B: the second press EXITS (endReason eof)', c.endReason === 'eof', c.endReason)
 }
@@ -152,7 +152,7 @@ console.log('leg C — the concourse under a card (the key atlas owns every key;
 {
   const { home, fixturePath } = freshHome('card')
   const c = capture('C-card', ['node', BIN], [
-    { data: '?', requireAwait: true, awaitText: 'LAST USED', awaitSettleTicks: 4 },
+    { data: '?', requireAwait: true, awaitText: 'last used', awaitSettleTicks: 4 },
     { data: CTRL_C, requireAwait: true, awaitText: 'CONCOURSE — keys', awaitSettleTicks: 2 },
     ...armThenExit,
   ], { cols: 120, rows: 40, total: 150, env: envFor(home, fixturePath) })
@@ -166,7 +166,7 @@ console.log('leg D — the split view (140×40)')
 {
   const { home, fixturePath } = freshHome('split')
   const c = capture('D-split', ['node', BIN], [
-    { data: 's', requireAwait: true, awaitText: 'LAST USED', awaitSettleTicks: 4 },
+    { data: 's', requireAwait: true, awaitText: 'last used', awaitSettleTicks: 4 },
     { data: CTRL_C, requireAwait: true, awaitText: 'FOCUSED CHAT', awaitSettleTicks: 3 },
     ...armThenExit,
   ], { cols: 140, rows: 40, total: 150, env: envFor(home, fixturePath) })
@@ -195,7 +195,7 @@ console.log('leg F — the window lapse (one press never exits; the notice clear
   const { home, fixturePath } = freshHome('lapse')
   const AFTER = 'zq-after-zq'
   const c = capture('F-lapse', ['node', BIN], [
-    { data: '\t', requireAwait: true, awaitText: 'LAST USED', awaitSettleTicks: 4 },
+    { data: '\t', requireAwait: true, awaitText: 'last used', awaitSettleTicks: 4 },
     { data: CTRL_C, afterPrevTicks: 3 },
     { data: '', requireAwait: true, awaitText: NOTICE, awaitSettleTicks: 1, mark: 'armed' },
     { data: AFTER, afterPrevTicks: 1 },
@@ -205,7 +205,7 @@ console.log('leg F — the window lapse (one press never exits; the notice clear
   check('F: the first press armed (the notice painted)', noticeBottomLeft(c.marks.get('armed') ?? []))
   check('F: 4 s later the notice is gone (the window lapsed)', !has(lapsed, NOTICE))
   check('F: the draft typed inside the window SURVIVES the lapse (poison: the local clear re-firing on disarm)', has(lapsed, AFTER))
-  check('F: the process is ALIVE — one press never exits (poison: an exit on the first press)', c.endReason !== 'eof' && has(c.final, 'SESSIONS'), c.endReason)
+  check('F: the process is ALIVE — one press never exits (poison: an exit on the first press)', c.endReason !== 'eof' && has(c.final, 'status & title'), c.endReason)
 }
 
 console.log('leg G — the main Chat (the control: the same words, the same exit)')

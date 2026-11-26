@@ -155,7 +155,7 @@ print('\n── STANDARD @120×44')
 raw = run_pty(120, 44)
 lines = vis_lines(raw)
 check('half-block head cells present', any(c in raw for c in '▀▄█'))
-check('the (>_) rule present', '(>_)' in raw and '─' in raw)
+check('the hairline rule present', '─' * 20 in raw)
 check('hint present (>_ · ↵)', HINT_RE.search(raw) is not None)
 check('every visible line fits 120 cols', all(len(l) <= 120 for l in lines), f'max={max(len(l) for l in lines)}')
 check('head engaged (tall lockup ≥ 20 lines)', sum(1 for l in lines if l.strip()) >= 20)
@@ -167,7 +167,7 @@ INLINE = {'MERCURY_FULLSCREEN': '0', 'MERCURY_REDUCED_MOTION': '1'}
 raw = run_pty(80, 24, env_extra=dict(INLINE))
 lines = vis_lines(raw)
 plain80 = STRIP.sub('', raw)
-check('rule + hint present', '(>_)' in raw and HINT_RE.search(raw) is not None)
+check('rule + hint present', '─' * 20 in raw and HINT_RE.search(raw) is not None)
 check('launcher card present (New Session row — the bare-↵ path made visible)',
       'New Session' in plain80)
 check('head art dropped (no cream head SGR — actions outrank art)', '38;2;240;232;214' not in raw)
@@ -208,7 +208,7 @@ raw = run_pty(220, 50, env_extra=dict(INLINE), oneshot=False, resize=[(0.8, 80, 
 check('alt screen entered exactly once', raw.count('\x1b[?1049h') == 1, f"count={raw.count(chr(27)+'[?1049h')}")
 check('resize repainted from a clean slate (≥2 clears)', raw.count('\x1b[2J') >= 2, f"clears={raw.count(chr(27)+'[2J')}")
 post = raw.split('\x1b[2J')[-1]
-check('post-resize keeps rule + hint (headless-card tier)', '(>_)' in post and HINT_RE.search(post) is not None)
+check('post-resize keeps rule + hint (headless-card tier)', '─' * 20 in post and HINT_RE.search(post) is not None)
 check('post-resize dropped the head (no cream head SGR)', '38;2;240;232;214' not in post)
 lines_post = [l for l in vis_lines(post) if l.strip()]
 check('post-resize fits 80 cols', all(len(l) <= 80 for l in lines_post),
@@ -264,13 +264,13 @@ _sgr_re = _re.compile(r'\x1b\[[0-9;]*m')
 _arrival_row = None
 _arr_body = raw_cov[raw_cov.index('\x1b[2J\x1b[H') + len('\x1b[2J\x1b[H'):].split('\x1b[?2026l')[0]
 for _i, _ln in enumerate(_arr_body.split('\n')):
-    if '··· (>_) ···' in _sgr_re.sub('', _ln):
+    if '─' * 20 in _sgr_re.sub('', _ln):
         _arrival_row = _i + 1
         break
 _hold_row = None
 _hold_parts = _re.split(r'\x1b\[(\d+);1H', raw_cov[raw_cov.rindex('\x1b[2J'):])
 for _j in range(1, len(_hold_parts) - 1, 2):
-    if '··· (>_) ···' in _sgr_re.sub('', _hold_parts[_j + 1]):
+    if '─' * 20 in _sgr_re.sub('', _hold_parts[_j + 1]):
         _hold_row = int(_hold_parts[_j])
         break
 check('the hold repaints the divider on the arrival row (no jump into the hold)',
@@ -294,7 +294,7 @@ home = tempfile.mkdtemp(prefix='splash-menu-home-')
 try:
     raw = run_pty(100, 34, {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home})
     plain = STRIP.sub('', raw)
-    check('menu one-shot renders the boot menu', 'boot menu' in plain and 'Debug tool (real debugger)' in plain)
+    check('menu one-shot renders the boot menu', 'boot menu' in plain and 'Debug tool' in plain)
     check('menu footer contract present', 'change (saved)' in raw and 's launch' in raw and 'esc back' in raw)
     lines = vis_lines(raw)
     check('menu fits 100 cols', all(len(l) <= 100 for l in lines), f'max={max(len(l) for l in lines)}')
@@ -517,15 +517,14 @@ home3 = tempfile.mkdtemp(prefix='splash-widemenu-home-')
 try:
     env3 = {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home3}
     raw = run_pty(150, 60, env3)
-    for needle in ('CONTROL PLANE', 'SETTING DETAIL', 'LAUNCH SUMMARY', 'ENVIRONMENT',
-                   'What it controls', 'System ready'):
+    for needle in ('TRUST COMBO', 'What it controls', 'Saved', 'Harness', 'Mercury', 'Dir'):
         check(f'wide menu carries {needle!r}', needle in raw)
     lines = vis_lines(raw)
     check('wide menu fits 150 cols', all(len(l) <= 150 for l in lines),
           f'max={max(len(l) for l in lines)}')
     raw = run_pty(100, 34, env3)
     check('classic single-column at 100 cols (no panels)',
-          'SETTING DETAIL' not in raw and 'boot menu' in raw)
+          'What it controls' not in raw and 'boot menu' in raw)
     raw = run_pty(150, 60, {'MERCURY_HOME': home3, 'MERCURY_REDUCED_MOTION': '1', **INLINE},
                   send=[(0.6, b'm'), (1.2, b'\r'), (1.8, b'\x1b'), (2.4, b'\r')], oneshot=False)
     saved3 = None
@@ -553,8 +552,8 @@ try:
                   oneshot=False, run_for=0.6 + 0.25 * downs + 1.6)
     last_frame = STRIP.sub('', raw).split('boot menu')[-1]
     check('wide menu SURVIVES selecting Sovereign mode (tier = size, not selection)',
-          'SETTING DETAIL' in last_frame and '❯ Sovereign mode' in last_frame,
-          'final frame lost the panels' if 'SETTING DETAIL' not in last_frame else 'selection missed')
+          'What it controls' in last_frame and '❯ Sovereign mode' in last_frame,
+          'final frame lost the wide layout' if 'What it controls' not in last_frame else 'selection missed')
     check('over-budget detail clamps with the honest ellipsis row',
           'the trail continues' in last_frame or 'When off' in last_frame)
     longproj = tempfile.mkdtemp(prefix='splash-a-very-long-repository-directory-name-')
@@ -563,8 +562,8 @@ try:
                       cwd=longproj)
         plain_lines = [STRIP.sub('', l) for l in vis_lines(raw)]
         dir_lines = [l for l in plain_lines if ' Dir ' in l or l.strip().startswith('Dir')]
-        check('ENVIRONMENT Dir row stays inside its border (clipVis backstop)',
-              len(dir_lines) > 0 and all(l.rstrip().endswith('│') for l in dir_lines),
+        check('ENVIRONMENT Dir row stays inside the terminal width (clipVis backstop)',
+              len(dir_lines) > 0 and all(len(l.rstrip()) <= 150 for l in dir_lines),
               dir_lines[0] if dir_lines else 'no Dir row found')
     finally:
         shutil.rmtree(longproj, ignore_errors=True)

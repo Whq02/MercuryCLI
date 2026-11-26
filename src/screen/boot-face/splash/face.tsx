@@ -24,7 +24,7 @@ import type { useInteractiveList, AsyncListNote } from '../../widgets/useInterac
 import type { useMercuryTokens } from '../../widgets/useMercuryTokens.js';
 import type { BootRow } from './rowActions.js';
 
-export function bootSplashCompositionOf({ isCompact, composedRows, selectedIndex, core, columns, rows, modelDefaultDoor, stripHint, wordGlow, rowGlow, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint }: { isCompact: boolean; composedRows: BootRow[]; selectedIndex: number; core: ReturnType<typeof createSplashCore>; columns: number; rows: number; modelDefaultDoor: boolean; stripHint: string; wordGlow: ReturnType<typeof useGreetingShimmer>; rowGlow: ReturnType<typeof useGreetingShimmer>; bottomRowWithNotice: (core: ReturnType<typeof createSplashCore>, columns: number, keyMapHint: string, notice: string | null, compact: boolean) => string | null; updateLine: string | null; chips: SplashStripChips; plainWhy: PlainWorldWhy | null; keyMapHint: string }) {
+export function bootSplashCompositionOf({ isCompact, composedRows, selectedIndex, core, columns, rows, modelDefaultDoor, stripHint, wordGlow, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint }: { isCompact: boolean; composedRows: BootRow[]; selectedIndex: number; core: ReturnType<typeof createSplashCore>; columns: number; rows: number; modelDefaultDoor: boolean; stripHint: string; wordGlow: ReturnType<typeof useGreetingShimmer>; bottomRowWithNotice: (core: ReturnType<typeof createSplashCore>, columns: number, keyMapHint: string, notice: string | null, compact: boolean) => string | null; updateLine: string | null; chips: SplashStripChips; plainWhy: PlainWorldWhy | null; keyMapHint: string }) {
   if (isCompact) {
     const compact = core.composeCompactFace(columns, rows, {
       cardRows: composedRows.map(r => ({ label: r.label, ctx: r.key === 'continue' && r.ctx.startsWith('in ') ? r.ctx : '', ...(r.dim ? { dim: true } : {}) })),
@@ -39,7 +39,6 @@ export function bootSplashCompositionOf({ isCompact, composedRows, selectedIndex
       stripLines: w => core.composeStrip(chips, w),
       pointer: figures.pointer,
       glowWord: wordGlow,
-      glowRow: rowGlow,
     });
     const placed = [...compact.lines];
     const corner = bottomRowWithNotice(core, columns, stripHint, updateLine, true);
@@ -53,7 +52,6 @@ export function bootSplashCompositionOf({ isCompact, composedRows, selectedIndex
   }
   const lockupOptions: SplashComposeOpts = {
     cardRows: composedRows.map(r => ({
-      icon: r.icon,
       label: r.label,
       ctx: r.key === 'continue' && r.ctx.startsWith('in ') ? r.ctx : '',
       ...(r.dim ? { dim: true } : {}),
@@ -66,7 +64,6 @@ export function bootSplashCompositionOf({ isCompact, composedRows, selectedIndex
     tinyHint: '↵',
     stripLines: (w: number) => core.composeStrip(chips, w) as string[],
     glowWord: wordGlow,
-    glowRow: rowGlow,
   };
   const composeOver = (faceRows: number) => {
     const composed = core.composeLockup(columns, faceRows, lockupOptions);

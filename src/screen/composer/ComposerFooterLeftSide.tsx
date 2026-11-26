@@ -35,10 +35,14 @@ import { ExitChordNotice } from './ExitChordNotice.js'
 import { noticeBlockRows, noticeRowBlock, noticeRowDetail, noticeRowText, noticeRowWayOut } from './Notifications.js'
 import { standsUntilRemoved } from '../notifications/notifications.js'
 import type { InputMode } from './input-core/textInput.js'
-import { LEAD_ROW_NAME } from '../cockpit/crewmateWords.js'
-import { crewmateLive, useViewedCrewmate } from '../tasks/useCrewmateView.js'
+import {
+  extendedKeysSupportedNow,
+  subscribeExtendedKeysSupport,
+} from '../renderer/terminal-session/capabilities.js'
+import { getNewlineInstructions } from './composerConfig.js'
+import { crewmateComposerHint } from '../cockpit/crewmateWords.js'
+import { targetWords, useComposerCrewmate, useViewedCrewmate, viewedWords } from '../tasks/useCrewmateView.js'
 import { footerClusterOf } from './footerLeftSideView.js'
-
 const XTERMJS_HOSTS = new Set(['vscode', 'cursor', 'windsurf', 'codium', 'antigravity'])
 
 export function ComposerFooterLeftSide({
@@ -73,7 +77,6 @@ export function ComposerFooterLeftSide({
   const toolPermissionContext = useAppState((s: AppState) => s.toolPermissionContext)
   const viewingCrewmateTaskId = useAppState((s: AppState) => s.viewingCrewmateTaskId)
   const currentNotice = useAppState((s: AppState) => s.notifications.current)
-  const viewedCrewmate = useViewedCrewmate()
   const selection = useSelection()
   const hasPaintedSelection = useHasSelection()
   useSyncExternalStore(
@@ -105,8 +108,18 @@ export function ComposerFooterLeftSide({
   const killChord = useShortcutDisplay('chat:killAgents', 'Chat', 'ctrl+x k')
   const copyChord = useShortcutDisplay('selection:copy', 'Scroll', 'ctrl+shift+c')
   const paletteChord = useShortcutDisplay('app:commandPalette', 'Global', 'ctrl+k')
-
+  useSyncExternalStore(
+    subscribeExtendedKeysSupport,
+    extendedKeysSupportedNow,
+    extendedKeysSupportedNow,
+  )
   const escapeOwned = useEscapeOwned()
+  const composerCrewmate = useComposerCrewmate()
+  const viewedCrewmate = useViewedCrewmate()
+  const crewmateHint =
+    composerCrewmate !== null
+      ? crewmateComposerHint(targetWords(composerCrewmate), viewedWords(viewedCrewmate), escapeOwned)
+      : null
   const killConfirmPending = currentNotice?.key === 'kill-agents-confirm'
   const noticeText = noticeRowText(currentNotice)
   const noticeDetail = noticeText !== null ? noticeRowDetail(currentNotice) : null
@@ -143,37 +156,51 @@ export function ComposerFooterLeftSide({
   }
 
   const fullscreen = isFullscreenActive()
+  const secondLine = !compact ? (
+    <Text dimColor wrap="truncate-end">
+      {getNewlineInstructions()}
+      {crewmateHint !== null ? ` · ${crewmateHint}` : ''}
+    </Text>
+  ) : null
 
   if (voice.phase === 'recording') {
     return (
-      <Box height={fullscreen ? 1 : undefined} overflow="hidden">
-        <Text wrap="truncate-end">
-          <Text color={tokens.failure}>●</Text> {RECORDING_FOOTER}
-        </Text>
-      </Box>
+      <>
+        <Box height={fullscreen ? 1 : undefined} overflow="hidden">
+          <Text wrap="truncate-end">
+            <Text color={tokens.failure}>●</Text> {RECORDING_FOOTER}
+          </Text>
+        </Box>
+        {secondLine}
+      </>
     )
   }
 
   if (voice.phase === 'transcribing') {
     return (
-      <Box height={fullscreen ? 1 : undefined} overflow="hidden">
-        <Text dimColor wrap="truncate-end">
-          {TRANSCRIBING_FOOTER}
-        </Text>
-      </Box>
+      <>
+        <Box height={fullscreen ? 1 : undefined} overflow="hidden">
+          <Text dimColor wrap="truncate-end">
+            {TRANSCRIBING_FOOTER}
+          </Text>
+        </Box>
+        {secondLine}
+      </>
     )
   }
 
   if (drivingActive) {
     return (
-      <Box height={fullscreen ? 1 : undefined} overflow="hidden">
-        <Text wrap="truncate-end">
-          <Text color={tokens.warning}>●</Text> {drivingFooter(desktop.app)}
-        </Text>
-      </Box>
+      <>
+        <Box height={fullscreen ? 1 : undefined} overflow="hidden">
+          <Text wrap="truncate-end">
+            <Text color={tokens.warning}>●</Text> {drivingFooter(desktop.app)}
+          </Text>
+        </Box>
+        {secondLine}
+      </>
     )
   }
-
   if (compact) {
     if (searchField !== undefined) {
       return (
@@ -194,35 +221,18 @@ export function ComposerFooterLeftSide({
 
   if (mode === 'bash') {
     return (
-      <Box height={fullscreen ? 1 : undefined} overflow="hidden">
-        {searchField ?? <Text dimColor>{BASH_MODE_CHARACTER} for shell mode</Text>}
-      </Box>
+      <>
+        <Box height={fullscreen ? 1 : undefined} overflow="hidden">
+          {searchField ?? <Text dimColor>{BASH_MODE_CHARACTER} for shell mode</Text>}
+        </Box>
+        {secondLine}
+      </>
     )
   }
 
   const parts: React.ReactNode[] = []
   const viewingCrewmate = viewingCrewmateTaskId !== undefined
-  const viewedLocalTask = viewingCrewmateTaskId !== undefined ? tasks[viewingCrewmateTaskId] : undefined
-
-  if (viewingCrewmate) {
-    const viewedFinished =
-      (viewedLocalTask !== undefined &&
-        viewedLocalTask.status !== 'running' &&
-        viewedLocalTask.status !== 'pending') ||
-      !crewmateLive(viewedCrewmate)
-    if (!escapeOwned) {
-      if (viewedFinished) {
-        parts.push(<KeyboardShortcutHint shortcut="esc" action={`back to ${LEAD_ROW_NAME}`} />)
-      } else {
-        parts.push(
-          <KeyboardShortcutHint
-            shortcut="esc"
-            action={`interrupt ${viewedCrewmate?.name ?? 'the crewmate'}`}
-          />,
-        )
-      }
-    }
-  } else if (isLoading) {
+  if (!viewingCrewmate && isLoading) {
     if (!escapeOwned) {
       parts.push(<KeyboardShortcutHint shortcut={cancelChord} action="interrupt" />)
     }
@@ -234,7 +244,7 @@ export function ComposerFooterLeftSide({
         />,
       )
     }
-  } else {
+  } else if (!viewingCrewmate) {
     const hasRunningLocalCrewmates = Object.values(tasks).some(
       task => isCrewmateTask(task) && task.status === 'running',
     )
@@ -282,29 +292,40 @@ export function ComposerFooterLeftSide({
   const rowHasContent =
     searchField !== undefined || vimInsert || showTasksPill || showPrBadge
 
-  return footerClusterOf({
-    tokens,
-    columns,
-    footerSelection,
-    paletteChord,
-    noticeText,
-    noticeDetail,
-    noticeWayOut,
-    noticeBlock,
-    blockRows,
-    prStatus,
-    viewingCrewmate,
-    showPrBadge,
-    showTasksPill,
-    parts,
-    noticeStands,
-    hintsShow,
-    idleHintShows,
-    rowHasContent,
-    searchField,
-    vimInsert,
-    isLoading,
-    crewmateFooterIndex,
-    onOpenTasksDialog,
-  })
+  const idleLegendOnly =
+    idleHintShows &&
+    !vimInsert &&
+    searchField === undefined &&
+    crewmateHint === null
+
+  return (
+    <>
+      {footerClusterOf({
+        tokens,
+        columns,
+        footerSelection,
+        paletteChord,
+        noticeText,
+        noticeDetail,
+        noticeWayOut,
+        noticeBlock,
+        blockRows,
+        prStatus,
+        viewingCrewmate,
+        showPrBadge,
+        showTasksPill,
+        parts,
+        noticeStands,
+        hintsShow,
+        idleHintShows,
+        rowHasContent,
+        searchField,
+        vimInsert,
+        isLoading,
+        crewmateFooterIndex,
+        onOpenTasksDialog,
+      })}
+      {idleLegendOnly ? null : secondLine}
+    </>
+  )
 }

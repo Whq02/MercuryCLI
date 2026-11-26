@@ -55,6 +55,7 @@ const gridText = (grid: Grid): string => grid.map(row => row.map(c => cellGlyph(
 const rowsOf = (frame: Frame | undefined): string[] => (frame?.text ?? '').split('\n')
 const has = (frame: Frame | undefined, needle: string): boolean => (frame?.text ?? '').includes(needle)
 const composerRow = (frame: Frame | undefined): string | undefined => rowsOf(frame).find(r => r.startsWith('│❯'))
+const composerRowIndex = (frame: Frame | undefined): number => rowsOf(frame).findIndex(r => r.startsWith('│❯'))
 const cursorOf = (frame: Frame | undefined): string => (frame === undefined ? '(no frame)' : `${frame.cursor.x},${frame.cursor.y}`)
 
 function seedWorld(name: string, view: Record<string, unknown>): { home: string; cwd: string } {
@@ -199,17 +200,17 @@ type Door = {
 const header = (name: string, road: string, target: string, needle: string): Door => ({ name, road, open: [clickOn(target, 1)], needle, close: after(ESC, 1) })
 const row = (name: string, road: string, target: string, needle: string): Door => ({ name, road, open: [clickOn(target, 2), secondClickOn(target, 2)], needle, close: after(ESC, 1) })
 const DOORS: Door[] = [
-  header('usage-header', 'USAGE card header → /usage (esc closes)', 'USAGE', 'Mercury · usage'),
-  { name: 'usage-header-click-outside', road: 'USAGE card header → /usage (a click outside closes)', open: [clickOn('USAGE', 1)], needle: 'Mercury · usage', close: after(CLICK_OUTSIDE, 1) },
+  header('usage-header', 'USAGE card header → /usage (esc closes)', '▆ usage', 'Mercury · usage'),
+  { name: 'usage-header-click-outside', road: 'USAGE card header → /usage (a click outside closes)', open: [clickOn('▆ usage', 2)], needle: 'Mercury · usage', close: after(CLICK_OUTSIDE, 1) },
   row('usage-row', 'usage spend row (select, then activate) → /usage', 'spend none yet', 'Mercury · usage'),
-  header('workbench-header', 'WORKBENCH card header → /workbench', 'WORKBENCH', 'Mercury — prompts'),
-  header('files-header', 'FILES card header → the files menu', 'FILES ·', 'Mercury · files'),
-  row('files-row', 'FILES browse row (select, then activate) → the files menu', 'or click · browse', 'Mercury · files'),
-  row('next-row-click', 'NEXT /memory row (select, then activate) → /memory', '/memory — memory', 'Mercury · memory'),
+  header('workbench-header', 'WORKBENCH card header → /workbench', '❯ workbench', 'Mercury — prompts'),
+  header('files-header', 'FILES card header → the files menu', 'files ·', 'Mercury · files'),
+  row('files-row', 'FILES browse row (select, then activate) → the files menu', '↵ browse', 'Mercury · files'),
+  row('next-row-click', 'NEXT /memory row (select, then activate) → /memory', '/memory', 'Mercury · memory'),
   { name: 'ctrl-t', road: 'ctrl+t (the task panel toggle; nothing paints with no tasks)', open: [after(CTRL_T, 2)], needle: null, close: after(CTRL_T, 1) },
   { name: 'palette', road: 'ctrl+x p palette, usage, ↵ (an insert at the caret, never a submit)', open: [after(CTRL_X, 2), after('p', 3), after('usage', 3), after('\r', 3)], needle: 'brown/usage', close: null },
   row('health-row', 'HEALTH cert row (select, then activate) → /health', 'no cert · /health', 'Mercury · health'),
-  header('health-header', 'HEALTH card header → /health', 'HEALTH', 'Mercury · health'),
+  header('health-header', 'HEALTH card header → /health', '✓ health', 'Mercury · health'),
   { name: 'ctx-row', road: 'ctx row (select, then activate) → /context: the chart card paints at once (counting the context window… · esc closes); esc while counting closes it with its receipt', open: [clickOn('ctx — ·', 2), secondClickOn('ctx — ·', 2)], needle: CONTEXT_COUNTING, close: after(ESC, 1) },
 ]
 
@@ -240,7 +241,8 @@ function judge(tag: string, door: Door, m: Record<string, Frame>): void {
   if (door.needle !== null) tally.check(`${door.name} T4 the surface closed`, !has(closed, door.needle), rowsOf(closed).filter(r => r.includes(door.needle as string)).join(' | '))
   if (door.name === 'ctx-row') tally.check(`${door.name} T4b esc while counting left the receipt in the transcript (${CONTEXT_CLOSED})`, has(open, 'Mercury — context') && has(closed, CONTEXT_CLOSED), rowsOf(closed).filter(r => r.includes('/context')).join(' | ') || '(no receipt row)')
   tally.check(`${door.name} T5 after the surface closed the composer reads the draft as typed`, closedRow === typedRow, `${closedRow.trimEnd()}${closedRow === typedRow ? '' : `\n    typed: ${typedRow.trimEnd()}`}`)
-  tally.check(`${door.name} T6 the caret is back where it was`, closed !== undefined && typed !== undefined && closed.cursor.x === typed.cursor.x && closed.cursor.y === typed.cursor.y, `caret ${cursorOf(closed)}, typed ${cursorOf(typed)}`)
+  const caretSameRow = closed !== undefined && typed !== undefined && (closed.cursor.y === typed.cursor.y || (door.name === 'ctx-row' && closed.cursor.y === composerRowIndex(closed)))
+  tally.check(`${door.name} T6 the caret is back where it was`, closed !== undefined && typed !== undefined && closed.cursor.x === typed.cursor.x && caretSameRow, `caret ${cursorOf(closed)}, typed ${cursorOf(typed)}`)
 }
 
 async function doorsLeg(): Promise<void> {
@@ -257,7 +259,7 @@ async function doorsLeg(): Promise<void> {
 
 async function concourseLeg(): Promise<void> {
   const { home, cwd } = seedWorld('concourse', {})
-  const door: Door = { name: 'way-back', road: 'the status row\'s way back → /concourse (⇧→ returns to the chat)', open: [clickOn(BACK_HINT, 2)], needle: 'SESSIONS', close: after(SHIFT_RIGHT, 1) }
+  const door: Door = { name: 'way-back', road: 'the status row\'s way back → /concourse (⇧→ returns to the chat)', open: [clickOn(BACK_HINT, 2)], needle: 'sessions', close: after(SHIFT_RIGHT, 1) }
   const cap = await capture('concourse-178x51', cfgFor(cwd, [...boot(), ...doorSends(door)], 500), driveEnv(home))
   const m = cap.marks
   tally.section('concourse 178x51 · the status row\'s way back over a typed draft')

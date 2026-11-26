@@ -1,40 +1,40 @@
                                                             
-                                    ■ ────────────────··· (>_) ···──────────────── ■
+                                    ────────────────────────────────────────────────
                                                             
                                  ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀ 
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀  
                                                             
-                                                        ⌁ agents
+                                                         agents
                                                             
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ Shared project settings                                        │  │ ❯ fixture-scout                            │
-   │ ❯ fixture-scout                                           opus │  │                                            │
-   │                                                                │  │ fixture-scout                              │
-   │ User settings                                                  │  │                                            │
-   │   ledger-keeper                                            off │  │ /repo/.mercury/agents/fixture-scout.md     │
-   │                                                                │  │ scope: Shared project settings             │
-   │ Built-in agents                                                │  │                                            │
-   │   mercury-crew                                         inherit │  │                                            │
-   ╰────────────────────────────────────────────────────────────────╯  │                                            │
-                                                                       │                                            │
-                                                                       │                                            │
-                                                                       │                                            │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ AGENTS                                     │
-                                                                       │ Agents     2 active · 1 off                │
-                                                                       │ Issues     none                            │
-                                                                       │ Applies    ● live sessions see new agents  │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    fable                           │
-                                                                       │ Critter    Crab                            │
-                                                                       │ Dir        orchard                         │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  2 agents active — a create lands in every session, running ones included                    │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   fixture-scout                                
+   │ Shared project settings                                        │                                                
+   │ ❯ fixture-scout                                           opus │   fixture-scout                                
+   │                                                                │                                                
+   │ User settings                                                  │   /repo/.mercury/agents/fixture-scout.md       
+   │   ledger-keeper                                            off │   scope: Shared project settings               
+   │                                                                │                                                
+   │ Built-in agents                                                │                                                
+   │   mercury-crew                                         inherit │                                                
+   ╰────────────────────────────────────────────────────────────────╯                                                
+                                                                                                                     
+                                                                                                                     
+                                                                                                                     
+                                                                                                                     
+                                                                                                                     
+                                                                                                                     
+                                                                                                                     
+                                                                                                                     
+                                                                                                                     
+                                                                                                                     
+                                                                                                                     
+                                                                                                                     
+                                                                        Agents     2 active · 1 off                  
+                                                                        Issues     none                              
+                                                                        Applies    ● live sessions see new agents    
+                                                                                                                     
+                                                                        Mercury    fable                             
+                                                                        Critter    Crab                              
+                                                                        Dir        orchard                           
+    2 agents active — a create lands in every session, running ones included                                         
                           ↑↓ move · ↵ edit · n new · x on/off · ⌫ delete · u trash · esc back

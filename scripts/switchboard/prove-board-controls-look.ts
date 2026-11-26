@@ -98,18 +98,18 @@ const fixturePath = join(scratch, 'board-controls-look-fixture.json')
 writeFileSync(fixturePath, JSON.stringify(fixture))
 
 const sends: Send[] = [
-  { data: 'm', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 2, mark: 'live-legend' },
+  { data: 'm', awaitText: 'status & title', requireAwait: true, awaitSettleTicks: 2, mark: 'live-legend' },
   { data: ESC, awaitText: 'Mercury · model', requireAwait: true, awaitSettleTicks: 3, mark: 'model-picker' },
-  { data: 'e', awaitText: 'i interrupt', awaitPattern: '\\A(?![\\s\\S]*Mercury · model)', requireAwait: true, awaitSettleTicks: 2 },
+  { data: 'e', awaitText: 'tab panes · / filter', awaitPattern: '\\A(?![\\s\\S]*Mercury · model)', requireAwait: true, awaitSettleTicks: 2 },
   { data: ESC, awaitText: 'EFFORT —', requireAwait: true, awaitSettleTicks: 3, mark: 'effort-picker' },
-  { data: DOWN + DOWN + DOWN + DOWN + DOWN, awaitText: 'i interrupt', awaitPattern: '\\A(?![\\s\\S]*EFFORT —)', requireAwait: true, awaitSettleTicks: 2 },
+  { data: DOWN + DOWN + DOWN + DOWN + DOWN, awaitText: 'tab panes · / filter', awaitPattern: '\\A(?![\\s\\S]*EFFORT —)', requireAwait: true, awaitSettleTicks: 2 },
   { data: '\t\t\t', awaitText: 'parked · ↵ brings it back', requireAwait: true, awaitSettleTicks: 2, mark: 'parked-legend' },
   { data: '\r', afterPrevTicks: 2 },
   { data: 'q', afterPrevTicks: 4, mark: 'cut-no-yn' },
 ]
 const out = join(OUT_DIR, 'board-controls-120x40.json')
 const cfgPath = join(scratch, 'vshot-cfg.json')
-writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 300, readyText: 'SESSIONS', cols: 120, rows: 40, out }))
+writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 300, readyText: 'status & title', cols: 120, rows: 40, out }))
 const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
   encoding: 'utf8',
   timeout: vshotBudgetMs(240_000),
@@ -142,7 +142,7 @@ const has = (lines: string[], needle: string): boolean => lines.some(l => l.incl
 const mk = (label: string): string[] => marks.get(label) ?? []
 
 console.log('L2 — the present-moves key-map row')
-check('a LIVE selection prints i interrupt · p pause · m model · e effort', has(mk('live-legend'), 'i interrupt') && has(mk('live-legend'), 'p pause') && has(mk('live-legend'), 'm model') && has(mk('live-legend'), 'e effort'), '', 'the live-row key-map comes from boardSelectionClassOf in src/screen/concourse/controlManifest.ts; see the capture mark-live-legend.txt in the capture dir')
+check('a LIVE selection keeps the four-chord bottom legend and pane pause key', has(mk('live-legend'), 'tab panes · / filter · ? keys · esc') && has(mk('live-legend'), 'p pause'), '', 'the resting live-row bottom legend is thinned in src/screen/concourse/ConcourseLayout.tsx; see the capture mark-live-legend.txt in the capture dir')
 check('a PARKED selection dims to its reason and drops the controls', has(mk('parked-legend'), 'parked · ↵ brings it back') && !has(mk('parked-legend'), 'i interrupt'), '', 'the parked case of controlManifest.ts in src/screen/concourse and rowControls.ts in its screen folder must print only the parked reason; see mark-parked-legend.txt in the capture dir')
 console.log('L3 — the row pick modal: model (haiku included) and effort (the shared ladder)')
 check('the declared modal paints with the picker title', has(mk('model-picker'), 'Mercury · model'), '', 'm on a live row should open MercurySessionModelPicker from rowPick in src/screen/concourse/screen/stage.tsx; see mark-model-picker.txt in the capture dir')
@@ -152,7 +152,7 @@ check('e opens the EFFORT picker in the same grammar (the WARMRUN rider)', has(m
 check("the effort legend says set/keep", has(mk('effort-picker'), "↵ sets this session's effort"), '', 'the legend prop of the EFFORT RowPickModal in src/screen/concourse/screen/stage.tsx must keep these words; see mark-effort-picker.txt in the capture dir')
 console.log('L4 — the cut: no y/n grammar after ↵ on a permission row')
 check('no board key answers — the y/n grammar paints NOWHERE', !has(mk('cut-no-yn'), 'y allows') && !has(mk('cut-no-yn'), 'n denies'), '', 'enter on a permission row must not open a y/n answer grammar on the board; see mark-cut-no-yn.txt in the capture dir')
-check('the board stands (the route is a hop, never a context)', has(mk('cut-no-yn'), 'SESSIONS'), '', 'the board should still be on screen after the q key; see mark-cut-no-yn.txt in the capture dir')
+check('the board stands (the route is a hop, never a context)', has(mk('cut-no-yn'), 'status & title'), '', 'the board should still be on screen after the q key; see mark-cut-no-yn.txt in the capture dir')
 
 console.log(failures === 0 ? '\nboard-controls look: GREEN' : `\nboard-controls look: ${failures} RED`)
 process.exit(failures === 0 ? 0 : 1)

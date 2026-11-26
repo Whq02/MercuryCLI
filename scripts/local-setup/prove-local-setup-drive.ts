@@ -85,7 +85,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const ROOT = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'lsd-')))
 const NARROW = 100
 const WIDE_STRIP_ROW = /^ ready · local\/qwen3\.5:9b {2,}/
-const NARROW_STRIP_ROW = /✶ Mercury · ● ready · local\/qwen3\.5:9b · ctx —(?:\s|$)/
+const NARROW_STRIP_ROW = /✶ Mercury · ready · local\/qwen3\.5:9b · ctx —(?:\s|$)/
 
 interface Step {
   mark: string

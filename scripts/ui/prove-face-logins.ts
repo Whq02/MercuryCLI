@@ -502,7 +502,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   t.check('the legend names only the moves that exist (↵ joined with the first flow)', loginsLegendOf() === '↑↓ move · pgup/pgdn page · ↵ sign in · esc back')
 
   const wide = composeLogins(120, 40, { sel: 0 }).join('\n')
-  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 22', 'Anthropic — Claude subscription or Console sign-in / API key', 'Kimi (Moonshot) — device-code sign-in or API key', 'GLM (Z.AI) — API key (general or GLM Coding Plan)', 'xAI — Grok subscription sign-in or API key', 'Meta — Muse Code sign-in or API key', 'Mistral — API key', 'Nous Portal — sign-in or API key', 'MiniMax — API key or M Plan key', 'Together AI — API key', 'Cohere — API key', 'Groq — API key', '… 6 more below'].every(s => wide.includes(s)))
+  t.check('the wide frame carries the classes, the chips and the summary rows', ['signed in', 'available', 'op@example.com', 'not signed in', 'Families', 'Signed in  4 of 22', 'Anthropic — Claude subscription or Console sign-in / API key', 'Kimi (Moonshot) — device-code sign-in or API key', 'GLM (Z.AI) — API key (general or GLM Coding Plan)', 'xAI — Grok subscription sign-in or API key', 'Meta — Muse Code sign-in or API key', 'Mistral — API key', 'Nous Portal — sign-in or API key', 'MiniMax — API key or M Plan key', 'Together AI — API key', 'Cohere — API key', 'Groq — API key', '… 2 more below'].every(s => wide.includes(s)))
   const floor = composeLogins(64, 12, { sel: 0 }).join('\n')
   t.check('the 64×12 floor frame WARNS and keeps the way out', floor.includes('wants at least') && floor.includes('esc back'))
 
@@ -528,7 +528,7 @@ t.section('§5 — THE REAL MOUNT (staticRender with injected facts; the route c
     120,
   )
   t.check('the mounted layer presents the classes and the truthful chips', frame.includes('signed in') && frame.includes('op@example.com') && frame.includes('not signed in'))
-  t.check('the mounted layer presents the LOGINS panel and the legend', frame.includes('LOGINS') && frame.includes('↑↓ move · pgup/pgdn page · ↵ sign in · esc back'))
+  t.check('the mounted layer presents the summary rows and the legend', frame.includes('Families') && frame.includes('↑↓ move · pgup/pgdn page · ↵ sign in · esc back'))
 
 }
 
@@ -809,7 +809,7 @@ t.section('§11 — THE MERGED SESSIONS·PROJECTS SCREEN (B2, dark: the containe
   t.check('the merged legend adds ONLY the container jump', resumeLegendOf('all', true, true) === '↑↓ move · ↵ open · n new session · d prune · a this project · ⇥ repos · esc back')
   t.check('the panel without projectsCount is the landed rows', JSON.stringify(resumeSummaryRows({ scope: 'all', count: 4, elsewhereCount: 0, pendingMore: 0 }).map(r => r.key)) === JSON.stringify(['Scope', 'Sessions', 'Opens']))
   t.check('the panel with projects carries the Repos row', resumeSummaryRows({ scope: 'all', count: 4, elsewhereCount: 0, pendingMore: 0, projectsCount: 2 }).some(r => r.key === 'Repos' && r.value === '2'))
-  t.check('the status names a live filter and stays landed without one', resumeStatusLine({ loading: false, count: 1, scope: 'all', pendingMore: 0, filterBase: 'moodle' }) === "1 session in 'moodle' (filtered) · ↵ opens the real chat" && resumeStatusLine({ loading: false, count: 4, scope: 'all', pendingMore: 0 }) === '4 sessions in the full history · ↵ opens the real chat')
+  t.check('the status names a live filter and stays landed without one', resumeStatusLine({ loading: false, count: 1, scope: 'all', pendingMore: 0, filterBase: 'moodle' }) === "1 session in 'moodle' (filtered)" && resumeStatusLine({ loading: false, count: 4, scope: 'all', pendingMore: 0 }) === '4 sessions in the full history')
 
   for (const still of MERGED_STILLS) {
     const written = readStill(still.id)

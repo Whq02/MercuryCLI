@@ -240,10 +240,13 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
       const tally = { octopus: 0, crab: 0, cells: 0 }
       if (header < 0) return tally
       const left = (lines[header] ?? '').indexOf('╭') + 1
-      for (let r = header + 2; r < Math.min(lines.length, header + 12); r++) {
-        if ((lines[r] ?? '')[left] === '╰') break
-        for (const cell of grid[r] ?? []) {
-          if (cell.c !== '▀' && cell.c !== '▄' && cell.c !== '█') continue
+      const right = (lines[header] ?? '').indexOf('╮', left)
+      if (right <= left) return tally
+      for (let r = header + 1; r < Math.min(lines.length, header + 12); r++) {
+        if (/^ ─+ $/.test((lines[r] ?? '').slice(left, right))) break
+        for (let c = left; c < right; c++) {
+          const cell = (grid[r] ?? [])[c]
+          if (!cell || (cell.c !== '▀' && cell.c !== '▄' && cell.c !== '█')) continue
           tally.cells++
           if (octopusHues.has(cell.fg) || octopusHues.has(cell.bg)) tally.octopus++
           if (crabHues.has(cell.fg) || crabHues.has(cell.bg)) tally.crab++
@@ -392,9 +395,9 @@ t.section('§5 — REAL BINARY, LIVE ACTIVITY: the density pipe at rendered grid
     }
     const gridLines = (label: string): string[] =>
       (payload.marks?.find(m => m.label === label)?.grid ?? []).map(row => row.map(c => c.c).join(''))
-    const hintRows = (lines: string[]): number => lines.filter(l => /^\s*· \/[a-z]+(?:…| — )/.test(l)).length
-    t.check('hint counting keeps whole-word rail clips', hintRows(['  · /health…             │', '  · /health — health…    │', '  · /memory — memory    │', '  · /mission — set a…   │']) === 4, 'four commands')
-    t.check('hint counting excludes commands outside the rail', hintRows(['NEXT                    │ /health — health cert', '                        │  ❯ /crewmates /health']) === 0, 'rail rows only')
+    const hintRows = (lines: string[]): number => lines.filter(l => /^  \/[a-z]+(?:…|   |\s*│)/.test(l)).length
+    t.check('hint counting keeps whole-word rail clips', hintRows(['  /health…               │', '  /health                │', '  /memory                │', '  /mission               │']) === 4, 'four commands')
+    t.check('hint counting excludes commands outside the rail', hintRows(['next                    │ /health — health cert', '                        │  ❯ /crewmates /health']) === 0, 'rail rows only')
 
     const calm = gridLines('calm')
     const active = gridLines('active')

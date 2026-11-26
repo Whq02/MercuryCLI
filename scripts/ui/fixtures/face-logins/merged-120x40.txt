@@ -1,40 +1,40 @@
 
-                                    ■ ────────────────··· (>_) ···──────────────── ■
+                                    ────────────────────────────────────────────────
 
                                  ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                 ⌁ sessions · projects
+                                                  sessions · projects
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ orchard-src                                                    │  │ ❯ concourse polish                         │
-   │   the tool-loop fold                             2 minutes ago │  │                                            │
-   │ ❯ concourse polish                       3 hours ago · cleared │  │ project: orchard-src                       │
-   │                                                                │  │ last seen: 3 hours ago                     │
-   │ moodle                                                         │  │ cleared — deliberately closed; resuming    │
-   │   moodle groundwork                                  1 day ago │  │   reopens it                               │
-   │                                                                │  │                                            │
-   │ orchard-src                                                    │  │ ↵ opens this session as the real chat —    │
-   │   splash ripple study                               2 days ago │  │ the chat stop appears on the strip;        │
-   │                                                                │  │ this screen and the face stay beneath.     │
-   │ projects                                                       │  │ … (the trail continues — taller terminal)  │
-   │   orchard-src                                   2m · 2 running │  ╰────────────────────────────────────────────╯
-   │   moodle                                                   26h │  ╭────────────────────────────────────────────╮
-   ╰────────────────────────────────────────────────────────────────╯  │ SESSIONS · PROJECTS                        │
-                                                                       │ Scope      all history — every project     │
-                                                                       │ Sessions   4                               │
-                                                                       │ Repos      2                               │
-                                                                       │ Opens      ● a real chat, in place         │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    Opus 5                          │
-                                                                       │ Critter    Octopus                         │
-                                                                       │ Dir        orchard-src                     │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  4 sessions in the full history · ↵ opens the real chat                                      │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   concourse polish
+   │ orchard-src                                                    │
+   │   the tool-loop fold                             2 minutes ago │   project: orchard-src
+   │ ❯ concourse polish                       3 hours ago · cleared │   last seen: 3 hours ago
+   │                                                                │   cleared — deliberately closed; resuming
+   │ moodle                                                         │     reopens it
+   │   moodle groundwork                                  1 day ago │
+   │                                                                │   ↵ opens this session —
+   │ orchard-src                                                    │   the chat stop appears on the strip;
+   │   splash ripple study                               2 days ago │   this screen and the face stay beneath.
+   │                                                                │
+   │ projects                                                       │   esc — back to the face, nothing opened
+   │   orchard-src                                   2m · 2 running │
+   │   moodle                                                   26h │
+   ╰────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+                                                                        Scope      all history — every project
+                                                                        Sessions   4
+                                                                        Repos      2
+                                                                        Opens      in place
+
+                                                                        Mercury    Opus 5
+                                                                        Critter    Octopus
+                                                                        Dir        orchard-src
+    4 sessions in the full history
                     ↑↓ move · ↵ open · n new session · d prune · a this project · ⇥ repos · esc back

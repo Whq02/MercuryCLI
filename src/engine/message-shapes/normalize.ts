@@ -10,6 +10,7 @@ import type {
 import { createUserMessage } from './factories.js'
 import { storedBlocksOf } from '../rows/content.js'
 import { deriveUUID } from './identity.js'
+import { parseReferences } from '../../sessions/promptHistory.js'
 
 export function contentBlocksOf(content: unknown): (ContentBlock | ContentBlockParam)[] {
   return storedBlocksOf(content)
@@ -87,10 +88,35 @@ function assistantRows(parent: AssistantMessage, blocks: (ContentBlock | Content
   )
 }
 
+export function imageRowNumbersOf(
+  blocks: readonly (ContentBlock | ContentBlockParam)[],
+  imagePasteIds?: readonly number[],
+): readonly number[] {
+  if (imagePasteIds !== undefined) return imagePasteIds
+  let imageCount = 0
+  for (const block of blocks) {
+    if (block.type === 'image') imageCount++
+  }
+  if (imageCount === 0) return []
+  const seen = new Set<number>()
+  for (const block of blocks) {
+    if (block.type === 'text') {
+      for (const ref of parseReferences(block.text)) {
+        if (ref.match.startsWith('[Image')) seen.add(ref.id)
+      }
+    }
+  }
+  for (let next = 1; seen.size < imageCount; next++) {
+    seen.add(next)
+  }
+  return [...seen].sort((a, b) => a - b).slice(-imageCount)
+}
+
 function userBlockRows(parent: UserMessage, blocks: (ContentBlock | ContentBlockParam)[], latched: boolean): NormalizedMessage[] {
+  const numbers = imageRowNumbersOf(blocks, parent.imagePasteIds)
   let images = 0
   return blocks.map((block, index) => {
-    const pasteId = block.type === 'image' ? parent.imagePasteIds?.[images++] : undefined
+    const pasteId = block.type === 'image' ? numbers[images++] : undefined
     return {
       ...createUserMessage({
         content: [block],

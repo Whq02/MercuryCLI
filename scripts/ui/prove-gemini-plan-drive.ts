@@ -193,7 +193,21 @@ try {
     const marks = new Map(captured?.marks?.map(m => [m.label, textOf(m.grid)]) ?? [])
     const excerpt = (text: string): string => text.split('\n').filter(l => l.trim()).slice(0, 10).join('\n')
     const flat = (text: string): string => text.replace(/[│╭╮╰╯─]/g, ' ').replace(/\s+/g, ' ').trim()
-    const rightPane = (text: string): string => text.split('\n').map(line => { const cells = line.split('│'); return cells.length >= 4 ? cells[cells.length - 2]! : '' }).join(' ').replace(/\s+/g, ' ').trim()
+    const rightPane = (text: string): string => {
+      const rows = text.split('\n')
+      const top = rows.findIndex(line => line.includes('╭') && line.includes('╮'))
+      if (top < 0) return ''
+      const left = rows[top]!.indexOf('╭')
+      const right = rows[top]!.indexOf('╮')
+      const out: string[] = []
+      for (let i = top; i < rows.length; i++) {
+        const line = rows[i]!
+        const ch = line[left]
+        if (i > top && ch !== '│' && ch !== '╰' && line.slice(0, right + 1).trim() !== '') break
+        out.push(line.slice(right + 1))
+      }
+      return out.join(' ').replace(/\s+/g, ' ').trim()
+    }
     const hits = fixture.hits.slice(hitsBefore)
     if (FRAMES) {
       mkdirSync(FRAMES, { recursive: true })
@@ -202,7 +216,7 @@ try {
     }
     check(`${id}: every send delivered`, result.status === 0, `${result.stderr.slice(-800)} · the capture engine exited early or hit its wall, so a send was never due; rerun with --frames <dir> and read the marks to see which screen stalled`)
     const landed = marks.get('landed') ?? ''
-    check(`${id}: the sign-in layer opened on the Gemini family`, landed.includes('LOGINS') && landed.includes(`❯ ${GEMINI_ROW}`), excerpt(landed))
+    check(`${id}: the sign-in layer opened on the Gemini family`, landed.includes('Families') && landed.includes(`❯ ${GEMINI_ROW}`), excerpt(landed))
     const card = marks.get('card') ?? ''
     check(`${id}: the Gemini card offers Sign in with Google first, the key second, the own client third`, card.includes(PLAN_ROW.slice(0, 40)) && card.indexOf('Sign in with Google') >= 0 && card.indexOf('Sign in with Google') < card.indexOf('API key — the easiest') && card.includes('Google account — six steps'), excerpt(card))
     const wait = rightPane(marks.get('wait') ?? '')

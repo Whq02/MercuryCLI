@@ -30,7 +30,6 @@ export function loginsMenuModelOf(
   return {
     title: 'logins',
     fitLabels: true,
-    summaryTitle: 'LOGINS',
     summaryRows: loginsSummaryRows(facts, opts.notice ?? null),
     noticeLine: opts.notice ?? null,
     environment: opts.environment,

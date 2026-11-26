@@ -1,20 +1,21 @@
   lanes             ╭──────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH           │                                                                              │
-  no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
-                    │ │ ▖▟▆▙▗ Mercury · usage                                                    │ │
-NEXT                │ │ API usage session on · 0 subscriptions signed in                         │ │
-  · /health…        │ │                                                                          │ │
+workbench           │                                                                              │
+  no prompts yet    │ ╭──────────────────────────────────────────────────────────────────────────╮ │
+                    │ │ Mercury · usage                                                          │ │
+next                │ │ API usage session on · 0 subscriptions signed in                         │ │
+  /health           │ │                                                                          │ │
                     │ │ Anthropic usage                                                          │ │
-FILES · orchard     │ │ API key · …-key                                                          │ │
-  ↵ or click…       │ │ credits: not reported by the provider                                    │ │
+files · orchard     │ │ API key · …-key                                                          │ │
+  ↵ browse          │ │ credits: not reported by the provider                                    │ │
                     │ │                                                                          │ │
-VITALS              │ │ Subscription                                                             │ │
-  · spend —         │ │ none — /logins anthropic connects a subscription account · n/a           │ │
-  · ctx — · —       │ │                                                                          │ │
-  · health — run…   │ │ API key                                                                  │ │
+vitals              │ │ Subscription                                                             │ │
+  spend —           │ │ none — /logins anthropic connects a subscription account · n/a           │ │
+  ctx — · —         │ │                                                                          │ │
+  health — run…     │ │ API key                                                                  │ │
                     │ │ Anthropic API key (ANTHROPIC_API_KEY)                                    │ │
                     │ │ no usage endpoint is read for an API key on this lane — the provider     │ │
                     │ │ console is the view                                                      │ │
+                    │ │                                                                          │ │
                     │ │                                                                          │ │
                     │ │                                                                          │ │
                     │ │ ↓ 23 more · OpenAI · Z.AI · OpenRouter · Gemini · Moonshot · DeepSeek ·… │ │
@@ -24,7 +25,6 @@ VITALS              │ │ Subscription                                        
                     │                                                                              │
                     ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                 │
+│❯ Type a prompt, or / for commands                                                                │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

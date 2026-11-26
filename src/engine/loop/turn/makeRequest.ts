@@ -1,4 +1,4 @@
-import { LOCAL_COMMAND_STDOUT_TAG } from '../../message-shapes/messageTags.js'
+import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../../message-shapes/messageTags.js'
 import { resetSessionEnvNoticeOnFold } from '../../../tools/kit/sessionEnvNotice.js'
 import {
   AUTO_FOLD_THRASH_MESSAGE,
@@ -22,7 +22,7 @@ import {
 import { estimateContextTokens, projectTimeBasedPrune } from '../../compaction/pruneToolResults.js'
 import { estimateOverflowSignal } from '../../requests/overflowSignal.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE } from '../../requests/apiErrorRows.js'
-import { createAssistantAPIErrorMessage, createCommandInputMessage, createSystemMessage, createUserMessage } from '../../messages/messages.js'
+import { createAssistantAPIErrorMessage, createCommandInputMessage, createSyntheticUserCaveatMessage, createSystemMessage, createUserMessage, formatCommandInputTags } from '../../messages/messages.js'
 import { createDeadThinkingAttachment, deadThinkingMarks } from '../../../models/roads/anthropic/thinkingBinding.js'
 import { getSessionId } from '../../../boot/process-state/processState.js'
 import { fireHooks } from '../../../integrations/event-hooks/fire.js'
@@ -191,6 +191,21 @@ export async function* planContext(run: RunCtx, state: TurnState, toolUseContext
   return { requestPlan, messagesForRequest, prunedTokensFreed, thinkingRecords, fullSystemPrompt }
 }
 
+function foldCommandNoticeRows(
+  commands: AutoFolded['consumedCommands'],
+  output?: { tag: typeof LOCAL_COMMAND_STDERR_TAG | typeof LOCAL_COMMAND_STDOUT_TAG; text: string },
+): Message[] {
+  const consumed = commands ?? []
+  if (consumed.length === 0 && output === undefined) return []
+  return [
+    createSyntheticUserCaveatMessage(),
+    ...consumed.map(cmd => ({
+      ...createCommandInputMessage(formatCommandInputTags('compact', cmd.args)),
+      ...(cmd.uuid !== undefined ? { uuid: cmd.uuid } : {}),
+    })),
+    ...(output !== undefined ? [createCommandInputMessage(`<${output.tag}>${output.text}</${output.tag}>`)] : []),
+  ]
+}
 export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext: ToolUseContext, opened: Pick<FoldedContext, 'tracking' | 'overflowEpisode'>, planned: PlannedContext): AsyncGenerator<RunEvent, FoldedContext | SettledDecision> {
   const { emit, querySource } = run
   const { pendingOverflow } = state
@@ -218,7 +233,7 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
           planned.prunedTokensFreed,
           forced,
         )
-  const { foldResult, consecutiveFailures, consecutiveRapidRefills, rapidRefillBreakerTripped, measuredRawTokenCount, refusal, paused, declined } = asked
+  const { foldResult, consecutiveFailures, consecutiveRapidRefills, rapidRefillBreakerTripped, measuredRawTokenCount, refusal, paused, declined, consumedCommands } = asked
 
   if (rapidRefillBreakerTripped) {
     yield emit({ kind: 'notice', message: createSystemMessage(`${AUTO_FOLD_THRASH_MESSAGE} ${rapidRefillPauseText({ nonInteractive })}`, 'warning') })
@@ -262,7 +277,13 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
   }
 
   if (forced === undefined && (paused === true || declined === true) && refusal !== undefined) {
-    yield emit({ kind: 'notice', message: createSystemMessage(refusal, 'warning') })
+    if (declined === true && consumedCommands !== undefined && consumedCommands.length > 0) {
+      for (const row of foldCommandNoticeRows(consumedCommands, { tag: LOCAL_COMMAND_STDERR_TAG, text: refusal })) {
+        yield emit({ kind: 'notice', message: row })
+      }
+    } else {
+      yield emit({ kind: 'notice', message: createSystemMessage(refusal, 'warning') })
+    }
   }
 
   let tracking = opened.tracking
@@ -283,11 +304,12 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
     const postFold = buildPostFoldMessages(foldResult)
     const carried = foldSplit.carry.map(row => ({ ...row, uuid: randomUUID() }))
     yield emit({ kind: 'compaction_boundary', trigger: forced !== undefined ? 'overflow' : 'auto', messages: [...postFold, ...carried] })
+    let output: { tag: typeof LOCAL_COMMAND_STDOUT_TAG; text: string } | undefined
     if (toolUseContext.agentId === undefined && foldResult.boundaryMarker.compactMetadata.trigger === 'manual') {
       const { manualFoldDisplayText } = await import('../../compaction/manualReceipt.js')
-      const display = manualFoldDisplayText(toolUseContext, foldResult, foldSplit.head.length)
-      yield emit({ kind: 'notice', message: createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${display}</${LOCAL_COMMAND_STDOUT_TAG}>`) })
+      output = { tag: LOCAL_COMMAND_STDOUT_TAG, text: manualFoldDisplayText(toolUseContext, foldResult, foldSplit.head.length) }
     }
+    for (const row of foldCommandNoticeRows(consumedCommands, output)) yield emit({ kind: 'notice', message: row })
     resetSessionEnvNoticeOnFold()
     view = [...postFold, ...carried]
     overflowEpisode = { pruned: opened.overflowEpisode.pruned, folded: true }

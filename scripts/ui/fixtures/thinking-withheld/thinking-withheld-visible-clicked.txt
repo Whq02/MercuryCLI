@@ -1,25 +1,26 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH               │╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│
-  visible reasoning     ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-                        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-NEXT                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
-  · /health — health…   │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
-  · /memory — memory    │                                                                                                                  │
-  · /mission — set a…   │                                                                                                                  │
-                        │ 15:54:19 [sam] ❯ private reasoning                                                                               │
-FILES · project         │                                                                                                                  │
-  ↵ or click · browse   │ 15:54:19 [Mercury] Private reasoning answer.                                                                     │
+workbench               │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+  visible reasoning     │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+                        │   ▀▄▄▄▀▄▄▄▀                                                                                                      │
+next                    │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+  /health               │                                                                                                                  │
+  /memory               │                                                                                                                  │
+  /mission              │ 01:13:14 [sam] ❯ private reasoning                                                                               │
                         │                                                                                                                  │
-VITALS                  │ 15:54:28 [sam] ❯ visible reasoning                                                                               │
-  · spend $0.00         │                                                                                                                  │
-  · ctx 0% · 1000k      │ ● Preserved thinking: 2 thinking blocks written by Opus 4.8 stay out of the requests to Opus 5.5 (the            │
-  · health — run /health│ conversation switched models); the model re-plans without them.                                                  │
-                        │                                                                                                                  │
+files · project         │ 01:13:14 [Mercury] Private reasoning answer.                                                                     │
+  ↵ browse              │                                                                                                                  │
+                        │ 01:13:23 [sam] ❯ visible reasoning                                                                               │
+vitals                  │                                                                                                                  │
+  spend $0.00           │ ● Preserved thinking: 2 thinking blocks written by Opus 4.8 stay out of the requests to Opus 5.5 (the            │
+  ctx 0% · 1000k        │ conversation switched models); the model re-plans without them.                                                  │
+  health — run /health  │                                                                                                                  │
                         │ ✻ thinking…                                                                                                      │
                         │   Visible reasoning body.                                                                                        │
                         │                                                                                                                  │
                         │                                                                                                                  │
-                        │ 15:54:28 [Mercury] Visible reasoning answer.                                                                     │
+                        │ 01:13:23 [Mercury] Visible reasoning answer.                                                                     │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
@@ -46,5 +47,4 @@ VITALS                  │ 15:54:28 [sam] ❯ visible reasoning                
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │❯                                                                                                                                         │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line · shift + ← boot face
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

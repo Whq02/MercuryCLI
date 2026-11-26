@@ -371,7 +371,7 @@ function popupBlock(frames: string[], title: string, colW: number, capacity: num
 }
 function railCells(frame: string): string[] {
   const lines = frame.split('\n')
-  const head = lines.findIndex(line => line.includes('USAGE'))
+  const head = lines.findIndex(line => line.includes('▆ usage'))
   if (head < 0) return []
   const cells: string[] = []
   for (const line of lines.slice(head + 1)) {

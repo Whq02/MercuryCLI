@@ -348,7 +348,6 @@ export function composeMerged(
     entries,
     selIdx: sel,
     title: 'sessions · projects',
-    summaryTitle: 'SESSIONS · PROJECTS',
     summaryRows: resumeSummaryRows({ scope: 'all', count: flat.length, elsewhereCount: 0, pendingMore: 0, projectsCount: projects.length }),
     environment: STILL_ENVIRONMENT,
     statusRight: resumeStatusLine({ loading: false, count: flat.length, scope: 'all', pendingMore: 0, ...(filterBase !== undefined ? { filterBase } : {}) }),

@@ -10,6 +10,7 @@ import { geminiPlanRideWords } from '../../models/roads/gemini/geminiCatalogue.j
 import { declaredRouteOf } from '../../models/roads/routeLaw.js'
 import { contextFillView, type ContextFillView } from '../../engine/context-window/contextFill.js'
 import type { Message } from '../../engine/message-shapes/message.js'
+import { useCatalogueEpoch } from './useCatalogueEpoch.js'
 
 
 export type DisplayedSessionModel = {
@@ -86,6 +87,7 @@ export function useFocusedSentEffort(): string | null | undefined {
 }
 
 export function useDisplayedSessionModel(): DisplayedSessionModel {
+  const catalogueEpoch = useCatalogueEpoch()
   const mainModel = useSyncExternalStore(subscribeFocusedModel, getFocusedMainModel, getFocusedMainModel)
   const pendingParked = useSyncExternalStore(subscribeFocusedModel, getFocusedPendingParked, getFocusedPendingParked)
   const pendingSetting = useSyncExternalStore(subscribeFocusedModel, getFocusedPendingSetting, getFocusedPendingSetting)
@@ -94,6 +96,9 @@ export function useDisplayedSessionModel(): DisplayedSessionModel {
     [pendingParked, pendingSetting],
   )
   const effort = useSyncExternalStore(subscribeFocusedModel, getFocusedServedEffort, getFocusedServedEffort)
-  const ride = useMemo(() => (declaredRouteOf(mainModel) === 'gemini' ? geminiPlanRideWords(mainModel, effort === '' ? undefined : effort) ?? null : null), [mainModel, effort])
+  const ride = useMemo(() => {
+    void catalogueEpoch
+    return declaredRouteOf(mainModel) === 'gemini' ? geminiPlanRideWords(mainModel, effort === '' ? undefined : effort) ?? null : null
+  }, [mainModel, effort, catalogueEpoch])
   return resolveDisplayedSessionModel(mainModel, pendingSwitch, ride)
 }

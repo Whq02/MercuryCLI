@@ -30,7 +30,7 @@ import { UserToolResultMessage } from './user-tool-result/UserToolResultMessage.
 import { MessageModel } from './MessageModel.js'
 import { MessageTimestamp } from './MessageTimestamp.js'
 import { SYNTHETIC_MODEL } from '../../engine/message-shapes/factories.js'
-import { parseReferences } from '../../sessions/promptHistory.js'
+import { imageRowNumbersOf } from '../../engine/message-shapes/normalize.js'
 
 type Props = {
   message: RenderableMessage | AssistantMessage
@@ -212,19 +212,7 @@ function renderUserBody(
     ? rawContent
     : [{ type: 'text' as const, text: String(rawContent) }]
 
-  const inferredImageIds: number[] = []
-  if (message.imagePasteIds === undefined) {
-    for (const block of blocks) {
-      if (block.type === 'text') {
-        for (const ref of parseReferences(block.text)) {
-          if (ref.match.startsWith('[Image')) {
-            inferredImageIds.push(ref.id)
-          }
-        }
-      }
-    }
-  }
-  const imageIds = message.imagePasteIds ?? inferredImageIds
+  const imageIds = imageRowNumbersOf(blocks, message.imagePasteIds)
   const toolResultWidth =
     typeof props.width === 'number' ? props.width - 5 : (props.width ?? '100%')
 

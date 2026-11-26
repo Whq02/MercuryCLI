@@ -279,7 +279,7 @@ async function runScenario(
 ): Promise<void> {
   const { built, byName, result } = buildRoster(scenario.agents, runSeq + 1)
   let frame = await mountAgents(result)
-  if (!frame.includes('AGENTS') && !frame.includes('MERCURY · agents')) {
+  if (!frame.includes('agents') && !frame.includes('MERCURY · agents')) {
     throw new Error(`BootAgentsScreen did not paint agents header:\n${frame}`)
   }
 

@@ -105,7 +105,7 @@ function maskerFor(home: string): (line: string) => string {
   }
 }
 
-const SPINNER_ROW = /^(.*│ )\S [^│…]{1,60}… \(([^)│]*)\)(.*)$/
+const SPINNER_ROW = /^(.*│\s+(?:[▀▄█][▀▄█ ]*\s+)?)\S [^│…]{1,60}… \(([^)│]*)\)(.*)$/
 const maskTitle = (title: string | null): string | null => (title === null ? null : title.replace(/^[⠂⠐] /, '<frame> '))
 
 const teardownSink: string[] = []

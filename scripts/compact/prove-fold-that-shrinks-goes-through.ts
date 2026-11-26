@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { LOCAL_COMMAND_STDERR_TAG } from '../../src/engine/message-shapes/messageTags.ts'
 import { recordToEntry } from '../../src/sessions/fabric/entryCodec.ts'
 import { historyLines } from '../../src/sessions/transcripts/historyParts.ts'
 import { withFixtureRunner } from '../lib/builtProduct.ts'
@@ -183,7 +184,7 @@ async function queuedAndRefused(): Promise<void> {
       await runner.stop()
     }, { argv: ['--session-id', session], env: { MERCURY_CONFIG_DIR: home, MERCURY_SESSION_KIND: 'oculus' } })
     const entries = storedEntries(home, session)
-    const told = entries.filter(row => row.type === 'system' && /^Nothing to compact yet: a summary would not shrink the \S+ tokens\.$/.test(String(row.content)))
+    const told = entries.filter(row => row.type === 'system' && row.subtype === 'local_command' && new RegExp(`^<${LOCAL_COMMAND_STDERR_TAG}>Nothing to compact yet: a summary would not shrink the \\S+ tokens\\.</${LOCAL_COMMAND_STDERR_TAG}>$`).test(String(row.content)))
     const journal = entries.filter(row => row.type === 'queue-operation' && row.commandUuid === queued).map(row => row.operation)
     check('queued and refused: the user is told why once', told.length === 1, entries.filter(row => row.type === 'system').map(row => String(row.content).slice(0, 120)), ONCE)
     check('queued and refused: the queued line is entered once and settled once', journal.length === 2 && journal[0] === 'enqueue' && (journal[1] === 'dequeue' || journal[1] === 'remove'), journal, ONCE)

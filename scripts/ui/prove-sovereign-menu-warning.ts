@@ -72,7 +72,45 @@ section('§4 the colour: the warning token (amber), the theme\'s own warning col
     check(`${name}: the warning line is painted in the warning token rgb(219, 161, 61)`, line !== undefined && line.includes(`${AMBER}▲ ${WORDS}`), line ? JSON.stringify(line) : 'no warning line')
   }
 }
-
+section('§5 wide list window: a warned row under fitLabels keeps its warning line on screen at every position, never over budget')
+{
+  const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
+  const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' })
+  const COUNT = 38
+  const bad: string[] = []
+  for (let warnIdx = 0; warnIdx < COUNT; warnIdx++) {
+    const entries = Array.from({ length: COUNT }, (_, i) => ({
+      label: `Row ${String(i).padStart(2, '0')}`,
+      group: 'items',
+      groupTitle: 'items',
+      summary: 'row summary',
+      valueLabel: 'on',
+      valueIsDefault: false,
+      pinnedVal: null,
+      warn: i === warnIdx ? `warn-${warnIdx}` : null,
+      detail: null,
+    }))
+    const res = core.composeBootMenu(120, 40, {
+      entries,
+      selIdx: warnIdx,
+      fitLabels: true,
+      summary: { profile: 'r0 · default', harness: 'helm' },
+      environment: { model: 'Opus 5', critter: 'Octopus', critterHue: '#B07BE0', dirBase: 'orchard-src', dirTail: '' },
+      statusRight: 'status',
+      legend: '↑↓ move · esc back',
+    } as never) as { lines: string[] }
+    const text = res.lines.join('\n')
+    const hasRow = text.includes(`❯ Row ${String(warnIdx).padStart(2, '0')}`)
+    const hasWarn = text.includes(`▲ warn-${warnIdx}`)
+    const top = res.lines.findIndex(l => l.includes('╭') && l.includes('╮'))
+    const bot = res.lines.findIndex((l, i) => i > top && l.includes('╰') && l.includes('╯'))
+    const boxRows = top >= 0 && bot > top ? bot - top - 1 : -1
+    if (!hasRow || !hasWarn || res.lines.length > 40 || boxRows !== 27) {
+      bad.push(`idx=${warnIdx}(row=${hasRow},warn=${hasWarn},lines=${res.lines.length},box=${boxRows})`)
+    }
+  }
+  check('every row 0..37 selected with a warning under fitLabels paints both the row and its ▲ warning inside the 27-row budget', bad.length === 0, bad.slice(0, 6).join(' · '))
+}
 
 console.log(`\nsovereign menu warning: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

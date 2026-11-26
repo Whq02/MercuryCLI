@@ -1,40 +1,40 @@
 
-                                    ■ ────────────────··· (>_) ···──────────────── ■
+                                    ────────────────────────────────────────────────
 
                                  ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                   ⌁ saturn scheduler
+                                                    saturn scheduler
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ the birth                                                      │  │ ❯ When                                     │
-   │ ❯ When                                                   in 2h │  │                                            │
-   │   Model                                          claude-opus-5 │  │ schedule a birth                           │
-   │   Workspace                       /Users/op/Developer/orchard… │  │                                            │
-   │   Presence                               headless — unattended │  │ fires in 2h (in 2h)                        │
-   │                                                                │  │                                            │
-   │ born wearing                                                   │  │ account: openai/oauth · op@example.com     │
-   │   Kit preset                                        review-kit │  │ preflight: sign-in expired — re-login      │
-   │   Opening mission                 sweep the overnight issues … │  │ now (/logins) or it's born held            │
-   │                                                                │  │                                            │
-   │ words                                                          │  │ … (the trail continues — taller terminal)  │
-   │   Title                                          morning sweep │  ╰────────────────────────────────────────────╯
-   │   Note                                                       — │  ╭────────────────────────────────────────────╮
-   ╰────────────────────────────────────────────────────────────────╯  │ SATURN                                     │
-                                                                       │ Schedules  5                               │
-                                                                       │ Next fire  in 2h                           │
-                                                                       │ Held       2 — /logins releases sign-in h… │
-                                                                       │ Sessions   2 live                          │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    Opus 5                          │
-                                                                       │ Critter    Octopus                         │
-                                                                       │ Dir        orchard-src                     │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  the seven facts — ↵ edits a row                                                             │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   When
+   │ the birth                                                      │
+   │ ❯ When                                                   in 2h │   schedule a birth
+   │   Model                                          claude-opus-5 │
+   │   Workspace                       /Users/op/Developer/orchard… │   fires in 2h (in 2h)
+   │   Presence                               headless — unattended │
+   │                                                                │   account: openai/oauth · op@example.com
+   │ born wearing                                                   │   preflight: sign-in expired — re-login
+   │   Kit preset                                        review-kit │   now (/logins) or it's born held
+   │   Opening mission                 sweep the overnight issues … │
+   │                                                                │   headless: fires whenever the daemon
+   │ words                                                          │   lives; receipts and the transcript are
+   │   Title                                          morning sweep │   the record
+   │   Note                                                       — │   born-working: the opening mission is its
+   ╰────────────────────────────────────────────────────────────────╯     first turn
+
+                                                                        at fire time the session appears on
+                                                                        the concourse, receipted "born by
+                                                                        schedule"
+
+
+                                                                        Schedules  5
+                                                                        Next fire  in 2h
+                                                                        Held       2 — /logins releases sign-in hol…
+                                                                        Sessions   2 live
+
+                                                                        Mercury    Opus 5
+                                                                        Critter    Octopus
+                                                                        Dir        orchard-src
+    the seven facts — ↵ edits a row
                          ↑↓ move · pgup/pgdn page · ↵ edit · ⌫ clear · s schedule it · esc back

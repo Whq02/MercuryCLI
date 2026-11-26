@@ -107,7 +107,7 @@ section('first visit — the origin card says what a yes covers: the origin for 
     save('first-visit-card-120x36', rows)
     printFrame('first-visit card 120x36', rows)
     const text = rows.join('\n')
-    check('the card is the Browser card with the open line', rowsHaving(rows, '⦿ Browser') && rowsHaving(rows, `open ${ORIGIN}/index.html`), `${originCardFix}; an open op must show the Browser header and the open line`)
+    check('the card is the Browser card with the open line', rowsHaving(rows, '│  Browser') && rowsHaving(rows, `open ${ORIGIN}/index.html`), `${originCardFix}; an open op must show the Browser header and the open line`)
     check('the card says the yes approves the origin for the session', text.includes(`Yes approves ${ORIGIN} for this session`), `${originCardFix}; ${rowMatching(rows, /approves/) ?? '(no scope row)'}`)
     check('the card says linked pages are read without asking and the first act on one asks', rowsHaving(rows, 'Pages it links or redirects to are read') && rowsHaving(rows, 'without asking; the first act'), `${originCardFix}; ${rowMatching(rows, /links or redirects/) ?? '(no linked-pages row)'}`)
     check('the card says a new origin opened by address is asked by name', text.includes('A new origin opened by address is asked by name'), `${originCardFix}; ${rowMatching(rows, /new origin/) ?? '(no new-origin row)'}`)

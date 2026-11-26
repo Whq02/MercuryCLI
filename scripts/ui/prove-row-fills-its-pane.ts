@@ -209,8 +209,8 @@ const plain = (s: string): string => s.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').re
 function diffRowsOf(lines: string[]): Set<number> {
   const rows = new Set<number>()
   lines.forEach((line, i) => {
-    if (/^│\s+\d+\s[-+ ]/.test(line)) rows.add(i)
-    else if (i > 0 && rows.has(i - 1) && /^│\s{6,}\S/.test(line) && !/└/.test(line)) rows.add(i)
+    if (/^\s+\d+\s[-+ ]/.test(line)) rows.add(i)
+    else if (i > 0 && rows.has(i - 1) && /^\s{6,}\S/.test(line) && !/└/.test(line)) rows.add(i)
   })
   return rows
 }
@@ -222,7 +222,7 @@ section('§1 the law: a diff row under a 60-column pane on a 120-column render s
   const lines = text.split('\n')
   check('the row painted the edit (the diff body is on screen)', text.includes('return a + b') && text.includes('sums.ts'), `${text.slice(0, 400)} — the edit row did not render its diff; check the MessageRow props in PaneRows and the FileEditTool fixture messages in this script`)
   const diffRows = diffRowsOf(lines)
-  const numbered = lines.filter(l => /^│\s+\d+\s[-+ ]/.test(l)).length
+  const numbered = lines.filter(l => /^\s+\d+\s[-+ ]/.test(l)).length
   check('the diff painted every hunk line', numbered >= hunk.lines.length, `${numbered} numbered row(s) in:\n${lines.map((l, i) => `      ${String(i).padStart(2)}${diffRows.has(i) ? '*' : ' '} ${l}`).join('\n')}\n      — the diff must paint every hunk line as a numbered row; see how MessageRow (src/screen/messages/MessageRow.tsx) renders the FileEditTool result`)
   const out = escapes(frame, PANE_COLUMNS)
   const onDiff = out.filter(o => diffRows.has(o.row))

@@ -345,7 +345,7 @@ async function runLoginsScenario(scenario: LoginsScenario): Promise<void> {
   if (!frame.includes('logins')) {
     throw new Error(`BootLoginsScreen did not paint title:\n${frame}`)
   }
-  const hasSummaryBox = frame.includes('LOGINS')
+  const hasSummaryBox = frame.includes('Families')
   if (hasSummaryBox) {
     const { familyIds, signed } = loginsFamilyCounts(facts.groups)
     const countText = `${signed} of ${familyIds.length}`
@@ -359,7 +359,7 @@ async function runLoginsScenario(scenario: LoginsScenario): Promise<void> {
     if (signedInCount !== 0) throw new Error(`${phase}: onSignedIn fired during navigation`)
     if (openedArms.length !== 0) throw new Error(`${phase}: flow opened before Enter (${openedArms.join(',')})`)
     const { pointerLines, matched } = focusedArmOf(current, arms)
-    const expectedPointers = hasSummaryBox ? 2 : 1
+    const expectedPointers = 1
     if (pointerLines.length !== expectedPointers || matched.length !== 1) {
       throw new Error(`${phase}: expected ${expectedPointers} pointer line(s) matching 1 arm, got lines=${pointerLines.length} matched=${matched.map(a => a.row.value).join(',')}:\n${current}`)
     }
@@ -490,7 +490,7 @@ try {
     moonFrame = await sendKey(KEYS.esc)
     const backToMoon = moonFrame.includes('Kimi (Moonshot)') && closedCount === 0
     moonFrame = await sendKey(KEYS.esc)
-    const backToRoster = moonFrame.includes('LOGINS') && closedCount === 0
+    const backToRoster = moonFrame.includes('Families') && closedCount === 0
     await sendKey(KEYS.esc)
     t.check(
       'nested Moonshot kimi-region pick unwinds region -> moonshot -> roster -> close on successive Esc keys',

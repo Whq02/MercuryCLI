@@ -287,7 +287,7 @@ async function mount(size?: Size): Promise<Scene> {
   const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(size) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Harness)))
-  const painted = await until(() => ink.lastFrameText() !== '' && stripAnsi(ink.lastFrameText()).includes('CREW'))
+  const painted = await until(() => ink.lastFrameText() !== '' && stripAnsi(ink.lastFrameText()).includes('crew ·'))
   check(`the cockpit painted with the crew lane${size === undefined ? '' : ` at ${size.columns}x${size.rows}`}`, painted, `${stripAnsi(ink.lastFrameText()).slice(0, 300)} — the cockpit never painted a CREW lane; look at src/screen/fullscreen-layout/HelmLanesRail.tsx and the harness mount`)
   await sleep(400)
   return {
@@ -379,7 +379,7 @@ const scene = await mount()
 section(`§1 screen 1 at ${COLS}x${ROWS}: Mercury Lead, the default`)
 let frame = scene.lines()
 save('screen-1-lead', frame)
-const crewHeader = railRow(frame, 'CREW')
+const crewHeader = railRow(frame, 'crew ·')
 const leadRow = crewHeader >= 0 ? railText(frame[crewHeader + 1] ?? '').trim() : ''
 console.log(`the CREW lane's first row: "${leadRow}"`)
 check(`the lead's CREW row is first and reads "${LEAD_ROW}"`, crewHeader >= 0 && leadRow.includes(LEAD_ROW), `the row reads "${leadRow}"`)
@@ -419,7 +419,7 @@ console.log(`the view header: "${header2}"`)
 check('the status row names the crewmate and says viewing', /viewing Lane atlas ·/.test(header2), `the status row reads "${header2}"`)
 const cardRows = frame.slice(1, 5).map(centre).join(' ')
 check('the card carries the crewmate\'s facts (its name, its model)', cardRows.includes('Lane atlas') && cardRows.includes('claude-fable-5-1'), cardRows.trim().slice(0, 200))
-check('the card names the keys: esc interrupts · m main chat · Mercury Lead in the rail goes back', cardRows.includes('esc interrupts') && cardRows.includes('m main chat') && cardRows.includes('Mercury Lead in the rail goes back'), cardRows.trim().slice(0, 200))
+check('the card names the keys: in /crewmates: m main chat · x x stop · p pause', cardRows.includes('in /crewmates: m main chat · x x stop · p pause') && !cardRows.includes('esc interrupts') && !cardRows.includes('Mercury Lead in the rail goes back'), cardRows.trim().slice(0, 200))
 const centreRows = frame.map(centre)
 const atlasRows = centreRows.filter(line => line.includes(ATLAS_NEEDLE))
 console.log(`the centre's crewmate rows: ${atlasRows.map(line => line.trim().slice(0, 90)).join(' | ')}`)
@@ -428,7 +428,7 @@ check('the crewmate\'s rows wear its own nameplate, the operator\'s lines the [y
 const composer2 = composerRow(frame)
 check('the composer stays on screen under the view', composer2 > 0, 'no composer row — the view must leave the prompt input painted')
 const footer2 = frame.slice(composer2, composer2 + 6).join('\n')
-check('the footer says ↵ sends to the crewmate · esc interrupts it · Mercury Lead in the rail goes back', /sends to Lane atlas/.test(footer2) && /esc interrupts Lane atlas/.test(footer2) && /Mercury Lead in the rail goes back/.test(footer2), footer2.replace(/\s+/g, ' ').slice(0, 300))
+check('the footer says ↵ sends to the crewmate · esc interrupts it (once)', /sends to Lane atlas/.test(footer2) && /esc interrupts Lane atlas/.test(footer2) && !/Mercury Lead in the rail goes back/.test(footer2), footer2.replace(/\s+/g, ' ').slice(0, 300))
 check('the click dispatched no command (no /tasks board opened)', scene.submits.length === 0, `submits=${JSON.stringify(scene.submits)}`)
 if (viewedAfterClick === undefined) {
   scene.push(press(8, pickerRow) + release(8, pickerRow))
@@ -488,7 +488,7 @@ if (crewWindow !== null) {
   check('the transcript still paints beside the window (the cockpit is dimmed, not blanked)', frame.some(line => line.includes(TRANSCRIPT_NEEDLE)), 'no transcript row on the frame')
 }
 check('the composer stays on screen around the pop-up', composerRow(frame) > 0, 'no composer row')
-check('the lanes rail stays on screen beside the pop-up', railRow(frame, 'CREW') >= 0, 'no CREW lane')
+check('the lanes rail stays on screen beside the pop-up', railRow(frame, 'crew ·') >= 0, 'no CREW lane')
 
 section('§4 screen 4: m on a crewmate makes it the main chat')
 for (let step = 0; step < 5; step++) {

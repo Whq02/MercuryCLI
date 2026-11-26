@@ -115,7 +115,7 @@ try {
     globalThis.setTimeout = later
     globalThis.clearTimeout = clear
   }
-  check('the value calls the quiet budget quiet, not OpenAI-only', /quiet/.test(patienceWords(currentPatience().numbers)) && !/OpenAI/.test(patienceWords(currentPatience().numbers)))
+  check('the value calls the silent budget silent, not OpenAI-only', /silent/.test(patienceWords(currentPatience().numbers)) && !/OpenAI/.test(patienceWords(currentPatience().numbers)))
   const idleWords = FLAG_REGISTRY.find(flag => flag.env === 'MERCURY_STREAM_IDLE_TIMEOUT_MS')?.off ?? ''
   const fenceWords = FLAG_REGISTRY.find(flag => flag.env === 'MERCURY_SILENT_AFTER_HEADERS_MS')?.off ?? ''
   check('the flag registry no longer promises a fixed budget on other providers', idleWords.includes('every provider') && !idleWords.includes('every other road'))

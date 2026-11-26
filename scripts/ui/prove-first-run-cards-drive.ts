@@ -308,7 +308,9 @@ try {
           const want = state === 'centred' ? BROWN_FG : AMBER_FG
           const corner = grid[box.top]![box.left]!
           const inner = grid[box.top + 5]![box.left + 2]!
-          const title = markCells(grid, '⦿')[0]
+          const titleRow = grid.find(row => row.map(cell => cell.c).join('').includes('Trust this folder?'))
+          const titleAt = titleRow ? titleRow.map(cell => cell.c).join('').indexOf('Trust this folder?') : -1
+          const title = titleRow && titleAt >= 0 ? titleRow[titleAt] : undefined
           check(`${label}: the frame border, the inner box and its title wear ${state === 'centred' ? 'light brown' : 'amber'}`, corner.fg === want && inner.c === '╭' && inner.fg === want && title !== undefined && title.fg === want, `corner ${corner.fg} inner ${inner.c}/${inner.fg} title ${title?.fg ?? 'absent'}`)
         }
         if (station === 'theme' || station === 'provider' || station === 'terminal') {

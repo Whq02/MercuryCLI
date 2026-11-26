@@ -162,7 +162,7 @@ try {
     const text = (g: { rows: string[] }): string => g.rows.join('\n')
     const kind = (g: { rows: string[] }): 'board' | 'alpha' | 'beta' | 'other' => {
       const t = text(g)
-      if (t.includes('SESSIONS')) return 'board'
+      if (t.includes('status & title')) return 'board'
       if (/alpha-\d\d body/.test(t)) return 'alpha'
       if (t.includes('beta-01 settled body')) return 'beta'
       return 'other'

@@ -26,7 +26,7 @@ import { useLayoutChrome } from './layoutChromeContext.js'
 import { requestCommandDispatch } from '../cockpit/helmFocus.js'
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
 import { BigWordmark, Sigil, Wordmark, wordmarkForm } from '../widgets/assets.js'
-import { AnimatedCritterArt, BreathingDot } from '../widgets/AnimatedCritterArt.js'
+import { AnimatedCritterArt } from '../widgets/AnimatedCritterArt.js'
 import { MiniCritter } from '../widgets/MiniCritter.js'
 import { deckPaintsDock } from '../deck-pane/DeckPane.js'
 import { cycleSessionCritter, useSessionAccent } from '../widgets/sessionAccent.js'
@@ -161,11 +161,8 @@ function MercuryHomeBody(): React.ReactNode {
   const helmHome = useContext(CockpitActiveContext)
   const deckPresent = isDeckPaneActive() && !helmHome
 
-  const sa = useSessionAccent()
-  const accent = sa.accent
   const { rows: termRows, columns: termCols } = useTerminalSize()
   const bigHero = wordmarkForm(termCols, termRows) === 'banner'
-  const critterLabel = sa.name.charAt(0).toUpperCase() + sa.name.slice(1)
   const rowClick = (key: string, command: string): { id: string; directActivate: true; onActivate: () => void } => ({
     id: `home:row:${key}`,
     directActivate: true,
@@ -191,17 +188,7 @@ function MercuryHomeBody(): React.ReactNode {
             <Wordmark />
           </Box>
         )}
-        {signInGate.state === 'ok' ? (
-          <InteractiveRow {...rowClick('standing-by', '/palette')}>
-            <BreathingDot />
-            <Text color={tok.success}> ready</Text>
-            <Text color={tok.textMuted}>
-              {' · type a prompt, or '}
-              <Text color={tok.info}>/</Text>
-              {' for commands'}
-            </Text>
-          </InteractiveRow>
-        ) : (
+        {signInGate.state === 'ok' ? null : (
           <InteractiveRow {...rowClick('standing-by', SIGN_IN_COMMAND)}>
             <Text color={tok.warning}>○ {signInGate.state === 'not-logged-in' ? NOT_SIGNED_IN_WORDS : `no ${signInGate.missingProvider} account`}</Text>
             <Text color={tok.textMuted}>
@@ -221,16 +208,10 @@ function MercuryHomeBody(): React.ReactNode {
             <Text wrap="truncate-end">
               <Text color={tok.textMuted}>{'  model   '}</Text>
               <Text color={tok.textPrimary}>{model}</Text>
-              <Text color={tok.textMuted}>{'   the model this session runs on · /model changes it'}</Text>
+              <Text color={tok.textMuted}>{'   /model'}</Text>
             </Text>
           </InteractiveRow>
         ) : null}
-        <InteractiveRow {...rowClick('theme', '/critter')}>
-          <Text>
-            <Text color={tok.textMuted}>{'  critter '}</Text>
-            <Text color={accent}>{critterLabel}</Text>
-          </Text>
-        </InteractiveRow>
         <Text wrap="truncate-end">
           <Text color={tok.textMuted}>{'  dir     '}</Text>
           <Text color={tok.textPrimary}>{dir}</Text>
@@ -285,11 +266,8 @@ function MercuryHomeBody(): React.ReactNode {
       </Box>
 
       <Box marginTop={1}>
-        <Text wrap="truncate-end">
-          <Text color={accent}>❯ </Text>
-          <Text color={tok.textPrimary}>↵</Text>
-          <Text color={tok.textSecondary}> sends</Text>
-          <Text color={tok.textMuted}>{`  ·  ${CREW_VIEW_DOOR} /saturn /health /trace`}</Text>
+        <Text wrap="truncate-end" color={tok.textMuted}>
+          {`  ${CREW_VIEW_DOOR}  /saturn  /health  /trace`}
         </Text>
       </Box>
     </Box>

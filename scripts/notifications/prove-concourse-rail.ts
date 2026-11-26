@@ -71,7 +71,7 @@ try {
     titlesOn: Set<string>
   }
   const views: RailView[] = grabs.map(g => {
-    const railLine = g.rows.find(r => r.includes('NEEDS YOU')) ?? ''
+    const railLine = g.rows.find(r => r.includes('needs you')) ?? ''
     const text = g.rows.join('\n')
     return {
       atMs: g.atMs,
@@ -195,7 +195,7 @@ try {
 const fixture3 = referenceFixtureSnapshot() as { groups: Array<Record<string, unknown>> }
 fixture3.groups.push({
   id: 'paused',
-  label: 'PAUSED',
+  label: 'paused',
   rows: [
     {
       sessionId: 'sess-pz',
@@ -235,7 +235,7 @@ try {
   const grabs = grabScreens(vrun, 142, 52, [S(2000), S(3400), S(4200), S(5000), S(6000), S(7000), -1])
   const anyFrame = grabs.find(g => g.rows.some(r => r.includes('PAUSEDROWQ')))
   t.section('§7 — the valve is VISIBLE (paused group + redirect compose)')
-  t.check('the PAUSED group header renders on the board', anyFrame !== undefined && anyFrame.rows.some(r => r.includes('PAUSED') && !r.includes('PAUSEDROWQ')), anyFrame ? `@${anyFrame.atMs}` : 'never')
+  t.check('the PAUSED group header renders on the board', anyFrame !== undefined && anyFrame.rows.some(r => r.includes('paused · ') && !r.includes('PAUSEDROWQ')), anyFrame ? `@${anyFrame.atMs}` : 'never')
 } finally {
   vrun.cleanup()
   rmSync(fixtureDir3, { recursive: true, force: true })

@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
+import figures from 'figures'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -195,8 +196,12 @@ async function closeScene(scene: Scene): Promise<void> {
   scene.m.unmount()
   resetOverlayStackForTests()
 }
-const cells = (line: string): string => line.replace(/^.*?│ │ │ /, '').replace(/ │ │ │.*$/, '').replace(/\s+/g, ' ').trim()
-const focused = (m: Mounted): string => m.lines().find(l => /│ │ │ .* │ │ │/.test(l)) ?? ''
+const cells = (line: string): string => {
+  const at = line.indexOf(`${figures.pointer} `)
+  const body = at < 0 ? line : line.slice(at + figures.pointer.length + 1)
+  return body.replace(/(?:\s*│)+\s*$/, '').replace(/\s+/g, ' ').trim()
+}
+const focused = (m: Mounted): string => m.lines().find(l => l.includes(`│ ${figures.pointer} `) && /│\s*$/.test(l)) ?? ''
 const noticeOf = (m: Mounted): string => (m.lines().find(l => /ctx · no alternate window|not a toggle/.test(l)) ?? '').replace(/[│]/g, ' ').replace(/\s+/g, ' ').trim()
 async function focusRow(scene: Scene, id: string): Promise<boolean> {
   for (const key of [KEY.up, KEY.down]) {

@@ -11,14 +11,13 @@ import { BACKGROUND_MOVED_WORDS, type ToolUseEntryV1 } from '../../../engine/con
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { MessageResponse } from '../../../tools/kit/MessageResponse.js'
 import { denialLineOf } from '../../../engine/message-shapes/rejectionText.js'
-import { toolFamilyFor, type ToolFamily } from '../../widgets/toolGlyphs.js'
 import { RunningShellBackgroundHint } from '../AssistantToolUseMessage.js'
 import { ToolRowLead, toolRowStateOf } from '../ToolRowLead.js'
 import { TranscriptNameplate } from '../TranscriptNameplate.js'
 import { OutputLine } from '../../shell-output/OutputLine.js'
 import { BASH_TOOL_NAME } from '../../../tools/kit/names/bash.js'
 
-export type Fragment = { verb: string; rest: React.ReactNode; family: ToolFamily }
+export type Fragment = { verb: string; rest: React.ReactNode }
 
 type VerboseGroupArgs = {
   message: CollapsedReadSearchGroup
@@ -101,7 +100,6 @@ export function verboseGroupView({ message, tools, lookups, verbose, shellId, se
         <Box>
           <Text wrap="truncate-middle">
             <ToolRowLead
-              family={toolFamilyFor(entry.name)}
               state={toolRowStateOf({
                 resolved: resolvedMember,
                 errored: erroredMember,
@@ -136,7 +134,6 @@ export function verboseGroupView({ message, tools, lookups, verbose, shellId, se
 
 type CollapsedGroupArgs = {
   selectedBg: string | undefined
-  fragments: Fragment[]
   active: boolean
   anyErrored: boolean
   anyDenied: boolean
@@ -150,7 +147,7 @@ type CollapsedGroupArgs = {
   memberResultText: (lookups: MessageLookups, id: string) => string
 }
 
-export function collapsedGroupView({ selectedBg, fragments, active, anyErrored, anyDenied, sentence, tail, hint, memberEntries, lookups, shellId, movedByOperator, memberResultText }: CollapsedGroupArgs): React.ReactNode {
+export function collapsedGroupView({ selectedBg, active, anyErrored, anyDenied, sentence, tail, hint, memberEntries, lookups, shellId, movedByOperator, memberResultText }: CollapsedGroupArgs): React.ReactNode {
   return (
     <Box flexDirection="column" backgroundColor={selectedBg}>
       <Box>
@@ -160,7 +157,6 @@ export function collapsedGroupView({ selectedBg, fragments, active, anyErrored, 
         </Box>
         <Text wrap="truncate-end">
           <ToolRowLead
-            family={fragments[0]?.family ?? 'shell'}
             state={toolRowStateOf({ resolved: !active, errored: anyErrored, denied: anyDenied })}
           />
           <Text color={active ? undefined : 'subtle'}>

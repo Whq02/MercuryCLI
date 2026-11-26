@@ -1,40 +1,40 @@
 
-                                    ■ ────────────────··· (>_) ···──────────────── ■
+                                    ────────────────────────────────────────────────
 
                                  ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                    ⌁ resume session
+                                                     resume session
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ orchard-src                                                    │  │ ❯ the tool-loop fold                       │
-   │ ❯ the tool-loop fold                             2 minutes ago │  │                                            │
-   │   concourse polish                       3 hours ago · cleared │  │ prune transcripts — the one deleting       │
-   │                                                                │  │ door · nothing is ever deleted             │
-   │ moodle                                                         │  │ automatically                              │
-   │   moodle groundwork                                  1 day ago │  │                                            │
-   │                                                                │  │ scope: the full history (every project,    │
-   │ orchard-src                                                    │  │   cleared included)                        │
-   │   splash ripple study                               2 days ago │  │ older than 30 days                         │
-   │   forty-day spike                                  1 month ago │  │                                            │
-   │   ninety-day archive                              3 months ago │  │ would delete: 2 transcripts · total        │
-   ╰────────────────────────────────────────────────────────────────╯  │   164.1KB                                  │
-                                                                       │ age range: 3 months ago → 1 month ago      │
-                                                                       │                                            │
-                                                                       │ ▸ No — keep everything (default)           │
-                                                                       │   Yes — delete exactly this set, for good  │
-                                                                       │                                            │
-                                                                       │ deletes exactly the set named above ·      │
-                                                                       │ asked every time, never remembered         │
-                                                                       │                                            │
-                                                                       │                                            │
-                                                                       │                                            │
-                                                                       │                                            │
-                                                                       │                                            │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  6 sessions in the full history · ↵ opens the real chat                                      │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   the tool-loop fold
+   │ orchard-src                                                    │
+   │ ❯ the tool-loop fold                             2 minutes ago │   prune transcripts — the one deleting
+   │   concourse polish                       3 hours ago · cleared │   door · nothing is ever deleted
+   │                                                                │   automatically
+   │ moodle                                                         │
+   │   moodle groundwork                                  1 day ago │   scope: the full history (every project,
+   │                                                                │     cleared included)
+   │ orchard-src                                                    │   older than 30 days
+   │   splash ripple study                               2 days ago │
+   │   forty-day spike                                  1 month ago │   would delete: 2 transcripts · total
+   │   ninety-day archive                              3 months ago │     164.1KB
+   ╰────────────────────────────────────────────────────────────────╯   age range: 3 months ago → 1 month ago
+
+                                                                        ▸ No — keep everything (default)
+                                                                          Yes — delete exactly this set, for good
+
+                                                                        deletes exactly the set named above ·
+                                                                        asked every time, never remembered
+
+
+
+                                                                        Scope      all history — every project
+                                                                        Sessions   6
+                                                                        Opens      in place
+
+                                                                        Mercury    Opus 5
+                                                                        Critter    Octopus
+                                                                        Dir        orchard-src
+    6 sessions in the full history
                            ↑↓ choose · ↵ commit (No is the default) · esc / n keep everything

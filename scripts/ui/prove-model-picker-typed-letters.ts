@@ -280,7 +280,7 @@ section('§4 /model with words that name no listed model: the words become the p
   const carried = await waitFor(() => boxText(scene.m) === '/ claude 5' && /Mercury · model · \d+ of \d+ match/.test(scene.m.screen()), 6000)
   check('words that match rows open the picker filtered to them, the title counting the matches', carried, `${boxText(scene.m)} · ${rowOf(scene.m, TITLE).trim()}`, 'the words passed to the call in src/commands/model/mercuryModel.tsx must open the picker filtered to matching rows')
   const matched = Number(/Mercury · model · (\d+) of \d+ match/.exec(scene.m.screen())?.[1] ?? '0')
-  check('a row of the filtered list is the focused one (boxed)', matched > 0 && popupLines(scene.m).some(l => /│ │ │ .*claude-/.test(l)), popupLines(scene.m).filter(l => l.includes('claude-')).join(' | '), 'the filtered picker in src/commands/model/picker/MercuryModelPicker.tsx must focus a matching row')
+  check('a row of the filtered list is the focused one (pointer)', matched > 0 && popupLines(scene.m).some(l => /│ │ ❯ .*claude-/.test(l)), popupLines(scene.m).filter(l => l.includes('claude-')).join(' | '), 'the filtered picker in src/commands/model/picker/MercuryModelPicker.tsx must focus a matching row')
   save('typed-words-claude-5-120x40', scene.m.lines())
   scene.m.push(KEY.esc)
   await waitFor(() => !/ of \d+ match/.test(scene.m.screen()), 4000)

@@ -1,6 +1,7 @@
 import { Box, Text } from '../../themedRenderer.js'
 import { chatPresent } from '../../routes/surfaceRoute.js'
 import { gitOfferOwnsTheKeys } from '../boardModalOwner.js'
+import { boardSelectionClassOf } from '../controlManifest.js'
 import { clampCaret } from '../lineDraft.js'
 import { panelWidth } from '../../widgets/geometry.js'
 import { MODEL_PICKER_PANEL } from '../../../models/facts/modelPickerGroups.js'
@@ -87,7 +88,7 @@ export function concourseStage({ snapshot, callbacks, reducedStage, answerCapaci
         boardTree
       )}
       {}
-      {helpOpen ? <ConcourseKeyAtlas cols={termCols} rows={termRows} chat={chatPresent()} reducedStage={reducedStage} splitOn={splitActive} /> : null}
+      {helpOpen ? <ConcourseKeyAtlas cols={termCols} rows={termRows} chat={chatPresent()} reducedStage={reducedStage} splitOn={splitActive} selection={boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSel))} /> : null}
       {capacityAsk ? <CapacityAskModal cols={cols} rows={termRows} onAnswer={answerCapacityAsk} /> : null}
       {groundPickerOpen ? (
         <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: termRows }} width={74} top={Math.floor(termRows / 2) - 9}>
@@ -103,7 +104,7 @@ export function concourseStage({ snapshot, callbacks, reducedStage, answerCapaci
         <TrustAskModal cols={cols} rows={termRows} dir={trustAsk.dir} onAnswer={answerTrustAsk} />
       ) : null}
       {rowPick !== null && rowPick.kind === 'model' ? (
-        <FloatingPopup host={{ left: 0, top: Math.max(0, geo.mainBand[0] - 1), columns: cols, rows: Math.min(geo.mainRows + 2, termRows - Math.max(0, geo.mainBand[0] - 1)) }} width={panelWidth(cols, MODEL_PICKER_PANEL)} top={geo.mainBand[0]}>
+        <FloatingPopup host={{ left: 0, top: Math.max(0, geo.mainBand[0] - 1), columns: cols, rows: Math.min(geo.mainRows + 1, Math.max(0, geo.helpTop - 1) - Math.max(0, geo.mainBand[0] - 1)) }} width={panelWidth(cols, MODEL_PICKER_PANEL)} top={geo.mainBand[0]}>
           {size => <ModalContext.Provider value={{ rows: size.rows, columns: cols, scrollRef: null }}>
             <MercurySessionModelPicker
               currentModel={sessionRows.find(r => r.sessionId === rowPick.sessionId)?.modelId}
@@ -159,7 +160,7 @@ export function concourseStage({ snapshot, callbacks, reducedStage, answerCapaci
         </FloatingPopup>
       ) : null}
       {modelDefaultOpen ? (
-        <FloatingPopup host={{ left: 0, top: Math.max(0, geo.mainBand[0] - 1), columns: cols, rows: Math.min(geo.mainRows + 2, termRows - Math.max(0, geo.mainBand[0] - 1)) }} width={panelWidth(cols, MODEL_PICKER_PANEL)} top={geo.mainBand[0]}>
+        <FloatingPopup host={{ left: 0, top: Math.max(0, geo.mainBand[0] - 1), columns: cols, rows: Math.min(geo.mainRows + 1, Math.max(0, geo.helpTop - 1) - Math.max(0, geo.mainBand[0] - 1)) }} width={panelWidth(cols, MODEL_PICKER_PANEL)} top={geo.mainBand[0]}>
           {size => <ModalContext.Provider value={{ rows: size.rows, columns: cols, scrollRef: null }}>
             <MercuryModelDefaultPicker
               onDone={() => {

@@ -141,9 +141,10 @@ const says = (rows: string[], words: string): boolean => rows.some(row => row.re
 const writeCard = (path: string, content: string, reason = ELSEWHERE, context?: unknown, columns?: number): Promise<string[]> => card(FileWritePermissionRequest, WriteTool, { file_path: path, content }, reason, context, columns)
 const editCard = (input: Record<string, unknown>, reason = ELSEWHERE, context?: unknown): Promise<string[]> => card(FileEditPermissionRequest, EditTool, input, reason, context)
 const readCard = (path: string): Promise<string[]> => card(FilesystemPermissionRequest, ReadTool, { file_path: path }, ELSEWHERE)
-const subtitle = (rows: string[]): string => rows[rows.findIndex(row => row.startsWith('⦿ ')) + 1] ?? ''
+const CARD_TITLE = /^(?:Edit file|Overwrite file|Create file|Read file)$/
+const subtitle = (rows: string[]): string => rows[rows.findIndex(row => CARD_TITLE.test(row)) + 1] ?? ''
 const body = (rows: string[], reason: string): string[] => {
-  const start = rows.findIndex(row => row.startsWith('⦿ ')) + 1
+  const start = rows.findIndex(row => CARD_TITLE.test(row)) + 1
   const end = rows.findIndex((row, index) => index > start && row === reason)
   return start === 0 || end === -1 ? ['<the card has no title or no such reason>', ...rows] : rows.slice(start + 1, end).filter(row => !/^[╌╭╮╰╯─]+$/.test(row))
 }
@@ -153,7 +154,7 @@ const same = (rows: string[], wanted: string[]): boolean => JSON.stringify(rows)
 async function ownWords(): Promise<void> {
   section('Write on another machine, unread: the card says what is written and where, and reads nothing here')
   const write = await writeCard(REMOTE, 'name: app\nport: 8080\n')
-  check('its title is Edit file: whether the file is there is not known before the machine is asked', write.includes('⦿ Edit file') && !write.some(row => /Overwrite file|Create file/.test(row)), write.join(' | '))
+  check('its title is Edit file: whether the file is there is not known before the machine is asked', write.includes('Edit file') && !write.some(row => /Overwrite file|Create file/.test(row)), write.join(' | '))
   check('it names the path as it was written', subtitle(write) === REMOTE, subtitle(write))
   const long = await writeCard(far, 'x\n', ELSEWHERE, undefined, 80)
   check('a path longer than the card keeps its machine whole and loses the start of its path', subtitle(long) === 'ssh://deploy@web1.internal.example.com:2222…/environments/production.yml', subtitle(long))
@@ -168,7 +169,7 @@ async function ownWords(): Promise<void> {
 
   section('Edit on another machine, unread: the edit\'s own old and new text')
   const swap = await editCard({ file_path: REMOTE, old_string: 'port: 1\nhost: a', new_string: 'port: 2\nhost: a' })
-  check('old_string and new_string: the path as written, the lines that change, today\'s question', swap.includes('⦿ Edit file') && subtitle(swap) === REMOTE && same(body(swap, ELSEWHERE), ['config.yml', '1 -port: 1', '1 +port: 2', '2  host: a']) && swap.includes('Do you want to make this edit to config.yml?'), swap.join(' | '))
+  check('old_string and new_string: the path as written, the lines that change, today\'s question', swap.includes('Edit file') && subtitle(swap) === REMOTE && same(body(swap, ELSEWHERE), ['config.yml', '1 -port: 1', '1 +port: 2', '2  host: a']) && swap.includes('Do you want to make this edit to config.yml?'), swap.join(' | '))
   check('nothing of the local file is drawn around it', local(swap).length === 0, local(swap).join(' | '))
   const gone = await editCard({ file_path: REMOTE, old_string: 'port: 1\n', new_string: '' })
   check('a deletion shows the lines that go', same(body(gone, ELSEWHERE), ['config.yml', '1 -port: 1']), JSON.stringify(body(gone, ELSEWHERE)))
@@ -197,7 +198,7 @@ async function ownWords(): Promise<void> {
 
   section('Read on another machine')
   const read = await readCard(REMOTE_LINK)
-  check('the card names the read as written and offers the host', read.includes('⦿ Read file') && read.includes(`Read(${REMOTE_LINK})`) && read.includes('2. Yes, allow reading from web1 for this session') && read.includes('Do you want to proceed?'), read.join(' | '))
+  check('the card names the read as written and offers the host', read.includes('Read file') && read.includes(`Read(${REMOTE_LINK})`) && read.includes('2. Yes, allow reading from web1 for this session') && read.includes('Do you want to proceed?'), read.join(' | '))
   check('a local link at the collapsed spelling is not followed', local(read).length === 0, local(read).join(' | '))
 }
 
@@ -237,7 +238,7 @@ async function lastRead(world: RemoteWorld): Promise<void> {
     if (name === 'hunks') check('the card names the machine and the file, whatever the length of the path', subtitle(rows).startsWith('ssh://box') && subtitle(rows).endsWith('/notes.md'), subtitle(rows))
   }
   const rewritten = await writeCard(path, NOTES.replace('port: 1', 'port: 8080'), ELSEWHERE, whole)
-  check('Write: the same, and the title and the question stay as they are for a file on another machine', same(body(rewritten, ELSEWHERE), ['1  # service', '2', '3  name: app', '4 -port: 1', '4 +port: 8080', '5  host: a', '6', '7  ## Checks']) && rewritten.includes('⦿ Edit file') && rewritten.includes('Do you want to proceed?') && local(rewritten).length === 0, JSON.stringify(body(rewritten, ELSEWHERE)))
+  check('Write: the same, and the title and the question stay as they are for a file on another machine', same(body(rewritten, ELSEWHERE), ['1  # service', '2', '3  name: app', '4 -port: 1', '4 +port: 8080', '5  host: a', '6', '7  ## Checks']) && rewritten.includes('Edit file') && rewritten.includes('Do you want to proceed?') && local(rewritten).length === 0, JSON.stringify(body(rewritten, ELSEWHERE)))
 
   const windows = join(world.data, 'windows.txt')
   writeFileSync(windows, '\uFEFFone\r\ntwo\r\nthree\r\n')
@@ -282,11 +283,11 @@ async function lastRead(world: RemoteWorld): Promise<void> {
 async function here(): Promise<void> {
   section('A file on this machine is asked about as it was')
   const over = await writeCard(join(project, 'a.txt'), 'alpha\nbeta CHANGED\ngamma\n', OUTSIDE)
-  check('a write over a file that is there', over.includes('⦿ Overwrite file') && same(body(over, OUTSIDE), ['1  alpha', '2 -beta', '2 +beta CHANGED', '3  gamma']) && over.includes('Do you want to overwrite a.txt?') && over.includes('2. Yes, allow all edits for this session (shift+tab)'), over.join(' | '))
+  check('a write over a file that is there', over.includes('Overwrite file') && same(body(over, OUTSIDE), ['1  alpha', '2 -beta', '2 +beta CHANGED', '3  gamma']) && over.includes('Do you want to overwrite a.txt?') && over.includes('2. Yes, allow all edits for this session (shift+tab)'), over.join(' | '))
   const fresh = await writeCard(join(project, 'new.txt'), 'one\ntwo\n', OUTSIDE)
-  check('a write of a new file', fresh.includes('⦿ Create file') && same(body(fresh, OUTSIDE), ['1  one', '2  two']) && fresh.includes('Do you want to create new.txt?'), fresh.join(' | '))
+  check('a write of a new file', fresh.includes('Create file') && same(body(fresh, OUTSIDE), ['1  one', '2  two']) && fresh.includes('Do you want to create new.txt?'), fresh.join(' | '))
   const edited = await editCard({ file_path: join(project, 'a.txt'), old_string: 'beta', new_string: 'beta CHANGED' }, OUTSIDE)
-  check('an edit, drawn against the file with its neighbours', edited.includes('⦿ Edit file') && same(body(edited, OUTSIDE), ['a.txt', '1  alpha', '2 -beta', '2 +beta CHANGED', '3  gamma']) && edited.includes('Do you want to make this edit to a.txt?'), edited.join(' | '))
+  check('an edit, drawn against the file with its neighbours', edited.includes('Edit file') && same(body(edited, OUTSIDE), ['a.txt', '1  alpha', '2 -beta', '2 +beta CHANGED', '3  gamma']) && edited.includes('Do you want to make this edit to a.txt?'), edited.join(' | '))
   const planned = await editCard({ file_path: join(project, 'a.txt'), hunks: [{ lines: '2', replace: 'BETA' }] }, OUTSIDE)
   check('an edit by hunks, planned against the file', same(body(planned, OUTSIDE), ['a.txt', '1  alpha', '2 -beta', '2 +BETA', '3  gamma']), JSON.stringify(body(planned, OUTSIDE)))
   const linked = await writeCard(join(project, 'link.txt'), 'x\n', OUTSIDE)
@@ -295,7 +296,7 @@ async function here(): Promise<void> {
   const noNew = await refused(WriteTool, { file_path: join(project, 'brand-new.txt'), content: 'one\ntwo\n' })
   check('a refused write of a local file is named from the working folder, as an update of a file that is there and a write of one that is not', says(noLocal, 'Operator rejected update to a.txt') && says(noNew, 'Operator rejected write to brand-new.txt') && noNew.some(row => row.includes('one')), `${noLocal.join(' | ')} || ${noNew.join(' | ')}`)
   const oneSlash = await writeCard('ssh:/web1/srv/config.yml', 'mine\n', OUTSIDE)
-  check('a relative path under a folder named ssh: with one slash is a file here, drawn against what it holds', oneSlash.includes('⦿ Overwrite file') && oneSlash.includes('ssh:/web1/srv/config.yml') && oneSlash.includes('1 -LOCAL FILE CONTENT') && oneSlash.includes('Do you want to overwrite config.yml?'), oneSlash.join(' | '))
+  check('a relative path under a folder named ssh: with one slash is a file here, drawn against what it holds', oneSlash.includes('Overwrite file') && oneSlash.includes('ssh:/web1/srv/config.yml') && oneSlash.includes('1 -LOCAL FILE CONTENT') && oneSlash.includes('Do you want to overwrite config.yml?'), oneSlash.join(' | '))
 }
 
 try {

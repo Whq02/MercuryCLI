@@ -10,6 +10,7 @@ prove-capacity-settings-drive.ts
 prove-capture-hermetic.ts
 prove-capture-home-owns-daemon.ts
 prove-card-queued-words-drive.ts
+prove-caret-after-card-words-drive.ts
 prove-choose-a-model.ts
 prove-cockpit-scroll-rail.ts
 prove-concourse-arrow-focus.ts
@@ -18,6 +19,7 @@ prove-config-model-doors-drive.ts
 prove-consent-card-fits-drive.ts
 prove-consent-card-holds-under-words.ts
 prove-crew-live-drive.ts
+prove-crew-receipt-counts-drive.ts
 prove-crew-seats-drive.ts
 prove-crewmates-door-drive.ts
 prove-exit-note-drive.ts

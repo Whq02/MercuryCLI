@@ -125,7 +125,7 @@ t.section('§5 — THE COMPOSER TIERS (floor warns · wide fits · additive tone
   t.check('the 64×12 floor frame WARNS and keeps the legend (never a wall)', floor.join('\n').includes('wants at least') && floor.join('\n').includes('esc back'), floor.join('\n').slice(0, 120))
   t.check('the floor frame fits its rows', floor.length <= 12, String(floor.length))
   const wide = composeHealth(120, 40, { view: 'list', sel: 2 })
-  t.check('the wide tier composes the three panels + the certificate summary', ['CONTROL PLANE', 'SETTING DETAIL', 'CERTIFICATE', 'ENVIRONMENT'].every(p => wide.join('\n').includes(p)))
+  t.check('the wide tier composes the list box, detail, certificate summary and environment', ['╭', 'Verdict', 'Checks', 'Mercury', 'Dir'].every(p => wide.join('\n').includes(p)))
   t.check('the wide frame fits 120×40', wide.length <= 40, String(wide.length))
   const microCols = composeHealth(40, 12, { view: 'list' })
   const microRows = composeHealth(80, 8, { view: 'list' })
@@ -137,7 +137,6 @@ t.section('§5 — THE COMPOSER TIERS (floor warns · wide fits · additive tone
       colorCore.composeBootMenu(120, 40, {
         entries: [{ label: 'row', group: 'g', groupTitle: 'G', summary: 's', valueLabel: 'v', valueIsDefault: true, pinnedVal: null, detail: null }],
         selIdx: 0,
-        summaryTitle: 'T',
         summaryRows: [{ key: 'K', value: 'value', ...(tone !== undefined ? { tone } : {}) }],
         environment: { model: 'm', critter: 'c', critterHue: '#B07BE0', dirBase: 'd', dirTail: '' },
         statusRight: 'status',
@@ -152,7 +151,6 @@ t.section('§5 — THE COMPOSER TIERS (floor warns · wide fits · additive tone
       nocolorCore.composeBootMenu(120, 40, {
         entries: [{ label: 'row', group: 'g', groupTitle: 'G', summary: 's', valueLabel: 'v', valueIsDefault: true, pinnedVal: null, detail: null }],
         selIdx: 0,
-        summaryTitle: 'T',
         summaryRows: [{ key: 'K', value: 'value', ...(tone !== undefined ? { tone } : {}) }],
         environment: { model: 'm', critter: 'c', critterHue: '#B07BE0', dirBase: 'd', dirTail: '' },
         statusRight: 'status',
@@ -209,13 +207,13 @@ t.section('§8 — THE RESUME SKIN (one core, the face grammar; the real journey
   t.check('the detail trail names the REAL journey (the chat stop appears; esc opens nothing)', resumeDetailLines(flat[0]!).join('\n').includes('the chat stop appears on the strip') && resumeDetailLines(flat[0]!).join('\n').includes('esc — back to the face, nothing opened'))
   t.check('a cleared row’s trail says resuming reopens it', clearedRow !== undefined && resumeDetailLines(clearedRow!).join('\n').includes('resuming reopens it'))
   t.check('the empty worlds teach n (births here) in both scopes', resumeEmptyDetailLines('all', 0).join('\n').includes('n births a fresh session here') && resumeEmptyDetailLines('project', 3).join('\n').includes('a shows'))
-  t.check('the status line counts sessions · scope and names ↵', resumeStatusLine({ loading: false, count: 4, scope: 'all', pendingMore: 0 }) === '4 sessions in the full history · ↵ opens the real chat')
+  t.check('the status line counts sessions and scope', resumeStatusLine({ loading: false, count: 4, scope: 'all', pendingMore: 0 }) === '4 sessions in the full history')
   t.check('the loading and empty status lines stay honest', resumeStatusLine({ loading: true, count: 0, scope: 'all', pendingMore: 0 }) === 'reading the session store…' && resumeStatusLine({ loading: false, count: 0, scope: 'project', pendingMore: 0 }).includes('n births one'))
   t.check('the legend flips the scope key with the scope and drops moves that do not exist', resumeLegendOf('all', true).includes('a this project') && resumeLegendOf('project', true).includes('a all history') && !resumeLegendOf('all', false).includes('↵ open'))
-  t.check('the summary panel says what ↵ opens (a real chat, in place)', resumeSummaryRows({ scope: 'all', count: 4, elsewhereCount: 0, pendingMore: 0 }).some(r => r.value.includes('a real chat, in place') && r.tone === 'teal'))
+  t.check('the summary panel says what ↵ opens (in place)', resumeSummaryRows({ scope: 'all', count: 4, elsewhereCount: 0, pendingMore: 0 }).some(r => r.key === 'Opens' && r.value === 'in place' && r.tone === undefined))
 
   const wide = composeResume(120, 40, { scope: 'all', sel: 1 }).join('\n')
-  t.check('the wide frame carries the sessions panel and the projects as section titles, and no second section', ['SESSIONS', 'orchard-src', 'moodle'].every(s => wide.includes(s)) && !wide.includes('router crews'))
+  t.check('the wide frame carries the sessions summary and the projects as section titles, and no second section', ['Sessions', 'orchard-src', 'moodle'].every(s => wide.includes(s)) && !wide.includes('router crews'))
   const floor = composeResume(64, 12, { scope: 'all', sel: 1 }).join('\n')
   t.check('the 64×12 floor frame WARNS and keeps the way out (never a wall)', floor.includes('wants at least') && floor.includes('esc back'))
   const project = composeResume(120, 40, { scope: 'project', sel: 0 }).join('\n')

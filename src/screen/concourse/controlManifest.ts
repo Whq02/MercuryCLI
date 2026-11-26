@@ -1,6 +1,7 @@
 
 import { CLOSE_CHORD_STAGE_WINDOW_MS } from '../concourse-model/closeChordStage.js'
 import { SESSION_DEFAULTS_KEY_HINT } from '../../daemon/switchboard/sessionDefaultsKey.js'
+import { getShortNewlineInstructions } from '../composer/composerConfig.js'
 
 type ConcourseMode = 'browse' | 'filter-edit' | 'confirmation'
 
@@ -134,7 +135,7 @@ export function browseKeysFor(opts: {
   )
 }
 
-type BoardSelectionClass =
+export type BoardSelectionClass =
   | 'live'
   | 'paused'
   | 'attached'
@@ -264,7 +265,11 @@ export function regionKeysFor(
     )
   }
   if (region !== 'list') {
-    return stageFilter(CONCOURSE_REGION_KEYS[region])
+    const rows = stageFilter(CONCOURSE_REGION_KEYS[region])
+    if (region === 'live' && !getShortNewlineInstructions().startsWith('shift')) {
+      return rows.map(k => (k.keys === '⇧↵/⌃j' ? { keys: '⌃j', label: k.label } : k))
+    }
+    return rows
   }
   const withEnterTruth = (rows: ReadonlyArray<{ keys: string; label: string }>): ReadonlyArray<{ keys: string; label: string }> =>
     rows.map(k =>

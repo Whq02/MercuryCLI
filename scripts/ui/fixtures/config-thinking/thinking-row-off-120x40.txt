@@ -1,19 +1,20 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH               │                                                                                              │
-  no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-                        │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-NEXT                    │ │ project · 84 settings · 3 set by you                                                     │ │
-  · /health — health…   │ │                                                                                          │ │
-  · /memory — memory    │ │ / think                                                                                  │ │
-  · /mission — set a…   │ │                                                                                          │ │
+workbench               │                                                                                              │
+  no prompts yet        │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+                        │ │ Mercury · config                                                                         │ │
+next                    │ │ project · 84 settings · 3 set by you                                                     │ │
+  /health               │ │                                                                                          │ │
+  /memory               │ │ / think                                                                                  │ │
+  /mission              │ │                                                                                          │ │
                         │ │ › Thinking                          off                                                  │ │
-FILES · project         │ │   the model reasons before it answers; on is the default · off asks the model not to —   │ │
-  ↵ or click · browse   │ │ Sonnet 5.5 keeps thinking on at xhigh and max effort, Opus 5.5 at every effort ·         │ │
+files · project         │ │   the model reasons before it answers; on is the default · off asks the model not to —   │ │
+  ↵ browse              │ │ Sonnet 5.5 keeps thinking on at xhigh and max effort, Opus 5.5 at every effort ·         │ │
                         │ │ engine.reasoning in settings                                                             │ │
-VITALS                  │ │                                                                                          │ │
-  · spend —             │ │                                                                                          │ │
-  · ctx — · —           │ │                                                                                          │ │
-  · health — run /health│ │                                                                                          │ │
+vitals                  │ │                                                                                          │ │
+  spend —               │ │                                                                                          │ │
+  ctx — · —             │ │                                                                                          │ │
+  health — run /health  │ │                                                                                          │ │
+                        │ │                                                                                          │ │
                         │ │                                                                                          │ │
                         │ │                                                                                          │ │
                         │ │                                                                                          │ │
@@ -34,7 +35,6 @@ VITALS                  │ │                                                 
                         │                                                                                              │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │
+│❯ Type a prompt, or / for commands                                                                                    │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

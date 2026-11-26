@@ -33,7 +33,7 @@ const text = g.grid.map(row => row.map(c => c.c ?? '').join('')).join('\n')
 check('the prompt draft survived the overlay', text.includes('draft survives overlays'), 'the feel-journey scenario in scripts/ui/renderScenarios.ts types this draft after closing /appearance and it must remain in the composer; read the captured frame /tmp/grid-110.json')
 check('the appearance center is CLOSED (Esc unwound it)', !text.includes('The Mercury appearance'), 'the feel-journey scenario in scripts/ui/renderScenarios.ts opens /appearance and sends Esc, which must close the center; read the captured frame /tmp/grid-110.json')
 check('the removed families never paint (dark-only reach)', !text.includes('colorblind-friendly') && !text.includes('ANSI colors only') && !/\bLight\b/.test(text), 'a removed theme family (colorblind, ANSI-only or Light) is painted in the captured frame /tmp/grid-110.json; find what paints it in the /appearance center')
-check('the transcript chrome is intact (the pane\'s top border beside the lanes label + cockpit rail), no title row', /\blanes\b[^\n]*╭/.test(text) && !text.includes('✶ VIEW') && text.includes('VITALS'), 'the captured frame /tmp/grid-110.json lost the pane top border beside the lanes label or the VITALS rail, or shows a VIEW title row')
+check('the transcript chrome is intact (the pane\'s top border beside the lanes label + cockpit rail), no title row', /\blanes\b[^\n]*╭/.test(text) && !text.includes('✶ VIEW') && text.includes('vitals'), 'the captured frame /tmp/grid-110.json lost the pane top border beside the lanes label or the VITALS rail, or shows a VIEW title row')
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ FEEL-JOURNEY PROOF PASSES')

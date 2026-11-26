@@ -20,17 +20,13 @@ const { UserCrewmateNotificationMessage } = await import('../../src/screen/messa
 const { MessageMetaProvider } = await import('../../src/screen/messages/TranscriptNameplate.js')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
 const { useMercuryTokens } = await import('../../src/screen/widgets/useMercuryTokens.js')
-const { TOOL_FAMILY_BY_NAME, TOOL_FAMILY_MARKS } = await import('../../src/screen/widgets/toolGlyphs.js')
 const { GLYPH } = await import('../../src/screen/theme/glyphs.js')
 
-type Family = keyof typeof TOOL_FAMILY_MARKS
-type ToneRole = (typeof TOOL_FAMILY_MARKS)[Family]['tone']
 type Cell = { ch: string; fg: string; dim: boolean }
-
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' [change the row lead in AssistantToolUseMessage (src/screen/messages/AssistantToolUseMessage.tsx), the group lead in CollapsedReadSearchContent (src/screen/messages/CollapsedReadSearchContent.tsx), the notice row in src/screen/messages/UserCrewmateNotificationMessage.tsx, or the family marks and tones in src/screen/widgets/toolGlyphs.ts]'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' [change the row lead in ToolRowLead (src/screen/messages/ToolRowLead.tsx), AssistantToolUseMessage (src/screen/messages/AssistantToolUseMessage.tsx), CollapsedReadSearchContent (src/screen/messages/CollapsedReadSearchContent.tsx), or UserCrewmateNotificationMessage (src/screen/messages/UserCrewmateNotificationMessage.tsx)]'}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
@@ -124,16 +120,13 @@ async function renderRows(node: React.ReactNode): Promise<{ ansi: string[]; text
 }
 
 const tokens: Record<string, string> = {}
-let dimInk = ''
 {
   function Probe(): React.ReactNode {
     const t = useMercuryTokens() as unknown as Record<string, string>
     return React.createElement(
       Text as never,
       {},
-      React.createElement(Text as never, { dimColor: true }, 'D'),
-      ' ',
-      ['accent', 'info', 'textSecondary', 'failure'].map(k => `${k}=${(t[k] ?? '').toLowerCase()}`).join(' '),
+      ['failure'].map(k => `${k}=${(t[k] ?? '').toLowerCase()}`).join(' '),
     )
   }
   const probe = await renderRows(React.createElement(Probe))
@@ -141,22 +134,27 @@ let dimInk = ''
     const [k, v] = pair.split('=')
     if (k && v) tokens[k] = v
   }
-  dimInk = cellsOf(probe.ansi[0] ?? '')[0]?.fg ?? ''
-  check('the probe read the live tokens and the dim ink', typeof tokens.failure === 'string' && typeof tokens.accent === 'string' && /^#[0-9a-f]{6}$/.test(dimInk), JSON.stringify({ tokens, dimInk }))
+  check('the probe read the live failure token', typeof tokens.failure === 'string' && /^#[0-9a-f]{6}$/.test(tokens.failure), JSON.stringify({ tokens }))
 }
-const toneHex = (role: ToneRole): string => tokens[role] ?? ''
-const isDim = (cell: Cell | undefined): boolean => cell !== undefined && cell.fg === dimInk
 
-const representative = new Map<Family, string>()
-for (const [name, family] of Object.entries(TOOL_FAMILY_BY_NAME) as Array<[string, Family]>) {
-  if (!representative.has(family)) representative.set(family, name)
-}
-check('every family has a registered tool to stand for it', representative.size === Object.keys(TOOL_FAMILY_MARKS).length, [...representative.keys()].join(','))
-
-section('§1 one row per family in every state: the family mark leads the row body and carries the state')
+const representative: ReadonlyArray<readonly [string, string]> = [
+  ['shell', 'Bash'],
+  ['read', 'Read'],
+  ['search', 'Grep'],
+  ['edit', 'Edit'],
+  ['write', 'Write'],
+  ['diff', 'Git'],
+  ['browser', 'Browser'],
+  ['agent', 'Crewmate'],
+  ['plan', 'Sleep'],
+  ['test', 'Test'],
+  ['memory', 'Recall'],
+  ['system', 'AskUserQuestion'],
+  ['external', 'Blender'],
+]
+section('§1 one row per family in every state: two-cell lead keeps one column; ✕ in failure tone leads error/denied')
 const nameColumns = new Set<number>()
 for (const [family, name] of representative) {
-  const mark = TOOL_FAMILY_MARKS[family]
   for (const state of STATES) {
     const { ansi, text } = await renderRows(toolRowNode(name, state))
     const rowIndex = text.findIndex(row => row.includes(name))
@@ -164,24 +162,20 @@ for (const [family, name] of representative) {
     const tag = `${family}/${name} ${state}`
     check(`${tag}: the row paints under the nameplate`, rowIndex >= 0 && PLATE_RE.test(row), JSON.stringify(row))
     const body = row.replace(PLATE_RE, '')
-    const expectedLead = state === 'denied' ? GLYPH.fail : mark.glyph
-    check(`${tag}: the lead in column one of the row body is ${expectedLead}`, body.startsWith(`${expectedLead} ${name}`), JSON.stringify(body))
     check(`${tag}: no state dot or ring on the row`, !STATE_GLYPHS.some(glyph => row.includes(glyph)), JSON.stringify(row))
     nameColumns.add(row.indexOf(name))
     const plateWidth = (PLATE_RE.exec(row)?.[0] ?? '').length
     const cells = cellsOf(ansi[rowIndex] ?? '').filter(cell => cell.ch !== '\x1b')
-    const lead = cells[plateWidth]
-    if (state === 'queued' || state === 'running') {
-      check(`${tag}: the lead is dimmed (the inactive ink, no family tone)`, isDim(lead), `${JSON.stringify(lead)} want ${dimInk}`)
-    } else if (state === 'done') {
-      check(`${tag}: the lead wears the family tone (${mark.tone})`, lead !== undefined && lead.fg === toneHex(mark.tone) && !isDim(lead), `${JSON.stringify(lead)} want ${toneHex(mark.tone)}`)
+    if (state === 'denied' || state === 'error') {
+      check(`${tag}: the lead in column one of the row body is ${GLYPH.fail}`, body.startsWith(`${GLYPH.fail} ${name}`), JSON.stringify(body))
+      const lead = cells[plateWidth]
+      check(`${tag}: the lead wears the failure tone`, lead !== undefined && lead.fg === tokens.failure, `${JSON.stringify(lead)} want ${tokens.failure}`)
     } else {
-      check(`${tag}: the lead wears the failure tone`, lead !== undefined && lead.fg === tokens.failure && !isDim(lead), `${JSON.stringify(lead)} want ${tokens.failure}`)
+      check(`${tag}: the two-cell blank lead precedes the tool name`, body.startsWith(`  ${name}`), JSON.stringify(body))
     }
   }
 }
 check('the tool name starts at one column across every family and state', nameColumns.size === 1, [...nameColumns].join(','))
-
 section('§2 a mixed turn: group, read, edit, agent rows align; the notice row keeps its dot')
 {
   const groupMessage = {
@@ -238,10 +232,10 @@ section('§2 a mixed turn: group, read, edit, agent rows align; the notice row k
   const agentRow = rows.find(row => /\bCrewmate\b/.test(row) && !row.includes('completed')) ?? ''
   const noticeRow = rows.find(row => row.includes('completed')) ?? ''
   const bodyOf = (row: string): string => row.replace(PLATE_RE, '')
-  check('the group row leads with the mark of its first fragment (search) in column one', bodyOf(groupRow).startsWith(`${TOOL_FAMILY_MARKS.search.glyph} Searched for`), JSON.stringify(groupRow))
-  check('the read row leads with the read mark', bodyOf(readRow).startsWith(`${TOOL_FAMILY_MARKS.read.glyph} Read`), JSON.stringify(readRow))
-  check('the edit row leads with the edit mark', bodyOf(editRow).startsWith(`${TOOL_FAMILY_MARKS.edit.glyph} Edit`), JSON.stringify(editRow))
-  check('the running agent row leads with the delegation mark', bodyOf(agentRow).startsWith(`${TOOL_FAMILY_MARKS.agent.glyph} Crewmate`), JSON.stringify(agentRow))
+  check('the group row has a two-cell blank lead before its sentence', bodyOf(groupRow).startsWith('  Searched for'), JSON.stringify(groupRow))
+  check('the read row has a two-cell blank lead before Read', bodyOf(readRow).startsWith('  Read'), JSON.stringify(readRow))
+  check('the edit row has a two-cell blank lead before Edit', bodyOf(editRow).startsWith('  Edit'), JSON.stringify(editRow))
+  check('the running agent row has a two-cell blank lead before Crewmate', bodyOf(agentRow).startsWith('  Crewmate'), JSON.stringify(agentRow))
   const columns = new Set([groupRow, readRow, editRow, agentRow].map(row => (PLATE_RE.exec(row)?.[0] ?? '').length + 2))
   const wordColumns = new Set([groupRow.indexOf('Searched'), readRow.indexOf('Read'), editRow.indexOf('Edit'), agentRow.indexOf('Crewmate')])
   check('the words of every tool row start at one column (the alignment law)', columns.size === 1 && wordColumns.size === 1 && [...wordColumns][0] === [...columns][0], `${[...wordColumns].join(',')} want ${[...columns].join(',')}`)
@@ -296,15 +290,15 @@ section('§3 the collapsed group in its states: the lead follows the sentence an
     return { row, body: row.replace(PLATE_RE, ''), lead: cellsOf(ansi[index] ?? '')[plateWidth] }
   }
   const running = await renderGroup('running')
-  check('a running group leads with the dimmed read mark and the present-tense sentence', running.body.startsWith(`${TOOL_FAMILY_MARKS.read.glyph} Reading `) && isDim(running.lead), `${JSON.stringify(running)} want ${dimInk}`)
+  check('a running group has a two-cell blank lead before the present-tense sentence', running.body.startsWith('  Reading '), JSON.stringify(running))
   const done = await renderGroup('done')
-  check('a settled group leads with the read mark in the read tone', done.body.startsWith(`${TOOL_FAMILY_MARKS.read.glyph} Read `) && done.lead?.fg === toneHex('info') && !isDim(done.lead), `${JSON.stringify(done)} want ${toneHex('info')}`)
+  check('a settled group has a two-cell blank lead before the past-tense sentence', done.body.startsWith('  Read '), JSON.stringify(done))
   const errored = await renderGroup('error')
-  check('a group with an errored member leads with the mark in the failure tone', errored.body.startsWith(`${TOOL_FAMILY_MARKS.read.glyph} Read `) && errored.lead?.fg === tokens.failure, JSON.stringify(errored))
+  check('a group with an errored member leads with ✕ in the failure tone', errored.body.startsWith(`${GLYPH.fail} Read `) && errored.lead?.fg === tokens.failure, JSON.stringify(errored))
   const denied = await renderGroup('denied')
-  check('a group with a denied member leads with ✕', denied.body.startsWith(`${GLYPH.fail} Read `) && denied.lead?.fg === tokens.failure, JSON.stringify(denied))
+  check('a group with a denied member leads with ✕ in the failure tone', denied.body.startsWith(`${GLYPH.fail} Read `) && denied.lead?.fg === tokens.failure, JSON.stringify(denied))
   check('no group row carries a state dot or ring', [running, done, errored, denied].every(r => !STATE_GLYPHS.some(glyph => r.row.includes(glyph))))
 }
 
-console.log(failures === 0 ? '\n✅ TOOL ROW LEAD LAW HOLDS (the family mark leads every tool row and carries its state; notices keep their dot)' : `\n❌ ${failures} TOOL ROW LEAD CHECK(S) FAILED`)
+console.log(failures === 0 ? '\n✅ TOOL ROW LEAD LAW HOLDS (bold name leads pending/done; ✕ leads error/denied; notices keep their dot)' : `\n❌ ${failures} TOOL ROW LEAD CHECK(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

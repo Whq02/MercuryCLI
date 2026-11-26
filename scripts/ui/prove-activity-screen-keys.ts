@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/screen/tasks/BackgroundTasksDialog.tsx src/screen/widgets/components.tsx src/screen/widgets/useCursorFollow.ts src/screen/overlays/PopupForm.tsx src/screen/fullscreen-layout/FullscreenLayout.tsx src/screen/app-state/vitalsBus.ts src/screen/renderer/screenInstance.tsx
+// gate-watch: src/screen/tasks/BackgroundTasksDialog.tsx src/screen/tasks/background-tasks/views.tsx src/screen/widgets/components.tsx src/screen/widgets/faces/CrewView.tsx src/screen/widgets/useCursorFollow.ts src/screen/overlays/PopupForm.tsx src/screen/fullscreen-layout/FullscreenLayout.tsx src/screen/app-state/vitalsBus.ts src/screen/renderer/screenInstance.tsx
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -40,12 +40,17 @@ const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProvid
 const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
 const { default: Composer } = await import('../../src/screen/composer/Composer.tsx')
 const { BackgroundTasksDialog } = await import('../../src/screen/tasks/BackgroundTasksDialog.tsx')
+const { CrewView } = await import('../../src/screen/widgets/faces/CrewView.tsx')
+const { LayoutChromeProvider } = await import('../../src/screen/fullscreen-layout/layoutChromeContext.tsx')
+const { resolveMercuryTokens } = await import('../../src/screen/theme/mercuryTokens.ts')
+const { TERRA } = await import('../../src/screen/theme/mercuryPalette.ts')
+const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.ts')
 const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
 const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
 const { ScrollKeybindingHandler } = await import('../../src/screen/scroll-keys/ScrollKeybindingHandler.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
 const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
+const { enableConfigs, getGlobalConfig, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
@@ -156,7 +161,7 @@ const monitorAt = (lines: string[]): number | undefined => {
   return match === null || match === undefined ? undefined : Number(match[1])
 }
 const cursorPainted = (lines: string[]): boolean => lines.some(line => /^❯ .*monitor \d+ watching/.test(line))
-const hintPainted = (lines: string[]): boolean => lines.some(line => line.includes('↑/↓ select') && line.includes('esc close'))
+const hintPainted = (lines: string[]): boolean => lines.some(line => line.includes('↑↓ select') && line.includes('esc close'))
 const statsPainted = (lines: string[]): boolean => lines.some(line => line.startsWith(STATS))
 const shellFooterPainted = (lines: string[]): boolean => /esc close\s*$/.test(lines[lines.length - 1] ?? '')
 const describe = (lines: string[]): string => `cursor on ${monitorAt(lines) ?? 'nothing'} · rows ${lines.length} · last ${JSON.stringify(lines[lines.length - 1] ?? '')}`
@@ -344,6 +349,90 @@ for (const [cols, rows] of [[80, 24], [64, 20]] as Array<[number, number]>) {
   await pressTimes(scene, DOWN, 1)
   check(`${cols}x${rows}: ↓ then moves to monitor 2 in view`, monitorAt(scene.lines()) === 2, describe(scene.lines()))
   await scene.close()
+}
+
+section('§4 an armed stop paints its confirm in the warning colour while the rest of the legend keeps its own colour')
+{
+  const tokens = resolveMercuryTokens(getGlobalConfig().theme ?? 'true-black', TERRA)
+  const rgbFg = (hex: string): string => {
+    const clean = hex.replace(/^#/, '')
+    return `38;2;${parseInt(clean.slice(0, 2), 16)};${parseInt(clean.slice(2, 4), 16)};${parseInt(clean.slice(4, 6), 16)}`
+  }
+  const warningFg = rgbFg(tokens.warning)
+  const mutedFg = rgbFg(tokens.textMuted)
+  const sampleWord = (raw: string, cols: number, rows: number, word: string): { fg: string; dim: boolean } | null => {
+    const emu = new AnsiEmulator(cols, rows, true)
+    emu.feed(raw.replace(/\r?\n/g, '\r\n'))
+    const lines = emu.lines()
+    const y = lines.findIndex(line => line.includes(word))
+    if (y < 0) return null
+    const x = lines[y]!.indexOf(word)
+    const style = emu.styleAt(x, y)
+    return style === null ? null : { fg: style.fg, dim: style.dim }
+  }
+  const mountArmed = async (kind: 'runs' | 'crew', cols: number, rows: number): Promise<void> => {
+    const armedRoster = {
+      rows: kind === 'runs'
+        ? [
+            { id: 'mon-1', kind: 'monitor' as const, name: 'monitor 1', status: 'running', startTime: Date.now() - 60_000, command: 'tail -f build-1.log' },
+            { id: 'mon-2', kind: 'monitor' as const, name: 'monitor 2', status: 'running', startTime: Date.now() - 120_000, command: 'tail -f build-2.log' },
+          ]
+        : [{ id: 'agent-1', kind: 'agent' as const, name: 'scout one', status: 'running', startTime: Date.now() - 60_000, model: 'claude-fable-5-1' }],
+      mission: [],
+      samples: [],
+      reported: true,
+    }
+    const resting = noSessionConnector()
+    const seeded = new Proxy(resting, {
+      get(target, prop, receiver) {
+        if (prop === 'workRoster') return () => armedRoster
+        if (prop === 'subscribeWork') return (listener: () => void) => { rosterListeners.add(listener); return () => { rosterListeners.delete(listener) } }
+        const value = Reflect.get(target, prop, receiver)
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+    setFocusedSessionConnector(seeded as never)
+    initializeSurfaceRoute(ROOT_CHAT_ROUTE)
+    resetChromeModeLatchForTests()
+    const state = getDefaultAppState()
+    const stdout = new Output()
+    stdout.columns = cols
+    stdout.rows = rows
+    const stdin = new Input()
+    const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false })
+    instances.set(stdout as never, ink)
+    const viewNode = kind === 'runs'
+      ? h(BackgroundTasksDialog, { onDone: () => {}, toolUseContext: {} as never })
+      : h(CrewView, { onClose: () => {} })
+    ink.render(h(App, { initialState: state, getFpsMetrics: () => undefined } as never, h(LayoutChromeProvider as never, { fullscreen: true }, h(KeybindingSetup, null, viewNode))))
+    const targetName = kind === 'runs' ? 'monitor 1' : 'scout one'
+    const armedPhrase = `x again within 2 s stops ${targetName}`
+    await until(() => stripAnsi(ink.lastFrameText()).includes(targetName), 5000)
+    await sleep(300)
+    stdin.push('x')
+    const armed = await until(() => stripAnsi(ink.lastFrameText()).includes(armedPhrase), 4000)
+    const raw = ink.lastFrameText()
+    const flatRaw = stripAnsi(raw).replace(/\s+/g, ' ')
+    const label = `${kind} ${cols}x${rows}`
+    const warnCell = sampleWord(raw, cols, rows, armedPhrase)
+    const escCell = sampleWord(raw, cols, rows, 'esc close') ?? (flatRaw.includes('esc close') ? sampleWord(raw, cols, rows, 'esc') : null)
+    check(`${label}: pressing x arms the stop prompt in the footer`, armed && warnCell !== null && escCell !== null && flatRaw.includes('esc close'), stripAnsi(raw).split('\n').slice(-4).join(' | '))
+    check(`${label}: the armed confirm paints in tokens.warning`, warnCell !== null && warnCell.fg === warningFg && !warnCell.dim, `got ${JSON.stringify(warnCell)}, want fg=${warningFg} dim=false`)
+    check(`${label}: esc close keeps the legend colour (not warning)`, escCell !== null && escCell.fg === mutedFg && escCell.fg !== warningFg, `got ${JSON.stringify(escCell)}, want fg=${mutedFg}`)
+    if (kind === 'runs') {
+      const navCell = sampleWord(raw, cols, rows, '↑↓ select')
+      check(`${label}: ↑↓ select keeps the legend colour (not warning)`, navCell !== null && navCell.fg === mutedFg && navCell.fg !== warningFg, `got ${JSON.stringify(navCell)}, want fg=${mutedFg}`)
+    }
+    ink.unmount()
+    await ink.waitUntilExit()
+    instances.delete(stdout as never)
+    releaseFocusedSessionConnector()
+  }
+  for (const kind of ['runs', 'crew'] as const) {
+    for (const [cols, rows] of [[120, 40], [80, 24]] as const) {
+      await mountArmed(kind, cols, rows)
+    }
+  }
 }
 
 console.error = originalError

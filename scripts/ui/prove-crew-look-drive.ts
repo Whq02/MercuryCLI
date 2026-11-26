@@ -258,10 +258,10 @@ const firstDiff = (a: string[], b: string[]): string => {
 const wideRows = (rows: string[]): string[] => rows.filter(line => line.includes('c00=') || line.includes('c29='))
 const pastCentre = (rows: string[], cockpit: Cockpit, needle: string): string[] => rows.filter(line => cells(line).slice(cockpit.right + 1, cockpit.vitalsLeft ?? cockpit.cols).join('').includes(needle))
 function railInkCell(mark: Mark): Cell | undefined {
-  const y = mark.rows.findIndex(line => cells(line).slice(0, 30).join('').includes('CREW'))
+  const heading = /^(?:│ ⦿ )?crew · /
+  const y = mark.rows.findIndex(line => heading.test(cells(line).slice(0, 30).join('')))
   if (y < 0) return undefined
-  const line = cells(mark.rows[y]!)
-  const x = line.findIndex((_, i) => line[i] === 'C' && line[i + 1] === 'R' && line[i + 2] === 'E' && line[i + 3] === 'W')
+  const x = cells(mark.rows[y]!).slice(0, 30).join('').indexOf('crew · ')
   return x < 0 ? undefined : mark.grid[y]?.[x]
 }
 
@@ -333,7 +333,7 @@ async function leg(cols: number, rows: number): Promise<void> {
     see('atlas', 'usage-receipt', 4, { awaitPattern: USAGE_RECEIPT }),
     ...popup('/config', CONFIG_HINT, 'config'),
     ...popup('/model', CREWMATE_PICKER_HINT, 'model'),
-    ...(cols >= 178 ? [clickOn('FILES ·')] : [clickOn('or click · browse'), { data: CLICK, targetText: 'or click · browse', afterPrevTicks: 4 }]),
+    ...(cols >= 178 ? [clickOn('files ·')] : [clickOn('↵ browse'), { data: CLICK, targetText: '↵ browse', afterPrevTicks: 4 }]),
     seePopup(FILES_TITLE, '↑↓ move · ↵ open', 'files-open'),
     type(ESC, 3),
     later(8, 'files-closed'),

@@ -118,7 +118,6 @@ export function composeHealth(
   const summaryRows = healthSummaryRows(cert, FIXED_NOW)
   const base = {
     title: 'health check',
-    summaryTitle: 'CERTIFICATE',
     summaryRows,
     environment: STILL_ENVIRONMENT,
     statusRight,
@@ -245,7 +244,6 @@ export function composeResume(
     entries,
     selIdx: sel >= 0 ? entryIndexOf(sel) : -1,
     title: 'resume session',
-    summaryTitle: 'SESSIONS',
     summaryRows: resumeSummaryRows({ scope, count: flat.length, elsewhereCount, pendingMore }),
     environment: STILL_ENVIRONMENT,
     statusRight: resumeStatusLine({ loading: false, count: flat.length, scope, pendingMore }),

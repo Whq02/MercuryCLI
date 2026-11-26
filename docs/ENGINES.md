@@ -938,7 +938,7 @@ after the first), and when the estimate passes on a server that has sent its
 response headers and is still reading the prompt, the row keeps its words
 and the count and states no estimate (`waiting for the first byte from
 <model> · 3m so far`). After the first byte the idle
-watchdog follows the same law at the patience setting's quiet number (15
+watchdog follows the same law at the patience setting's silent number (15
 minutes, the OpenAI road's): the row warns at the warning point (`no bytes
 for 7m 30s — <model>'s server is asked at 15m`), the server is asked at the
 idle number, and the turn holds while it answers (`no bytes for 15m —

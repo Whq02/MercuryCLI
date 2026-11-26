@@ -219,7 +219,7 @@ for (const [columns, height] of [[80, 24], [100, 30], [120, 40], [178, 51], [200
   const nemotron = lineWith(lines, NEMOTRON.slice(0, 12))
   const tails = lines.filter(l => l.includes('new · no'))
   if (columns >= 60) check(`${columns}x${height}: the tail column reads "new · no alias" whole or ends with the ellipsis, never wraps`, tails.length > 0 && tails.every(l => /new · no alias|new · no…|new · no …/.test(l)) && !lines.some(l => /^\s*│\s+alias\s*│/.test(l)), tails.map(inner).join(' | '))
-  else check(`${columns}x${height}: at the floor every model row is one line cut with the ellipsis`, lines.filter(l => /│ (?:│ | {2})(?:❯ )?[A-Za-z—]/.test(l) && !/[▾▸❯] [A-Z]/.test(l) && !/ · |╭|╰|context|effort|filter by|↑↓/.test(l)).every(l => l.includes('…')), lines.slice(3, 8).map(inner).join(' | '))
+  else check(`${columns}x${height}: at the floor every model row is one line cut with the ellipsis`, lines.filter(l => /│ (?:❯ | {2})(?:❯ )?[A-Za-z—]/.test(l) && !/[▾▸❯] [A-Z]/.test(l) && !/ · |╭|╰|context|effort|filter by|↑↓/.test(l)).every(l => l.includes('…')), lines.slice(3, 8).map(inner).join(' | '))
   if (columns >= 100) check(`${columns}x${height}: the longest OpenRouter id stands whole with its ctx`, /nvidia\/nemotron-3-ultra:free\s{2,}1M ctx/.test(nemotron), inner(nemotron))
   const sixty = lineWith(lines, ID60.slice(0, 12))
   check(`${columns}x${height}: the sixty-character id keeps its start, is cut once at its end where its row cannot hold it, and its 1.31M ctx cell stands`, columns < 60 || (new RegExp(`\\s${ID60.slice(0, 12)}\\S*(?:…|${ID60.slice(-12)})\\s`).test(sixty) && !/\s…\S/.test(sixty) && (columns < 100 || sixty.includes('1.31M ctx'))), `${inner(sixty)}; the id cell is pickerIdText and pickerIdSpan in src/models/facts/modelPickerGroups.ts, drawn by idAndState in src/screen/model-picker/renderLine.tsx`)
@@ -273,7 +273,7 @@ section('§2 the pointer: a click outside closes at once even with the filter op
   const leftN = (n.lines().find(l => l.includes('Mercury · model')) ?? '').indexOf('│')
   const opusY = n.lines().findIndex(l => l.includes('claude-opus-5-5'))
   await clickN(leftN + 6, opusY)
-  check('a click on an unselected row moves the cursor box onto it', n.lines()[n.lines().findIndex(l => l.includes('claude-opus-5-5')) - 1]?.includes('╭') === true && selected.length === 0, cursorLine(n.lines()))
+  check('a click on an unselected row moves the cursor pointer onto it', (n.lines().find(l => l.includes('claude-opus-5-5')) ?? '').includes('❯ ') && selected.length === 0, cursorLine(n.lines()))
   await sleep(600)
   const opusY2 = n.lines().findIndex(l => l.includes('claude-opus-5-5'))
   await clickN(leftN + 6, opusY2)
@@ -339,7 +339,7 @@ section('§4 the two-door split: current and next sit on the row under the wire\
   const loginRow = lines.slice(loginAt, keyAt).find(l => l.includes('claude-opus-5-5')) ?? ''
   const keyRow = lines.slice(keyAt).find(l => l.includes('claude-opus-5-5')) ?? ''
   check('current marks the row under the active door only', /claude-opus-5-5\s{2,}current\s{2,}/.test(loginRow) && !/current/.test(keyRow), `${inner(loginRow).trim()} || ${inner(keyRow).trim()}`)
-  check('the cursor lands on that row', lines[lines.indexOf(loginRow) - 1]?.includes('╭') === true)
+  check('the cursor lands on that row', loginRow.includes('❯ '))
   check('a queued next marks its one row and no other', lines.filter(l => /\s{2}next\s{2}/.test(l)).length === 1, lines.filter(l => l.includes('next')).map(inner).join(' | '))
   board.close()
 }
@@ -447,11 +447,11 @@ section('§10 the floor tier: with the cursor deep in a group, the window keeps 
   const lines = board.lines()
   const all = lines.join('\n')
   check('80x22: the box closes inside the terminal and the cut is named', lines.length <= 22 && lines.some(l => l.trimStart().startsWith('╰')) && /↓ \d+ more/.test(all), `${lines.length} lines`)
-  check('80x22: the focused row is boxed and its heading stands above the window with the title', all.includes('Mercury · model') && /[▾▸❯] [A-Z.]+ · /.test(all) && lines.some(l => l.includes('│ │ ') && l.includes('claude-opus-4-8')), lines.slice(1, 6).map(inner).join(' | '))
+  check('80x22: the focused row carries the pointer and its heading stands above the window with the title', all.includes('Mercury · model') && /[▾▸❯] [A-Z.]+ · /.test(all) && lines.some(l => l.includes('❯ ') && l.includes('claude-opus-4-8')), lines.slice(1, 6).map(inner).join(' | '))
   const headingAt = lines.findIndex(l => /[▾▸❯] ANTHROPIC · /.test(l))
   const aboveAt = lines.findIndex(l => l.includes('↑ ') && l.includes('more'))
   check('the pinned heading paints once, under the above-count line, ahead of the rows', headingAt >= 0 && lines.filter(l => /[▾▸❯] ANTHROPIC · /.test(l)).length === 1 && (aboveAt < 0 || aboveAt < headingAt), `heading ${headingAt} · above ${aboveAt}`)
-  for (let step = 0; step < 12 && !cursorLine(board.lines()).startsWith('❯ '); step++) await board.key('up')
+  for (let step = 0; step < 12 && !cursorLine(board.lines()).startsWith('❯ ANTHROPIC'); step++) await board.key('up')
   check('walking up to the heading lands on it as the cursor stop (the pinned line is the same heading, never a second stop)', cursorLine(board.lines()).startsWith('❯ ANTHROPIC') && board.lines().filter(l => /[▾▸❯] ANTHROPIC · /.test(l)).length === 1, cursorLine(board.lines()))
   board.close()
 }
