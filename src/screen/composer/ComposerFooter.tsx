@@ -26,6 +26,7 @@ import {
   type SuggestionType,
 } from './ComposerFooterSuggestions.js'
 import { getNewlineInstructions } from './composerConfig.js'
+import { useEscapeOwned } from '../keys/useEscapeOwned.js'
 import { crewmateComposerHint } from '../cockpit/crewmateWords.js'
 import { targetWords, useComposerCrewmate, useViewedCrewmate, viewedWords } from '../tasks/useCrewmateView.js'
 
@@ -97,6 +98,7 @@ export function ComposerFooter({
   )
   const fullscreen = isFullscreenEnvEnabled()
   const { columns } = useTerminalSize()
+  const escapeOwned = useEscapeOwned()
   const composerCrewmate = useComposerCrewmate()
   const viewedCrewmate = useViewedCrewmate()
 
@@ -166,7 +168,7 @@ export function ComposerFooter({
   const narrow = columns < NARROW_COLUMNS
   const crewmateHint =
     composerCrewmate !== null
-      ? crewmateComposerHint(targetWords(composerCrewmate), viewedWords(viewedCrewmate))
+      ? crewmateComposerHint(targetWords(composerCrewmate), viewedWords(viewedCrewmate), escapeOwned)
       : null
 
   return (
@@ -182,7 +184,7 @@ export function ComposerFooter({
           <Text dimColor wrap="truncate-end">
             {getNewlineInstructions()}
             {crewmateHint !== null ? ` · ${crewmateHint}` : ''}
-            {fullscreen && stripHint !== '' ? ` · ${footerStripHint(stripHint)}` : ''}
+            {fullscreen && crewmateHint === null && stripHint !== '' ? ` · ${footerStripHint(stripHint)}` : ''}
           </Text>
         ) : null}
       </Box>

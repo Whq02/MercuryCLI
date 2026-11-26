@@ -35,8 +35,6 @@ import { ExitChordNotice } from './ExitChordNotice.js'
 import { noticeBlockRows, noticeRowBlock, noticeRowDetail, noticeRowText, noticeRowWayOut } from './Notifications.js'
 import { standsUntilRemoved } from '../notifications/notifications.js'
 import type { InputMode } from './input-core/textInput.js'
-import { LEAD_ROW_NAME } from '../cockpit/crewmateWords.js'
-import { crewmateLive, useViewedCrewmate } from '../tasks/useCrewmateView.js'
 import { footerClusterOf } from './footerLeftSideView.js'
 
 const XTERMJS_HOSTS = new Set(['vscode', 'cursor', 'windsurf', 'codium', 'antigravity'])
@@ -73,7 +71,6 @@ export function ComposerFooterLeftSide({
   const toolPermissionContext = useAppState((s: AppState) => s.toolPermissionContext)
   const viewingCrewmateTaskId = useAppState((s: AppState) => s.viewingCrewmateTaskId)
   const currentNotice = useAppState((s: AppState) => s.notifications.current)
-  const viewedCrewmate = useViewedCrewmate()
   const selection = useSelection()
   const hasPaintedSelection = useHasSelection()
   useSyncExternalStore(
@@ -202,27 +199,7 @@ export function ComposerFooterLeftSide({
 
   const parts: React.ReactNode[] = []
   const viewingCrewmate = viewingCrewmateTaskId !== undefined
-  const viewedLocalTask = viewingCrewmateTaskId !== undefined ? tasks[viewingCrewmateTaskId] : undefined
-
-  if (viewingCrewmate) {
-    const viewedFinished =
-      (viewedLocalTask !== undefined &&
-        viewedLocalTask.status !== 'running' &&
-        viewedLocalTask.status !== 'pending') ||
-      !crewmateLive(viewedCrewmate)
-    if (!escapeOwned) {
-      if (viewedFinished) {
-        parts.push(<KeyboardShortcutHint shortcut="esc" action={`back to ${LEAD_ROW_NAME}`} />)
-      } else {
-        parts.push(
-          <KeyboardShortcutHint
-            shortcut="esc"
-            action={`interrupt ${viewedCrewmate?.name ?? 'the crewmate'}`}
-          />,
-        )
-      }
-    }
-  } else if (isLoading) {
+  if (!viewingCrewmate && isLoading) {
     if (!escapeOwned) {
       parts.push(<KeyboardShortcutHint shortcut={cancelChord} action="interrupt" />)
     }
@@ -234,7 +211,7 @@ export function ComposerFooterLeftSide({
         />,
       )
     }
-  } else {
+  } else if (!viewingCrewmate) {
     const hasRunningLocalCrewmates = Object.values(tasks).some(
       task => isCrewmateTask(task) && task.status === 'running',
     )

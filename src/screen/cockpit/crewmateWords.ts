@@ -22,8 +22,10 @@ const CREW_BOARD_KEYS_LIVE = `in ${CREW_VIEW_DOOR}: ${CREW_MAIN_CHAT_KEY} · x x
 const CREW_BOARD_KEYS_LANDED = `in ${CREW_VIEW_DOOR}: ${CREW_MAIN_CHAT_KEY} · ${CREW_CLEAR_KEY}`
 
 export function crewmateCardKeys(pinned: boolean, live = true, back = BACK_HINT): string {
-  if (!live) return pinned ? `${ESC_BACK_HINT} · ${MAIN_CHAT_HAND_BACK_HINT} · ${CREW_CLEAR_DOOR}` : `${ESC_BACK_HINT} · ${CREW_BOARD_KEYS_LANDED} · ${back}`
-  return pinned ? `${ESC_INTERRUPT_HINT} · ${MAIN_CHAT_HAND_BACK_HINT} · ${CREW_BOARD_STOP_PAUSE_KEYS}` : `${ESC_INTERRUPT_HINT} · ${CREW_BOARD_KEYS_LIVE} · ${back}`
+  const compact = back === COMPACT_BACK_HINT
+  const esc = compact ? `${live ? ESC_INTERRUPT_HINT : ESC_BACK_HINT} · ` : ''
+  if (!live) return pinned ? `${esc}${MAIN_CHAT_HAND_BACK_HINT} · ${CREW_CLEAR_DOOR}` : `${esc}${CREW_BOARD_KEYS_LANDED}`
+  return pinned ? `${esc}${MAIN_CHAT_HAND_BACK_HINT} · ${CREW_BOARD_STOP_PAUSE_KEYS}` : `${esc}${CREW_BOARD_KEYS_LIVE}`
 }
 
 export function crewClearedWords(name: string): string {
@@ -134,9 +136,10 @@ export function crewmateSendClause(target: CrewmateWordsState): string {
   return target.local === true ? `↵ refused — r in ${CREW_VIEW_DOOR} resumes ${target.name}` : `↵ resumes ${target.name} with your line`
 }
 
-export function crewmateComposerHint(target: CrewmateWordsState, viewed: CrewmateViewedState): string {
-  const esc = viewed === null ? '' : viewed.live === false ? ` · ${ESC_BACK_HINT}` : ` · esc interrupts ${viewed.name}`
-  return `${crewmateSendClause(target)}${esc} · ${target.pinned ? MAIN_CHAT_RETURN_HINT : BACK_HINT}`
+export function crewmateComposerHint(target: CrewmateWordsState, viewed: CrewmateViewedState, escapeOwned = false): string {
+  const esc = escapeOwned || viewed === null ? '' : viewed.live === false ? ` · ${ESC_BACK_HINT}` : ` · esc interrupts ${viewed.name}`
+  const ret = target.pinned ? ` · ${MAIN_CHAT_RETURN_HINT}` : ''
+  return `${crewmateSendClause(target)}${esc}${ret}`
 }
 
 export const CREWMATE_BETWEEN_TURNS_DETAIL = `it is between turns and nothing drains a queued line — r in ${CREW_VIEW_DOOR} resumes it from its transcript`
@@ -145,9 +148,8 @@ export function crewmateInterruptRefusedWords(name: string, detail: string): str
   return `${name} did not take the interrupt: ${detail}`
 }
 
-export function crewmateStatusRightHint(pinned: boolean, live = true, escapeOwned = false): string {
-  const esc = escapeOwned ? '' : live ? ESC_INTERRUPT_HINT : ESC_BACK_HINT
-  return pinned ? esc : [esc, `${CREW_MAIN_CHAT_KEY} in ${CREW_VIEW_DOOR}`, BACK_HINT].filter(Boolean).join(' · ')
+export function crewmateStatusRightHint(_pinned: boolean, _live = true, _escapeOwned = false): string {
+  return ''
 }
 
 export function crewmatePlaceholder(name: string): string {
