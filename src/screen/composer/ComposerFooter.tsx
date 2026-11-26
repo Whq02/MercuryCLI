@@ -36,7 +36,6 @@ export function ComposerFooter({
   messages,
   mcpClients,
   hintsEnabled = true,
-  crewmateFooterIndex,
   onOpenTasksDialog,
   compact = false,
   maxRows,
@@ -62,7 +61,6 @@ export function ComposerFooter({
   messages: Message[]
   mcpClients?: MCPServerConnection[]
   hintsEnabled?: boolean
-  crewmateFooterIndex?: number
   onOpenTasksDialog?: () => void
   compact?: boolean
   maxRows?: number
@@ -120,7 +118,6 @@ export function ComposerFooter({
       mode={mode}
       isLoading={isLoading}
       hintsEnabled={hintsEnabled}
-      crewmateFooterIndex={crewmateFooterIndex}
       onOpenTasksDialog={onOpenTasksDialog}
     />
   )

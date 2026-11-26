@@ -278,6 +278,25 @@ try {
   {
     const basePath = process.env.PATH ?? '/usr/bin:/bin'
     const realPs = (spawnSync('which', ['ps'], { encoding: 'utf8' }).stdout ?? '').trim() || '/bin/ps'
+    const procAnswers = ((): boolean => {
+      try {
+        if (!existsSync('/proc')) return false
+        for (const entry of readdirSync('/proc')) {
+          if (!/^\d+$/.test(entry)) continue
+          const pidDir = join('/proc', entry)
+          try {
+            if (readFileSync(join(pidDir, 'cmdline')).length > 0) return true
+          } catch {}
+          try {
+            if (readlinkSync(join(pidDir, 'exe')).length > 0) return true
+          } catch {}
+        }
+        return false
+      } catch {
+        return false
+      }
+    })()
+    console.log(`  host /proc inventory: ${procAnswers ? 'answers (readable pids under /proc)' : 'absent (no readable pids under /proc)'}`)
     const makeStubs = (dirName: string, tools: Record<string, string>): string => {
       const dir = join(SCRATCH, dirName)
       mkdirSync(dir, { recursive: true })
@@ -294,6 +313,16 @@ try {
       writeFileSync(join(dir, 'manifest.json'), JSON.stringify({ ...repoManifest, buildTree: fill.repeat(40) }, null, 2))
       writeFileSync(join(dir, 'mercury.mjs'), `console.log("Mercury 0.0.0-${name}")\n`)
       return dir
+    }
+    const distPrev = join(runtime, 'dist.prev')
+    const seedLegacy = (): void => {
+      rmSync(oldDist, { recursive: true, force: true })
+      mkdirSync(oldDist, { recursive: true })
+      writeFileSync(join(oldDist, 'manifest.json'), JSON.stringify({ ...repoManifest, buildTree: 'f'.repeat(40) }, null, 2))
+      writeFileSync(join(oldDist, 'mercury.mjs'), 'console.log("Mercury 0.0.0-legacy-dist")\n')
+      rmSync(distPrev, { recursive: true, force: true })
+      mkdirSync(distPrev, { recursive: true })
+      writeFileSync(join(distPrev, 'mercury.mjs'), 'console.log("Mercury 0.0.0-legacy-prev")\n')
     }
     const keptLineFor = (out: string, dir: string): string => out.split('\n').find(l => l.includes('kept') && l.includes(dir)) ?? ''
     const holderReason = '(a daemon or session still runs from it)'
@@ -321,7 +350,11 @@ try {
     const psFailPath = makeStubs('stub-ps-fail', { ps: 'exit 1' })
     const rPsFailShell = deploy({ PATH: psFailPath })
     const psFailShellLine = keptLineFor(rPsFailShell.out, shellBuild)
-    check('failing ps with working lsof still keeps a live vendor/bash folder and logs could-not-tell', rPsFailShell.rc === 0 && existsSync(shellBuild) && psFailShellLine.includes(unknownReason), `rc=${rPsFailShell.rc} exists=${existsSync(shellBuild)} line=${psFailShellLine}`)
+    check(
+      'failing ps with working lsof keeps live vendor/bash (/proc answers: holder; no /proc: could-not-tell)',
+      rPsFailShell.rc === 0 && existsSync(shellBuild) && psFailShellLine.includes(procAnswers ? holderReason : unknownReason),
+      `rc=${rPsFailShell.rc} exists=${existsSync(shellBuild)} procAnswers=${procAnswers} line=${psFailShellLine}`,
+    )
 
     await killChild(shellHolder)
     const rPosixPrune = deploy({ PATH: posixOnlyPsPath })
@@ -342,41 +375,68 @@ try {
     check('failing ps with working lsof keeps a live ./node holder with the holder reason', rPsFailRel.rc === 0 && existsSync(lsofOnlyBuild) && psFailRelLine.includes(holderReason), `rc=${rPsFailRel.rc} exists=${existsSync(lsofOnlyBuild)} line=${psFailRelLine}`)
     await killChild(relHolder)
 
-    const probeBuild = seedBuild('cccccccccccc-33333333', 'c')
+    const psUnusedBuild = seedBuild('cccccccccccc-33333333', 'c')
     const rPs = deploy({ PATH: psFailPath })
-    const psLine = keptLineFor(rPs.out, probeBuild)
-    check('failing ps keeps the build folder and logs could-not-tell instead of holder', rPs.rc === 0 && existsSync(probeBuild) && psLine.includes(unknownReason), `rc=${rPs.rc} exists=${existsSync(probeBuild)} line=${psLine}`)
+    const psLine = keptLineFor(rPs.out, psUnusedBuild)
+    check(
+      'failing ps on unused folder (/proc answers: prunes it; no /proc: keeps it with could-not-tell)',
+      procAnswers
+        ? rPs.rc === 0 && !existsSync(psUnusedBuild) && psLine === ''
+        : rPs.rc === 0 && existsSync(psUnusedBuild) && psLine.includes(unknownReason),
+      `rc=${rPs.rc} exists=${existsSync(psUnusedBuild)} procAnswers=${procAnswers} line=${psLine}`,
+    )
 
+    const bothFailBuild = seedBuild('111111111111-66666666', '1')
     const bothFailPath = makeStubs('stub-ps-and-lsof-fail', { ps: 'exit 1', lsof: 'exit 2' })
     const rBoth = deploy({ PATH: bothFailPath })
-    const bothLine = keptLineFor(rBoth.out, probeBuild)
-    check('failing ps and failing lsof exit 2 keeps the build folder with could-not-tell reason', rBoth.rc === 0 && existsSync(probeBuild) && bothLine.includes(unknownReason), `rc=${rBoth.rc} exists=${existsSync(probeBuild)} line=${bothLine}`)
+    const bothLine = keptLineFor(rBoth.out, bothFailBuild)
+    check('failing ps and failing lsof exit 2 keeps its build folder with could-not-tell on every host', rBoth.rc === 0 && existsSync(bothFailBuild) && bothLine.includes(unknownReason), `rc=${rBoth.rc} exists=${existsSync(bothFailBuild)} line=${bothLine}`)
 
+    const lsofFail2Build = seedBuild('222222222222-77777777', '2')
     const lsofFail2Path = makeStubs('stub-lsof-fail2', { lsof: 'exit 2' })
     const rLsof2 = deploy({ PATH: lsofFail2Path })
-    const lsof2Line = keptLineFor(rLsof2.out, probeBuild)
-    check('unexpected lsof exit 2 keeps the build folder with could-not-tell reason', rLsof2.rc === 0 && existsSync(probeBuild) && lsof2Line.includes(unknownReason), `rc=${rLsof2.rc} exists=${existsSync(probeBuild)} line=${lsof2Line}`)
+    const lsof2Line = keptLineFor(rLsof2.out, lsofFail2Build)
+    check('unexpected lsof exit 2 keeps its build folder with could-not-tell on every host', rLsof2.rc === 0 && existsSync(lsofFail2Build) && lsof2Line.includes(unknownReason), `rc=${rLsof2.rc} exists=${existsSync(lsofFail2Build)} line=${lsof2Line}`)
 
+    const lsofErr1Build = seedBuild('333333333333-88888888', '3')
     const lsofErr1Path = makeStubs('stub-lsof-err1', { lsof: 'echo "lsof: unexpected permission failure" >&2; exit 1' })
     const rLsof1 = deploy({ PATH: lsofErr1Path })
-    const lsof1Line = keptLineFor(rLsof1.out, probeBuild)
-    check('unexpected lsof stderr with exit 1 keeps the build folder with could-not-tell reason', rLsof1.rc === 0 && existsSync(probeBuild) && lsof1Line.includes(unknownReason), `rc=${rLsof1.rc} exists=${existsSync(probeBuild)} line=${lsof1Line}`)
+    const lsof1Line = keptLineFor(rLsof1.out, lsofErr1Build)
+    check('unexpected lsof stderr with exit 1 keeps its build folder with could-not-tell on every host', rLsof1.rc === 0 && existsSync(lsofErr1Build) && lsof1Line.includes(unknownReason), `rc=${rLsof1.rc} exists=${existsSync(lsofErr1Build)} line=${lsof1Line}`)
 
-    rmSync(oldDist, { recursive: true, force: true })
-    mkdirSync(oldDist, { recursive: true })
-    writeFileSync(join(oldDist, 'manifest.json'), JSON.stringify({ ...repoManifest, buildTree: 'f'.repeat(40) }, null, 2))
-    writeFileSync(join(oldDist, 'mercury.mjs'), 'console.log("Mercury 0.0.0-legacy-dist")\n')
-    const distPrev = join(runtime, 'dist.prev')
-    mkdirSync(distPrev, { recursive: true })
-    writeFileSync(join(distPrev, 'mercury.mjs'), 'console.log("Mercury 0.0.0-legacy-prev")\n')
-    const rLegacyFail = deploy({ PATH: psFailPath })
-    const distLine = rLegacyFail.out.split('\n').find(l => l.startsWith('runtime/dist ')) ?? ''
-    const distPrevLine = rLegacyFail.out.split('\n').find(l => l.startsWith('runtime/dist.prev ')) ?? ''
-    check('failing ps keeps legacy runtime/dist and logs could-not-tell instead of daemon running', rLegacyFail.rc === 0 && isRealDir(oldDist) && !isLink(oldDist) && distLine.includes('could not tell whether a process still runs from it'), `rc=${rLegacyFail.rc} line=${distLine}`)
-    check('failing ps keeps legacy runtime/dist.prev and logs could-not-tell instead of process running', rLegacyFail.rc === 0 && isRealDir(distPrev) && !isLink(distPrev) && distPrevLine.includes('could not tell whether a process still runs from it'), `rc=${rLegacyFail.rc} line=${distPrevLine}`)
+    seedLegacy()
+    const rLegacyBothFail = deploy({ PATH: bothFailPath })
+    const distBothLine = rLegacyBothFail.out.split('\n').find(l => l.startsWith('runtime/dist ')) ?? ''
+    const distPrevBothLine = rLegacyBothFail.out.split('\n').find(l => l.startsWith('runtime/dist.prev ')) ?? ''
+    check('failing ps and failing lsof keeps legacy runtime/dist with could-not-tell on every host', rLegacyBothFail.rc === 0 && isRealDir(oldDist) && !isLink(oldDist) && distBothLine.includes('could not tell whether a process still runs from it'), `rc=${rLegacyBothFail.rc} line=${distBothLine}`)
+    check('failing ps and failing lsof keeps legacy runtime/dist.prev with could-not-tell on every host', rLegacyBothFail.rc === 0 && isRealDir(distPrev) && !isLink(distPrev) && distPrevBothLine.includes('could not tell whether a process still runs from it'), `rc=${rLegacyBothFail.rc} line=${distPrevBothLine}`)
 
+    seedLegacy()
+    const rLegacyPsFail = deploy({ PATH: psFailPath })
+    const distPsLine = rLegacyPsFail.out.split('\n').find(l => l.startsWith('runtime/dist ')) ?? ''
+    const distPrevPsLine = rLegacyPsFail.out.split('\n').find(l => l.startsWith('runtime/dist.prev ')) ?? ''
+    check(
+      'failing ps alone on unused legacy runtime/dist (/proc answers: replaces with link; no /proc: keeps with could-not-tell)',
+      procAnswers
+        ? rLegacyPsFail.rc === 0 && isLink(oldDist) && distPsLine === ''
+        : rLegacyPsFail.rc === 0 && isRealDir(oldDist) && !isLink(oldDist) && distPsLine.includes('could not tell whether a process still runs from it'),
+      `rc=${rLegacyPsFail.rc} procAnswers=${procAnswers} line=${distPsLine}`,
+    )
+    check(
+      'failing ps alone on unused legacy runtime/dist.prev (/proc answers: prunes it; no /proc: keeps with could-not-tell)',
+      procAnswers
+        ? rLegacyPsFail.rc === 0 && !existsSync(distPrev) && distPrevPsLine === ''
+        : rLegacyPsFail.rc === 0 && isRealDir(distPrev) && !isLink(distPrev) && distPrevPsLine.includes('could not tell whether a process still runs from it'),
+      `rc=${rLegacyPsFail.rc} procAnswers=${procAnswers} line=${distPrevPsLine}`,
+    )
+
+    const normalPruneBuild = seedBuild('444444444444-99999999', '4')
     const rNormal = deploy()
-    check('normal deploy prunes the unused folders and restores runtime/dist once ps and lsof succeed', rNormal.rc === 0 && !existsSync(probeBuild) && !existsSync(lsofOnlyBuild) && isLink(oldDist) && !existsSync(distPrev), `rc=${rNormal.rc} builds=${buildFolders().join(', ')}`)
+    check(
+      'normal deploy prunes every unused folder and restores runtime/dist once ps and lsof succeed',
+      rNormal.rc === 0 && !existsSync(normalPruneBuild) && !existsSync(psUnusedBuild) && !existsSync(bothFailBuild) && !existsSync(lsofFail2Build) && !existsSync(lsofErr1Build) && !existsSync(lsofOnlyBuild) && isLink(oldDist) && !existsSync(distPrev),
+      `rc=${rNormal.rc} builds=${buildFolders().join(', ')}`,
+    )
   }
 } finally {
   await cleanup()

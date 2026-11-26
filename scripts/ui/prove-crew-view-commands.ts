@@ -52,7 +52,6 @@ const frameDir = arg('--frames')
 if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 const sizeArg = arg('--size')
 const SIZES: Array<[number, number]> = sizeArg === undefined ? [[269, 70], [178, 51]] : [sizeArg.split('x').map(Number) as [number, number]]
-const WIDE_ENOUGH_FOR_THE_WHOLE_ROW = 240
 
 let failures = 0
 let checks = 0
@@ -401,9 +400,8 @@ section('§1 a running hosted crewmate in the view: the per-agent commands act o
 {
   await view(scene, ATLAS.id, 'ATLAS-ROW')
   const status = statusRowOf(scene)
-  const statusLine = scene.lines().find(line => line.includes('composer → Lane atlas')) ?? ''
-  check('the status row says the composer goes to the crewmate and stays within its width', /viewing Lane atlas · composer → Lane atlas/.test(status) && [...statusLine].length <= COLS, `${status} (${[...statusLine].length} cells)`)
-  if (COLS >= WIDE_ENOUGH_FOR_THE_WHOLE_ROW) check('the status row says the commands go to the crewmate too (the row has the room here)', /composer → Lane atlas · commands → Lane atlas · 1 crewmate running/.test(status), status)
+  const statusLine = scene.lines().find(line => line.includes('viewing Lane atlas')) ?? ''
+  check('the status row names the viewed seat once and stays within its width', /Fable 5\.1 · high · viewing Lane atlas · 1 crewmate running/.test(status) && status.split(ATLAS.name).length === 2 && [...statusLine].length <= COLS, `${status} (${[...statusLine].length} cells)`)
   let submitsBefore = submits.length
   const landed = await command(scene, `/model ${HAIKU}`, () => readRecord(hostedRecord(ATLAS.id))?.model === HAIKU)
   save('01-model-at-atlas', scene.lines())
@@ -570,7 +568,7 @@ section('§2b a crewmate pinned as the main chat: the commands follow the pinned
   await until(() => scene.state().mainChatTaskId === CEDAR.id, 4000)
   await sleep(400)
   const pinnedRow = (scene.lines().find(line => /main chat: Lane cedar/.test(line)) ?? '').trim()
-  check('(p1) pinned, nothing opened: the status row says the commands go to the pinned crewmate', /main chat: Lane cedar · commands → Lane cedar/.test(pinnedRow), pinnedRow.slice(0, 200))
+  check('(p1) pinned, nothing opened: the status row says the commands go to the pinned crewmate', /main chat: Lane cedar · 1 crewmate running/.test(pinnedRow) && pinnedRow.split(CEDAR.name).length === 2, pinnedRow.slice(0, 200))
   const before = submits.length
   const pinnedLanded = await command(scene, `/model ${HAIKU}`, () => readRecord(hostedRecord(CEDAR.id))?.model === HAIKU)
   save('p1-model-pinned-cedar', scene.lines())
@@ -578,8 +576,7 @@ section('§2b a crewmate pinned as the main chat: the commands follow the pinned
   mainSeatUntouched(scene, '(p1)', before)
   await view(scene, ATLAS.id, 'ATLAS-ROW')
   const row = (scene.lines().find(line => /viewing Lane atlas/.test(line)) ?? '').trim()
-  check('(p2) atlas opened with cedar pinned: the row names the commands target first (a narrow row cuts the composer half, never this one) and stays within its width', /viewing Lane atlas · commands → Lane atlas/.test(row) && [...row].length <= COLS, row.slice(0, 240))
-  if (COLS >= WIDE_ENOUGH_FOR_THE_WHOLE_ROW) check('(p2) …and the whole row where it has the room', /commands → Lane atlas · composer → Lane cedar \(the main chat\) · 1 crewmate running/.test(row), row.slice(0, 240))
+  check('(p2) atlas opened with cedar pinned: the row names only the viewed command seat and stays within its width', /viewing Lane atlas · 1 crewmate running/.test(row) && row.split(ATLAS.name).length === 2 && !/commands →|composer →/.test(row) && [...row].length <= COLS, row.slice(0, 240))
   const before2 = submits.length
   const viewedLanded = await command(scene, `/model ${SONNET}`, () => readRecord(hostedRecord(ATLAS.id))?.model === SONNET)
   save('p2-model-viewing-atlas-cedar-pinned', scene.lines())

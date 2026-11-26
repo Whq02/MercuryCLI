@@ -142,7 +142,7 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
     ...(name === 'card'
       ? [
           { data: '\r', atTick: 999, awaitText: listGate, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-running' },
-          { data: openView, atTick: 999, awaitText: `message ${target}`, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'view-open' },
+          { data: openView, atTick: 999, awaitText: `viewing ${target}`, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'view-open' },
           { data: '\r', atTick: 999, awaitText: openView, requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
           { data: 'x', atTick: 999, awaitText: listGate, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'list-again' },
         ]
@@ -151,7 +151,7 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
     { data: '\x1b', atTick: 999, awaitText: 'stopped', requireAwait: true, minTick: 1, awaitSettleTicks: 3, mark: 'crew-after' },
     ...(name === 'card'
       ? [
-          { data: '\x1b', atTick: 999, awaitText: `message ${target}`, awaitPattern: `\\A(?=[\\s\\S]*stopped)(?![\\s\\S]*Crewmates)`, requireAwait: true, minTick: 1, awaitSettleTicks: 2, mark: 'stopped-view' },
+          { data: '\x1b', atTick: 999, awaitText: `viewing ${target}`, awaitPattern: `\\A(?=[\\s\\S]*stopped)(?![\\s\\S]*Crewmates)`, requireAwait: true, minTick: 1, awaitSettleTicks: 2, mark: 'stopped-view' },
         ]
       : []),
     { data: openView, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
@@ -178,11 +178,11 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
   const after = marks['crew-after'] ?? ''
   const afterRow = rowOf(after, target)
   check(`${tag}: after x x the row reads stopped, never running`, afterRow !== undefined && /\bstopped\b/.test(afterRow) && !/\brunning\b/.test(afterRow), afterRow ?? '(no row)')
-  if (name === 'card') check(`${tag}: ↵ on the row opens the agent in the view (its card leads with the agent, the composer addresses it) and the pop-up closes`, flat(marks['view-open'] ?? '').includes(`◉ ${target}`) && flat(marks['view-open'] ?? '').includes(`message ${target}`) && !(marks['view-open'] ?? '').includes('Crewmates'), flat(marks['view-open'] ?? '').slice(0, 200))
+  if (name === 'card') check(`${tag}: ↵ on the row opens the agent in the view (the status names the agent and its rail row is marked) and the pop-up closes`, flat(marks['view-open'] ?? '').includes(`◉ ${target}`) && flat(marks['view-open'] ?? '').includes(`viewing ${target}`) && !(marks['view-open'] ?? '').includes('Crewmates'), flat(marks['view-open'] ?? '').slice(0, 200))
   if (name === 'card') {
     const stoppedView = marks['stopped-view'] ?? ''
     const stoppedFlat = flat(stoppedView)
-    check(`${tag}: after the stop and the pop-up's close the view stays on the stopped crewmate — its card reads stopped, the composer still addresses it`, !stoppedView.includes('Crewmates') && stoppedFlat.includes(`◉ ${target}`) && stoppedFlat.includes('stopped') && stoppedFlat.includes(`message ${target}`), stoppedFlat.slice(0, 300))
+    check(`${tag}: after the stop and the pop-up's close the view stays on the stopped crewmate — its rail row reads stopped and the status still names it`, !stoppedView.includes('Crewmates') && stoppedFlat.includes(`◉ ${target}`) && stoppedFlat.includes('stopped') && stoppedFlat.includes(`viewing ${target}`), stoppedFlat.slice(0, 300))
     const stoppedRail = stoppedView.split('\n').find(line => new RegExp(`[◉◐·] ${target.slice(0, 8)}[^\\n]*· stopped`).test(line))
     check(`${tag}: the stopped crewmate keeps its CREW row, reading stopped, while it is viewed`, stoppedRail !== undefined, stoppedView.split('\n').filter(line => line.includes(target.slice(0, 8))).map(flat).join(' | ').slice(0, 200) || '(no row)')
   }

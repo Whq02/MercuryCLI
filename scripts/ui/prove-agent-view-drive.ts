@@ -181,7 +181,7 @@ async function leg(cols: number, rows: number): Promise<void> {
     { data: '/crewmates', atTick: 999, awaitText: 'ype a prompt', awaitPattern: `\\A(?![\\s\\S]*${CREW_TITLE})`, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'popup-closed' },
     { data: '\r', afterPrevTicks: 4 },
     { data: 'm', atTick: 999, awaitText: MAIN_CHAT_KEY, requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
-    { data: TAB, atTick: 999, awaitText: 'message sleeper', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'main-chat' },
+    { data: TAB, atTick: 999, awaitText: 'viewing sleeper ·', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'main-chat' },
     { data: UP + UP + UP + UP, afterPrevTicks: 4 },
     { data: 'm', afterPrevTicks: 4 },
     { data: FOCUS_IN, atTick: 999, awaitText: 'viewing sleeper ·', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'handed-back' },
@@ -218,8 +218,8 @@ async function leg(cols: number, rows: number): Promise<void> {
   check(`${tag}: m marks the sleeper ★ in the rail`, starRow !== undefined && starRow.includes(SEAT_NAME), starRow ?? 'no ★ row')
   const header = headerRow(main)
   console.log(`  the view header: "${flat(header).slice(0, 120)}"`)
-  check(`${tag}: the status row says main chat for the sleeper`, /main chat: sleeper ·/.test(header), flat(header).slice(0, 160))
-  check(`${tag}: the composer placeholder reads "message sleeper"`, (composerRow(main) ?? '').includes('message sleeper'), (composerRow(main) ?? '').slice(0, 80))
+  check(`${tag}: the status names the viewed sleeper once`, /viewing sleeper ·/.test(header) && header.split(SEAT_NAME).length === 2, flat(header).slice(0, 160))
+  check(`${tag}: the pinned view keeps the ordinary placeholder`, (composerRow(main) ?? '').includes('ype a prompt'), (composerRow(main) ?? '').slice(0, 80))
   const handed = marks['handed-back'] ?? ''
   check(`${tag}: m on Mercury Lead hands the main chat back (no ★ row)`, railRow(handed, '★') === undefined, railRow(handed, '★') ?? '')
   const view = marks['view'] ?? ''
@@ -230,7 +230,7 @@ async function leg(cols: number, rows: number): Promise<void> {
   const cutRow = cut.split('\n').map(centreText).find(line => line.includes('the interrupt ended') || line.includes('Interrupted ·'))
   console.log(`  the cut row in the sleeper's transcript: "${(cutRow ?? '').trim().slice(0, 120)}"`)
   check(`${tag}: esc interrupts the sleeper alone — its transcript shows the interrupt row (the tool-phase cut names the tool it ended)`, cutRow !== undefined && /the interrupt ended Sleep — the turn is over|Interrupted · What should Mercury do instead\?/.test(cutRow), (cutRow ?? 'no cut row in the centre') + ' · the cut row wording is built in src/engine/message-shapes/turnCut.ts')
-  check(`${tag}: the sleeper's card reads interrupted (the operator's own kind, never a bare stopped) and the lead's own turn is untouched (the status row still names the session)`, cut.split('\n').some(line => centreText(line).includes('◉ sleeper') && centreText(line).includes('interrupted')), flat(cut).slice(0, 200))
+  check(`${tag}: the sleeper's rail row reads interrupted (the operator's own kind, never a bare stopped) and the lead's own turn is untouched (the status row still names the session)`, Boolean(railRow(cut, SEAT_NAME)?.includes('interrupted')), flat(cut).slice(0, 200))
   check(`${tag}: the view stays on the sleeper after the interrupt`, /(?:viewing|main chat:) sleeper ·/.test(headerRow(cut)), flat(headerRow(cut)).slice(0, 120))
   const back = marks['back'] ?? ''
   const backHeader = headerRow(back)
