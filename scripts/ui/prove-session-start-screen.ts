@@ -62,8 +62,9 @@ function seedHistory(home: string, cwd: string): void {
   mkdirSync(dir, { recursive: true })
   prompts.forEach((prompt, i) => {
     const sid = sessionIds[i]!
-    const row = { ...createUserMessage({ content: prompt }), sessionId: sid, cwd, parentUuid: null }
-    writeFileSync(join(dir, `${sid}.jsonl`), encodeSeedTranscript([row], sid, `2026-10-12T0${8 + i}:00:00.000Z`))
+    const stamp = `2026-10-12T${String(8 + i).padStart(2, '0')}:00:00.000Z`
+    const row = { ...createUserMessage({ content: prompt }), timestamp: stamp, sessionId: sid, cwd, parentUuid: null }
+    writeFileSync(join(dir, `${sid}.jsonl`), encodeSeedTranscript([row], sid, stamp))
   })
   const engines = [
     [{ model: 'claude-fable-5-1', at: '2026-10-12T08:44:49.631Z' }, { model: 'claude-sonnet-5-5', at: '2026-10-12T09:04:03.000Z' }],
@@ -138,7 +139,7 @@ for (const [cols, rows] of SIZES) {
     check(`${cols}x${rows}: the realm row names the project, its branch and its uncommitted state on one row`, wide ? dirRow !== undefined && /gridgame\s+\S\s*master · uncommitted/.test(dirRow) : chat.some(r => r.includes(PROJECT)), `fix the realm row in src/screen/fullscreen-layout/MercuryHome.tsx | ${dirRow ?? chat.slice(0, 4).join(' | ')}`)
     if (wide) {
       const top = chatFull[0] ?? ''
-      check(`${cols}x${rows}: the top row carries the pane's top border — not a copy of the header below it`, top.includes('╭') && top.trimEnd().endsWith('╮') && top.includes('lanes'), `${WHERE_FACE} | ${chat[0] ?? ''}`)
+      check(`${cols}x${rows}: the top row carries the pane's top border — not a copy of the header below it`, top.includes('╭') && top.trimEnd().endsWith('╮') && !top.includes('lanes') && top.includes('recent'), `${WHERE_FACE} | ${chat[0] ?? ''}`)
       const bandRule = chat.findIndex(r => /│ ─+ │/.test(r))
       check(`${cols}x${rows}: the status band ends on one hairline three rows under the pane top`, bandRule === 4, `${WHERE_FACE} | rule ${bandRule}`)
       const paneBottom = chat.findIndex(r => /^\s*╰─+╯$/.test(r))

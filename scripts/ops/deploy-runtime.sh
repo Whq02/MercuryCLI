@@ -50,9 +50,9 @@ else
 fi
 
 runtime_folder_in_use() {
-  local dir="$1" real f pid procs line pids
+  local dir="$1" real f pid procs line lsof_out lsof_rc
   real="$(cd "$dir" 2>/dev/null && pwd -P)" || return 1
-  procs="$(ps -axo command= 2>/dev/null || true)"
+  if ! procs="$(ps -axo command= 2>/dev/null)" || [ -z "$procs" ]; then return 0; fi
   while IFS= read -r line; do
     case "$line" in
       *"$real/"*) return 0 ;;
@@ -64,8 +64,9 @@ runtime_folder_in_use() {
       [ -f "$f" ] && files+=("$f")
     done
     if [ "${#files[@]}" -gt 0 ]; then
-      pids="$(lsof -t -- "${files[@]}" 2>/dev/null || true)"
-      [ -n "$pids" ] && return 0
+      lsof_rc=0
+      lsof_out="$(lsof -w -t -- "${files[@]}" 2>&1)" || lsof_rc=$?
+      if [ -n "$lsof_out" ] || [ "$lsof_rc" -gt 1 ]; then return 0; fi
     fi
   elif [ -d /proc ]; then
     for pid in /proc/[0-9]*; do

@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pinRecorderTerminal } from '../lib/proofHome.ts'
 
 const [family, out] = process.argv.slice(2)
 assert.ok(family && out)
+pinRecorderTerminal()
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const files: Record<string, string> = {
   'face-doors': '../ui/face-door-stills.ts',

@@ -69,11 +69,11 @@ const RIGHT = '\x1b[C'
 const DOWNS = 12
 const SIZES: Array<[number, number]> = [[64, 20], [80, 24], [100, 30], [177, 49]]
 const RESIZE_STOPS: Array<[number, number]> = [[64, 20], [100, 30], [177, 49]]
-const NOT_A_VIEW = new Set(['exit', 'logout', 'zen', 'keysetup', 'rename', 'title', 'crewmates', 'browse', 'mission', 'copy'])
-const TEXT_ROUTES = ['mission', 'copy']
+const NOT_A_VIEW = new Set(['exit', 'logout', 'zen', 'keysetup', 'rename', 'title', 'crewmates', 'browse', 'goal', 'copy'])
+const TEXT_ROUTES = ['goal', 'copy']
 const MARK: Readonly<Record<string, string>> = {
-  defaultprovider: 'Default provider', hooks: 'configured hook', permissions: 'Permissions:', export: 'Export conversation', saturn: 'saturn scheduler',
-  keys: 'input atlas', workbench: 'Mercury — prompts', console: 'Mercury — console', sessions: 'Mercury · resume', mcp: 'Mercury · mcp', mission: 'Mission',
+  defaultprovider: 'Default provider', hooks: 'configured hook', permissions: 'Permissions:', export: 'Export conversation',
+  keys: 'input atlas', workbench: 'Mercury — prompts', console: 'Mercury — console', sessions: 'Mercury · resume', mcp: 'Mercury · mcp', goal: 'Goal',
   context: 'Mercury — context', feedback: 'Feedback — which kind', samples: 'SAMPLES · this session',
 }
 const markOf = (name: string): RegExp => {

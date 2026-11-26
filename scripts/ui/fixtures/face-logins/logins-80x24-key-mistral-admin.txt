@@ -1,5 +1,5 @@
 
-  (>_) MERCURY · logins
+  MERCURY · logins
   Mistral Admin API key (optional) Optional Admin API key from
   admin.mistral.ai (Enterprise plans) unlocks the organisation usage meter and
   spend limit. Stored auth-scoped (mode 600); MISTRAL_ADMIN_API_KEY wins.

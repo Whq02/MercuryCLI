@@ -153,7 +153,16 @@ async function compactLeg(cols: number, rows: number, zen: boolean): Promise<voi
     { data: '/crewmates', atTick: 999, awaitText: LEAD_LINE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'strip-back' },
     { data: '\r', atTick: 999, awaitText: '/crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
     { data: '\r', atTick: 999, awaitText: '↵ open in the view', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'popup' },
-    { data: ESC, atTick: 999, awaitText: CREWMATE_PLATE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'popup-view' },
+    { data: '/effort', atTick: 999, awaitText: CREWMATE_PLATE, requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
+    { data: '\r', atTick: 999, awaitText: '/effort', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
+    { data: '\x1b[H', atTick: 999, awaitText: 'Mercury · effort', requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'crew-effort' },
+    { data: '\x1b[B', atTick: 999, awaitText: 'auto', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
+    { data: '\r', atTick: 999, awaitText: 'low', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
+    { data: '/model', atTick: 999, awaitText: 'runs low', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'crew-effort-picked' },
+    { data: '\r', atTick: 999, awaitText: '/model', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
+    { data: 'haiku', atTick: 999, awaitText: 'Mercury · model', requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'crew-model' },
+    { data: '\r', atTick: 999, awaitText: 'Haiku', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
+    { data: ESC, atTick: 999, awaitText: 'switches to Haiku', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'popup-view' },
     { data: ESC, atTick: 999, awaitText: 'the interrupt ended', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'cut' },
     { data: '', atTick: 999, awaitText: LEAD_LINE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'esc-back' },
   ]
@@ -166,8 +175,10 @@ async function compactLeg(cols: number, rows: number, zen: boolean): Promise<voi
   const { marks } = cap
   for (const [label, frame] of Object.entries(marks)) keep(`${cols}x${rows}${zen ? '-zen' : ''}-${label}`, frame)
   check(`${tag}: every send became due (the frames the sends waited on all painted)`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
+  check(`${tag}: /effort opens the chat effort list, and a pick applies to the sleeper`, has(marks['crew-effort'] ?? '', 'Mercury · effort') && has(marks['crew-effort'] ?? '', '↵ apply') && has(marks['crew-effort-picked'] ?? '', `${SEAT_NAME} runs low`), 'check the viewed seat passed to /effort')
+  check(`${tag}: /model opens the chat model list, and its pick applies to the sleeper`, has(marks['crew-model'] ?? '', 'Mercury · model') && has(marks['crew-model'] ?? '', '↵ switch') && has(marks['popup-view'] ?? '', `${SEAT_NAME} switches to Haiku`), 'check the viewed seat passed to /model')
   const launched = marks['launched'] ?? ''
-  check(`${tag}: the layout is the compact one (no rail; the band wears the session's own identity; the strip counts the crewmate)`, !has(launched, 'crew ·') && bandRow(launched).includes('✶ Mercury') && has(launched, '1 crewmate here'), flat(launched).slice(0, 300))
+  check(`${tag}: the layout is the compact one (no rail; the band wears the session's own identity; the strip counts the crewmate)`, !/crew \d+/.test(launched) && bandRow(launched).includes('✶ Mercury') && has(launched, '1 crewmate here'), flat(launched).slice(0, 300))
   const activity = marks['activity'] ?? ''
   check(`${tag}: ctrl+t then ↵ opens the activity screen with the sleeper as its crewmate row`, has(activity, ACTIVITY_TITLE) && rowsOf(activity).some(row => row.includes('❯') && row.includes(SEAT_NAME)), flat(activity).slice(0, 300))
   const view = marks['strip-view'] ?? ''
@@ -225,7 +236,7 @@ async function cockpitLeg(cols: number, rows: number): Promise<void> {
   for (const [label, frame] of Object.entries(marks)) keep(`${cols}x${rows}-cockpit-${label}`, frame)
   check(`${tag}: every send became due`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
   const launched = marks['launched'] ?? ''
-  check(`${tag}: the rails are shown (the CREW lane lists Mercury Lead and the sleeper)`, has(launched, 'crew ·') && has(launched, LEAD_ROW) && has(launched, SEAT_NAME), flat(launched).slice(0, 300))
+  check(`${tag}: the rails are shown (the CREW lane lists Mercury Lead and the sleeper)`, has(launched, 'crew 1') && has(launched, LEAD_ROW) && has(launched, SEAT_NAME), flat(launched).slice(0, 300))
   const popupView = marks['popup-view'] ?? ''
   check(`${tag}: /crewmates' ↵ opens the sleeper in the view — its rows take the centre, the berth card names it`, crewmateRowsTakeTheCentre(popupView) && has(popupView, `◉ ${SEAT_NAME}`), flat(popupView).slice(0, 300))
   check(`${tag}: the wide card drops both goes-back clauses`, !has(popupView, RAIL_BACK) && !has(popupView, COMPACT_BACK), rowsOf(popupView).filter(row => row.includes('goes back')).map(row => row.trim()).join(' | ').slice(0, 200))

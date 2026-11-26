@@ -118,6 +118,35 @@ async function openAtlasFor(
   }
 }
 
+async function focusedComposerFor(
+  row: ConcourseRowV1,
+  groupId: ConcourseSnapshotV1['groups'][number]['id'],
+  groupLabel: string,
+): Promise<{ restPrompt: string; focusedFoot: string }> {
+  _resetConcourseCapsuleForTesting()
+  const snapshot = boardSnapshot([row], groupId, groupLabel)
+  const mounted = await mountOffscreen(
+    h(
+      AppStateProvider,
+      { children: h(ThemeProvider, {}, h(ConcourseScreen, { snapshot, callbacks: noopCallbacks })) },
+    ),
+    120,
+    40,
+  )
+  try {
+    await waitFor(() => mounted.screen().includes('status & title') && mounted.screen().includes(`❯ message ${row.title}`), 5000)
+    const restPrompt = mounted.lines().find(l => l.includes(`❯ message ${row.title}`)) ?? ''
+    mounted.push('\t')
+    await waitFor(() => mounted.screen().includes('↵↵ enter session'), 5000)
+    mounted.push('check')
+    await waitFor(() => mounted.screen().includes('❯ check') && mounted.screen().includes('newline · tab panes'), 5000)
+    const focusedFoot = mounted.lines().find(l => l.includes('newline · tab panes')) ?? ''
+    return { restPrompt, focusedFoot }
+  } finally {
+    mounted.unmount()
+  }
+}
+
 try {
   const live = await openAtlasFor('live', rowOf('s-live', 'Live task', 'working'), 'working', 'working')
   const liveExpected = [
@@ -166,6 +195,14 @@ try {
     check(`parked row: ? names "${k} ${word}"`, parked.atlasLines.some(l => l.includes(k) && l.includes(word)), parked.atlasLines.map(l => l.trim()).join(' | '))
   }
   check('parked row: ? omits i interrupt / m model / e effort that do nothing on a parked row', !parked.screen.includes('interrupt') && !parked.atlasLines.some(l => /\be\s+effort\b/.test(l)) && !parked.atlasLines.some(l => /\bm\s+model\b/.test(l)), parked.atlasLines.map(l => l.trim()).join(' | '))
+
+  const workingComposer = await focusedComposerFor(rowOf('s-work', 'Live task', 'working'), 'working', 'working')
+  check('working row: resting composer keeps short "message <title>" placeholder', workingComposer.restPrompt.includes('❯ message Live task') && !workingComposer.restPrompt.includes('on its next turn'), workingComposer.restPrompt.trim())
+  check('working row: focused composer foot says "↵ queue" (not "↵ send")', workingComposer.focusedFoot.includes('↵ queue ·') && !workingComposer.focusedFoot.includes('↵ send ·'), workingComposer.focusedFoot.trim())
+
+  const idleComposer = await focusedComposerFor(rowOf('s-idle', 'Idle task', 'ready-to-review'), 'ready-to-review', 'ready to review')
+  check('idle row: resting composer keeps short "message <title>" placeholder', idleComposer.restPrompt.includes('❯ message Idle task') && !idleComposer.restPrompt.includes('on its next turn'), idleComposer.restPrompt.trim())
+  check('idle row: focused composer foot says "↵ send" (not "↵ queue")', idleComposer.focusedFoot.includes('↵ send ·') && !idleComposer.focusedFoot.includes('↵ queue ·'), idleComposer.focusedFoot.trim())
 } finally {
   await releaseScratchHome(HOME)
 }

@@ -382,7 +382,7 @@ Runtime-flaggene er definert i `src/platform/substrate/flagRegistry.ts`, ekspone
 
 | Område | Kommandoer |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
+| current work | `/run` `/runs` `/workbench` `/diff` `/goal` |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/swarm` `/swarmchat` `/general` `/team` `/whisper` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/export` `/copy` `/usage` `/restart` |
 | memory & goals | `/memory` |

@@ -52,7 +52,7 @@ console.log('\ncrewmateCommands.tsx:86 — corrupt or unreadable crewmate metada
     setOriginalCwd(process.cwd())
     setCwdState(process.cwd())
     const { crewmateMetadataFile } = await import(${JSON.stringify(join(SRC, 'screen/tasks/useCrewmateModel.ts'))})
-    const { runCrewmateCommand, openCrewmateModelPickerFor } = await import(${JSON.stringify(join(SRC, 'screen/composer/crewmateCommands.tsx'))})
+    const { runCrewmateCommand, crewmatePickerSeat } = await import(${JSON.stringify(join(SRC, 'screen/composer/crewmateCommands.tsx'))})
     const crewmate = {
       name: 'scout-a',
       taskId: 'agent-fn03-test',
@@ -85,7 +85,16 @@ console.log('\ncrewmateCommands.tsx:86 — corrupt or unreadable crewmate metada
       setAppState: () => {},
       receipt: (text, color) => receipts.push({ text, color }),
     }
-    const effortCmd = { name: 'effort', userFacingName: () => 'effort' }
+    const { openDialogCommand } = await import(${JSON.stringify(join(SRC, 'screen/chat/submit/dialogCommand.ts'))})
+    const state = { tasks: { [crewmate.taskId]: { ...crewmate.local, description: crewmate.name, startTime: 1 } }, crewLedger: {}, viewingCrewmateTaskId: crewmate.taskId }
+    async function command(name, args) {
+      const { call } = await import(name === 'model' ? ${JSON.stringify(join(SRC, 'commands/model/mercuryModel.tsx'))} : ${JSON.stringify(join(SRC, 'commands/effort/effort.tsx'))})
+      const { context, onDone, failDialog } = openDialogCommand({
+        getToolUseContext: () => ({ options: { engineModel: crewmate.local.model }, crewmateSeat: door => crewmatePickerSeat(state, door) }),
+        dialogInFlightRef: { current: null }, drainQueuedDialogCommand: () => {}, setToolJSX: () => {}, addNotification: notice => receipts.push(notice),
+      }, { input: '/' + name, focusedNow: { records: () => [], modelFacts: () => ({ effective: crewmate.local.model }) } }, { name }, name, { args })
+      await call(onDone, context, args).catch(failDialog)
+    }
     const compactCmd = { name: 'compact', userFacingName: () => 'compact' }
   `
 
@@ -93,14 +102,14 @@ console.log('\ncrewmateCommands.tsx:86 — corrupt or unreadable crewmate metada
     ${setup}
     const torn = '{"agentType":"Explore","description":"keep me","worktreePath":"/keep/path"'
     fs.writeFileSync(file, torn, 'utf8')
-    await runCrewmateCommand(effortCmd, '/effort high', crewmate, io)
+    await command('effort', 'high')
     out.afterEffort = fs.readFileSync(file, 'utf8')
     out.sameAfterEffort = out.afterEffort === torn
     out.effortReceipts = receipts.splice(0)
     await runCrewmateCommand(compactCmd, '/compact', crewmate, io)
     out.sameAfterCompact = fs.readFileSync(file, 'utf8') === torn
     out.compactReceipts = receipts.splice(0)
-    await openCrewmateModelPickerFor(crewmate, io)
+    await command('model', '')
     out.pickerReceipts = receipts.splice(0)
   `)
   const effortReceipts = corrupt.effortReceipts as Array<{ text: string; color?: string }>
@@ -109,7 +118,7 @@ console.log('\ncrewmateCommands.tsx:86 — corrupt or unreadable crewmate metada
   check(
     'crewmate-corrupt-effort-no-overwrite',
     corrupt.sameAfterEffort === true &&
-      effortReceipts.some(r => r.color === 'warning' && r.text.includes('could not be read')),
+      effortReceipts.some(r => r.color === 'error' && r.text.includes('could not be read')),
     `same=${String(corrupt.sameAfterEffort)} receipts=${JSON.stringify(effortReceipts)}` + ' — change runCrewmateCommand in src/screen/composer/crewmateCommands.tsx so an unreadable or corrupt metadata file is left untouched and a warning receipt says it could not be read',
   )
   check(
@@ -120,8 +129,8 @@ console.log('\ncrewmateCommands.tsx:86 — corrupt or unreadable crewmate metada
   )
   check(
     'crewmate-corrupt-picker-warns',
-    pickerReceipts.some(r => r.color === 'warning' && r.text.includes('could not be read')),
-    `receipts=${JSON.stringify(pickerReceipts)}` + ' — change openCrewmateModelPickerFor in src/screen/composer/crewmateCommands.tsx so it gives a warning receipt saying the metadata could not be read',
+    pickerReceipts.some(r => r.color === 'error' && r.text.includes('could not be read')),
+    `receipts=${JSON.stringify(pickerReceipts)}` + ' — change crewmatePickerSeat in src/screen/composer/crewmateCommands.tsx so it gives a warning receipt saying the metadata could not be read',
   )
 
   if (!POSIX_MODES) {
@@ -132,7 +141,7 @@ console.log('\ncrewmateCommands.tsx:86 — corrupt or unreadable crewmate metada
       const saved = JSON.stringify({ agentType: 'Explore', description: 'precious', model: 'claude-sonnet-4-6' })
       fs.writeFileSync(file, saved, { mode: 0o600 })
       fs.chmodSync(file, 0o200)
-      await runCrewmateCommand(effortCmd, '/effort high', crewmate, io)
+      await command('effort', 'high')
       fs.chmodSync(file, 0o600)
       out.same = fs.readFileSync(file, 'utf8') === saved
       out.receipts = receipts
@@ -141,14 +150,14 @@ console.log('\ncrewmateCommands.tsx:86 — corrupt or unreadable crewmate metada
     check(
       'crewmate-eacces-no-overwrite',
       eacces.same === true &&
-        receipts.some(r => r.color === 'warning' && r.text.includes('could not be read')),
+        receipts.some(r => r.color === 'error' && r.text.includes('could not be read')),
       `same=${String(eacces.same)} receipts=${JSON.stringify(receipts)}` + ' — change runCrewmateCommand in src/screen/composer/crewmateCommands.tsx so a metadata file it cannot read (EACCES) is left untouched and a warning receipt says it could not be read',
     )
   }
 
   const absent = runScenario(`
     ${setup}
-    await runCrewmateCommand(effortCmd, '/effort high', crewmate, io)
+    await command('effort', 'high')
     out.exists = fs.existsSync(file)
     out.parsed = out.exists ? JSON.parse(fs.readFileSync(file, 'utf8')) : null
     out.receipts = receipts

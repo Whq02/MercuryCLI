@@ -64,8 +64,9 @@ const wrap = (node: React.ReactNode): React.ReactNode => h(App, { initialState: 
 
 const { getHelmRows } = await import('../../src/screen/cockpit/helmFocus.ts')
 function tornRailBoxes(lines: string[], columns: number, paneRows: number): string[] {
-  const paneLeft = (lines[0] ?? '').indexOf('╭')
-  const paneRight = (lines[0] ?? '').indexOf('╮', paneLeft + 1)
+  const top = lines[0] ?? ''
+  const paneLeft = top.startsWith('╭') ? top.indexOf('╭', 1) : top.indexOf('╭')
+  const paneRight = top.indexOf('╮', paneLeft + 1)
   const tears: string[] = []
   for (let y = 0; y < paneRows; y++) {
     const row = Array.from(lines[y] ?? '')
@@ -94,7 +95,9 @@ for (const [columns, rows] of SIZES) {
       const torn = tornRailBoxes(lines, columns, paneRows)
       check(`${columns}x${rows}, pane ${paneRows}: every rail box closes`, torn.length === 0, torn.join('; '))
       if (columns >= 160) {
-        const rail = lines.slice(0, paneRows).map(line => line.slice((lines[0] ?? '').indexOf('╮') + 1))
+        const top = lines[0] ?? ''
+        const paneLeft = top.startsWith('╭') ? top.indexOf('╭', 1) : top.indexOf('╭')
+        const rail = lines.slice(0, paneRows).map(line => line.slice(top.indexOf('╮', paneLeft + 1) + 1))
         const free = paneRows - 1 - rail.reduce((last, row, y) => (row.includes('╰') ? y : last), 0)
         const healthShed = !rail.some(row => row.includes('✓ health'))
         const pointer = rail.some(row => row.includes('short height — /health'))

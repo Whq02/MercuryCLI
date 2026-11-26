@@ -40,7 +40,8 @@ commands use the full tap name `Whq02/mercury/mercury` (bare `mercury` in
 `homebrew-core` is a different program). The npm package, `mercury-tech-cli`,
 is a launcher that downloads its pinned release; mise installs that same
 package. `mercury install --uninstall` removes the installed release, the command
-shim and the PATH entry it added, while keeping your configuration and sessions
+shim, any managed profile commands and the PATH entry it added, while keeping
+your configuration, sessions and profile folders
 (also run `npm uninstall -g mercury-tech-cli` if you installed the npm launcher).
 
 Mercury's installation is user-local and does not require administrator
@@ -102,10 +103,11 @@ updated command is missing from PATH, it explains the problem and the fix.
 
 ### Release verification
 
-Before activating a release, Mercury checks its archive against
-`SHA256SUMS.txt`. It also requires a payload signed by the Mercury release
-key in its compiled-in trust roster before staging the update. A rejected
-signature leaves the active installation unchanged.
+Before unpacking a release, Mercury checks its archive against
+`SHA256SUMS.txt` and verifies the archive's own `.sig` signature against the
+Mercury release key in its compiled-in trust roster. It also requires a signed
+payload before staging the update. A rejected signature leaves the active
+installation unchanged.
 
 Use `--allow-unsigned` to accept an unsigned payload. Mercury still rejects
 unknown signing keys, malformed signing blocks and tampered contents. The

@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { pinRecorderTerminal, RECORDER_TERM_PROGRAM } from '../lib/proofHome.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
-
 const ROOT = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
   const at = process.argv.indexOf(flag)
@@ -242,9 +242,10 @@ function driveEnv(home: string, fixtureBase: string): NodeJS.ProcessEnv {
     MERCURY_THEME_PIN: 'dark',
     COLORTERM: 'truecolor',
     COLORFGBG: '15;0',
-    TERM_PROGRAM: 'kitty',
+    TERM_PROGRAM: RECORDER_TERM_PROGRAM,
     BROWSER: '/usr/bin/true',
   }
+  pinRecorderTerminal(env)
   for (const stamp of ['MERCURY_DAEMON_PERMISSION_MODE','NODE_ENV', 'CI', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_DEMO', 'TERMINAL_EMULATOR', '__CFBundleIdentifier', 'MERCURY_MODEL', 'MERCURY_DEFAULT_FABLE_MODEL', 'MERCURY_DEFAULT_OPUS_MODEL', 'MERCURY_DEFAULT_SONNET_MODEL']) delete env[stamp]
   return env
 }

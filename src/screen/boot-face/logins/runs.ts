@@ -19,7 +19,7 @@ import type { FaceDeviceFamily, HandlesLegId, DeviceWaitStateV1 } from './flowLi
 import type { LoginsFlowContext } from './context.js';
 import { enqueueNotification } from '../../notifications/notifications.js';
 import { logError } from '../../../platform/logs/errorLog.js';
-
+import { runDevinCliAction, type DevinCliAction } from './devinCliAction.js';
 export function postLoginSettleOf(ctx: LoginsFlowContext): void {
   const { given, setAppStateMaybe } = ctx;
   if (given !== undefined) return;
@@ -227,4 +227,15 @@ export function startOpenaiDeviceRunOf(ctx: LoginsFlowContext): void {
       if (!live()) return;
       setFlow({ kind: 'receipt', receipt: openaiConnectFailedReceipt(error, 'device'), ok: false });
     });
+}
+
+export function startDevinCliRunOf(ctx: LoginsFlowContext, action: DevinCliAction): void {
+  const { deviceRunRef, setFlow, setDraft } = ctx;
+  const run = (deviceRunRef.current += 1);
+  setDraft('');
+  setFlow({ kind: 'external-run', action });
+  void runDevinCliAction(action).then(outcome => {
+    if (run !== deviceRunRef.current) return;
+    setFlow({ kind: 'receipt', receipt: outcome.receipt, ok: outcome.ok, external: true });
+  });
 }

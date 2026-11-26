@@ -1,7 +1,8 @@
 import * as React from 'react'
+import { errorMessage } from '../../platform/errors/errors.js'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { paintStatusRowReceipt } from '../../screen/chat/SwitchboardTagBar.js'
-import { LOCAL_COMMAND_STDOUT_TAG } from '../../engine/message-shapes/messageTags.js'
+import { COMMON_INFO_ARGS, LOCAL_COMMAND_STDOUT_TAG } from '../../engine/message-shapes/messageTags.js'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
 import { tensorFoldEffortApplied } from '../../models/roads/local/localCallModel.js'
 import type { AppState } from '../../screen/app-state/AppState.js'
@@ -30,7 +31,8 @@ import { renderModelName } from '../../models/catalogue/engineModel.js'
 import { updateSettingsForSource } from '../../platform/settings/settings.js'
 import { CommandPopupLease } from '../../screen/overlays/CommandPopupSlot.js'
 import { claimCommandPopup } from '../../screen/cockpit/commandPopup.js'
-import { EffortApplyContext, EffortPopup, effortPopupShape } from './EffortPopup.js'
+import { PickerSeatScope } from '../../screen/composer/crewmateCommands.js'
+import { EffortPopup, effortPopupShape } from './EffortPopup.js'
 
 const OPTION_LIST = `${EFFORT_LEVELS.join('|')}|auto`
 
@@ -280,27 +282,6 @@ function deliverEffortReceipt(receipt: EffortReceipt, onDone: LocalJSXCommandOnD
 }
 
 
-function SessionPopup({
-  context,
-  onDone,
-}: {
-  context: LocalJSXCommandContext
-  onDone: LocalJSXCommandOnDone
-}): React.ReactNode {
-  const model = context.options.engineModel
-  return (
-    <EffortApplyContext.Provider
-      value={value => {
-        const result = executeEffort(String(value), model)
-        return settleEffortResult(result, context).then(receipt => (receiptOnStatusRow(receipt) || receiptInChat(receipt, String(value)) ? '' : receipt.text))
-      }}
-    >
-      <EffortPopup onDone={message => (message === '' ? onDone(undefined, { display: 'skip' }) : onDone(message))} />
-    </EffortApplyContext.Provider>
-  )
-}
-
-
 const HELP_TOKENS = new Set(['help', '-h', '--help'])
 
 export async function call(
@@ -315,9 +296,12 @@ export async function call(
     onDone(helpText())
     return null
   }
-  if (lower === 'status' || lower === 'current') {
+  const seat = await context.crewmateSeat?.('effort')
+  if (lower === 'status' || lower === 'current' || (seat !== undefined && COMMON_INFO_ARGS.includes(lower)) || (trimmed === '' && context.options.isNonInteractiveSession)) {
     const focused = getFocusedSessionConnector()
-    if (focused.carrier === 'daemon') {
+    if (seat !== undefined) {
+      onDone(seat.effortStatus)
+    } else if (focused.carrier === 'daemon') {
       const facts = focused.modelFacts()
       onDone(showSeatEffort(facts.effort, facts.effortSent, facts.effective))
     } else {
@@ -327,22 +311,23 @@ export async function call(
   }
   if (trimmed === '') {
     const focused = getFocusedSessionConnector()
-    if (context.options.isNonInteractiveSession) {
-      if (focused.carrier === 'daemon') {
-        const facts = focused.modelFacts()
-        onDone(showSeatEffort(facts.effort, facts.effortSent, facts.effective))
-      } else {
-        onDone(showCurrentEffort(context.getAppState().effortValue, model).message)
-      }
-      return null
-    }
-    const popupModel = focused.carrier === 'daemon' ? focused.modelFacts().effective : model
-    const token = claimCommandPopup(effortPopupShape(popupModel))
+    const popupModel = seat?.model ?? (focused.carrier === 'daemon' ? focused.modelFacts().effective : model)
+    const token = claimCommandPopup(effortPopupShape(popupModel, seat === undefined))
     return (
       <CommandPopupLease token={token}>
-        <SessionPopup context={context} onDone={onDone} />
+        <PickerSeatScope seat={seat} onDone={onDone}>
+          <EffortPopup seat={seat} apply={async value => {
+            if (seat !== undefined) return seat.setEffort(String(value)).catch(errorMessage)
+            const receipt = await settleEffortResult(executeEffort(String(value), model), context)
+            return receiptOnStatusRow(receipt) || receiptInChat(receipt, String(value)) ? '' : receipt.text
+          }} onDone={message => message === '' ? onDone(undefined, { display: 'skip' }) : onDone(message)} />
+        </PickerSeatScope>
       </CommandPopupLease>
     )
+  }
+  if (seat !== undefined) {
+    onDone(await seat.setEffort(trimmed))
+    return null
   }
   const result = executeEffort(trimmed, model)
   const receipt = await settleEffortResult(result, context)

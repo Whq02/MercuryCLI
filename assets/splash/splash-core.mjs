@@ -1185,7 +1185,7 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
     shownEntry = [-1, ...listEntry.slice(start, end), -1]
   }
   const lines = []
-  lines.push(red + '(>_) ' + ivory + 'MERCURY' + R + faint + ' · ' + (m.title ?? 'boot menu') + R)
+  lines.push(ivory + 'MERCURY' + R + faint + ' · ' + (m.title ?? 'boot menu') + R)
   if (noticeLines.length > 0) {
     lines.push(...noticeLines)
     if (noticeBlank) lines.push('')
