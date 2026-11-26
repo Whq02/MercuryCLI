@@ -25,7 +25,7 @@ const { createSystemMessage } = await import('../../src/engine/message-shapes/sy
 const { createAttachmentMessage } = await import('../../src/engine/attachment-shapes/attachmentMessage.js')
 const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.js')
 const { buildMessageLookups } = await import('../../src/engine/messages/lookups.js')
-const { MessageMetaProvider } = await import('../../src/screen/messages/TranscriptNameplate.js')
+const { MessageMetaProvider, NameplateContinuationContext } = await import('../../src/screen/messages/TranscriptNameplate.js')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
 const { useMercuryTokens } = await import('../../src/screen/widgets/useMercuryTokens.js')
 const { GLYPH } = await import('../../src/screen/theme/glyphs.js')
@@ -419,6 +419,71 @@ section('§5 call-tied hook attachments and informational system rows keep the 2
   check('call-tied hook block connector aligns at column 4 with tool_result', blockLine.indexOf('└') === 4 && resultLine.indexOf('└') === 4, JSON.stringify({ blockLine, resultLine }))
   check('call-tied hook notice connector aligns at column 4 with tool_result', noticeLine.indexOf('└') === 4, JSON.stringify({ noticeLine }))
   check('call-tied informational system row keeps its 2-cell left pad', systemLine.startsWith('  ') && !systemLine.startsWith('   '), JSON.stringify({ systemLine }))
+}
+
+section('§6 expanded collapsed_read_search group keeps column-2 timestamp and member alignment through MessageRow')
+{
+  const okId = 'toolu_exp_ok'
+  const errId = 'toolu_exp_err'
+  const okUse = { ...createAssistantMessage({ content: [{ type: 'tool_use', id: okId, name: 'Read', input: { file_path: '/scratch/a.ts' } }] }), timestamp: STAMP }
+  const errUse = { ...createAssistantMessage({ content: [{ type: 'tool_use', id: errId, name: 'Read', input: { file_path: '/scratch/missing.ts' } }] }), timestamp: STAMP }
+  const okRes = { ...createUserMessage({ content: [{ type: 'tool_result', tool_use_id: okId, content: 'ok' }] }), timestamp: STAMP }
+  const errRes = { ...createUserMessage({ content: [{ type: 'tool_result', tool_use_id: errId, content: 'ENOENT', is_error: true }] }), timestamp: STAMP }
+  const all = [okUse, errUse, okRes, errRes]
+  const normalized = normalizeMessages(all)
+  const lookups = buildMessageLookups(normalized, all)
+  const members = normalized.filter(m => m.type === 'assistant')
+  const groupMsg = {
+    type: 'collapsed_read_search' as const,
+    searchCount: 0,
+    readCount: 2,
+    listCount: 0,
+    memorySearchCount: 0,
+    memoryReadCount: 0,
+    memoryWriteCount: 0,
+    readFilePaths: ['/scratch/a.ts', '/scratch/missing.ts'],
+    searchArgs: [],
+    latestDisplayHint: undefined,
+    messages: members,
+    displayMessage: members[0],
+    uuid: 'group-exp-1',
+    timestamp: STAMP,
+  }
+  const paintGroup = async (verbose: boolean, screen: 'prompt' | 'transcript', continuation = false) => {
+    const row = React.createElement(MessageRow, {
+      message: groupMsg,
+      tools: [ReadTool],
+      lookups,
+      screen,
+      columns: 120,
+      verbose,
+      isUserContinuation: true,
+      hasContentAfter: false,
+      inProgressToolUseIDs: new Set<string>(),
+      streamingToolUseIDs: new Set<string>(),
+      canAnimate: false,
+      isLoading: false,
+      lastThinkingBlockId: null,
+      latestBashOutputUUID: null,
+    })
+    const node = continuation
+      ? React.createElement(NameplateContinuationContext.Provider, { value: true }, row)
+      : row
+    const { text } = await renderRows(node)
+    return text.filter(line => line.trim() !== '')
+  }
+  const collapsed = await paintGroup(false, 'prompt')
+  const expanded = await paintGroup(true, 'prompt')
+  const expandedTranscript = await paintGroup(true, 'transcript', true)
+  const collapsedHead = collapsed[0] ?? ''
+  const expandedHead = expanded.find(row => row.includes('Expanded group')) ?? ''
+  const okMember = expanded.find(row => row.includes('/scratch/a.ts')) ?? ''
+  const errMember = expanded.find(row => row.includes('/scratch/missing.ts')) ?? ''
+  const transcriptHead = expandedTranscript.find(row => row.includes('Expanded group')) ?? ''
+  const clockCol = (row: string): number => row.search(/\d\d:\d\d:\d\d/)
+  check('expanded group header keeps timestamp at column 2 matching collapsed group', clockCol(collapsedHead) === 2 && clockCol(expandedHead) === 2 && PLATE_RE.test(expandedHead), JSON.stringify({ collapsedHead, expandedHead }))
+  check('expanded group members keep column-4 name and column-2 ✕ lead', okMember.startsWith('    Read ') && errMember.startsWith(`  ${GLYPH.fail} Read `), JSON.stringify({ okMember, errMember }))
+  check('expanded group on transcript screen keeps its 2-cell left pad', transcriptHead.startsWith('  Expanded group ('), JSON.stringify({ transcriptHead }))
 }
 
 console.log(failures === 0 ? '\n✅ TOOL ROW LEAD LAW HOLDS (bold name leads pending/done; ✕ leads error/denied; notices keep their dot)' : `\n❌ ${failures} TOOL ROW LEAD CHECK(S) FAILED`)
