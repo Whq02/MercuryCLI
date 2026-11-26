@@ -12,6 +12,7 @@ export function loginsMenuModelOf(
     statusNote?: string | null;
     glowWord?: BootMenuData['glowWord'];
     notice?: string | null;
+    devinCliMissing?: string | null;
     flow?: LoginsFlowPaneV1;
   },
 ): BootMenuData {
@@ -22,7 +23,7 @@ export function loginsMenuModelOf(
     opts.flow !== undefined
       ? {
           detailOverride: loginsFlowPaneLines(opts.flow),
-          ...(opts.flow.kind === 'key' && (opts.flow.leg === 'xai' || opts.flow.leg === 'xai-management' || opts.flow.leg === 'mistral' || opts.flow.leg === 'mistral-admin') ? { detailOverrideConfirms: true } : {}),
+          ...((opts.flow.kind === 'key' && (opts.flow.leg === 'xai' || opts.flow.leg === 'xai-management' || opts.flow.leg === 'mistral' || opts.flow.leg === 'mistral-admin')) || (opts.flow.kind === 'receipt' && opts.flow.external === true) ? { detailOverrideConfirms: true } : {}),
           legend: loginsFlowLegendOf(opts.flow),
           statusRight: loginsFlowStatusOf(opts.flow),
         }
@@ -65,7 +66,7 @@ export function loginsMenuModelOf(
     statusRight: opts.statusNote ?? loginsStatusLine(facts),
     legend: loginsLegendOf(selected !== undefined && selected.kind === 'provider' && loginsSwitchableFamily(selected.arm, facts) !== null),
     moreHint: '… (the trail continues — taller terminal)',
-    ...(selected !== undefined ? { detailOverride: loginsRosterDetailLines(selected, facts) } : {}),
+    ...(selected !== undefined ? { detailOverride: loginsRosterDetailLines(selected, facts, opts.devinCliMissing ?? null) } : {}),
     ...(opts.glowWord !== undefined ? { glowWord: opts.glowWord } : {}),
     ...(flowPane ?? {}),
   };
