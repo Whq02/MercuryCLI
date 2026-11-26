@@ -262,7 +262,7 @@ try {
     { requireAwait: true, awaitText: `/ ${SEAT_ID}`, awaitStableTicks: 3, data: '\r' },
     { requireAwait: true, awaitText: `Set model to ${SEAT_NAME}`, awaitStableTicks: 3, mark: 'back', data: '' },
     { requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 2, data: SHIFT_LEFT },
-    { requireAwait: true, awaitText: 'Status & title', awaitStableTicks: 3, data: '' },
+    { requireAwait: true, awaitText: 'status & title', awaitStableTicks: 3, data: '' },
     ...birth,
     ...openPicker,
     { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'second', data: '' },

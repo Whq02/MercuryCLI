@@ -22,8 +22,8 @@ const wait = (text: string, mark: string, data = '') => ({ data, awaitText: text
 writeFileSync(cfg, JSON.stringify({
   cwd, argv: [join(ROOT, 'dist/vendor/node/bin/node'), join(ROOT, 'dist/mercury.mjs')],
   cols: 177, rows: 49, total: 400, out: grid,
-  sends: [wait('↑↓ choose', 'boot', '\r'), wait('Type a prompt', 'chat', '\u001b[1;2D'), wait('Status & title', 'concourse')],
-  readyText: 'Status & title', readySettleTicks: 2,
+  sends: [wait('↑↓ choose', 'boot', '\r'), wait('Type a prompt', 'chat', '\u001b[1;2D'), wait('status & title', 'concourse')],
+  readyText: 'status & title', readySettleTicks: 2,
 }))
 const driver = resolveCaptureDriver()
 assert.equal(driver.kind, 'posix-pty')

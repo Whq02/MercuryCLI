@@ -50,7 +50,7 @@ seedFirstRun(TEMPLATE, [CWD])
 const { BOOT_FACE_READY, paintsBootFaceReady } = await import('../lib/bootFace.ts')
 const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
 const COMPOSER = 'Type a prompt'
-const BOARD = 'Needs you · '
+const BOARD = 'needs you · '
 const EMPTY_BOARD = 'no sessions yet'
 const TAG = keyHintLabel('⇧← back')
 const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')
@@ -255,7 +255,7 @@ console.log('S3 — the last chat closed from the board: the board stays, and th
       gFace(''),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
-      g('Needs you · ', '', { awaitSettleTicks: 3 }),
+      g('needs you · ', '', { awaitSettleTicks: 3 }),
       { afterPrevTicks: 3, data: '\x18' },
       { afterPrevTicks: 3, data: '\x18' },
       g('stopped', '\x18', { awaitSettleTicks: 3 }),

@@ -185,7 +185,7 @@ try {
         { data: BACKSPACE, awaitText: 'now: reduced (set by you)', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-reduced' },
         { data: ESC, awaitText: 'follows the machine again', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-auto' },
         { data: SHIFT_RIGHT, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 3 },
-        { data: SHIFT_RIGHT, awaitText: '│ Sessions  ', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
+        { data: SHIFT_RIGHT, awaitText: '│ sessions  ', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
         { data: '', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'chat-auto' },
         { data: '', afterPrevTicks: 3, mark: 'end' },
       ],

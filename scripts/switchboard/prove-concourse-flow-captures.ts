@@ -238,7 +238,7 @@ if (runLeg('queued')) {
   const settle = { atTick: 999, awaitText: 'queued probe', minTick: 5, awaitSettleTicks: 2 }
   for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
     const lines = capture('queued-enter', scratch, fixturePath, cols, rows, [{ ...settle, data: '\r' }], 'm queues a message')
-    check(`${cols}×${rows}: ↵ on the queued row keeps the board`, has(lines, 'Status & title') && has(lines, 'queued probe'))
+    check(`${cols}×${rows}: ↵ on the queued row keeps the board`, has(lines, 'status & title') && has(lines, 'queued probe'))
     check(`${cols}×${rows}: the in-place line under the live view's message box — a disclaimer in the estate's voice, whole (the seat count and the m door both on the row)`, lines.some(l => /queued · \d+\/\d+ busy · m queues a message/.test(l)), lines.find(l => l.includes('queued ')) ?? '(no queued line)')
     check(`${cols}×${rows}: the void screen did NOT open`, !has(lines, 'add a message — it delivers') && !has(lines, keyHintLabel('⇧← back to the concourse')))
   }

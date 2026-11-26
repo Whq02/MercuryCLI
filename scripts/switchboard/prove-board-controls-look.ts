@@ -98,7 +98,7 @@ const fixturePath = join(scratch, 'board-controls-look-fixture.json')
 writeFileSync(fixturePath, JSON.stringify(fixture))
 
 const sends: Send[] = [
-  { data: 'm', awaitText: 'Status & title', requireAwait: true, awaitSettleTicks: 2, mark: 'live-legend' },
+  { data: 'm', awaitText: 'status & title', requireAwait: true, awaitSettleTicks: 2, mark: 'live-legend' },
   { data: ESC, awaitText: 'Mercury · model', requireAwait: true, awaitSettleTicks: 3, mark: 'model-picker' },
   { data: 'e', awaitText: 'tab panes · / filter', awaitPattern: '\\A(?![\\s\\S]*Mercury · model)', requireAwait: true, awaitSettleTicks: 2 },
   { data: ESC, awaitText: 'EFFORT —', requireAwait: true, awaitSettleTicks: 3, mark: 'effort-picker' },
@@ -109,7 +109,7 @@ const sends: Send[] = [
 ]
 const out = join(OUT_DIR, 'board-controls-120x40.json')
 const cfgPath = join(scratch, 'vshot-cfg.json')
-writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 300, readyText: 'Status & title', cols: 120, rows: 40, out }))
+writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 300, readyText: 'status & title', cols: 120, rows: 40, out }))
 const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
   encoding: 'utf8',
   timeout: vshotBudgetMs(240_000),
@@ -152,7 +152,7 @@ check('e opens the EFFORT picker in the same grammar (the WARMRUN rider)', has(m
 check("the effort legend says set/keep", has(mk('effort-picker'), "↵ sets this session's effort"), '', 'the legend prop of the EFFORT RowPickModal in src/screen/concourse/screen/stage.tsx must keep these words; see mark-effort-picker.txt in the capture dir')
 console.log('L4 — the cut: no y/n grammar after ↵ on a permission row')
 check('no board key answers — the y/n grammar paints NOWHERE', !has(mk('cut-no-yn'), 'y allows') && !has(mk('cut-no-yn'), 'n denies'), '', 'enter on a permission row must not open a y/n answer grammar on the board; see mark-cut-no-yn.txt in the capture dir')
-check('the board stands (the route is a hop, never a context)', has(mk('cut-no-yn'), 'Status & title'), '', 'the board should still be on screen after the q key; see mark-cut-no-yn.txt in the capture dir')
+check('the board stands (the route is a hop, never a context)', has(mk('cut-no-yn'), 'status & title'), '', 'the board should still be on screen after the q key; see mark-cut-no-yn.txt in the capture dir')
 
 console.log(failures === 0 ? '\nboard-controls look: GREEN' : `\nboard-controls look: ${failures} RED`)
 process.exit(failures === 0 ? 0 : 1)

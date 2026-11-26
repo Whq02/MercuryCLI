@@ -30,7 +30,7 @@ const SHIFT_RIGHT = '\x1b[1;2C'
 const SHIFT_LEFT = '\x1b[1;2D'
 const TO_CONCOURSE = stage === 'chat' ? SHIFT_LEFT : SHIFT_RIGHT
 const FROM_CONCOURSE = stage === 'chat' ? SHIFT_RIGHT : SHIFT_LEFT
-const concourseReadyAt = (cols: number, rows: number): string => cols < 100 || rows < 26 ? 'live view' : '│ Sessions '
+const concourseReadyAt = (cols: number, rows: number): string => cols < 100 || rows < 26 ? 'live view' : '│ sessions '
 const ERASE_SCREEN = '\x1b[2J'
 const WHOLE_FRAME_HEAD = '\x1b[H\x1b[0m'
 const ERASE_SCROLLBACK = '\x1b[3J'

@@ -82,7 +82,7 @@ if seed.returncode != 0:
 
 READY = "\u276f"
 COMPOSER = "? for shortcuts"
-BOARD = "\u2502 Sessions "
+BOARD = "\u2502 sessions "
 FIRST_CLASS_ENV = {
     "TERM": "xterm-256color",
     "COLORTERM": "truecolor",

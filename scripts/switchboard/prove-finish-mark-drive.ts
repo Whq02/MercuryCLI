@@ -99,7 +99,7 @@ const WARNING = hexOf(theme.warning)
 const SUCCESS = hexOf(theme.success)
 
 const COMPOSER = 'Type a prompt'
-const BOARD = 'Needs you · '
+const BOARD = 'needs you · '
 const TAG = keyHintLabel('⇧← back')
 const SHIFT_LEFT = '\x1b[1;2D'
 const DOWN = '\x1b[B'

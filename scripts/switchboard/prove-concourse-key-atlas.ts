@@ -97,7 +97,7 @@ async function openAtlasFor(
     40,
   )
   try {
-    await waitFor(() => mounted.screen().includes('Status & title') && mounted.screen().includes(row.title), 5000)
+    await waitFor(() => mounted.screen().includes('status & title') && mounted.screen().includes(row.title), 5000)
     const beforeLines = mounted.lines()
     const legend = (beforeLines[beforeLines.length - 1] ?? '').trim()
     mounted.push('?')
@@ -134,7 +134,7 @@ async function focusedComposerFor(
     40,
   )
   try {
-    await waitFor(() => mounted.screen().includes('Status & title') && mounted.screen().includes(`❯ message ${row.title}`), 5000)
+    await waitFor(() => mounted.screen().includes('status & title') && mounted.screen().includes(`❯ message ${row.title}`), 5000)
     const restPrompt = mounted.lines().find(l => l.includes(`❯ message ${row.title}`)) ?? ''
     mounted.push('\t')
     await waitFor(() => mounted.screen().includes('↵↵ enter session'), 5000)
@@ -196,11 +196,11 @@ try {
   }
   check('parked row: ? omits i interrupt / m model / e effort that do nothing on a parked row', !parked.screen.includes('interrupt') && !parked.atlasLines.some(l => /\be\s+effort\b/.test(l)) && !parked.atlasLines.some(l => /\bm\s+model\b/.test(l)), parked.atlasLines.map(l => l.trim()).join(' | '))
 
-  const workingComposer = await focusedComposerFor(rowOf('s-work', 'Live task', 'working'), 'working', 'Working')
+  const workingComposer = await focusedComposerFor(rowOf('s-work', 'Live task', 'working'), 'working', 'working')
   check('working row: resting composer keeps short "message <title>" placeholder', workingComposer.restPrompt.includes('❯ message Live task') && !workingComposer.restPrompt.includes('on its next turn'), workingComposer.restPrompt.trim())
   check('working row: focused composer foot says "↵ queue" (not "↵ send")', workingComposer.focusedFoot.includes('↵ queue ·') && !workingComposer.focusedFoot.includes('↵ send ·'), workingComposer.focusedFoot.trim())
 
-  const idleComposer = await focusedComposerFor(rowOf('s-idle', 'Idle task', 'ready-to-review'), 'ready-to-review', 'Ready to review')
+  const idleComposer = await focusedComposerFor(rowOf('s-idle', 'Idle task', 'ready-to-review'), 'ready-to-review', 'ready to review')
   check('idle row: resting composer keeps short "message <title>" placeholder', idleComposer.restPrompt.includes('❯ message Idle task') && !idleComposer.restPrompt.includes('on its next turn'), idleComposer.restPrompt.trim())
   check('idle row: focused composer foot says "↵ send" (not "↵ queue")', idleComposer.focusedFoot.includes('↵ send ·') && !idleComposer.focusedFoot.includes('↵ queue ·'), idleComposer.focusedFoot.trim())
 } finally {

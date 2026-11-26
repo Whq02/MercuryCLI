@@ -138,9 +138,9 @@ try {
   const apple = await drive('apple', APPLE_TERMINAL, [
     BOOT,
     { ...gate, awaitText: ADMITTED, data: SHIFT_LEFT },
-    { ...gate, awaitText: 'Status & title', data: '?' },
+    { ...gate, awaitText: 'status & title', data: '?' },
     { ...gate, awaitText: 'CONCOURSE — keys', data: '\x1b', mark: 'atlas' },
-    { ...gate, awaitText: 'Status & title', awaitPattern: '\\A(?![\\s\\S]*CONCOURSE — keys)', data: TAB },
+    { ...gate, awaitText: 'status & title', awaitPattern: '\\A(?![\\s\\S]*CONCOURSE — keys)', data: TAB },
     { ...gate, awaitText: '↵↵ enter session', data: FIRST },
     { ...gate, awaitText: FIRST, data: '', mark: 'draft' },
     { ...gate, awaitText: FIRST, data: CTRL_J },
@@ -167,7 +167,7 @@ try {
   const iterm = await drive('iterm', ITERM, [
     BOOT,
     { ...gate, awaitText: ADMITTED, data: SHIFT_LEFT },
-    { ...gate, awaitText: 'Status & title', data: TAB },
+    { ...gate, awaitText: 'status & title', data: TAB },
     { ...gate, awaitText: '↵↵ enter session', data: FIRST },
     { ...gate, awaitText: FIRST, data: '', mark: 'draft' },
   ], FIRST)
