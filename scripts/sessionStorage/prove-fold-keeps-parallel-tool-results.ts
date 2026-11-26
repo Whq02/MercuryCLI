@@ -28,7 +28,7 @@ const { createAttachmentMessage } = await import('../../src/engine/attachments/t
 const { getTranscriptPath, recordTranscript, recordSidechainTranscript, registerCrewmateTranscriptDestination, flushSessionStorage, resetProjectForTesting } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 const { settleTranscriptMessage, getSessionMessages } = await import('../../src/sessions/transcripts/writer.ts')
 const { loadConversationForResume } = await import('../../src/sessions/resume/conversationRecovery.ts')
-const { buildScreenConversation, cleanForTranscript } = await import('../../src/sessions/transcripts/chain.ts')
+const { buildScreenConversation, cleanForTranscript, removeExtraFields } = await import('../../src/sessions/transcripts/chain.ts')
 const { loadTranscriptFile } = await import('../../src/sessions/transcripts/loading.ts')
 const { _resetTranscriptReaderForTesting } = await import('../../src/sessions/transcripts/transcriptReader.ts')
 const { listCrewmateTranscriptPaths } = await import('../../src/sessions/transcripts/paths.ts')
@@ -385,9 +385,10 @@ try {
     check('fold summariser fork', 'the replay wrote no archive or index', file !== undefined && historyHead(file).before === 0 && !existsSync(historyPartDir(file)))
     check('fold summariser fork', 'replayed rows stand once in their original physical order', file !== undefined && isDeepStrictEqual(raw(file).map(row => row.recordId).filter(id => expected.some(uuid => uuid === id)), expected))
   }
-  {
+  for (const listed of [true, false]) {
     start()
-    const agent = asAgentId('a12345678'), first = join(home, 'crew-open.jsonl'), cold = join(home, 'crew-cold.jsonl')
+    const scene = listed ? 'cold crewmate writer' : 'cold crewmate writer, unlisted notice'
+    const agent = asAgentId(listed ? 'a12345678' : 'a12345679'), first = join(home, `crew-open-${listed ? 'listed' : 'unlisted'}.jsonl`), cold = join(home, `crew-cold-${listed ? 'listed' : 'unlisted'}.jsonl`)
     registerCrewmateTranscriptDestination(agent, first)
     const prompt = user('Keep the notice.'), notice = createSystemMessage('A quiet update.', 'info'), done = reply('Finished.')
     await recordSidechainTranscript([prompt, notice, done], agent)
@@ -395,11 +396,14 @@ try {
     copyFileSync(first, cold)
     registerCrewmateTranscriptDestination(agent, cold)
     const boundary = createFoldBoundaryMessage('auto', 100, done.uuid), summary = user('Earlier crew work.')
-    annotateBoundaryWithPreservedSegment(boundary, summary.uuid, [prompt, notice, done])
+    annotateBoundaryWithPreservedSegment(boundary, summary.uuid, listed ? [prompt, notice, done] : [prompt, done])
     await recordSidechainTranscript([boundary, summary], agent, done.uuid)
     await flushSessionStorage()
+    const head = historyHead(cold), expected = ids([prompt, notice, done]), universe = new Set<string>(expected)
+    const carry = raw(cold).filter(r => universe.has(r.recordId))
+    check(scene, 'the seat file is sealed and its head carries prompt, notice and reply once in order, each naming its predecessor', head.boundary === boundary.uuid && isDeepStrictEqual(carry.map(r => r.recordId), expected) && carry.every((r, i) => r.parentId === (i ? expected[i - 1] : summary.uuid)))
     const loaded = await loadTranscriptFile(cold, { throwOnError: true })
-    check('cold crewmate writer', 'a notice already resident before this writer opened the file stays between the kept prompt and reply', loaded.messages.get(notice.uuid)?.parentUuid === prompt.uuid && loaded.messages.get(done.uuid)?.parentUuid === notice.uuid)
+    check(scene, 'a notice already resident before this writer opened the file stays between the kept prompt and reply', loaded.messages.get(notice.uuid)?.parentUuid === prompt.uuid && loaded.messages.get(done.uuid)?.parentUuid === notice.uuid)
   }
   {
     const sid = start(), file = getTranscriptPath(), stored = user('A durable prompt.'), missing = reply('Absent from the file.'), tail = reply('A durable tail.')
@@ -421,6 +425,59 @@ try {
     await recordTranscript([next, summary])
     await flushSessionStorage()
     check('missing declaration', 'a later valid fold can still seal and load', historyHead(file).boundary === next.uuid && (await loadTranscriptFile(file)).messages.get(stored.uuid)?.parentUuid === summary.uuid)
+  }
+  const damagedLists: Array<[string, unknown]> = [['string', 'not-an-array'], ['object', { bad: 1 }]]
+  for (const [kind, badList] of damagedLists) {
+    const sid = start(), file = getTranscriptPath()
+    const older = user('Older turn.'), keeps = reply('Kept row.')
+    await recordTranscript([older, keeps])
+    await flushSessionStorage()
+    const prior = createFoldBoundaryMessage('auto', 100, keeps.uuid)
+    prior.compactMetadata.preservedSegment = { headUuid: older.uuid, anchorUuid: prior.uuid, tailUuid: keeps.uuid }
+    const priorRecord = JSON.parse(encodeTranscriptLine(file, { ...prior, parentUuid: null, isSidechain: false, sessionId: sid, cwd: home, version: '1.0.0' }).line)
+    priorRecord.payload.fields.compactMetadata.preservedSegment.keptUuids = badList
+    appendFileSync(file, JSON.stringify(priorRecord) + '\n')
+    getSessionMessages.cache.clear?.()
+    _resetTranscriptReaderForTesting()
+    const beforeFold = await loadTranscriptFile(file, { throwOnError: true })
+    check(`damaged prior fold (${kind})`, 'before the new fold the loader skips the damaged keptUuids without throwing or relinking', beforeFold.messages.has(prior.uuid) && beforeFold.messages.get(older.uuid)?.parentUuid === null && beforeFold.messages.get(keeps.uuid)?.parentUuid === older.uuid)
+    const [loadedPrior, loadedKeeps] = removeExtraFields([beforeFold.messages.get(prior.uuid)!, beforeFold.messages.get(keeps.uuid)!])
+    if (!loadedPrior || !loadedKeeps) throw new Error('missing loaded damaged rows')
+    const next = createFoldBoundaryMessage('manual', 100, keeps.uuid), summary = user('Fresh summary.'), after = reply('Landed after seal.')
+    annotateBoundaryWithPreservedSegment(next, summary.uuid, [keeps])
+    let sealThrew = false
+    try {
+      await recordTranscript([next, summary])
+      await flushSessionStorage()
+      await recordTranscript([after])
+      await flushSessionStorage()
+    } catch { sealThrew = true }
+    const sealedRows = raw(file)
+    check(`damaged prior fold (${kind})`, 'a later fold seals past the damaged older fold line and a row written after it lands', !sealThrew && historyHead(file).boundary === next.uuid && sealedRows.some(r => r.recordId === after.uuid))
+    const forkAgent = asAgentId(`a1234568${kind === 'string' ? '1' : '2'}`), forkFile = join(home, `damaged-fork-${kind}.jsonl`)
+    registerCrewmateTranscriptDestination(forkAgent, forkFile)
+    let forkThrew = false
+    try {
+      await recordSidechainTranscript([loadedPrior, loadedKeeps], forkAgent)
+      await flushSessionStorage()
+    } catch { forkThrew = true }
+    const forkRecords = existsSync(forkFile) ? readFileSync(forkFile, 'utf8').trimEnd().split('\n').map(line => JSON.parse(line)) : []
+    const forkPrior = forkRecords.find(r => r.recordId === prior.uuid)
+    _resetTranscriptReaderForTesting()
+    const forkLoaded = existsSync(forkFile) ? await loadTranscriptFile(forkFile, { throwOnError: true }) : undefined
+    check(`damaged replay into fork (${kind})`, 'replaying a loaded damaged fold line into a fork lands untouched and loads cleanly', !forkThrew && forkRecords.some(r => r.recordId === keeps.uuid) && isDeepStrictEqual(forkPrior?.payload?.fields?.compactMetadata?.preservedSegment?.keptUuids, badList) && Boolean(forkLoaded?.messages.has(prior.uuid) && forkLoaded?.messages.has(keeps.uuid)))
+    start()
+    const copyFile = getTranscriptPath()
+    let copyThrew = false
+    try {
+      await recordTranscript([loadedPrior, loadedKeeps])
+      await flushSessionStorage()
+    } catch { copyThrew = true }
+    const copyRecords = existsSync(copyFile) ? readFileSync(copyFile, 'utf8').trimEnd().split('\n').map(line => JSON.parse(line)) : []
+    const copyIds = copyRecords.map(r => r.recordId), copyPrior = copyRecords.find(r => r.recordId === prior.uuid)
+    _resetTranscriptReaderForTesting()
+    const copyLoaded = existsSync(copyFile) ? await loadTranscriptFile(copyFile, { throwOnError: true }) : undefined
+    check(`damaged boundary before row (${kind})`, 'recording a loaded damaged fold line ahead of another row keeps order, leaves keptUuids untouched and loads cleanly', !copyThrew && copyIds.indexOf(prior.uuid) >= 0 && copyIds.indexOf(prior.uuid) < copyIds.indexOf(keeps.uuid) && isDeepStrictEqual(copyPrior?.payload?.fields?.compactMetadata?.preservedSegment?.keptUuids, badList) && Boolean(copyLoaded?.messages.has(prior.uuid) && copyLoaded?.messages.has(keeps.uuid)))
   }
 } finally {
   await api.close()
