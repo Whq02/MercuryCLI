@@ -10,7 +10,9 @@ import {
 } from '@puppeteer/browsers'
 import { browserCacheDir, dirSizeBytes, listManagedBrowsers, type ManagedBrowser } from './browserResolver.js'
 import { withDeadline } from '../../platform/async/deadline.js'
+import { getMercuryHome } from '../../platform/environment/envUtils.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
+import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 
 function requirePlatform(): NonNullable<ReturnType<typeof detectBrowserPlatform>> {
   const p = detectBrowserPlatform()
@@ -80,12 +82,18 @@ export async function planBrowserInstall(pinnedBuildId?: string): Promise<Instal
 
 export const INSTALL_PLAN_TTL_MS = 10 * 60 * 1000
 
+function installPlanDir(): string {
+  const override = flagEnv('MERCURY_BROWSER_CACHE_DIR')
+  if (override && override !== '') return override
+  return path.join(getMercuryHome(), 'browsers')
+}
+
 function installPlanPath(): string {
-  return path.join(browserCacheDir(), '.install-plan.json')
+  return path.join(installPlanDir(), '.install-plan.json')
 }
 
 export function persistInstallPlan(buildId: string): void {
-  fs.mkdirSync(browserCacheDir(), { recursive: true })
+  fs.mkdirSync(installPlanDir(), { recursive: true })
   fs.writeFileSync(installPlanPath(), JSON.stringify({ buildId, plannedAt: Date.now() }))
 }
 

@@ -5,6 +5,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { Browser as CftBrowser, BrowserPlatform, computeExecutablePath } from '@puppeteer/browsers'
 import { getMercuryHome } from '../../platform/environment/envUtils.js'
+import { firstProfileHome } from '../../platform/profiles/profiles.js'
 import { whichSync } from '../../platform/processes/which.js'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { INSTALLED_NOT_DRIVEN } from './browserWords.js'
@@ -94,7 +95,8 @@ export function detectInstalledBrowsers(): InstalledBrowser[] {
 export function browserCacheDir(): string {
   const override = flagEnv('MERCURY_BROWSER_CACHE_DIR')
   if (override && override !== '') return override
-  return path.join(getMercuryHome(), 'browsers')
+  const first = firstProfileHome()
+  return path.join(existsSync(first) ? first : getMercuryHome(), 'browsers')
 }
 
 export interface ManagedBrowser {
