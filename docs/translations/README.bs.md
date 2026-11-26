@@ -212,7 +212,7 @@ Zatvaranje svih razgovora vraća vas na početni ekran. Koristite `--chat` za sa
 
 Listu sesija otvorite pomoću `/concourse` ili `Shift+→` s početnog ekrana. Prvo prikazuje aktivne sesije tekućeg projekta, a zatim sačuvane razgovore koji nisu aktivni, od najnovijeg.
 
-Svaka aktivna sesija ima ćeliju NOW koja prikazuje njenu trenutnu aktivnost. Odaberite red i pritisnite `Enter` da se vratite u razgovor, dok ostale sesije nastavljaju da rade. Sesija koja je pala ostaje na listi kao NEEDS YOU, s razlogom, dok je ne oslobodite.
+Svaka aktivna sesija ima ćeliju NOW koja prikazuje njenu trenutnu aktivnost. Odaberite red i pritisnite `Enter` da se vratite u razgovor, dok ostale sesije nastavljaju da rade. Sesija koja je pala ostaje na listi kao needs you, s razlogom, dok je ne oslobodite.
 
 [docs/SESSIONS.md](../SESSIONS.md) pokriva životni ciklus sesija.
 

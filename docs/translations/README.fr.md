@@ -212,7 +212,7 @@ Fermer toutes les conversations vous ramène à l'écran d'accueil. Utilisez `--
 
 Ouvrez la liste des sessions avec `/concourse` ou `Shift+→` depuis l'écran d'accueil. Elle affiche d'abord les sessions en cours d'exécution du projet actuel, suivies des conversations enregistrées qui ne tournent pas, de la plus récente à la plus ancienne.
 
-Chaque session en cours d'exécution possède une cellule NOW qui affiche son activité actuelle. Sélectionnez une ligne et appuyez sur `Enter` pour revenir à la conversation, pendant que les autres sessions continuent de tourner. Une session plantée reste dans la liste avec la mention NEEDS YOU et la raison, jusqu'à ce que vous la libériez.
+Chaque session en cours d'exécution possède une cellule NOW qui affiche son activité actuelle. Sélectionnez une ligne et appuyez sur `Enter` pour revenir à la conversation, pendant que les autres sessions continuent de tourner. Une session plantée reste dans la liste avec la mention needs you et la raison, jusqu'à ce que vous la libériez.
 
 [docs/SESSIONS.md](../SESSIONS.md) décrit le cycle de vie des sessions.
 
