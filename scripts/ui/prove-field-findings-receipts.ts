@@ -244,7 +244,7 @@ const ROWS = 44
 const flat = (s: string): string => s.replace(/\s+/g, ' ')
 const SPLASH_READY = '/crewmates  /saturn  /health  /trace'
 const SHIFT_LEFT = '\x1b[1;2D'
-const BOARD = 'SESSIONS'
+const BOARD = '│ sessions  '
 
 const bootSends = (ask: string): Array<Record<string, unknown>> => [
   { data: '\r', atTick: 999, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },

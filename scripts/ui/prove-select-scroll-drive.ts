@@ -77,9 +77,10 @@ try {
   if (stripRow < 0) stripRow = ROWS - 8
   paneBottom = stripRow - 3
   for (let r = tailRow; r < stripRow; r++) if ((final.rows[r] ?? '')[24] === '╰') paneBottom = r - 1
-  for (let r = 1; r < tailRow; r++) if ((final.rows[r] ?? '')[25] === '╰') paneTop = r + 1
+  for (let r = 1; r < tailRow; r++) if ((final.rows[r] ?? '')[24] === '│' && /^ ─{20,}/.test((final.rows[r] ?? '').slice(25))) paneTop = r + 1
+  const alnum = (row: string | undefined): number => (row ?? '').slice(BODY_C0).replace(/[^A-Za-z0-9]/g, '').length
   let ar = Math.max(paneTop + 1, tailRow - 4)
-  while (ar > paneTop + 1 && (final.rows[ar] ?? '').slice(BODY_C0).replace(/[^A-Za-z0-9]/g, '').length < 10) ar--
+  while (ar > paneTop + 1 && (alnum(final.rows[ar]) < 10 || alnum(final.rows[ar + 1]) < 10 || (final.rows[ar + 1] ?? '').slice(BODY_C0, BODY_C0 + 2).trim().length === 0)) ar--
   anchor = { col: BODY_C0 + 6, row: ar }
 } finally {
   silent.cleanup()
@@ -150,7 +151,7 @@ try {
     const strip = (() => { const i = s.rows.findIndex(r => r.includes('SESSIONS')); return i < 0 ? stripRow : i })()
     let top = paneTop
     let bottom = paneBottom
-    for (let r = 1; r < Math.max(tail, paneTop + 1); r++) if ((s.rows[r] ?? '')[25] === '╰') top = r + 1
+    for (let r = 1; r < Math.max(tail, paneTop + 1); r++) if ((s.rows[r] ?? '')[24] === '│' && /^ ─{20,}/.test((s.rows[r] ?? '').slice(25))) top = r + 1
     for (let r = Math.max(top, 1); r < strip; r++) if ((s.rows[r] ?? '')[24] === '╰') bottom = r - 1
     return { top, bottom }
   }

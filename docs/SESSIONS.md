@@ -556,8 +556,8 @@ The board is two panes. On the left is the live view of the chosen session:
 its header line (`"<title> · <project> · <model> · <effort>"` with `"↵ enter
 session"` at its right), its running transcript, and its own message box at
 the foot, where a message waits for the session's next turn. On the right is
-the session list: the grouped rows under `STATUS & TITLE`, `PROJECT` and
-`LAST USED` (the time since the session last did anything), a `⋮` row when
+the session list: the grouped rows under `status & title`, `PROJECT` and
+`last used` (the time since the session last did anything), a `⋮` row when
 more rows lie beyond the window, the NEEDS YOU block below the list, and the
 row keys in the pane's own legend: `↑↓ choose · ↵ enter · n new · p pause · x
 stop · a archive · pgup/pgdn scroll`. The list has focus when the board
