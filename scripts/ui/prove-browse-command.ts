@@ -243,7 +243,7 @@ section('§1 the command exists, in the catalogue and the help domain (the READM
 {
   const entry = builtinCommands().find(command => command.name === 'browse')
   check('/browse is a built-in local command', entry !== undefined && entry.type === 'local-jsx', JSON.stringify(entry?.name) + ' — register the browse command (src/commands/browse/index.ts) in builtinCommands in src/commands/catalogue/commands.ts as a local-jsx command')
-  check('…whose description names the FILES card\'s browser', (entry?.description ?? '').includes('file browser the FILES card opens'), (entry?.description ?? 'no browse command') + ' — change description in src/commands/browse/index.ts to name the file browser the FILES card opens')
+  check('…whose description names the files panel\'s browser', (entry?.description ?? '').includes('file browser the files panel opens'), (entry?.description ?? 'no browse command') + ' — change description in src/commands/browse/index.ts to name the file browser the files panel opens')
   check('…immediate exactly as /zen is (the same navigation-command law)', browseCommand.immediate === zenCommand.immediate, 'change the immediate getter in src/commands/browse/index.ts to use shouldNavCommandBeImmediate as src/commands/zen/index.ts does')
   const domain = COMMAND_DOMAINS.find(d => d.names.includes('browse'))
   check('the help domain lists it under appearance & cockpit', domain?.label === 'appearance & cockpit', (domain?.label ?? 'no domain lists browse') + ' — list browse under the appearance & cockpit domain in src/screen/help/commandDomains.ts')
