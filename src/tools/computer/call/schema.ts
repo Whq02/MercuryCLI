@@ -229,7 +229,7 @@ export function usesScreenshotPixels(step: Input): boolean {
 
 export function definitelyTakesImage(step: Input, sequence: Input): boolean {
   if (step.action !== 'screenshot') return false
-  return step.pixels === true || step.full === true || sequence.full === true || step.display !== undefined || step.region !== undefined || sequence.region !== undefined
+  return (step.pixels ?? sequence.pixels) === true || (step.full ?? sequence.full) === true || step.display !== undefined || (step.region ?? sequence.region) !== undefined
 }
 
 export const NO_SCREENSHOT = 'no screenshot yet — coordinates are pixels of the last screenshot; take one first'
@@ -267,7 +267,8 @@ function fieldRefusal(input: Input): string | null {
   const allowed = ACTION_FIELDS[input.action]
   for (const [field, value] of Object.entries(input)) {
     if (field === 'action' || field === 'captcha' || value === undefined) continue
-    if (ACT_ACTIONS.has(input.action) && input.capture === true && ['scale', 'full', 'display'].includes(field)) continue
+    if (ACT_ACTIONS.has(input.action) && input.capture === true && ['scale', 'full', 'display', 'pixels'].includes(field)) continue
+    if (field === 'pixels' && ((input.action === 'focusApp' && input.capture === true) || (input.action === 'sequence' && input.capture !== false))) continue
     if (!allowed.includes(field)) return `${input.action} does not take ${field}`
   }
   return null
