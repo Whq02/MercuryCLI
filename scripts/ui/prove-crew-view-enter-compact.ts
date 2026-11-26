@@ -164,7 +164,7 @@ const monitorAt = (lines: string[]): number | undefined => {
   return match === null || match === undefined ? undefined : Number(match[1])
 }
 const cursorPainted = (lines: string[]): boolean => lines.some(line => /^❯ .*monitor \d+ watching/.test(line))
-const hintPainted = (lines: string[]): boolean => lines.some(line => line.includes('↑/↓ select') && line.includes('esc close'))
+const hintPainted = (lines: string[]): boolean => lines.some(line => line.includes('↑↓ select') && line.includes('esc close'))
 const statsPainted = (lines: string[]): boolean => lines.some(line => line.startsWith(STATS))
 const shellFooterPainted = (lines: string[]): boolean => /esc close\s*$/.test(lines[lines.length - 1] ?? '')
 const describe = (lines: string[]): string => `cursor on ${monitorAt(lines) ?? 'nothing'} · rows ${lines.length} · last ${JSON.stringify(lines[lines.length - 1] ?? '')}`
@@ -348,7 +348,13 @@ for (const [cols, rows, zen] of [[80, 24, false], [100, 30, true]] as Array<[num
   check(`${label}: the band shows the crewmate's card with its keys`, await until(() => scene.lines().some(line => line.includes('◉ scout one')) && scene.lines().some(line => line.includes('esc interrupts')), 5000), scene.lines().filter(l => l.trim() !== '').slice(0, 3).join(' | '))
   const stopsBefore = stops.length
   check(`${label}: the activity screen opens again over the view`, await openActivity(), `focus ${scene.focus()}`)
-  check(`${label}: ↓ walks the cursor onto the lead's row, which heads the crewmates and names the way back`, await walkTo('Mercury Lead') && scene.lines().some(line => /❯ ✶ Mercury Lead · the lead's own chat · ↵ goes back/.test(line)) && (scene.lines().findIndex(line => line.includes('scout one')) < 0 || scene.lines().findIndex(line => line.includes('Mercury Lead')) < scene.lines().findIndex(line => line.includes('scout one'))), scene.lines().filter(l => l.includes('Crewmates') || l.includes('Mercury Lead') || l.includes('scout one')).join(' | '))
+  check(`${label}: ↓ walks the cursor onto the lead's row, which heads the crewmates and names the way back`, await walkTo('Mercury Lead') && (() => {
+    const lines = scene.lines()
+    const head = lines.findIndex(line => line.includes('Crewmates ('))
+    const leadAt = lines.findIndex((line, i) => i > head && /❯ ✶ Mercury Lead · the lead's own chat · ↵ goes back/.test(line))
+    const scoutAt = lines.findIndex((line, i) => i > head && line.includes('scout one'))
+    return head >= 0 && leadAt > head && (scoutAt < 0 || leadAt < scoutAt)
+  })(), scene.lines().filter(l => l.includes('Crewmates') || l.includes('Mercury Lead') || l.includes('scout one')).join(' | '))
   scene.push(ENTER)
   check(`${label}: ↵ on the lead's row goes back to the lead's chat without stopping the crewmate`, await until(() => viewing() === undefined && scene.focus() === 'composer' && bandTop(scene.lines()).includes('✶ Mercury'), 5000) && stops.length === stopsBefore, `viewing ${viewing()} · focus ${scene.focus()} · stops ${stops.length - stopsBefore} · ${bandTop(scene.lines())}`)
   check(`${label}: the lead's row is gone from the list once the lead is the view again`, await openActivity() && !scene.lines().some(line => line.includes('✶ Mercury Lead')), scene.lines().filter(l => l.includes('Mercury Lead')).join(' | '))

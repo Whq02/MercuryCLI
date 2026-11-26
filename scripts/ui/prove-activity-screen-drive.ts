@@ -17,7 +17,7 @@ const rowsOf = (grid: Array<Array<{ c: string }>>): string[] => grid.map(row => 
 const cursorRow = (rows: string[]): number => rows.findIndex(row => /^❯ /.test(row))
 const monitorRows = (rows: string[]): number[] => rows.map((row, index) => (/^[ ❯] [◐○●✕✓] sleep 60\d/.test(row) ? index : -1)).filter(index => index >= 0)
 const monitorsHeader = (rows: string[]): number => rows.findIndex(row => row.startsWith(`Monitors (${MONITORS})`))
-const hintRow = (rows: string[]): number => rows.findIndex(row => row.includes('↑/↓ select') && row.includes('esc close'))
+const hintRow = (rows: string[]): number => rows.findIndex(row => row.includes('↑↓ select') && row.includes('esc close'))
 
 for (const [cols, rows] of SIZES) {
   const tag = `activity-screen-${cols}x${rows}`
@@ -46,8 +46,8 @@ for (const [cols, rows] of SIZES) {
     { requireAwait: true, awaitText: row(5), data: '\u001b[B' },
     { requireAwait: true, awaitText: row(6), data: '\u001b[B' },
     { requireAwait: true, awaitText: row(6), awaitSettleTicks: 1, data: '\u001b[B' },
-    { requireAwait: true, awaitText: '↑/↓ select', data: '', mark: 'end' },
-    { requireAwait: true, awaitText: '↑/↓ select', data: '\u001b[A' },
+    { requireAwait: true, awaitText: '↑↓ select', data: '', mark: 'end' },
+    { requireAwait: true, awaitText: '↑↓ select', data: '\u001b[A' },
     { requireAwait: true, awaitText: row(5), data: '\u001b[A' },
     { requireAwait: true, awaitText: row(4), data: '', mark: 'up-2' },
     { requireAwait: true, awaitText: row(4), data: '\u001b[<64;10;10M' },
@@ -78,7 +78,7 @@ for (const [cols, rows] of SIZES) {
     const downMonitors = monitorRows(down)
     check(`${tag}: ↓ ×3 moves the cursor to the fourth monitor and keeps it painted`, cursorRow(down) >= 0 && downMonitors.includes(cursorRow(down)) && (down[cursorRow(down)] ?? '').includes(rowText(4)), `↓ must move the selection one monitor per press (moveSelection in src/screen/tasks/BackgroundTasksDialog.tsx) and keep the ❯ cursor painted · cursor row ${cursorRow(down)} · monitor rows ${downMonitors.join(',')} · header ${monitorsHeader(down)}`)
     const end = at('end')
-    check(`${tag}: ↓ past the last monitor keeps the cursor on it and reaches the list's own hint row`, cursorRow(end) >= 0 && hintRow(end) > cursorRow(end), `↓ at the last monitor must clamp (moveSelection in src/screen/tasks/BackgroundTasksDialog.tsx) and the list's '↑/↓ select' hint row (boardListView in src/screen/tasks/background-tasks/views.tsx) must sit below the cursor · cursor row ${cursorRow(end)} · hint row ${hintRow(end)}`)
+    check(`${tag}: ↓ past the last monitor keeps the cursor on it and reaches the list's own hint row`, cursorRow(end) >= 0 && hintRow(end) > cursorRow(end), `↓ at the last monitor must clamp (moveSelection in src/screen/tasks/BackgroundTasksDialog.tsx) and the list's '↑↓ select' hint row (boardListView in src/screen/tasks/background-tasks/views.tsx) must sit below the cursor · cursor row ${cursorRow(end)} · hint row ${hintRow(end)}`)
     const up = at('up-2')
     check(`${tag}: ↑ ×2 walks back two rows and the cursor stays painted`, cursorRow(up) >= 0 && (up[cursorRow(up)] ?? '').includes(rowText(4)), `↑ must move the selection one monitor up per press (moveSelection in src/screen/tasks/BackgroundTasksDialog.tsx) and keep the ❯ cursor painted · cursor row ${cursorRow(up)} · monitor rows ${monitorRows(up).join(',')}`)
     const wheel = at('wheel')
