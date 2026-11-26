@@ -152,9 +152,8 @@ const representative: ReadonlyArray<readonly [string, string]> = [
   ['system', 'AskUserQuestion'],
   ['external', 'Blender'],
 ]
-section('§1 one row per family in every state: bold tool name leads pending/done; ✕ in failure tone leads error/denied')
-const plainColumns = new Set<number>()
-const failColumns = new Set<number>()
+section('§1 one row per family in every state: two-cell lead keeps one column; ✕ in failure tone leads error/denied')
+const nameColumns = new Set<number>()
 for (const [family, name] of representative) {
   for (const state of STATES) {
     const { ansi, text } = await renderRows(toolRowNode(name, state))
@@ -164,21 +163,19 @@ for (const [family, name] of representative) {
     check(`${tag}: the row paints under the nameplate`, rowIndex >= 0 && PLATE_RE.test(row), JSON.stringify(row))
     const body = row.replace(PLATE_RE, '')
     check(`${tag}: no state dot or ring on the row`, !STATE_GLYPHS.some(glyph => row.includes(glyph)), JSON.stringify(row))
+    nameColumns.add(row.indexOf(name))
     const plateWidth = (PLATE_RE.exec(row)?.[0] ?? '').length
     const cells = cellsOf(ansi[rowIndex] ?? '').filter(cell => cell.ch !== '\x1b')
     if (state === 'denied' || state === 'error') {
       check(`${tag}: the lead in column one of the row body is ${GLYPH.fail}`, body.startsWith(`${GLYPH.fail} ${name}`), JSON.stringify(body))
       const lead = cells[plateWidth]
       check(`${tag}: the lead wears the failure tone`, lead !== undefined && lead.fg === tokens.failure, `${JSON.stringify(lead)} want ${tokens.failure}`)
-      failColumns.add(row.indexOf(name))
     } else {
-      check(`${tag}: the tool name starts directly after the nameplate`, body.startsWith(name), JSON.stringify(body))
-      plainColumns.add(row.indexOf(name))
+      check(`${tag}: the two-cell blank lead precedes the tool name`, body.startsWith(`  ${name}`), JSON.stringify(body))
     }
   }
 }
-check('the tool name starts at one column across every family in pending/done states', plainColumns.size === 1, [...plainColumns].join(','))
-check('the tool name starts at one column across every family in error/denied states', failColumns.size === 1, [...failColumns].join(','))
+check('the tool name starts at one column across every family and state', nameColumns.size === 1, [...nameColumns].join(','))
 section('§2 a mixed turn: group, read, edit, agent rows align; the notice row keeps its dot')
 {
   const groupMessage = {
@@ -235,11 +232,11 @@ section('§2 a mixed turn: group, read, edit, agent rows align; the notice row k
   const agentRow = rows.find(row => /\bCrewmate\b/.test(row) && !row.includes('completed')) ?? ''
   const noticeRow = rows.find(row => row.includes('completed')) ?? ''
   const bodyOf = (row: string): string => row.replace(PLATE_RE, '')
-  check('the group row starts directly with its sentence in column one', bodyOf(groupRow).startsWith('Searched for'), JSON.stringify(groupRow))
-  check('the read row starts directly with Read', bodyOf(readRow).startsWith('Read'), JSON.stringify(readRow))
-  check('the edit row starts directly with Edit', bodyOf(editRow).startsWith('Edit'), JSON.stringify(editRow))
-  check('the running agent row starts directly with Crewmate', bodyOf(agentRow).startsWith('Crewmate'), JSON.stringify(agentRow))
-  const columns = new Set([groupRow, readRow, editRow, agentRow].map(row => (PLATE_RE.exec(row)?.[0] ?? '').length))
+  check('the group row has a two-cell blank lead before its sentence', bodyOf(groupRow).startsWith('  Searched for'), JSON.stringify(groupRow))
+  check('the read row has a two-cell blank lead before Read', bodyOf(readRow).startsWith('  Read'), JSON.stringify(readRow))
+  check('the edit row has a two-cell blank lead before Edit', bodyOf(editRow).startsWith('  Edit'), JSON.stringify(editRow))
+  check('the running agent row has a two-cell blank lead before Crewmate', bodyOf(agentRow).startsWith('  Crewmate'), JSON.stringify(agentRow))
+  const columns = new Set([groupRow, readRow, editRow, agentRow].map(row => (PLATE_RE.exec(row)?.[0] ?? '').length + 2))
   const wordColumns = new Set([groupRow.indexOf('Searched'), readRow.indexOf('Read'), editRow.indexOf('Edit'), agentRow.indexOf('Crewmate')])
   check('the words of every tool row start at one column (the alignment law)', columns.size === 1 && wordColumns.size === 1 && [...wordColumns][0] === [...columns][0], `${[...wordColumns].join(',')} want ${[...columns].join(',')}`)
   check('no tool row of the turn carries a state dot or ring', [groupRow, readRow, editRow, agentRow].every(row => !STATE_GLYPHS.some(glyph => row.includes(glyph))), JSON.stringify([groupRow, readRow, editRow, agentRow]))
@@ -293,9 +290,9 @@ section('§3 the collapsed group in its states: the lead follows the sentence an
     return { row, body: row.replace(PLATE_RE, ''), lead: cellsOf(ansi[index] ?? '')[plateWidth] }
   }
   const running = await renderGroup('running')
-  check('a running group starts directly with the present-tense sentence', running.body.startsWith('Reading '), JSON.stringify(running))
+  check('a running group has a two-cell blank lead before the present-tense sentence', running.body.startsWith('  Reading '), JSON.stringify(running))
   const done = await renderGroup('done')
-  check('a settled group starts directly with the past-tense sentence', done.body.startsWith('Read '), JSON.stringify(done))
+  check('a settled group has a two-cell blank lead before the past-tense sentence', done.body.startsWith('  Read '), JSON.stringify(done))
   const errored = await renderGroup('error')
   check('a group with an errored member leads with ✕ in the failure tone', errored.body.startsWith(`${GLYPH.fail} Read `) && errored.lead?.fg === tokens.failure, JSON.stringify(errored))
   const denied = await renderGroup('denied')

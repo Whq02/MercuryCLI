@@ -144,8 +144,8 @@ const runningRow = await renderRow({
   lookups: baseLookups(),
 })
 check(
-  'the RUNNING row starts directly with Bash and no work glyph',
-  leadsWith(runningRow, 'Bash') && !workFamily(runningRow),
+  'the RUNNING row has a two-cell blank lead before Bash and no work glyph',
+  leadsWith(runningRow, '  Bash') && !workFamily(runningRow),
 )
 check(
   '…and shows the live progress body under the header (running…)',
@@ -162,8 +162,8 @@ const settledRow = await renderRow({
   lookups: baseLookups({ resolvedToolUseIDs: new Set([TOOL_ID]) }),
 })
 check(
-  'the SETTLED row starts directly with Bash — no dot, no work glyph',
-  leadsWith(settledRow, 'Bash') && !settledRow.includes(BLACK_CIRCLE) && !workFamily(settledRow),
+  'the SETTLED row has a two-cell blank lead before Bash — no dot, no work glyph',
+  leadsWith(settledRow, '  Bash') && !settledRow.includes(BLACK_CIRCLE) && !workFamily(settledRow),
 )
 check('…and the progress body is gone at settle', !settledRow.includes('running…'))
 
@@ -202,7 +202,7 @@ const readRow = await renderRow({
   inProgress: new Set<string>(),
   lookups: baseLookups({ resolvedToolUseIDs: new Set([TOOL_ID]) }),
 })
-check('a resolved READ starts directly with Read, never a ring', leadsWith(readRow, 'Read') && !readRow.includes(GLYPH.read) && !workFamily(readRow), JSON.stringify(readRow))
+check('a resolved READ has a two-cell blank lead before Read, never a ring', leadsWith(readRow, '  Read') && !readRow.includes(GLYPH.read) && !workFamily(readRow), JSON.stringify(readRow))
 
 section('§C the daemon-hosted feed seams (source locks, call-shaped)')
 {

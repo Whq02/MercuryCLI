@@ -16,5 +16,5 @@ export function ToolRowLead({ state }: { state: ToolRowState }): React.ReactNode
   if (state === 'denied' || state === 'error') {
     return <Text color={tokens.failure}>{GLYPH.fail} </Text>
   }
-  return null
+  return <Text>{'  '}</Text>
 }
