@@ -499,9 +499,6 @@ const GENERAL_TIPS: Tip[] = [
       return true
     },
   },
-]
-
-const INTERNAL_TIPS: Tip[] = [
   {
     id: 'skills-location',
     cooldownSessions: 30,
@@ -524,6 +521,8 @@ const INTERNAL_TIPS: Tip[] = [
     },
   },
 ]
+
+const INTERNAL_TIPS: Tip[] = []
 
 const ALL_TIPS: Tip[] = [...GENERAL_TIPS, ...INTERNAL_TIPS]
 
