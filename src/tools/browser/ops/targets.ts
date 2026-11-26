@@ -152,16 +152,12 @@ export async function settleBoundingBox(handle: ElementHandle<Element>, deadline
   }
 }
 
-const ENCLOSING_CONTROL_SELECTOR =
-  'button, a, label, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"]'
-const INTERACTIVE_TARGET_SELECTOR = `${ENCLOSING_CONTROL_SELECTOR}, input, select, textarea`
+const ENCLOSING_CONTROL =
+  'button, a, label, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"]'
 
 export async function isDisabledTarget(handle: ElementHandle<Element>): Promise<boolean> {
   return handle.evaluate(
-    el =>
-      (el as HTMLInputElement).disabled === true ||
-      el.getAttribute('aria-disabled') === 'true' ||
-      el.closest('fieldset:disabled, button:disabled, [aria-disabled="true"]') !== null,
+    el => (el as HTMLInputElement).disabled === true || el.getAttribute('aria-disabled') === 'true' || el.closest('fieldset:disabled') !== null,
   )
 }
 
@@ -178,7 +174,7 @@ export async function clickGate(handle: ElementHandle<Element>): Promise<string 
     const x = point.x - (box?.x ?? 0) - border.x
     const y = point.y - (box?.y ?? 0) - border.y
     const occluder = await current.evaluate(
-      (el, px, py, allowEnclosing, controlSelector, ownControlSelector) => {
+      (el, px, py, allowEnclosing, control) => {
         let hit = document.elementFromPoint(px, py)
         while (hit?.shadowRoot) {
           const inner = hit.shadowRoot.elementFromPoint(px, py)
@@ -186,39 +182,25 @@ export async function clickGate(handle: ElementHandle<Element>): Promise<string 
           hit = inner
         }
         if (hit && (hit === el || el.contains(hit))) return null
-        if (hit && allowEnclosing && !el.matches(ownControlSelector) && hit.matches(controlSelector)) {
-          const composedParent = (node: Element): Element | null => {
-            if (node.assignedSlot) return node.assignedSlot
-            if (node.parentElement) return node.parentElement
-            const root = node.getRootNode()
-            return root instanceof ShadowRoot ? root.host : null
-          }
-          let cur = composedParent(el)
+        if (hit && allowEnclosing && !el.matches(`${control}, input, select, textarea`) && hit.matches(control) && !hit.matches(':disabled, [aria-disabled="true"]')) {
+          let cur: Element | null = el.assignedSlot ?? el.parentElement ?? (el.getRootNode() instanceof ShadowRoot ? (el.getRootNode() as ShadowRoot).host : null)
           while (cur !== null) {
-            if (cur === hit) {
-              const hitDisabled =
-                (hit as HTMLInputElement).disabled === true ||
-                hit.getAttribute('aria-disabled') === 'true' ||
-                hit.closest('fieldset:disabled') !== null
-              return hitDisabled ? { kind: 'disabled' as const } : null
-            }
-            if (cur.matches(ownControlSelector)) break
-            cur = composedParent(cur)
+            if (cur === hit) return null
+            if (cur.matches(`${control}, input, select, textarea`)) break
+            cur = cur.assignedSlot ?? cur.parentElement ?? (cur.getRootNode() instanceof ShadowRoot ? (cur.getRootNode() as ShadowRoot).host : null)
           }
         }
-        if (!hit) return { kind: 'covered' as const, by: 'the viewport edge' }
+        if (!hit) return 'the viewport edge'
         const id = hit.id ? `#${hit.id}` : ''
         const cls = typeof hit.className === 'string' && hit.className.trim() !== '' ? `.${hit.className.split(/\s+/).filter(Boolean).slice(0, 2).join('.')}` : ''
-        return { kind: 'covered' as const, by: `${hit.tagName.toLowerCase()}${id}${cls}` }
+        return `${hit.tagName.toLowerCase()}${id}${cls}`
       },
       x,
       y,
       current === handle,
-      ENCLOSING_CONTROL_SELECTOR,
-      INTERACTIVE_TARGET_SELECTOR,
+      ENCLOSING_CONTROL,
     )
-    if (occluder?.kind === 'disabled') return 'the target is disabled'
-    if (occluder) return `the click point (${Math.round(point.x)}, ${Math.round(point.y)}) is covered by ${occluder.by}; click the covering element to dismiss it, or scroll the target into view; after reading the overlay, force: true dispatches a DOM click to the target`
+    if (occluder) return `the click point (${Math.round(point.x)}, ${Math.round(point.y)}) is covered by ${occluder}; click the covering element to dismiss it, or scroll the target into view; after reading the overlay, force: true dispatches a DOM click to the target`
     current = container
   }
   return null

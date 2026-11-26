@@ -9,7 +9,7 @@ const handler = (req: http.IncomingMessage, res: http.ServerResponse): void => {
   res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
   if (url.pathname === '/child') {
     res.end(`<!doctype html><title>Child</title><style>body{margin:0}</style>
-<button id="framed-btn" style="width:200px;height:48px" onclick="window.__hits=(window.__hits||0)+1;window.__trusted=event.isTrusted"><span style="pointer-events:none">Framed action</span></button>`)
+<button id="framed-btn" data-clicks="0" style="width:200px;height:48px" onclick="this.dataset.clicks=String(Number(this.dataset.clicks)+1);this.dataset.trusted=String(event.isTrusted)"><span style="pointer-events:none">Framed action</span></button>`)
     return
   }
   res.end(`<!doctype html><title>Enclosing Click</title><style>
@@ -18,13 +18,13 @@ button,[role="button"]{display:inline-flex;align-items:center;justify-content:ce
 .wrap{position:relative;display:inline-block}
 </style>
 <script>
-window.__counts = Object.create(null);
-window.__trusted = Object.create(null);
 function bump(name, ev) {
-  window.__counts[name] = (window.__counts[name] || 0) + 1;
-  window.__trusted[name] = Boolean(ev && ev.isTrusted);
+  const log = document.getElementById('event-log');
+  log.dataset[name + 'Count'] = String(Number(log.dataset[name + 'Count'] || '0') + 1);
+  log.dataset[name + 'Trusted'] = String(Boolean(ev && ev.isTrusted));
 }
 </script>
+<div id="event-log" hidden></div>
 <div><button id="faq-btn" onclick="bump('faq', event)"><span style="pointer-events:none">Expand question</span></button></div>
 <div id="shadow-host"></div>
 <script>
@@ -51,6 +51,7 @@ slotRoot.getElementById('slot-btn').addEventListener('click', ev => bump('slotte
 <div><button id="dis-btn" disabled onclick="bump('dis', event)"><span style="pointer-events:none">Disabled native</span></button></div>
 <div><div id="aria-dis-btn" role="button" aria-disabled="true" onclick="bump('ariaDis', event)"><span style="pointer-events:none">Disabled aria</span></div></div>
 <fieldset disabled><button id="fs-dis-btn" onclick="bump('fsDis', event)"><span style="pointer-events:none">Disabled fieldset</span></button></fieldset>
+<div aria-disabled="true"><input id="enabled-in-aria-group" aria-label="Enabled inside aria-disabled wrapper" value=""></div>
 <div class="wrap" id="frame-wrap">
   <iframe id="child-frame" src="/child" width="220" height="60" style="border:0"></iframe>
   <div id="frame-cover" style="position:absolute;inset:0;background:rgba(0,0,0,0.2)">Frame cover</div>
@@ -61,8 +62,15 @@ const site = await serve(0, handler)
 const opened = await run({ op: 'open', url: `${site.origin}/` })
 check('fixture page opens', opened.outcome === 'succeeded', opened.result)
 
-const countOf = (name: string) => pageOf(lead).evaluate(k => (window as unknown as { __counts: Record<string, number> }).__counts[k] ?? 0, name)
-const trustedOf = (name: string) => pageOf(lead).evaluate(k => (window as unknown as { __trusted: Record<string, boolean> }).__trusted[k] ?? false, name)
+const countOf = (name: string): Promise<number> =>
+  pageOf(lead).evaluate(k => Number(document.getElementById('event-log')?.dataset[`${k}Count`] ?? '0'), name)
+const trustedOf = (name: string): Promise<boolean> =>
+  pageOf(lead).evaluate(k => document.getElementById('event-log')?.dataset[`${k}Trusted`] === 'true', name)
+const frameClicks = (): Promise<number> =>
+  pageOf(lead)
+    .frames()
+    .find(f => f.url().endsWith('/child'))!
+    .evaluate(() => Number(document.getElementById('framed-btn')?.dataset.clicks ?? '0'))
 
 section('S1 text/ click on pointer-events:none child inside an enabled button')
 {
@@ -97,28 +105,28 @@ section('S3 non-control ancestor, nested other control, real sibling overlay and
 
   const frameCovered = await run({ op: 'click', frame: 1, selector: 'text/Framed action', timeoutMs: 2000 })
   check('embedding-page frame cover still refuses', frameCovered.outcome === 'failed' && frameCovered.result.includes('covered by div#frame-cover'), frameCovered.result)
-  const frameHitsBefore = await pageOf(lead).frames().find(f => f.url().endsWith('/child'))!.evaluate(() => (window as unknown as { __hits?: number }).__hits ?? 0)
-  check('framed button received no click while covered', frameHitsBefore === 0, `hits=${frameHitsBefore}`)
+  check('framed button received no click while covered', (await frameClicks()) === 0, `hits=${await frameClicks()}`)
 
   await pageOf(lead).evaluate(() => document.getElementById('frame-cover')?.remove())
   const frameClear = await run({ op: 'click', frame: 1, selector: 'text/Framed action', timeoutMs: 2000 })
-  const frameHitsAfter = await pageOf(lead).frames().find(f => f.url().endsWith('/child'))!.evaluate(() => (window as unknown as { __hits?: number }).__hits ?? 0)
-  check('once frame cover is gone, framed button click by text lands once', frameClear.outcome === 'succeeded' && frameHitsAfter === 1, `${frameClear.result} hits=${frameHitsAfter}`)
+  check('once frame cover is gone, framed button click by text lands once', frameClear.outcome === 'succeeded' && (await frameClicks()) === 1, `${frameClear.result} hits=${await frameClicks()}`)
 }
 
-section('S4 disabled controls stay disabled even via child text and force:true')
+section('S4 disabled controls stay refused without acting; existing type road in aria-disabled wrapper stays allowed')
 {
+  const directDisabled = await run({ op: 'click', selector: '#dis-btn', force: true, timeoutMs: 2000 })
+  check('direct disabled button stays disabled even with force:true', directDisabled.outcome === 'failed' && directDisabled.result.includes('the target is disabled'), directDisabled.result)
   for (const [label, text, key] of [
-    ['native disabled button', 'Disabled native', 'dis'],
-    ['aria-disabled control', 'Disabled aria', 'ariaDis'],
-    ['fieldset-disabled button', 'Disabled fieldset', 'fsDis'],
+    ['native disabled button via child text', 'Disabled native', 'dis'],
+    ['aria-disabled control via child text', 'Disabled aria', 'ariaDis'],
+    ['fieldset-disabled button via child text', 'Disabled fieldset', 'fsDis'],
   ] as const) {
     const plain = await run({ op: 'click', selector: `text/${text}`, timeoutMs: 2000 })
-    check(`${label} refuses as disabled`, plain.outcome === 'failed' && plain.result.includes('the target is disabled'), plain.result)
-    const forced = await run({ op: 'click', selector: `text/${text}`, force: true, timeoutMs: 2000 })
-    check(`${label} refuses even with force:true`, forced.outcome === 'failed' && forced.result.includes('the target is disabled'), forced.result)
-    check(`${label} received no click`, (await countOf(key)) === 0, `count=${await countOf(key)}`)
+    check(`${label} refuses without acting`, plain.outcome === 'failed' && (await countOf(key)) === 0, `${plain.result} count=${await countOf(key)}`)
   }
+  const typed = await run({ op: 'type', selector: '#enabled-in-aria-group', text: 'kept-allowed', timeoutMs: 2000 })
+  const inputVal = await pageOf(lead).$eval('#enabled-in-aria-group', el => (el as HTMLInputElement).value)
+  check('enabled input inside aria-disabled wrapper still accepts type', typed.outcome === 'succeeded' && inputVal === 'kept-allowed', `${typed.result} value=${inputVal}`)
 }
 
 await finish('prove-browser-click-enclosing', [lead])
