@@ -502,8 +502,8 @@ try {
 
     const absentRes = await localMission('', {} as never)
     check(
-      'w04-5 /mission (text) says No mission set when card is absent',
-      absentRes.type === 'text' && absentRes.value.includes('No mission set'),
+      'w04-5 /goal (text) says No goal set when card is absent',
+      absentRes.type === 'text' && absentRes.value.includes('No goal set'),
       JSON.stringify(absentRes),
     )
 
@@ -512,11 +512,11 @@ try {
     try {
       const corruptTextRes = await localMission('', {} as never)
       check(
-        'w04-5 /mission (text) reports unreadable mission card instead of No mission set',
+        'w04-5 /goal (text) reports unreadable goal card instead of No goal set',
         corruptTextRes.type === 'text' &&
           corruptTextRes.value.includes(`${cardPath} could not be read (`) &&
-          corruptTextRes.value.includes(') — the mission is not shown') &&
-          !corruptTextRes.value.includes('No mission set'),
+          corruptTextRes.value.includes(') — the goal is not shown') &&
+          !corruptTextRes.value.includes('No goal set'),
         JSON.stringify(corruptTextRes),
       )
 
@@ -532,10 +532,10 @@ try {
         releaseFocusedSessionConnector()
       }
       check(
-        'w04-5 /mission (jsx) reports unreadable mission card instead of No mission set',
+        'w04-5 /goal (jsx) reports unreadable goal card instead of No goal set',
         jsxDone.includes(`${cardPath} could not be read (`) &&
-          jsxDone.includes(') — the mission is not shown') &&
-          !jsxDone.includes('No mission set'),
+          jsxDone.includes(') — the goal is not shown') &&
+          !jsxDone.includes('No goal set'),
         jsxDone,
       )
     } finally {
@@ -641,7 +641,7 @@ try {
         const dbgText = (() => { try { return readFileSync(dbgPath, 'utf8') } catch { return '' } })()
         check(
           'w04-6 setActiveMission appends plain save-failure sentence and logs path+error to debug log',
-          directive.includes('the mission could not be saved, so it will not survive this session') &&
+          directive.includes('the goal could not be saved, so it will not survive this session') &&
             !directive.includes(expectedPath) &&
             dbgText.includes(expectedPath),
           `${directive} | dbg=${dbgText.slice(-200)}`,
@@ -651,7 +651,7 @@ try {
         const viewAfterClear = missionCardView(sid)
         check(
           'w04-6 clearActiveMission appends plain save-failure sentence and updates in-session cardMemo to cleared',
-          Boolean(cleared?.includes('the mission could not be saved, so it will not survive this session')) &&
+          Boolean(cleared?.includes('the goal could not be saved, so it will not survive this session')) &&
             !Boolean(cleared?.includes(expectedPath)) &&
             viewAfterClear?.state === 'cleared',
           JSON.stringify({ cleared, viewAfterClear }),

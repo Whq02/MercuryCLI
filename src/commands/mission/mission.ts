@@ -35,8 +35,8 @@ export const call = async (
           if (card.state === 'met' && card.outcome !== undefined) return text(missionCompletedLine({ condition: card.goal, setAt: Date.parse(card.setAt) }, card.outcome))
           const stateLine =
             card.state === 'armed' || card.state === 'paused'
-              ? `Mission card ${card.state.toUpperCase()} (no live hook in this process — a resume re-arms it)`
-              : `Mission card ${card.state}`
+              ? `Goal card ${card.state.toUpperCase()} (no live hook in this process — a resume re-arms it)`
+              : `Goal card ${card.state}`
           return text(
             `${stateLine}: ${card.goal}${card.nextStep ? `\nNext step: ${card.nextStep}` : ''}`,
           )
@@ -44,14 +44,14 @@ export const call = async (
       } catch (error) {
         passedOver(error)
       }
-      return text('No mission set. Usage: `/mission <goal>` (or `/goal <goal>`)')
+      return text('No goal set. Usage: `/goal <goal>`')
     }
     if (mission.met && mission.outcome !== undefined) return text(missionCompletedLine(mission, mission.outcome))
     const stateLabel = mission.met
-      ? 'Mission completed'
+      ? 'Goal completed'
       : mission.paused !== undefined
-        ? 'Mission PAUSED (not met — the operator\'s next message resumes it)'
-        : 'Mission active'
+        ? 'Goal PAUSED (not met — the operator\'s next message resumes it)'
+        : 'Goal active'
     const iterationsLabel =
       mission.iterations === 0
         ? 'not yet evaluated'
@@ -62,7 +62,7 @@ export const call = async (
 
   if (isMissionClearKeyword(arg)) {
     const cleared = clearActiveMission()
-    return text(cleared === null ? 'No mission set' : `Mission cleared: ${cleared}`)
+    return text(cleared === null ? 'No goal set' : `Goal cleared: ${cleared}`)
   }
 
   if (arg.length > MISSION_CONDITION_MAX_LENGTH) {
@@ -72,5 +72,5 @@ export const call = async (
   }
 
   const directive = setActiveMission(arg)
-  return text(`Mission set: ${arg}\n\n${directive}`)
+  return text(`Goal set: ${arg}\n\n${directive}`)
 }

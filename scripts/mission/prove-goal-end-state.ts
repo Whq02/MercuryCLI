@@ -100,19 +100,19 @@ console.log('============================================================')
 console.log(' /goal — the mission as a goal with an end-state check')
 console.log('============================================================')
 
-section('§1 the census: /goal is a second name for /mission')
+section('§1 the census: /goal is the command, with no /mission alias')
 {
   const { builtinCommands, findCommand } = await import('../../src/commands/catalogue/commands.ts')
   const commands = [...builtinCommands()]
-  const forms = commands.filter(command => command.name === 'mission')
-  check('both mission command forms carry the goal alias', forms.length === 2 && forms.every(command => command.aliases?.includes('goal') === true), j(forms.map(command => ({ type: command.type, aliases: command.aliases }))))
-  check('/goal resolves to the mission command', findCommand('goal', commands)?.name === 'mission', j(findCommand('goal', commands)?.name))
-  check('no other command answers to goal', commands.every(command => command.name !== 'goal' && (command.aliases?.includes('goal') !== true || command.name === 'mission')))
+  const forms = commands.filter(command => command.name === 'goal')
+  check('both goal command forms exist with no aliases', forms.length === 2 && forms.every(command => (command.aliases ?? []).length === 0), j(forms.map(command => ({ type: command.type, aliases: command.aliases }))))
+  check('/goal resolves to the goal command and /mission resolves to nothing', findCommand('goal', commands)?.name === 'goal' && findCommand('mission', commands) === undefined, j({ goal: findCommand('goal', commands)?.name, mission: findCommand('mission', commands)?.name }))
+  check('no command carries mission or goal as an alias', commands.every(command => !(command.aliases ?? []).includes('mission') && !(command.aliases ?? []).includes('goal')))
   const { generateCommandSuggestions } = await import('../../src/screen/suggestions/commandSuggestions.ts')
   const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
   setIsInteractive(true)
   const painted = generateCommandSuggestions('/goa', commands).map(item => item.displayText)
-  check('the typeahead paints /mission (goal) for the alias', painted.includes('/mission (goal)'), j(painted.slice(0, 6)))
+  check('the typeahead paints /goal', painted.includes('/goal'), j(painted.slice(0, 6)))
 }
 
 section('§2 the goal statement: the condition stated once as an end state with its constraints; a short directive')
@@ -210,7 +210,7 @@ section("§3 a met end state ends on the judge's verdict over an itemised close,
   }
   const idleNotes = takeTurnNotes(S)
   check(`The only brake on the loop: ${IDLE} consecutive turn ends without a tool call pause the goal — ${IDLE - 1} holds, then paused, the goal still armed, the judge called at every end, the card counting ${IDLE} judged ends`, IDLE === 3 && trail.length === IDLE && trail.slice(0, IDLE - 1).every(line => line.startsWith(`Mission not completed: ${GOAL} — two proofs still red`)) && trail[IDLE - 1] === 'pass' && judged === IDLE && readMissionCard(S)?.state === 'paused' && readMissionCard(S)?.iterations === IDLE && (readMissionCard(S)?.nextStep ?? '').includes(`${IDLE} turns without a tool call`) && guardsEngaged(S).turn.some(id => id.startsWith('mission-')), j({ trail, judged, card: readMissionCard(S) }))
-  check('the idle pause note says what happened and what resumes it', idleNotes.some(note => note.text === `mission paused after ${IDLE} turns without a tool call — your next message resumes it`), j(idleNotes))
+  check('the idle pause note says what happened and what resumes it', idleNotes.some(note => note.text === `goal paused after ${IDLE} turns without a tool call — your next message resumes it`), j(idleNotes))
   _resetContinuationLatchesForTesting()
   const resumedIdle = await stop(S, [...idle, user('go on'), asst('looking again')])
   check("the operator's next message resumes it and the idle count starts over: the next end without a tool call is held, not paused", resumedIdle.allowed === false && readMissionCard(S)?.state === 'armed', j({ resumedIdle, card: readMissionCard(S) }))
@@ -365,7 +365,7 @@ section('§5 the pause: an impossible verdict pauses the mission with its reason
   arm(S, GOAL, async () => verdict('impossible', 0.85, 'improved names no observable state'))
   const first = await stop(S, [user(`/goal ${GOAL}`), asst('I tightened two paragraphs')])
   const firstNotes = takeTurnNotes(S)
-  check('an impossible verdict never holds and never ends: the stop passes, the mission pauses with the reason as the note', first.allowed && readMissionCard(S)?.state === 'paused' && (readMissionCard(S)?.nextStep ?? '').includes('improved names no observable state') && firstNotes.some(note => note.text.startsWith('mission paused — improved names no observable state') && note.text.includes('your next message resumes it')), j({ first, card: readMissionCard(S), notes: firstNotes }))
+  check('an impossible verdict never holds and never ends: the stop passes, the mission pauses with the reason as the note', first.allowed && readMissionCard(S)?.state === 'paused' && (readMissionCard(S)?.nextStep ?? '').includes('improved names no observable state') && firstNotes.some(note => note.text.startsWith('goal paused — improved names no observable state') && note.text.includes('your next message resumes it')), j({ first, card: readMissionCard(S), notes: firstNotes }))
   check('the live record says so too: paused, still armed, not met', getActiveMission(S)?.paused !== undefined && getActiveMission(S)?.met !== true && guardsEngaged(S).turn.some(id => id.startsWith('mission-')), j(getActiveMission(S)))
   const sameTurn = await stop(S, [user(`/goal ${GOAL}`), asst('I tightened two paragraphs'), meta('(a carried notice)'), asst('still waiting')])
   check('while paused, a stop in the same turn passes without a hold: the model waits on the operator', sameTurn.allowed && readMissionCard(S)?.state === 'paused', j(sameTurn))
