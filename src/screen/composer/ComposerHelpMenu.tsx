@@ -1,5 +1,3 @@
-import { crewmateLive, useViewedCrewmate } from '../tasks/useCrewmateView.js'
-import { LEAD_ROW_NAME } from '../cockpit/crewmateWords.js'
 import * as React from 'react'
 import { Box, Text, elementScreenTop } from 'src/screen/themedRenderer.js'
 import type { DOMElement } from '../renderer/dom.js'
@@ -10,9 +8,11 @@ import { terminalSupportsJobControl } from 'src/platform/host-os/terminal.js'
 import { isKeybindingCustomizationEnabled } from '../keys/loadUserBindings.js'
 import { useShortcutDisplay } from '../keys/useShortcutDisplay.js'
 import { CockpitActiveContext } from '../cockpit/cockpitActiveContext.js'
+import { LEAD_ROW_NAME } from '../cockpit/crewmateWords.js'
 import { isDeckPaneActive } from '../fullscreen-layout/fullscreen.js'
 import { GLYPH, displayWidth } from '../theme/glyphs.js'
 import { stripKeyMapHint } from '../routes/surfaceRoute.js'
+import { crewmateLive, useViewedCrewmate } from '../tasks/useCrewmateView.js'
 import { getNewlineInstructions } from './composerConfig.js'
 
 function formatShortcut(shortcut: string): string {

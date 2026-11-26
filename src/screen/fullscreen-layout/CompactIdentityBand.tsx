@@ -1,5 +1,3 @@
-import { exitCrewmateView } from '../../crew/crewmates/crewmateView.js'
-import { useSetAppStateMaybe } from '../app-state/AppState.js'
 import * as React from 'react'
 import { useState, useSyncExternalStore } from 'react'
 import { Box, Text } from '../themedRenderer.js'
@@ -34,6 +32,8 @@ import {
 } from '../../engine/connector/focusedConnector.js'
 import { hasSeatLive } from '../../engine/connector/seatLive.js'
 import { useCrewmateIdentity } from '../tasks/useCrewmateModel.js'
+import { useSetAppStateMaybe } from '../app-state/AppState.js'
+import { exitCrewmateView } from '../../crew/crewmates/crewmateView.js'
 
 const subscribeFocusedRecords = subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))
 const getFocusedTurnCount = (): number => countOperatorTurns(getFocusedSessionConnector().records())

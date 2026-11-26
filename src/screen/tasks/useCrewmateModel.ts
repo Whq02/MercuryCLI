@@ -1,7 +1,7 @@
-import { crewmateNextTurnWords } from '../cockpit/crewmateWords.js'
 import { readFile } from 'node:fs/promises'
 import { useState } from 'react'
 import { useTimer } from '../effects/effects.js'
+import { crewmateNextTurnWords } from '../cockpit/crewmateWords.js'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
 import { isCrewmateTask } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { getContextWindowForModel } from '../../models/facts/capabilities.js'
@@ -12,6 +12,7 @@ import { passedOver } from '../../platform/errors/passedOver.js'
 import { subscribeCrewmateMetadataPath } from '../../sessions/transcripts/fileWatch.js'
 
 type CrewmateModel = { model: string | null; effort: string | null; next: { model: string | null; effort: string | null } | null }
+type CrewmateIdentity = { address: string; viewed: boolean; live: boolean; running: number; model: string; effort: string | null; next: string; contextPercent: number | null }
 type CrewmateRecord = { model: string | null; effort: string | null; effortOverride: string | null }
 const word = (value: unknown): string | null => typeof value === 'string' && value.trim() !== '' ? value.trim() : null
 
@@ -89,7 +90,7 @@ export function useCrewmateModel(crewmate: CrewmateInView | null): CrewmateModel
   return crewmateModelOf(identity, { model: launchModel ?? crewmate.facts?.model ?? null, effort: crewmate.facts?.effort ?? null })
 }
 
-export function useCrewmateIdentity() {
+export function useCrewmateIdentity(): CrewmateIdentity | null {
   const viewed = useViewedCrewmate()
   const target = useComposerCrewmate()
   const crewmate = viewed ?? target
