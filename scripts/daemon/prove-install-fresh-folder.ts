@@ -362,8 +362,21 @@ try {
     const lsof1Line = keptLineFor(rLsof1.out, probeBuild)
     check('unexpected lsof stderr with exit 1 keeps the build folder with could-not-tell reason', rLsof1.rc === 0 && existsSync(probeBuild) && lsof1Line.includes(unknownReason), `rc=${rLsof1.rc} exists=${existsSync(probeBuild)} line=${lsof1Line}`)
 
+    rmSync(oldDist, { recursive: true, force: true })
+    mkdirSync(oldDist, { recursive: true })
+    writeFileSync(join(oldDist, 'manifest.json'), JSON.stringify({ ...repoManifest, buildTree: 'f'.repeat(40) }, null, 2))
+    writeFileSync(join(oldDist, 'mercury.mjs'), 'console.log("Mercury 0.0.0-legacy-dist")\n')
+    const distPrev = join(runtime, 'dist.prev')
+    mkdirSync(distPrev, { recursive: true })
+    writeFileSync(join(distPrev, 'mercury.mjs'), 'console.log("Mercury 0.0.0-legacy-prev")\n')
+    const rLegacyFail = deploy({ PATH: psFailPath })
+    const distLine = rLegacyFail.out.split('\n').find(l => l.startsWith('runtime/dist ')) ?? ''
+    const distPrevLine = rLegacyFail.out.split('\n').find(l => l.startsWith('runtime/dist.prev ')) ?? ''
+    check('failing ps keeps legacy runtime/dist and logs could-not-tell instead of daemon running', rLegacyFail.rc === 0 && isRealDir(oldDist) && !isLink(oldDist) && distLine.includes('could not tell whether a process still runs from it'), `rc=${rLegacyFail.rc} line=${distLine}`)
+    check('failing ps keeps legacy runtime/dist.prev and logs could-not-tell instead of process running', rLegacyFail.rc === 0 && isRealDir(distPrev) && !isLink(distPrev) && distPrevLine.includes('could not tell whether a process still runs from it'), `rc=${rLegacyFail.rc} line=${distPrevLine}`)
+
     const rNormal = deploy()
-    check('normal deploy prunes the unused folders once ps and lsof succeed and report no match', rNormal.rc === 0 && !existsSync(probeBuild) && !existsSync(lsofOnlyBuild), `rc=${rNormal.rc} builds=${buildFolders().join(', ')}`)
+    check('normal deploy prunes the unused folders and restores runtime/dist once ps and lsof succeed', rNormal.rc === 0 && !existsSync(probeBuild) && !existsSync(lsofOnlyBuild) && isLink(oldDist) && !existsSync(distPrev), `rc=${rNormal.rc} builds=${buildFolders().join(', ')}`)
   }
 } finally {
   await cleanup()

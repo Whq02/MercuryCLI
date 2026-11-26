@@ -92,7 +92,7 @@ runtime_folder_in_use() {
     if [ -d /proc ]; then
       for pid in /proc/[0-9]*; do
         [ -d "$pid" ] || continue
-        if cmdline="$(LC_ALL=C tr '\0' ' ' < "$pid/cmdline" 2>/dev/null)" && [ -n "$cmdline" ]; then
+        if [ -r "$pid/cmdline" ] && cmdline="$(LC_ALL=C tr '\0' ' ' 2>/dev/null < "$pid/cmdline")" && [ -n "$cmdline" ]; then
           proc_seen=1
           case "$cmdline" in *"$real/"*) runtime_in_use_reason=holder; return 0 ;; esac
         fi
@@ -162,7 +162,11 @@ switch_pointer "$runtime/current" "builds/$name"
 
 if [ -d "$runtime/dist" ] && [ ! -L "$runtime/dist" ]; then
   if runtime_folder_in_use "$runtime/dist"; then
-    echo "runtime/dist is a folder a running daemon lives in — left in place untouched; runtime/current names the new build until that daemon is gone"
+    if [ "$runtime_in_use_reason" = "unknown" ]; then
+      echo "runtime/dist is a folder and deploy-runtime could not tell whether a process still runs from it — left in place untouched; runtime/current names the new build until a later deploy finds it free"
+    else
+      echo "runtime/dist is a folder a running daemon lives in — left in place untouched; runtime/current names the new build until that daemon is gone"
+    fi
   else
     rm -rf "$runtime/dist"
     switch_pointer "$runtime/dist" "builds/$name"
@@ -173,7 +177,11 @@ fi
 
 if [ -d "$runtime/dist.prev" ] && [ ! -L "$runtime/dist.prev" ]; then
   if runtime_folder_in_use "$runtime/dist.prev"; then
-    echo "runtime/dist.prev still has a process running from it — left until a later deploy finds it free"
+    if [ "$runtime_in_use_reason" = "unknown" ]; then
+      echo "runtime/dist.prev — could not tell whether a process still runs from it — left until a later deploy finds it free"
+    else
+      echo "runtime/dist.prev still has a process running from it — left until a later deploy finds it free"
+    fi
   else
     rm -rf "$runtime/dist.prev"
   fi
