@@ -216,7 +216,7 @@ console.log('D1 — a defaulted launch colliding in the (plain) home gets NO git
   const boardUp = await untilAsync(() => {
     const seen = teeText(tee)
     const reply = seen.indexOf('Spare.')
-    return reply !== -1 && seen.indexOf('SESSIONS', reply) !== -1
+    return reply !== -1 && seen.indexOf('status & title', reply) !== -1
   }, 150_000, 100)
   const asked = boardUp
     ? ((await daemonControlRpc({ op: 'sessionDispatch', clientMessageId: 'home-repo-d1-launch', by: 'operator', prompt: 'write a haiku', workspaceDir: e.home, title: 'write a haiku' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; state?: string; error?: string })

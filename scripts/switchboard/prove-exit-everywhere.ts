@@ -143,7 +143,7 @@ console.log('leg B — the concourse with a draft (the first press clears it AND
     ...armThenExit,
   ], { cols: 120, rows: 40, total: 150, env: envFor(home, fixturePath) })
   const armed = c.marks.get('armed') ?? []
-  check('B: the notice paints bottom-left on the board', noticeBottomLeft(armed) && has(armed, 'SESSIONS'))
+  check('B: the notice paints bottom-left on the board', noticeBottomLeft(armed) && has(armed, 'status & title'))
   check("B: the first press kept its local meaning — the draft cleared (poison: the owner consuming the press)", !has(armed, DRAFT))
   check('B: the second press EXITS (endReason eof)', c.endReason === 'eof', c.endReason)
 }
@@ -205,7 +205,7 @@ console.log('leg F — the window lapse (one press never exits; the notice clear
   check('F: the first press armed (the notice painted)', noticeBottomLeft(c.marks.get('armed') ?? []))
   check('F: 4 s later the notice is gone (the window lapsed)', !has(lapsed, NOTICE))
   check('F: the draft typed inside the window SURVIVES the lapse (poison: the local clear re-firing on disarm)', has(lapsed, AFTER))
-  check('F: the process is ALIVE — one press never exits (poison: an exit on the first press)', c.endReason !== 'eof' && has(c.final, 'SESSIONS'), c.endReason)
+  check('F: the process is ALIVE — one press never exits (poison: an exit on the first press)', c.endReason !== 'eof' && has(c.final, 'status & title'), c.endReason)
 }
 
 console.log('leg G — the main Chat (the control: the same words, the same exit)')

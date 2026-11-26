@@ -81,18 +81,18 @@ function boardRowsOf({
   const columnHeaderRow = (
     <Box key="columns" paddingX={1} flexShrink={0} height={1}>
       <Box flexGrow={1}>
-        <Text color={t.textInstruction}>STATUS & TITLE</Text>
+        <Text color={t.textInstruction}>status & title</Text>
       </Box>
       <Box width={colProject} flexShrink={0} paddingRight={1}>
-        <Text color={t.textInstruction}>PROJECT</Text>
+        <Text color={t.textInstruction}>project</Text>
       </Box>
       {nowWidth > 0 ? (
         <Box width={nowWidth} flexShrink={0} paddingRight={1}>
-          <Text color={t.textInstruction}>NOW</Text>
+          <Text color={t.textInstruction}>now</Text>
         </Box>
       ) : null}
       <Box width={colAge} justifyContent="flex-end" flexShrink={0}>
-        <Text color={t.textInstruction}>LAST USED</Text>
+        <Text color={t.textInstruction}>last used</Text>
       </Box>
     </Box>
   )
@@ -175,7 +175,7 @@ function boardRowsOf({
         <Box key={`h:${g.id}`} flexShrink={0} paddingX={1}>
           <Text>
             <Text color={groupRole(g.id)} bold>
-              {GLYPH.ownHybrid} {g.label}
+              {g.label.toLowerCase()}
             </Text>
             <Text color={groupRole(g.id)}> · {g.rows.length}</Text>
           </Text>
@@ -389,7 +389,7 @@ export function listPaneOf({
           <InteractiveRow id="concourse:board:focus" directActivate hoverStyle="chrome-ink" onActivate={() => wiring.focusList?.()}>
             {hover => (
               <Text color={region === 'list' || hover ? t.infoText : t.textMuted} bold>
-                SESSIONS
+                sessions
               </Text>
             )}
           </InteractiveRow>

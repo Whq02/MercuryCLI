@@ -106,7 +106,7 @@ try {
     const offsets = [2500, 5000, 8000, 11000, 14000, 17000, 20000, 24000].map(m => S(m))
     const grabs = grabScreens(run, 140, 40, offsets)
     const text = (g: { rows: string[] }): string => g.rows.join('\n')
-    const doorFrames = grabs.filter(g => text(g).includes('running in') && text(g).includes('OTHER PROJECTS'))
+    const doorFrames = grabs.filter(g => text(g).includes('running in') && text(g).includes('other projects'))
     check('§1 the OTHER-PROJECTS door row paints for the foreign running session', doorFrames.length > 0, `door frames: ${doorFrames.map(g => g.atMs).join(',') || 'none'} - the board should paint an OTHER PROJECTS group with a running-in line for the foreign session; the group is built in src/screen/concourse-model/concourseSnapshot.ts`)
     const rescoped = grabs.filter(
       g => text(g).includes('Door probe session') && text(g).includes('repo → work') && !text(g).includes('UNTRUSTED FOLDER'),
@@ -117,7 +117,7 @@ try {
       `re-scoped frames: ${rescoped.map(g => g.atMs).join(',') || 'none'} - after enter on the door and y on the UNTRUSTED FOLDER modal the board should show the session row and the ground note; the modal is src/screen/concourse/screen/modals.tsx`,
     )
     const late = grabs[grabs.length - 1]
-    check('§2 …and the door row is gone from the re-scoped board (the sessions are no longer elsewhere)', late !== undefined && !text(late).includes('OTHER PROJECTS'), late ? `late frame @${late.atMs} - once the board is re-scoped the OTHER PROJECTS group should be gone; see src/screen/concourse-model/concourseSnapshot.ts` : 'no late frame - no screen was grabbed; check the artifact arena run output')
+    check('§2 …and the door row is gone from the re-scoped board (the sessions are no longer elsewhere)', late !== undefined && !text(late).includes('other projects'), late ? `late frame @${late.atMs} - once the board is re-scoped the other projects group should be gone; see src/screen/concourse-model/concourseSnapshot.ts` : 'no late frame - no screen was grabbed; check the artifact arena run output')
   } finally {
     run.cleanup()
   }

@@ -200,11 +200,11 @@ await killLeg
     }
   }
   const text = (g: { rows: string[] }): string => g.rows.join('\n')
-  const late = grabs.filter(g => g.atMs >= 20000 && text(g).includes('SESSIONS'))
+  const late = grabs.filter(g => g.atMs >= 20000 && text(g).includes('status & title'))
   check('the board painted after the kill', late.length >= 2, failHint(late.length >= 2, `frames: ${late.map(g => g.atMs).join(',')}`, 'the Concourse screen showed no SESSIONS frame after 20s; set MERCURY_CRASHVIS_CAPTURE_DIR to keep the frames and read the screen under src/screen/concourse'))
   const bothRows = (g: { rows: string[] }): boolean => text(g).includes('Alpha count') && text(g).includes('Beta count')
   check('NO VANISH — both rows stand in every post-kill frame (poison: the silent removal)', late.every(bothRows), failHint(late.every(bothRows), late.map(g => `${g.atMs}:${bothRows(g)}`).join(' '), 'a crashed row left the board; buildConcourseSnapshot in src/screen/concourse-model/concourseSnapshot.ts must keep crashed rows until release'))
-  const needsYou = late.filter(g => /NEEDS YOU · 2/.test(text(g)) && ['Alpha count', 'Beta count'].every(title => g.rows.some(row => row.includes(title) && /headless · crash/.test(row))))
+  const needsYou = late.filter(g => /needs you · 2/.test(text(g)) && ['Alpha count', 'Beta count'].every(title => g.rows.some(row => row.includes(title) && /headless · crash/.test(row))))
   const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const crashRecords = Object.values(readSessionWorkers(daemonDir)).filter(row => row.sessionId === alphaId || row.sessionId === betaId)
   check('both persisted rows carry the complete mid-run crash reason', crashRecords.length === 2 && crashRecords.every(row => /crashed mid-run/.test(row.crash?.reason ?? '')), failHint(crashRecords.length === 2 && crashRecords.every(row => /crashed mid-run/.test(row.crash?.reason ?? '')), JSON.stringify(crashRecords.map(row => row.crash)), 'the daemon must stamp a crashed mid-run reason on each worker record when its worker dies; see stampCrash in src/daemon/roster/life.ts'))
@@ -212,7 +212,7 @@ await killLeg
   const reviewLie = late.filter(g => {
     const alphaRow = g.rows.find(r => r.includes('Alpha count')) ?? ''
     const betaRow = g.rows.find(r => r.includes('Beta count')) ?? ''
-    return /READY TO REVIEW/.test(text(g)) && /●/.test(alphaRow) && /●/.test(betaRow) && !/NEEDS YOU/.test(text(g))
+    return /ready to review/.test(text(g)) && /●/.test(alphaRow) && /●/.test(betaRow) && !/needs you · [1-9]/.test(text(g))
   })
   check('…never the READY TO REVIEW masquerade (poison: the pre-fix settled-stamp lie)', reviewLie.length === 0, failHint(reviewLie.length === 0, reviewLie.map(g => String(g.atMs)).join(','), 'frames at these times showed READY TO REVIEW for crashed rows; a record with a crash must map to needs-you, not ready-to-review (src/screen/concourse-model/concourseSnapshot.ts)'))
 }

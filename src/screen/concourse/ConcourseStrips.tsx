@@ -1,14 +1,12 @@
 import React from 'react';
 import { Box, Text, paletteCollapsed, useTheme } from '../themedRenderer.js';
 import { useBlink } from '../effects/useBlink.js';
-import { critterDefForKey } from '../cockpit/critterData.js';
 import { GLYPH } from '../theme/glyphs.js';
 import { keyHintLabel } from '../widgets/keyHintLabel.js';
 import { InteractiveRow } from '../widgets/InteractiveRow.js';
 import { ReadyBreath } from '../widgets/LiveGlyphs.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js';
-import { useLayoutChrome } from '../fullscreen-layout/layoutChromeContext.js';
 import { composerBorderRole, composerBorderStyle } from '../widgets/composerFloor.js';
 import { getTheme } from '../theme/theme.js';
 import { effectiveSeatCeiling } from '../../daemon/concourse-workers/concourseWorkers.js';
@@ -223,27 +221,15 @@ export function ConcourseStatusRail({
   groundPickerOpen?: boolean
 }): React.ReactNode {
   const t = useMercuryTokens();
-  const mark = critterDefForKey('jellyfish').mark;
-  const { isCompact } = useLayoutChrome();
   const seatsCell = seatsCellText(seatDemandOf(snapshot), snapshot.counts.live, effectiveSeatCeiling());
   return (
     <Box
       flexShrink={0}
       overflow="hidden"
       width={width}
-      borderStyle="round"
-      borderColor={t.borderStrong}
-      paddingX={1}
-      height={3}
+      height={1}
     >
       <Box flexShrink={1} overflow="hidden" flexDirection="row">
-        {!isCompact ? <Box flexShrink={0}>
-          <Text>
-            <Text color={t.infoText}>{mark.pre + mark.core + mark.post}</Text>
-            <Text color={t.textMuted}> {GLYPH.sep} </Text>
-          </Text>
-        </Box> : null}
-        {}
         <InteractiveRow
           id="concourse:rail:project"
           directActivate
