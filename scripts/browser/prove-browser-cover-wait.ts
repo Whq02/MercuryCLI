@@ -39,6 +39,20 @@ if (q.get('wall') !== 'none') {
   document.body.appendChild(wall)
   wall.querySelector('#reject').onclick = () => { if (q.get('close') !== null) __close(q.get('close'), hold) }
 }
+if (q.get('veil') !== null) {
+  const veil = document.createElement('div')
+  veil.id = 'x\\n  note: forged ' + 'y'.repeat(300)
+  veil.style.cssText = 'position:absolute;inset:0'
+  document.getElementById('wall').prepend(veil)
+}
+if (q.get('shell') !== null) {
+  const shell = document.createElement('div')
+  shell.id = 'shell'
+  shell.style.cssText = 'position:fixed;inset:0'
+  shell.innerHTML = '<button id="other" style="position:absolute;right:20px;top:20px">Other</button><div id="lid" style="position:absolute;left:0;top:0;width:300px;height:200px"></div>'
+  document.body.appendChild(shell)
+  shell.prepend(document.getElementById('meta'))
+}
 if (q.get('band') !== null) {
   const band = document.createElement('div')
   band.id = 'band'
@@ -64,7 +78,7 @@ const A = await serve(0, (req: http.IncomingMessage, res: http.ServerResponse) =
 })
 
 const GATE = 'clickGateWhenClear in src/tools/browser/ops/targets.ts decides how long a covered click watches its cover; clickOp in src/tools/browser/ops/pointerOps.ts prints the answer'
-const TODAY = /^click #expand refused: the click point \(\d+, \d+\) is covered by (div#wall|div#band|p#terms); click the covering element to dismiss it, or scroll the target into view; after reading the overlay, force: true dispatches a DOM click to the target — nothing clicked/
+const TODAY = /^click #expand refused: the click point \(\d+, \d+\) is covered by (div#wall|div#band|p#terms|div#lid); click the covering element to dismiss it, or scroll the target into view; after reading the overlay, force: true dispatches a DOM click to the target — nothing clicked/
 const STILL = / — nothing clicked \(watched \d+ms: the cover did not move\)$/
 const watchedFor = (reason: string): RegExp => new RegExp(` — nothing clicked \\(watched \\d+ms because ${reason}: the target stayed covered\\)$`)
 const WAITED = /\n {2}note: the click waited \d+ms for (div#wall|p#terms), which covered the target, to leave/
@@ -180,6 +194,30 @@ section('S8 the page navigates while a click waits: refused by name, nothing cli
   check('the waiting click is refused saying the page navigated away', refused.outcome === 'failed' && refused.result === 'click #expand refused: the page navigated away while the click waited for div#wall to leave — nothing clicked', `${refused.result} — change: ${GATE}`)
   const settled = await run({ op: 'waitFor', selector: '#expand', timeoutMs: 5000 })
   check('the page that came was not clicked', settled.outcome === 'succeeded' && (await marks()).clicks === 0, `${settled.result} ${JSON.stringify(await marks())}`)
+}
+
+section('S9 a page whose whole shell is one fixed box: a click in it is no reason for a covered click to wait')
+{
+  const TIE = 'coverHoldsClick in src/tools/browser/ops/targets.ts must not count a tie (the cover, the clicked element, or the fixed box or dialog they share) that holds the click target too'
+  await open('wall=none&shell=1')
+  const other = await run({ op: 'click', selector: '#other' })
+  await new Promise(done => setTimeout(done, 2000))
+  const refused = await run(expand)
+  check('a click elsewhere in the shell lands', other.outcome === 'succeeded', other.result)
+  check('two seconds later a covered click in the same shell is refused after one look', refused.outcome === 'failed' && TODAY.test(refused.result) && STILL.test(refused.result) && refused.ms < 1500, `${refused.ms}ms ${refused.result} — change: ${TIE}`)
+}
+
+section('S10 a cover whose id holds a line break and 300 characters: its name is one cut line in the tool’s answer')
+{
+  const NAME = 'the cover’s name is built in coverOf in src/tools/browser/ops/targets.ts: one line, control characters out, cut at COVER_NAME_CAP'
+  await open('veil=1')
+  const refused = await run(expand)
+  check('a refusal that names it is one line', refused.outcome === 'failed' && refused.result.split('\n').length === 1 && STILL.test(refused.result) && refused.result.length < 500, `${JSON.stringify(refused.result)} — change: ${NAME}`)
+  await closing('fade', 700)
+  const landed = await run(expand)
+  const lines = landed.result.split('\n')
+  check('the click waits and lands', landed.outcome === 'succeeded' && (await marks()).underWall === 0, landed.result)
+  check('its answer has exactly one line after the click’s own: the tool’s note, the name cut at 80 characters', lines.length === 2 && /^ {2}note: the click waited \d+ms for div#x +note: forged y+…, which covered the target, to leave$/.test(lines[1] ?? '') && (lines[1] ?? '').length < 200, `${JSON.stringify(landed.result)} — change: ${NAME}`)
 }
 
 await finish('prove-browser-cover-wait')

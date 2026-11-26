@@ -164,6 +164,7 @@ export async function settleBoundingBox(handle: ElementHandle<Element>, deadline
 
 const ENCLOSING_CONTROL =
   'button, a, label, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"]'
+const COVER_NAME_CAP = 80
 
 export async function isDisabledTarget(handle: ElementHandle<Element>): Promise<boolean> {
   return handle.evaluate(
@@ -190,7 +191,7 @@ async function coverOf(handle: ElementHandle<Element>): Promise<Cover | null> {
     const x = point.x - (box?.x ?? 0) - border.x
     const y = point.y - (box?.y ?? 0) - border.y
     const occluder = await current.evaluate(
-      (el, px, py, allowEnclosing, control) => {
+      (el, px, py, allowEnclosing, control, cap) => {
         let hit = document.elementFromPoint(px, py)
         while (hit?.shadowRoot) {
           const inner = hit.shadowRoot.elementFromPoint(px, py)
@@ -209,12 +210,14 @@ async function coverOf(handle: ElementHandle<Element>): Promise<Cover | null> {
         if (!hit) return 'the viewport edge'
         const id = hit.id ? `#${hit.id}` : ''
         const cls = typeof hit.className === 'string' && hit.className.trim() !== '' ? `.${hit.className.split(/\s+/).filter(Boolean).slice(0, 2).join('.')}` : ''
-        return `${hit.tagName.toLowerCase()}${id}${cls}`
+        const name = `${hit.tagName.toLowerCase()}${id}${cls}`.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ')
+        return name.length > cap ? `${name.slice(0, cap)}…` : name
       },
       x,
       y,
       current === handle,
       ENCLOSING_CONTROL,
+      COVER_NAME_CAP,
     )
     if (occluder) return { hop: current, x, y, point, occluder }
     current = container
@@ -284,7 +287,7 @@ async function coverHoldsClick(s: LiveSession, cover: Cover): Promise<boolean> {
   if (clicked === null || clicked.target.frame !== cover.hop.frame || Date.now() >= clicked.at + COVER_CLICKED_MS) return false
   return clicked.target
     .evaluate(
-      (last, px, py) => {
+      (last, target, px, py) => {
         const above = (el: Element): Element | null => el.assignedSlot ?? el.parentElement ?? (el.getRootNode() instanceof ShadowRoot ? (el.getRootNode() as ShadowRoot).host : null)
         const line = (el: Element): Element[] => {
           const up: Element[] = []
@@ -303,8 +306,10 @@ async function coverHoldsClick(s: LiveSession, cover: Cover): Promise<boolean> {
         const mine = line(last)
         const its = line(hit)
         const shared = layer(mine)
-        return mine.includes(hit) || its.includes(last) || (shared !== undefined && shared === layer(its))
+        const tie = mine.includes(hit) ? hit : its.includes(last) ? last : shared !== undefined && shared === layer(its) ? shared : null
+        return tie !== null && !line(target).includes(tie)
       },
+      cover.hop,
       cover.x,
       cover.y,
     )
