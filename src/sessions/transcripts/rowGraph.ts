@@ -146,6 +146,12 @@ class TranscriptRows {
   }
 
   private keptBySegment(segment: Segment): Set<UUID> | null {
+    if (segment.keptUuids !== undefined) {
+      const ids = segment.keptUuids
+      if (!Array.isArray(ids) || ids[0] !== segment.headUuid || ids.at(-1) !== segment.tailUuid || !ids.every(id => this.has(id))) return null
+      const kept = new Set(ids)
+      return kept.size === ids.length && !kept.has(segment.anchorUuid) ? kept : null
+    }
     const kept = new Set<UUID>()
     let cursor = this.get(segment.tailUuid)
     while (cursor && !kept.has(cursor.uuid)) {
@@ -157,8 +163,12 @@ class TranscriptRows {
   }
 
   private relinkSegment(segment: Segment, kept: Set<UUID>): void {
-    const first = this.get(segment.headUuid)!
-    if (first.parentUuid !== segment.anchorUuid) this.set(first.uuid, { ...first, parentUuid: segment.anchorUuid })
+    let parentUuid = segment.anchorUuid
+    for (const id of segment.keptUuids ?? [segment.headUuid]) {
+      const row = this.get(id)!
+      if (row.parentUuid !== parentUuid) this.set(id, { ...row, parentUuid })
+      parentUuid = id
+    }
     for (const id of [...(this.children.get(segment.anchorUuid) ?? [])]) {
       if (id === segment.headUuid) continue
       const child = this.get(id)!
