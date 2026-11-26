@@ -14,6 +14,7 @@ prove-source-checkout-words.ts
 prove-install-layout.ts
 prove-profile-command-text.ts
 prove-profile-command-refresh.ts
+prove-profile-critter.ts
 prove-profile-instructions.ts
 prove-profile-skills.ts
 prove-profiles.ts

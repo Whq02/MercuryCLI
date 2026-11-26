@@ -658,6 +658,16 @@ function computeModelLabel() {
     return 'default'
   }
 }
+function profileDefaultCritterKey() {
+  try {
+    const p = JSON.parse(readFileSync(join(CONFIG_HOME, 'profile.json'), 'utf8'))
+    if (p && typeof p.first === 'string' && p.first.length > 0 && Number.isInteger(p.id) && p.id >= 2) {
+      const keys = Object.keys(ACCENT_FAMILIES)
+      return keys[(p.id - 1) % keys.length] ?? DEFAULT_CRITTER
+    }
+  } catch {}
+  return DEFAULT_CRITTER
+}
 function computeCritterKey() {
   let c = (process.env.MERCURY_CRITTER ?? '').trim()
   if (!c) {
@@ -666,7 +676,7 @@ function computeCritterKey() {
       if (typeof cfg.defaultCritter === 'string') c = cfg.defaultCritter.trim()
     } catch (err) { noteChipFailure('theme', err) }
   }
-  return c ? accentFamilyKeyOf(c) : DEFAULT_CRITTER
+  return c ? accentFamilyKeyOf(c) : profileDefaultCritterKey()
 }
 const CRITTER_KEY = computeCritterKey()
 function critterLabel() {

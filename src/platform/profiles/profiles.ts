@@ -73,6 +73,16 @@ export function firstProfileHome(): string {
   }
 }
 
+export function currentProfileId(): number {
+  const home = getMercuryHome()
+  try {
+    return stored(join(home, HOME_MARKER), markerShape)?.id ?? 1
+  } catch (error) {
+    passedOver(error)
+    return 1
+  }
+}
+
 function family(): Family {
   const home = getMercuryHome()
   const marker = stored(join(home, HOME_MARKER), markerShape)
