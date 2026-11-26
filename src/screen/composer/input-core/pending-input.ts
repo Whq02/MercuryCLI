@@ -269,6 +269,7 @@ export function edit(raw: string, options?: { restored?: boolean }): void {
 
 export function append(seed: string): void {
   edit(draft.text + seed)
+  reportCursor(draft.text.length)
 }
 
 

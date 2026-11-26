@@ -10,6 +10,7 @@ prove-capacity-settings-drive.ts
 prove-capture-hermetic.ts
 prove-capture-home-owns-daemon.ts
 prove-card-queued-words-drive.ts
+prove-caret-after-card-words-drive.ts
 prove-choose-a-model.ts
 prove-cockpit-scroll-rail.ts
 prove-concourse-arrow-focus.ts
