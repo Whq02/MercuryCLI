@@ -20,6 +20,7 @@ import type {
 } from './transcriptEntries.js'
 import { compareSessionListings, sortSessionListings } from './transcriptEntries.js'
 import type { Message } from '../../engine/message-shapes/message.js'
+import { isToolUseResultMessage } from '../../engine/message-shapes/normalize.js'
 import {
   decodeTranscriptBuffer,
   TRANSCRIPT_FORMAT_REFUSAL,
@@ -420,14 +421,14 @@ export type ResumeFacts = Pick<
   | 'displacedNotices'
 >
 
-function hostNoticesBehindLaterRows(messages: Map<UUID, TranscriptMessage>, chain: TranscriptMessage[]): UUID[] {
+function hostNoticesBehindLaterResults(messages: Map<UUID, TranscriptMessage>, chain: TranscriptMessage[]): UUID[] {
   const graph = transcriptRows(messages)
   const displaced: UUID[] = []
-  let newest = -1
+  let newestResult = -1
   for (const row of chain) {
     const position = graph.positionOf(row.uuid)
-    if (row.type === 'user' && row.isVirtual === true && position < newest) displaced.push(row.uuid)
-    newest = Math.max(newest, position)
+    if (row.type === 'user' && row.isVirtual === true && position < newestResult) displaced.push(row.uuid)
+    if (isToolUseResultMessage(row)) newestResult = Math.max(newestResult, position)
   }
   return displaced
 }
@@ -437,7 +438,7 @@ export function resumeFactsOf(
   sessionId: UUID,
   chain: TranscriptMessage[],
 ): ResumeFacts {
-  const displacedNotices = hostNoticesBehindLaterRows(fold.messages, chain)
+  const displacedNotices = hostNoticesBehindLaterResults(fold.messages, chain)
   return {
     fileHistorySnapshots: buildFileHistorySnapshotChain(fold.fileHistorySnapshots, chain),
     attributionSnapshots: buildAttributionSnapshotChain(fold.attributionSnapshots, chain),

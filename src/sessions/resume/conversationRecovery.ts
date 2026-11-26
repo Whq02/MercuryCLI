@@ -263,7 +263,7 @@ function detectInterruption(
       const row = messages[i]!
       if (isLoopGuardStop(row)) return { kind: 'none' }
       if (saysRunEndedTurn(row)) ended = true
-      if (asksNoReply(row)) continue
+      if (asksNoReply(row) || displacedNotices.has(row.uuid)) continue
       if (row.type === 'assistant') {
         return turnOfLastReply(row, stops, ended, true)
       }

@@ -23,6 +23,8 @@ const { adoptResumedSessionFile, flushSessionStorage, getTranscriptPath, recordT
 const { switchSession } = await import('../../src/boot/process-state/processState.ts')
 const { asSessionId } = await import('../../src/sessions/transcripts/ids.ts')
 const { createFoldBoundaryMessage, createSystemMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { createAttachmentMessage } = await import('../../src/engine/attachment-shapes/attachmentMessage.ts')
+const { annotateBoundaryWithPreservedSegment } = await import('../../src/engine/compaction/fold/foldResult.ts')
 const { SYNTHETIC_MODEL, createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
 const { LEAF_SCENES, LEAF_UNFINISHED_SCENE, writeLeafScene } = await import('../lib/resumeLeafScenes.ts')
 import type { LeafScene } from '../lib/resumeLeafScenes.ts'
@@ -205,13 +207,13 @@ try {
 
   section('§5 a host notice is written between a call and its result, and the run dies before the reply: the turn is still read as cut; where the notice was the newest row, the reading is what it was')
   {
-    const CUT = 'resumeFactsOf in src/sessions/transcripts/sessionListings.ts must name as displacedNotices each host notice (a user row marked isVirtual) that the line places behind a row written after it in the FILE, never by a stamp, and detectInterruption in src/sessions/resume/conversationRecovery.ts must pass over the rows named there and no other when it looks for the last row'
+    const CUT = 'resumeFactsOf in src/sessions/transcripts/sessionListings.ts must name as displacedNotices each host notice (a user row marked isVirtual) that the line places behind a TOOL RESULT written after it in the FILE (never by a stamp; a fold line, a summary or a kept row displaces nothing), and detectInterruption in src/sessions/resume/conversationRecovery.ts must pass over the rows named there and no other, in both of its walks'
     let clock = Date.now() - 30_000
     const at = <T extends Message>(row: T): T => {
       row.timestamp = new Date(++clock).toISOString()
       return row
     }
-    type Shape = { calls: number; before: 'notice' | 'two notices' | 'crew row' | 'prompt' | 'nothing'; results: number; reply: boolean; after: 'notice' | 'notice stamped earlier' | 'crew row' | 'nothing' }
+    type Shape = { calls: number; before: 'notice' | 'two notices' | 'crew row' | 'prompt' | 'nothing'; results: number; reply: boolean; after: 'notice' | 'notice stamped earlier' | 'crew row' | 'quiet attachment' | 'nothing'; cut?: true }
     type Turn = { source: Source; before: UUID[]; after: UUID | undefined; typed: UUID | undefined }
     const turn = async (shape: Shape): Promise<Turn> => {
       resetProjectForTesting()
@@ -231,7 +233,7 @@ try {
       const typed = shape.before === 'prompt' ? at(createUserMessage({ content: 'a prompt typed while the call ran' })) : undefined
       if (typed !== undefined) await recordTranscript([typed])
       if (shape.before === 'crew row') await recordTranscript([at(createSystemMessage('a crew row', 'info'))])
-      for (const [index, row] of issued.slice(0, shape.results).entries()) await recordTranscript([at(createUserMessage({ sourceToolAssistantUUID: row.uuid, content: [{ type: 'tool_result', tool_use_id: `call_${index}`, content: 'fixture report' }] }))])
+      for (const [index, row] of issued.slice(0, shape.results).entries()) await recordTranscript([at(createUserMessage({ sourceToolAssistantUUID: row.uuid, content: [{ type: 'tool_result', tool_use_id: `call_${index}`, ...(shape.cut === true ? { is_error: true, content: 'Cut off: the operator stopped the turn' } : { content: 'fixture report' }) }] }))])
       if (shape.reply) {
         const reply = at(createAssistantMessage({ content: 'finished fixture reply' }))
         reply.message.model = 'claude-sonnet-5'
@@ -242,6 +244,7 @@ try {
       if (trailing !== undefined && shape.after === 'notice stamped earlier') trailing.timestamp = new Date(clock - 20_000).toISOString()
       if (trailing !== undefined) await recordTranscript([trailing])
       if (shape.after === 'crew row') await recordTranscript([at(createSystemMessage('a crew row behind the result', 'info'))])
+      if (shape.after === 'quiet attachment') await recordTranscript([at(createAttachmentMessage({ type: 'dead_thinking', dead: [{ messageId: 'msg_cut', blockIndex: 0 }] }))])
       await flushSessionStorage()
       return { source: { id, file: getTranscriptPath() }, before: notices.map(row => row.uuid), after: trailing?.uuid, typed: typed?.uuid }
     }
@@ -271,6 +274,94 @@ try {
     const typed = await turn({ calls: 1, before: 'prompt', results: 1, reply: false, after: 'nothing' })
     const asked = await pathDoor.read(typed.source)
     check('control, by path: a real prompt typed between a call and its result, the run cut before the reply, is still the prompt nobody answered', asked !== null && asked.interruption === 'interrupted_prompt' && asked.told?.uuid === typed.typed && asked.told?.meta === false, CUT, j({ interruption: asked?.interruption, toldIsThePrompt: asked?.told?.uuid === typed.typed, meta: asked?.told?.meta }))
+    for (const before of ['notice', 'nothing'] as const) {
+      const stopped = await pathDoor.read((await turn({ calls: 1, before, results: 1, reply: false, after: 'quiet attachment', cut: true })).source)
+      check(`control, by path: the operator stopped the turn (the call's result says so), ${before === 'notice' ? 'a host notice before that result' : 'no notice'}, an attachment that asks no reply behind it: the cut was told once already and no sentence is added`, stopped !== null && stopped.interruption === 'none', CUT, j({ interruption: stopped?.interruption, displaced: stopped?.displaced === 'none' ? 'none' : stopped?.displaced?.length }))
+    }
+    {
+      const ask = (): Message => createUserMessage({ content: 'kept fixture turn' })
+      const issue = (index: number): AssistantMessage => {
+        const row = createAssistantMessage({ content: [{ type: 'tool_use', id: `kept_${index}`, name: 'Read', input: { file_path: 'fixture' } }] })
+        row.message.id = 'msg_kept'
+        row.message.model = 'claude-sonnet-5'
+        row.message.stop_reason = 'tool_use'
+        return row
+      }
+      const answer = (issued: AssistantMessage, index: number): Message => createUserMessage({ sourceToolAssistantUUID: issued.uuid, content: [{ type: 'tool_result', tool_use_id: `kept_${index}`, content: 'fixture report' }] })
+      const hostNotice = (): Message => createUserMessage({ content: 'a crewmate finished', isVirtual: true })
+      const finished = (): AssistantMessage => {
+        const row = createAssistantMessage({ content: 'finished fixture reply' })
+        row.message.model = 'claude-sonnet-5'
+        row.message.stop_reason = 'end_turn'
+        return row
+      }
+      const keptFold = async (batches: Message[][], behind: Message[] = []): Promise<Source> => {
+        resetProjectForTesting()
+        _resetTranscriptReaderForTesting()
+        const id = randomUUID()
+        switchSession(asSessionId(id))
+        for (const batch of batches) await recordTranscript(batch.map(at))
+        const kept = batches.flat()
+        const boundary = at(createFoldBoundaryMessage('auto', 1500, kept.at(-1)!.uuid))
+        const summary = at(createUserMessage({ content: 'active summary', isCompactSummary: true }))
+        annotateBoundaryWithPreservedSegment(boundary, summary.uuid, kept)
+        await recordTranscript([boundary])
+        await recordTranscript([summary])
+        for (const row of behind) await recordTranscript([at(row)])
+        await flushSessionStorage()
+        return { id, file: getTranscriptPath() }
+      }
+      const KEPT = 'a fold keeps the turn and the run dies before the reply'
+      {
+        const call = issue(0), notice = hostNotice()
+        const seen = await pathDoor.read(await keptFold([[ask(), call], [answer(call, 0)], [notice]]))
+        check(`${KEPT}; the host notice was written BEHIND the result: it was the newest row, so the reading stops on it as before and no sentence is added, though the fold line and the summary were written after it`, seen !== null && seen.interruption === 'interrupted_prompt' && seen.told?.uuid === notice.uuid && seen.displaced === 'none', CUT, j({ interruption: seen?.interruption, toldIsTheNotice: seen?.told?.uuid === notice.uuid, meta: seen?.told?.meta, displaced: seen?.displaced === 'none' ? 'none' : seen?.displaced?.length }))
+      }
+      {
+        const first = issue(0), second = issue(1), notice = hostNotice()
+        const seen = await pathDoor.read(await keptFold([[ask(), first, second], [answer(first, 0)], [notice]]))
+        check(`${KEPT}; one of two calls answered, then the host notice: read as before, on the notice`, seen !== null && seen.interruption === 'interrupted_prompt' && seen.told?.uuid === notice.uuid && seen.displaced === 'none', CUT, j({ interruption: seen?.interruption, toldIsTheNotice: seen?.told?.uuid === notice.uuid, displaced: seen?.displaced === 'none' ? 'none' : seen?.displaced?.length }))
+      }
+      {
+        const call = issue(0), notice = hostNotice()
+        const seen = await pathDoor.read(await keptFold([[ask(), call], [answer(call, 0)], [finished()], [notice]]))
+        check('a fold keeps a finished turn and the host notice written behind its reply: read as before, on the notice', seen !== null && seen.interruption === 'interrupted_prompt' && seen.told?.uuid === notice.uuid && seen.displaced === 'none', CUT, j({ interruption: seen?.interruption, toldIsTheNotice: seen?.told?.uuid === notice.uuid, displaced: seen?.displaced === 'none' ? 'none' : seen?.displaced?.length }))
+      }
+      {
+        const call = issue(0)
+        const seen = await pathDoor.read(await keptFold([[ask(), call], [answer(call, 0)], [hostNotice()]], [finished()]))
+        check('a fold keeps the turn with a host notice behind its result, and the reply lands after the fold: no interruption', seen !== null && seen.interruption === 'none', CUT, j({ interruption: seen?.interruption }))
+      }
+      {
+        const call = issue(0), notice = hostNotice()
+        const seen = await pathDoor.read(await keptFold([[ask(), call], [notice], [answer(call, 0)]]))
+        check(`${KEPT}; the host notice was written BEFORE the result: the resume is told the turn was cut, by the sentence the product adds`, seen !== null && seen.interruption === 'interrupted_prompt' && seen.told?.meta === true && seen.told.uuid !== notice.uuid, CUT, j({ interruption: seen?.interruption, toldByTheProductsSentence: seen?.told?.meta, toldIsTheNotice: seen?.told?.uuid === notice.uuid }))
+      }
+    }
+    {
+      resetProjectForTesting()
+      _resetTranscriptReaderForTesting()
+      const id = randomUUID()
+      switchSession(asSessionId(id))
+      const calls = [0, 1].map(index => {
+        const row = at(createAssistantMessage({ content: [{ type: 'tool_use', id: `late_${index}`, name: 'Read', input: { file_path: 'fixture' } }] }))
+        row.message.id = 'msg_late'
+        row.message.model = 'claude-sonnet-5'
+        row.message.stop_reason = 'tool_use'
+        return row
+      })
+      await recordTranscript([at(createUserMessage({ content: 'fixture turn' })), ...calls])
+      await recordTranscript([at(createUserMessage({ sourceToolAssistantUUID: calls[1]!.uuid, content: [{ type: 'tool_result', tool_use_id: 'late_1', content: 'fixture report' }] }))])
+      const reply = at(createAssistantMessage({ content: 'finished fixture reply' }))
+      reply.message.model = 'claude-sonnet-5'
+      reply.message.stop_reason = 'end_turn'
+      await recordTranscript([reply])
+      await recordTranscript([at(createUserMessage({ content: 'a crewmate finished at idle', isVirtual: true }))])
+      await recordTranscript([at(createUserMessage({ sourceToolAssistantUUID: calls[0]!.uuid, content: [{ type: 'tool_result', tool_use_id: 'late_0', content: 'fixture report' }] }))])
+      await flushSessionStorage()
+      const seen = await pathDoor.read({ id, file: getTranscriptPath() })
+      check('a host notice at idle behind a finished reply, then a late result of that turn: no sentence is added', seen !== null && seen.told?.meta !== true && seen.ids.includes(reply.uuid), CUT, j({ interruption: seen?.interruption, meta: seen?.told?.meta, hasReply: seen?.ids.includes(reply.uuid) }))
+    }
     const newest: Array<[string, Shape]> = [
       ['a host notice behind a finished reply', { calls: 1, before: 'nothing', results: 1, reply: true, after: 'notice' }],
       ['a second host notice behind the result, no reply', { calls: 1, before: 'notice', results: 1, reply: false, after: 'notice' }],
