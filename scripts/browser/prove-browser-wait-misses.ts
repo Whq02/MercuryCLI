@@ -15,6 +15,10 @@ const A = await serve(0, (req: http.IncomingMessage, res: http.ServerResponse) =
 <h1>Fixture video</h1>
 <button id="expand" aria-expanded="false" aria-controls="desc">...more</button>
 <div id="desc"><p>description words</p><section id="transcript"><button>Show transcript</button></section></div>
+<div id="by-attr" hidden><button id="in-attr">A</button></div>
+<div id="veiled" style="visibility:hidden"><div><button id="in-veil">B</button></div></div>
+<span id="empty"></span>
+<div id="bad&#10;  note: forged" style="display:none"><button id="in-bad">D</button></div>
 <iframe src="/framed" title="inner frame"></iframe>`)
 })
 const HERE = `${A.origin}/watch`
@@ -107,6 +111,25 @@ section('S5 extract on a selector that never attaches: the same diagnosis; a hid
   check('a hidden selector is still read', hidden.outcome !== 'failed' && hidden.result.includes('description words'), hidden.result)
   const inFrame = await run({ op: 'extract', selector: '#inner', frame: 1, timeoutMs: 2000 })
   check('control: with the frame set the same selector is read', inFrame.outcome !== 'failed' && inFrame.result.includes('Frame button'), inFrame.result)
+}
+
+section('S6 a target that is there and hidden: what hides it, and the control that opens it')
+{
+  const HID = 'hiddenWords in src/tools/browser/ops/targets.ts reads what hides a target that is present and never visible; selectorMissWords appends it'
+  const there = (selector: string): string => `${selector} is present but never became visible within the 600ms deadline (hidden or zero-sized — acts need a visible target; waitFor state:"attached" can read its arrival)`
+  for (const [selector, tail] of [
+    ['#transcript button', '; hidden by div#desc (display:none); button#expand [aria-expanded="false"] controls it'],
+    ['#in-attr', '; hidden by div#by-attr (the hidden attribute)'],
+    ['#in-veil', '; hidden by div#veiled (visibility:hidden)'],
+    ['#empty', '; hidden by span#empty (zero-sized)'],
+  ] as Array<[string, string]>) {
+    const miss = await run({ op: 'click', selector, timeoutMs: 600 })
+    check(`${selector}: the act’s miss ends on what hides it`, miss.outcome === 'failed' && miss.result === `click failed: ${there(selector)}${tail}`, `${miss.result} — change: ${HID}`)
+  }
+  const waited = await run({ op: 'waitFor', selector: '#transcript button', timeoutMs: 600 })
+  check('waitFor says the same', waited.outcome === 'failed' && waited.result === `waitFor selector #transcript button (visible) failed at ${HERE}: ${there('#transcript button')}; hidden by div#desc (display:none); button#expand [aria-expanded="false"] controls it`, `${waited.result} — change: ${HID}`)
+  const bad = await run({ op: 'click', selector: '#in-bad', timeoutMs: 600 })
+  check('a hider whose id holds a line break stays on the one line', bad.outcome === 'failed' && bad.result.split('\n').length === 1 && /; hidden by div#bad +note: forged \(display:none\)$/.test(bad.result), `${JSON.stringify(bad.result)} — change: ${HID}`)
 }
 
 await finish('prove-browser-wait-misses')

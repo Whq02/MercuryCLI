@@ -87,6 +87,42 @@ function framedTargetWords(selector: string, frameUrl: string): string {
   return `${selector} lives inside a child frame (${frameUrl}); set frame to its index from extract or a unique URL substring`
 }
 
+function hiddenWords(found: ElementHandle<Element>): Promise<string> {
+  return found
+    .evaluate(el => {
+      const above = (node: Element): Element | null => node.assignedSlot ?? node.parentElement ?? (node.getRootNode() instanceof ShadowRoot ? (node.getRootNode() as ShadowRoot).host : null)
+      const part = (node: Element): { tag: string; id: string; cls: string } => ({ tag: node.tagName.toLowerCase(), id: node.id, cls: typeof node.className === 'string' ? node.className : '' })
+      let hider: Element | null = null
+      let how = ''
+      for (let cur: Element | null = el; cur !== null && hider === null; cur = above(cur)) {
+        if (getComputedStyle(cur).display !== 'none') continue
+        hider = cur
+        how = cur.hasAttribute('hidden') ? 'the hidden attribute' : 'display:none'
+      }
+      if (hider === null && getComputedStyle(el).visibility !== 'visible') {
+        hider = el
+        how = `visibility:${getComputedStyle(el).visibility}`
+        for (let cur = above(el); cur !== null && getComputedStyle(cur).visibility !== 'visible'; cur = above(cur)) hider = cur
+      }
+      if (hider === null) {
+        const box = el.getBoundingClientRect()
+        if (box.width > 0 && box.height > 0) return null
+        hider = el
+        how = 'zero-sized'
+      }
+      let control: Element | null = null
+      for (let cur: Element | null = el; cur !== null && control === null; cur = cur === hider ? null : above(cur)) {
+        if (cur.id !== '') control = document.querySelector(`[aria-controls~="${CSS.escape(cur.id)}"]`)
+      }
+      return { hider: part(hider), how, control: control === null ? null : { ...part(control), expanded: control.getAttribute('aria-expanded') } }
+    })
+    .then(read => {
+      if (read === null) return ''
+      const opens = read.control === null ? '' : `; ${elementName(read.control)}${read.control.expanded === 'true' || read.control.expanded === 'false' ? ` [aria-expanded="${read.control.expanded}"]` : ''} controls it`
+      return `; hidden by ${elementName(read.hider)} (${read.how})${opens}`
+    }, passedOverAs(''))
+}
+
 export async function selectorMissWords(
   s: LiveSession,
   selector: string,
@@ -96,11 +132,11 @@ export async function selectorMissWords(
   absentNote = '',
 ): Promise<string> {
   const [attached, framed, layer] = await Promise.all([
-    watched === 'visible' ? withDeadline(targetSurface(s, frame).$(selector).then(found => found !== null, passedOverAs(false)), MISS_LOOK_MS, () => null, { unref: true }) : false,
+    watched === 'visible' ? withDeadline(targetSurface(s, frame).$(selector).then<string | false>(found => (found === null ? false : hiddenWords(found))).catch(passedOverAs(false)), MISS_LOOK_MS, () => null, { unref: true }) : false,
     frame === undefined ? framedOnly(s, selector) : null,
     coveringLayerNote(s),
   ])
-  if (attached === true) return `${selector} is present but never became visible within the ${deadline}ms deadline (hidden or zero-sized — acts need a visible target; waitFor state:"attached" can read its arrival)${layer}`
+  if (typeof attached === 'string') return `${selector} is present but never became visible within the ${deadline}ms deadline (hidden or zero-sized — acts need a visible target; waitFor state:"attached" can read its arrival)${attached}${layer}`
   if (framed !== null) return framedTargetWords(selector, framed)
   if (attached === null) return `${selector} did not become visible within the ${deadline}ms deadline, and the page did not answer within ${MISS_LOOK_MS}ms when asked whether it is there (its script may be busy)`
   return `no element for selector ${selector} within the ${deadline}ms deadline${absentNote}${framesDiagnosis(s)}${layer}`
