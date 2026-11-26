@@ -246,7 +246,7 @@ await o.upsertObligation({ ref: 'tap-live-1', sessionId: '${SID}', question: 'Mi
       `lone-bell frames=${loneBellFrames(c.teePath, settleTick + 10)} — something rang the bell for a need; a need must stay silent and only a finished turn pings, so find what writes the bell byte (0x07) in the name.tee.bin capture`,
     )
     const board = flat(c.marks['board'] ?? '').replace(/ /g, '')
-    check('the advertised key jumps to the board', board.includes('sessions+newsession·n') && board.includes('status&title') && board.includes('lastused'), board.slice(0, 160) + ' — the key after ctrl-x did not open the sessions board: see the name.mark-board.txt capture')
+    check('the advertised key jumps to the board', board.includes('sessions+new·n') && board.includes('status&title') && board.includes('lastused'), board.slice(0, 160) + ' — the key after ctrl-x did not open the sessions board: see the name.mark-board.txt capture')
     check("the board's needs-you group lists the question", board.includes('needsyou·1') && board.includes('Migratenow?'), board.slice(0, 240) + ' — the board lacks the needs you group or the question: see the name.mark-board.txt capture and the obligation written by upsertObligation in src/crew/crewmates/obligations.ts')
   }
 
