@@ -195,7 +195,7 @@ try {
 const fixture3 = referenceFixtureSnapshot() as { groups: Array<Record<string, unknown>> }
 fixture3.groups.push({
   id: 'paused',
-  label: 'PAUSED',
+  label: 'paused',
   rows: [
     {
       sessionId: 'sess-pz',
