@@ -212,7 +212,7 @@ Wenn Sie alle Chats schließen, kehren Sie zum Startbildschirm zurück. Mit `--c
 
 Öffnen Sie die Session-Liste mit `/concourse` oder `Shift+→` vom Startbildschirm aus. Sie zeigt zuerst die laufenden Sessions des aktuellen Projekts, danach gespeicherte Chats, die nicht laufen, die neuesten zuerst.
 
-Jede laufende Session hat eine Zelle NOW, die ihre aktuelle Aktivität zeigt. Wählen Sie eine Zeile aus und drücken Sie `Enter`, um zurück in den Chat zu gelangen, während die anderen Sessions weiterlaufen. Eine abgestürzte Session bleibt mit dem Grund als NEEDS YOU in der Session-Liste, bis Sie sie freigeben.
+Jede laufende Session hat eine Zelle NOW, die ihre aktuelle Aktivität zeigt. Wählen Sie eine Zeile aus und drücken Sie `Enter`, um zurück in den Chat zu gelangen, während die anderen Sessions weiterlaufen. Eine abgestürzte Session bleibt mit dem Grund als needs you in der Session-Liste, bis Sie sie freigeben.
 
 [docs/SESSIONS.md](../SESSIONS.md) behandelt den Lebenszyklus der Sessions.
 

@@ -212,7 +212,7 @@ Zamknięcie wszystkich czatów przenosi na ekran główny. Użyj `--chat`, aby m
 
 Listę sesji otwórz poleceniem `/concourse` albo `Shift+→` z ekranu głównego. Najpierw pokazuje działające sesje bieżącego projektu, a następnie zapisane czaty, które nie działają, od najnowszego.
 
-Każda działająca sesja ma komórkę NOW z jej bieżącą aktywnością. Zaznacz wiersz i naciśnij `Enter`, aby wrócić do czatu, a pozostałe sesje działają dalej. Sesja, która uległa awarii, pozostaje na liście jako NEEDS YOU wraz z przyczyną, aż ją zwolnisz.
+Każda działająca sesja ma komórkę NOW z jej bieżącą aktywnością. Zaznacz wiersz i naciśnij `Enter`, aby wrócić do czatu, a pozostałe sesje działają dalej. Sesja, która uległa awarii, pozostaje na liście jako needs you wraz z przyczyną, aż ją zwolnisz.
 
 [docs/SESSIONS.md](../SESSIONS.md) opisuje cykl życia sesji.
 
