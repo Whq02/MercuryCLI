@@ -59,6 +59,8 @@ export function selectBranchIds(lines: readonly IndexedLine[], read: (r: Indexed
   const liveIds = new Set<string>()
   const liveMessageIds = new Set<string>()
   const assistantIds = new Set<string>()
+  const keepsAsQuiet = (e: Record<string, unknown>): boolean =>
+    e.type === 'attachment' || (e.type === 'system' && e.subtype !== 'compact_boundary' && e.subtype !== 'microcompact_boundary')
   const noteAssistant = (e: Record<string, unknown>, id: string): void => {
     if (e.type !== 'assistant') return
     const message = e.message as { id?: unknown } | undefined
@@ -67,11 +69,13 @@ export function selectBranchIds(lines: readonly IndexedLine[], read: (r: Indexed
   }
   let liveBytes = 0
   let cur: Record<string, unknown> | null = leaf
+  const spineEntries: Array<{ id: string; assistant: boolean; quiet: boolean }> = []
   while (cur) {
     const id = typeof cur.uuid === 'string' ? cur.uuid : null
     if (id === null || liveIds.has(id)) break
     liveIds.add(id)
     noteAssistant(cur, id)
+    spineEntries.push({ id, assistant: cur.type === 'assistant', quiet: keepsAsQuiet(cur) })
     for (const slot of idToSlots.get(id) ?? []) {
       liveBytes += nodeIdx[slot * 2 + 1]! - nodeIdx[slot * 2]!
     }
@@ -82,6 +86,16 @@ export function selectBranchIds(lines: readonly IndexedLine[], read: (r: Indexed
     cur = decodeSlot(slots[slots.length - 1]!)
   }
   if (liveIds.size === 0) return null
+
+  const assistantNoteIds = new Set<string>()
+  let spineUnderAssistant = false
+  for (let i = spineEntries.length - 1; i >= 0; i--) {
+    const entry = spineEntries[i]!
+    if (entry.assistant) spineUnderAssistant = true
+    else if (entry.quiet) {
+      if (spineUnderAssistant) assistantNoteIds.add(entry.id)
+    } else spineUnderAssistant = false
+  }
 
   const byParent = new Map<string, number[]>()
   const byMessageId = new Map<string, number[]>()
@@ -113,12 +127,11 @@ export function selectBranchIds(lines: readonly IndexedLine[], read: (r: Indexed
     return slots === undefined || slots.length === 0 ? null : decodeSlot(slots[slots.length - 1]!)
   }
   const keepsAsToolResult = (e: Record<string, unknown>, parent: string): boolean => {
-    if (e.type !== 'user' || !assistantIds.has(parent)) return false
+    if (e.type !== 'user' || !(assistantIds.has(parent) || assistantNoteIds.has(parent))) return false
     const content = (e.message as { content?: unknown } | undefined)?.content
     if (!Array.isArray(content)) return false
     return (content as Array<{ type?: unknown }>).some(block => block?.type === 'tool_result')
   }
-  const keepsAsNote = (e: Record<string, unknown>): boolean => e.type === 'system' && e.subtype !== 'compact_boundary' && e.subtype !== 'microcompact_boundary'
   const consider = (slot: number, road: 'parent' | 'sibling'): void => {
     const id = nodeIds[slot]!
     if (liveIds.has(id) || kept.has(id)) return
@@ -129,10 +142,10 @@ export function selectBranchIds(lines: readonly IndexedLine[], read: (r: Indexed
     const message = e.message as { id?: unknown } | undefined
     const sibling = road === 'sibling' && e.type === 'assistant' && typeof message?.id === 'string' && liveMessageIds.has(message.id)
     const toolResult = road === 'parent' && parentStands && parent !== null && keepsAsToolResult(e, parent)
-    const note = road === 'parent' && parentStands && keepsAsNote(e)
+    const note = road === 'parent' && parentStands && keepsAsQuiet(e)
     if (!sibling && !toolResult && !note) return
     kept.add(id)
-    if (note) return
+    if (note && parent !== null && (assistantIds.has(parent) || assistantNoteIds.has(parent))) assistantNoteIds.add(id)
     noteAssistant(e, id)
     parentQueue.push(id)
     if (sibling && typeof message?.id === 'string') messageIdQueue.push(message.id)
