@@ -25,18 +25,21 @@ process.env.MERCURY_TMPDIR = join(SCRATCH, 'tmp')
 mkdirSync(process.env.MERCURY_TMPDIR, { recursive: true })
 const FRAMES = join(SCRATCH, 'frames')
 const HOME = join(SCRATCH, 'home')
-const WORK = join(SCRATCH, 'work')
-for (const dir of [FRAMES, HOME, WORK]) mkdirSync(dir)
+const WORK_FOLDER = join(SCRATCH, 'work')
+for (const dir of [FRAMES, HOME, WORK_FOLDER]) mkdirSync(dir)
 process.env.TMPDIR = FRAMES
+if (process.platform === 'win32') process.env.TEMP = process.env.TMP = FRAMES
 process.env.HOME = HOME
 const PROFILE = "fixture_precheck() { printf 'precheck ran\\n'; exit 1; }\nfixture_helper() { return 1; }\n"
 for (const name of ['.bash_profile', '.bashrc', '.profile']) writeFileSync(join(HOME, name), PROFILE)
-const LEFT = join(WORK, 'left')
-const EQUAL = join(WORK, 'equal')
-const DIFFERENT = join(WORK, 'different')
-writeFileSync(LEFT, 'same\n')
-writeFileSync(EQUAL, 'same\n')
-writeFileSync(DIFFERENT, 'other\n')
+const { nativePathToShell, shellPathToNative } = await import('../../src/platform/host-os/paths.ts')
+const WORK = nativePathToShell(WORK_FOLDER)
+const LEFT = `${WORK}/left`
+const EQUAL = `${WORK}/equal`
+const DIFFERENT = `${WORK}/different`
+writeFileSync(shellPathToNative(LEFT), 'same\n')
+writeFileSync(shellPathToNative(EQUAL), 'same\n')
+writeFileSync(shellPathToNative(DIFFERENT), 'other\n')
 
 let failures = 0
 let checks = 0
@@ -122,8 +125,10 @@ check('an ordinary non-zero exit is still an error ending `Exited with code 1`',
 
 const WIRED_HINT = 'the shell marks that it reached the closing command and that the script then ended on 1 (marksTheClosing and marksAnEndOnOne in src/platform/shell/bashProvider.ts, read by readClosingMarks in src/platform/shell/shellExec.ts); interpretCommandResult in src/tools/shell/commandSemantics.ts reads exit 1 as a result only with both marks'
 
-if (process.platform === 'win32') {
-  console.log('\n  [SKIP — LOUD] §5 to §9 run the closing marks in the bashes of this machine and stay shut on Windows until its bash road has been walked there; §9 holds that road\'s frame from any other machine')
+const { systemShellAt, systemShellRecord } = await import('../../src/platform/shell/shellRecord.ts')
+const served = await systemShellRecord()
+if (served.origin === 'engine') {
+  console.log('\n  [SKIP — LOUD] §5 to §9 run the closing marks in the bashes of this machine, and no bash serves here: the bundled engine carries none')
 } else {
   section('§5 compound scripts with variables, substitutions, loops and short-circuit guards')
   const varGrepNoMatch = await drive("F=$(printf 'alpha\\nbeta\\n'); printf '%s\\n' \"$F\" | grep -c nomatch")
@@ -254,14 +259,13 @@ if (process.platform === 'win32') {
 
   section("§7 the user's traps, options and output are the same with the marks as without them (the same frame twice, in each bash)")
   const { createBashShellProvider } = await import('../../src/platform/shell/bashProvider.ts')
-  const { systemShellAt, systemShellRecord } = await import('../../src/platform/shell/shellRecord.ts')
   const { closingTableCommand } = await import('../../src/tools/shell/commandSemantics.ts')
-  const SIDE = join(WORK, 'side')
-  const TRACE = join(WORK, 'trace')
-  const INSTALL = join(WORK, 'install')
-  writeFileSync(INSTALL, `trap 'echo "$BASH_COMMAND rc=$?" >> ${SIDE}' DEBUG\n`)
-  const STATUS = join(WORK, 'status')
-  writeFileSync(STATUS, `fixture_status() { echo "rc=$?" >> ${SIDE}; }\nfixture_run() { "$@"; }\n`)
+  const SIDE = `${WORK}/side`
+  const TRACE = `${WORK}/trace`
+  const INSTALL = `${WORK}/install`
+  writeFileSync(shellPathToNative(INSTALL), `trap 'echo "$BASH_COMMAND rc=$?" >> ${SIDE}' DEBUG\n`)
+  const STATUS = `${WORK}/status`
+  writeFileSync(shellPathToNative(STATUS), `fixture_status() { echo "rc=$?" >> ${SIDE}; }\nfixture_run() { "$@"; }\n`)
   type Scene = [string, string, ('unmarked' | 'bound')?]
   const SCENES: Scene[] = [
     ['a plain miss', `grep missing ${LEFT}`],
@@ -374,11 +378,10 @@ if (process.platform === 'win32') {
     ['a function from a sourced file, called by the closing test, reads $? as 0 too', `. ${STATUS}; false; test "$(fixture_status)" = ""`, 'bound'],
     ['a function from a sourced file that runs its words sets a DEBUG trap that does the same', `. ${STATUS}; fixture_run trap 'echo "rc=$?" >> ${SIDE}' DEBUG; false; grep missing ${LEFT}`, 'bound'],
   ]
-  const served = await systemShellRecord()
   const shells = [...new Set([served.path, '/bin/bash'].filter(path => existsSync(path)).map(path => realpathSync(path)))]
   let frames = 0
   for (const shell of shells) {
-    const provider = await createBashShellProvider(systemShellAt(shell), { skipSnapshot: true })
+    const provider = await createBashShellProvider(systemShellAt(shell), { skipSnapshot: process.platform !== 'win32' })
     const version = spawnSync(shell, ['-c', 'printf %s "$BASH_VERSION"'], { encoding: 'utf8' }).stdout
     for (const [label, command, kind] of SCENES) {
       await BashTool.prepare?.({ command } as never)
@@ -386,13 +389,16 @@ if (process.platform === 'win32') {
       const runs: string[] = []
       let marked = false
       for (const withMarks of [false, true]) {
-        for (const file of [SIDE, TRACE]) rmSync(file, { force: true })
+        for (const file of [SIDE, TRACE]) rmSync(shellPathToNative(file), { force: true })
         const id = `frame${++frames}`
         const built = await provider.buildExecCommand(command, { id, ...(withMarks && closing !== undefined ? { closing } : {}) })
         if (withMarks) marked = built.closingMarks !== undefined
-        const ran = spawnSync(shell, ['-c', built.commandString], { cwd: WORK, encoding: 'utf8', timeout: 10_000 })
-        const written = [SIDE, TRACE].map(file => (existsSync(file) ? readFileSync(file, 'utf8') : ''))
-        for (const file of [built.cwdFilePath, built.pipelineStatusPath, built.closingMarks?.reached, built.closingMarks?.endedOnOne]) if (file !== undefined) rmSync(file, { force: true })
+        const start = built.handOver?.({ ...process.env }, WORK_FOLDER)
+        if (start?.file !== undefined) writeFileSync(start.file.path, start.file.text)
+        const ran = spawnSync(shell, start?.args ?? ['-c', built.commandString], { cwd: start?.startIn ?? WORK_FOLDER, encoding: 'utf8', timeout: 10_000 })
+        const written = [SIDE, TRACE].map(file => (existsSync(shellPathToNative(file)) ? readFileSync(shellPathToNative(file), 'utf8') : ''))
+        for (const file of [built.cwdFilePath, built.pipelineStatusPath, built.jobsPath, built.closingMarks?.reached, built.closingMarks?.endedOnOne]) if (file !== undefined) rmSync(shellPathToNative(file), { force: true })
+        if (start?.file !== undefined) rmSync(start.file.path, { force: true })
         runs.push(JSON.stringify({ stdout: ran.stdout, stderr: ran.stderr, status: ran.status, signal: ran.signal, written }).replaceAll(id, 'ID'))
       }
       const hint = `bash ${version}: ${JSON.stringify(command)}\n      without: ${runs[0]}\n      with:    ${runs[1]}\n      the marks are marksTheClosing and marksAnEndOnOne in src/platform/shell/bashProvider.ts; a script that can see them is left unmarked by closingTableCommand in src/tools/shell/commandSemantics.ts, which asks watchesItsShell in src/permissions/rules/decision/command-analysis/commandSpans.ts`
@@ -446,7 +452,7 @@ if (process.platform === 'win32') {
       `    const frame = await roads[road].buildExecCommand(command, { id, ...(marks && closing !== undefined ? { closing } : {}) })`,
       `    const file = frame.handOver?.({ MSYS: 'noglob' })`,
       `    const native = [frame.cwdFilePath, frame.closingMarks?.reached, frame.closingMarks?.endedOnOne].map(path => (path === undefined ? undefined : shellPathToNative(path)))`,
-      `    return { text: frame.commandString, cwd: frame.cwdFilePath, pipeline: frame.pipelineStatusPath, marks: frame.closingMarks, native, start: frame.handOver?.({}).args.slice(0, -1), far: frame.handOver?.({}, process.argv[3]).args.at(-1), carried: file?.file, loader: file?.args }`,
+      `    return { text: frame.commandString, cwd: frame.cwdFilePath, pipeline: frame.pipelineStatusPath, marks: frame.closingMarks, native, start: frame.handOver?.({}).args.slice(0, -1), line: frame.handOver?.({}).args.at(-1), far: frame.handOver?.({}, process.argv[3]).args.at(-1), carried: file?.file, loader: file?.args }`,
       `  }`,
       `  frames.push({ id, command, closing, bare: await built('plain', false), plain: await built('plain', true), login: await built('login', true), engine: await built('engine', true) })`,
       `}`,
@@ -454,7 +460,7 @@ if (process.platform === 'win32') {
       `process.exit(0)`,
     ].join('\n'),
   )
-  type Built = { text: string; cwd: string; pipeline?: string; marks?: { reached: string; endedOnOne: string }; native: Array<string | null>; start?: string[]; far?: string; carried?: { path: string; text: string }; loader?: string[] }
+  type Built = { text: string; cwd: string; pipeline?: string; marks?: { reached: string; endedOnOne: string }; native: Array<string | null>; start?: string[]; line?: string; far?: string; carried?: { path: string; text: string }; loader?: string[] }
   type Framed = { id: string; command: string; closing?: { at: number }; bare: Built; plain: Built; login: Built; engine: Built }
   const framedOnWindows = async (temp: string, far: string, tag: string, commands: string[]): Promise<{ rows: Framed[]; detail: string }> => {
     const asked: Array<{ id: string; command: string; closing: ReturnType<typeof closingTableCommand> }> = []
@@ -464,7 +470,7 @@ if (process.platform === 'win32') {
     }
     const inputs = join(STAND_IN, `${tag}.json`)
     writeFileSync(inputs, JSON.stringify(asked))
-    const child = spawnSync(process.execPath, ['run', standIn, inputs, far], { cwd: STAND_IN, encoding: 'utf8', timeout: 120_000, env: { ...process.env, TMPDIR: temp, MERCURY_CONFIG_DIR: 'home' } })
+    const child = spawnSync(process.execPath, ['run', standIn, inputs, far], { cwd: STAND_IN, encoding: 'utf8', timeout: 120_000, env: { ...process.env, TMPDIR: temp, TEMP: temp, TMP: temp, MERCURY_CONFIG_DIR: 'home' } })
     const line = (child.stdout ?? '').split('\n').find(l => l.startsWith('FRAMES '))
     return { rows: line === undefined ? [] : (JSON.parse(line.slice(7)) as Framed[]), detail: `the child ended ${String(child.status)}: ${String(child.stderr ?? '').trim().slice(-400)}` }
   }
@@ -477,6 +483,7 @@ if (process.platform === 'win32') {
   const there = await framedOnWindows(WINDOWS_TEMP, FAR_THERE, 'there', [...MARKED_THERE, ...UNMARKED_THERE])
   check('the child that stands in for win32 answers with a frame for every command', there.rows.length === MARKED_THERE.length + UNMARKED_THERE.length, there.detail)
   const count = (text: string, part: string): number => text.split(part).length - 1
+  const asHanded = (frame: Built): string => (process.platform === 'win32' ? (frame.line ?? frame.text) : frame.text)
   const inEval = (text: string): string => text.replaceAll("'", "'\\''")
   for (const { id, command, closing, bare, plain, login, engine } of there.rows) {
     const cwd = `${TEMP_IN_BASH}/mercury-cwd-${id}`
@@ -500,7 +507,7 @@ if (process.platform === 'win32') {
     for (const shell of shells) {
       const carried = join(STAND_IN, 'carried')
       writeFileSync(carried, plain.carried?.text ?? plain.text)
-      const parsed = [spawnSync(shell, ['-n', '-c', plain.text], { encoding: 'utf8', timeout: 10_000 }), spawnSync(shell, ['-n', carried], { encoding: 'utf8', timeout: 10_000 })]
+      const parsed = [spawnSync(shell, ['-n', '-c', asHanded(plain)], { encoding: 'utf8', timeout: 10_000 }), spawnSync(shell, ['-n', nativePathToShell(carried)], { encoding: 'utf8', timeout: 10_000 })]
       check(`…${shell} reads that frame, and the file that carries it, without a syntax error`, plain.marks !== undefined && parsed.every(run => run.status === 0 && run.stderr === ''), `${parsed.map(run => run.stderr).join('')}${show}`)
     }
   }
@@ -508,7 +515,7 @@ if (process.platform === 'win32') {
   const LOGOUT_HOME = join(STAND_IN, 'login-home')
   const LOGOUT_READ = join(STAND_IN, 'logout-read')
   mkdirSync(LOGOUT_HOME)
-  writeFileSync(join(LOGOUT_HOME, '.bash_logout'), `echo read >> ${LOGOUT_READ}\n`)
+  writeFileSync(join(LOGOUT_HOME, '.bash_logout'), `echo read >> ${nativePathToShell(LOGOUT_READ)}\n`)
   const RUN_HERE: Array<[string, string, number, boolean, boolean]> = [
     ['a miss', `grep missing ${LEFT}`, 1, true, true],
     ['a match', `grep same ${LEFT}`, 0, true, false],
@@ -524,22 +531,24 @@ if (process.platform === 'win32') {
     const version = spawnSync(shell, ['-c', 'printf %s "$BASH_VERSION"'], { encoding: 'utf8' }).stdout
     const ranIn = (frame: Built, args: string[], env?: NodeJS.ProcessEnv): { said: string; status: number | null; marks: boolean[] } => {
       if (frame.carried !== undefined) writeFileSync(frame.carried.path, frame.carried.text)
-      const run = spawnSync(shell, args, { cwd: WORK, encoding: 'utf8', timeout: 10_000, ...(env === undefined ? {} : { env }) })
-      const marks = [frame.marks?.reached, frame.marks?.endedOnOne].map(file => file !== undefined && existsSync(file))
-      for (const file of [frame.cwd, frame.pipeline, frame.marks?.reached, frame.marks?.endedOnOne, frame.carried?.path]) if (file !== undefined) rmSync(file, { force: true })
+      const run = spawnSync(shell, args, { cwd: WORK_FOLDER, encoding: 'utf8', timeout: 10_000, ...(env === undefined ? {} : { env }) })
+      const marks = [frame.marks?.reached, frame.marks?.endedOnOne].map(file => file !== undefined && existsSync(shellPathToNative(file)))
+      for (const file of [frame.cwd, frame.pipeline, frame.marks?.reached, frame.marks?.endedOnOne]) if (file !== undefined) rmSync(shellPathToNative(file), { force: true })
+      if (frame.carried !== undefined) rmSync(frame.carried.path, { force: true })
       return { said: JSON.stringify({ stdout: run.stdout, stderr: run.stderr, status: run.status }), status: run.status, marks }
     }
     for (const [i, { command, bare, plain, login }] of here.rows.entries()) {
       const [label, , status, reached, endedOnOne] = RUN_HERE[i]!
       const want = JSON.stringify([reached, endedOnOne])
-      const onTheLine = [ranIn(bare, [...(bare.start ?? []), bare.text]), ranIn(plain, [...(plain.start ?? []), plain.text])]
+      const onTheLine = [ranIn(bare, [...(bare.start ?? []), asHanded(bare)]), ranIn(plain, [...(plain.start ?? []), asHanded(plain)])]
       const byFile = [ranIn(bare, bare.loader ?? []), ranIn(plain, plain.loader ?? [])]
       const behindCd = [ranIn(bare, [...(bare.start ?? []), bare.far ?? '']), ranIn(plain, [...(plain.start ?? []), plain.far ?? ''])]
-      const told = `${JSON.stringify(command)}${[['on the command line', onTheLine], ['carried by its file', byFile], ['behind the cd of a long start folder', behindCd]].map(([road, [without, withMarks]]) => `\n      ${String(road)}, without: ${without!.said}\n      with: ${withMarks!.said} marks ${JSON.stringify(withMarks!.marks)}`).join('')}\n      ${WINDOWS_HINT}`
-      check(`bash ${version} · the Windows frame, ${label}: exit ${status}, the same output with the marks as without, on the command line, carried by its file and behind the cd of a long start folder; reached ${String(reached)}, ended on 1 ${String(endedOnOne)}`, plain.far?.startsWith(`cd -- ${FAR_HERE} `) === true && [onTheLine, byFile, behindCd].every(([without, withMarks]) => without!.status === status && without!.said === withMarks!.said && JSON.stringify(withMarks!.marks) === want), told)
+      const roads: Array<[string, typeof onTheLine]> = [['on the command line', onTheLine], ['carried by its file', byFile], ['behind the cd of a long start folder', behindCd]]
+      const told = `${JSON.stringify(command)}${roads.map(([road, [without, withMarks]]) => `\n      ${road}, without: ${without!.said}\n      with: ${withMarks!.said} marks ${JSON.stringify(withMarks!.marks)}`).join('')}\n      ${WINDOWS_HINT}`
+      check(`bash ${version} · the Windows frame, ${label}: exit ${status}, the same output with the marks as without, on the command line, carried by its file and behind the cd of a long start folder; reached ${String(reached)}, ended on 1 ${String(endedOnOne)}`, plain.far?.startsWith(`cd -- ${nativePathToShell(FAR_HERE)} `) === true && [onTheLine, byFile, behindCd].every(([without, withMarks]) => without!.status === status && without!.said === withMarks!.said && JSON.stringify(withMarks!.marks) === want), told)
       if (status !== 2) continue
       rmSync(LOGOUT_READ, { force: true })
-      const asLogin = ranIn(login, [...(login.start ?? []), login.text], { ...process.env, HOME: LOGOUT_HOME })
+      const asLogin = ranIn(login, [...(login.start ?? []), asHanded(login)], { ...process.env, HOME: LOGOUT_HOME })
       check(`bash ${version} · the frame a bash started with -l gets ends on 2 without calling exit, so the user's ~/.bash_logout is not read (the marks leave a status of 2 or more through exit, which a login shell answers by reading that file)`, JSON.stringify(login.start) === '["-c","-l"]' && asLogin.status === 2 && !existsSync(LOGOUT_READ), `${asLogin.said}; the logout file was ${existsSync(LOGOUT_READ) ? 'read' : 'not read'} — ${WINDOWS_HINT}`)
     }
   }
