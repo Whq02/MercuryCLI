@@ -138,15 +138,15 @@ export function ConcourseKeyAtlas({ cols, rows, chat, reducedStage = false, spli
   const stage = { newSession: !reducedStage }
   const listStage = selection !== undefined && selection !== 'none' ? { ...stage, selection } : stage
   const sections: Array<{ title: string; keys: ReadonlyArray<{ keys: string; label: string }> }> = [
-    { title: 'BROWSE', keys: [...browseKeysFor({ chatPresent: chat }), CONCOURSE_HELP_KEY] },
+    { title: 'browse', keys: [...browseKeysFor({ chatPresent: chat }), CONCOURSE_HELP_KEY] },
     { title: 'needs you (rail)', keys: regionKeysFor('rail', stage) },
     { title: 'sessions (list)', keys: [...managerPaneKeysFor({ ...stage, paused: selection === 'paused' }), ...withoutManagerPaneKeys(regionKeysFor('list', listStage))] },
-    { title: 'LIVE VIEW (its composer)', keys: regionKeysFor('live', stage) },
+    { title: 'live view (its composer)', keys: regionKeysFor('live', stage) },
     ...(!reducedStage && splitAvailableAt(cols, rows)
       ? [
           splitOn
-            ? { title: 'SPLIT VIEW (s toggles)', keys: regionKeysFor('chat', { ...stage, chatSession: chat }) }
-            : { title: 'SPLIT VIEW (s toggles)', keys: [{ keys: 's', label: 'split view' }] },
+            ? { title: 'split view (s toggles)', keys: regionKeysFor('chat', { ...stage, chatSession: chat }) }
+            : { title: 'split view (s toggles)', keys: [{ keys: 's', label: 'split view' }] },
         ]
       : []),
   ]
