@@ -13,7 +13,7 @@ import { checkWritePermissionForTool, pathInAllowedWorkingPath } from '../../../
 import { modeBypassesPermissions } from '../../../permissions/rules/permissionMode.js'
 import type { MercuryLspOpOutput, OpEnv } from './types.js'
 import { displayPathFor, uriToFilePath } from './shared.js'
-import { syncServersAfterWrite, awaitDiagnosticStabilization } from './afterWrite.js'
+import { syncServersAfterWrites, awaitDiagnosticStabilization } from './afterWrite.js'
 import { changeViewOf, planFiles, planTokenOf, editRowsFor, type PlannedFile } from './preview.js'
 import { readKnowledgeHolds, touchedLinesOf } from './readKnowledge.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
@@ -274,8 +274,16 @@ export async function applyPrepared(
     } catch (error) {
       logForDebugging(`lsp ops: read-state refresh failed for ${w.abs}: ${String(error)}`)
     }
-    const sync = await syncServersAfterWrite(manager, w.abs, w.newText, w.create ? null : w.originalText, owner)
-    if (!sync.ok) syncFailures.push(`${displayPathFor(env.cwd, w.abs)}: ${sync.reason}`)
+  }
+  const syncResults = await syncServersAfterWrites(
+    manager,
+    written.map(w => ({ absolutePath: w.abs, newText: w.newText, before: w.create ? null : w.originalText })),
+    owner,
+  )
+  for (const sync of syncResults) {
+    if (!sync.ok) syncFailures.push(`${displayPathFor(env.cwd, sync.absolutePath)}: ${sync.reason}`)
+  }
+  for (const w of written) {
     try {
       rememberAnchoredSnapshot(owner, mintFileAnchor(w.newText), w.newText, w.abs)
       dropSeenLines(owner, w.abs)
@@ -283,8 +291,7 @@ export async function applyPrepared(
       logForDebugging(`lsp ops: anchor bookkeeping failed for ${w.abs}: ${String(error)}`)
     }
   }
-  const primary = written[0]!.abs
-  const stabilization = await awaitDiagnosticStabilization(manager, primary)
+  const stabilization = await awaitDiagnosticStabilization(manager, writtenPaths)
   try {
     const feedbackState =
       stabilization.state === 'fresh' || stabilization.state === 'unchanged'

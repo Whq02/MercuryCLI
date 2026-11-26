@@ -357,7 +357,7 @@ export function subscribeLSPDiagnosticPublish(cb: PublishListener): () => void {
 }
 
 
-const lastReports = new LRUCache<string, { file: DiagnosticFile; at: number }>({
+const lastReports = new LRUCache<string, { file: DiagnosticFile; at: number; version?: number }>({
   max: MAX_TRACKED_FILES,
 })
 type ReportListener = (event: { serverName: string; file: DiagnosticFile }) => void
@@ -366,12 +366,26 @@ const reportListeners = new Set<ReportListener>()
 export function recordPublishedReport(serverName: string, file: DiagnosticFile, version?: number): void {
   if (staleAgainstWriteBaseline(serverName, file.uri, version)) return
   settleAwaitingWrite(plainPathKey(file.uri), version)
-  lastReports.set(`${serverName}::${foldFileKey(file.uri)}`, { file, at: Date.now() })
+  lastReports.set(`${serverName}::${foldFileKey(file.uri)}`, {
+    file,
+    at: Date.now(),
+    ...(version !== undefined ? { version } : {}),
+  })
   for (const listener of reportListeners) {
     try {
       listener({ serverName, file })
     } catch (err) {
       logForDebugging(`LSP diagnostics: report listener threw: ${String(err)}`)
+    }
+  }
+}
+
+export function noteDocumentLifecycle(serverName: string, fileUriOrPath: string): void {
+  const plain = plainPathKey(fileUriOrPath)
+  for (const key of [`${serverName}::${plain}`, `${serverName}::file://${plain}`]) {
+    const existing = lastReports.peek(key)
+    if (existing !== undefined && existing.version !== undefined) {
+      lastReports.set(key, { file: existing.file, at: existing.at })
     }
   }
 }
@@ -395,8 +409,38 @@ export function peekLastPublishedReport(
 
 function staleAgainstWriteBaseline(serverName: string, uri: string, version: number | undefined): boolean {
   if (version === undefined) return false
-  const baseline = writeBaselines.peek(plainPathKey(uri))?.get(serverName)
-  return baseline !== undefined && baseline.docVersion !== undefined && version <= baseline.docVersion
+  const fileKey = plainPathKey(uri)
+  const baseline = writeBaselines.peek(fileKey)?.get(serverName)
+  if (baseline !== undefined && baseline.docVersion !== undefined && version <= baseline.docVersion) return true
+  const awaiting = awaitingWrites.get(fileKey)
+  if (awaiting !== undefined && awaiting.docVersion !== undefined && version <= awaiting.docVersion) return true
+  const last = lastReports.peek(`${serverName}::${fileKey}`) ?? lastReports.peek(`${serverName}::file://${fileKey}`)
+  return last !== undefined && last.version !== undefined && version < last.version
+}
+
+function dropPendingForFile(fileKey: string, messageFor: (serverName: string) => string): void {
+  for (const [pendingId, entry] of pending) {
+    const kept = entry.files.filter(file => plainPathKey(file.uri) !== fileKey)
+    if (kept.length === entry.files.length) continue
+    if (kept.length === 0) pending.delete(pendingId)
+    else entry.files = kept
+    logForDebugging(messageFor(entry.serverName))
+  }
+}
+
+export function rearmAfterMultiFileSync(
+  writes: ReadonlyArray<{ path: string; docVersion: number | undefined }>,
+  owner?: OwnerKey,
+): void {
+  const lane = laneOf(owner)
+  for (const write of writes) {
+    const fileKey = plainPathKey(write.path)
+    dropPendingForFile(
+      fileKey,
+      serverName => `LSP diagnostics: ${serverName}'s mid-transaction publish for ${fileKey} predates the last synced file — discarded`,
+    )
+    armAwaitingWrite(lane, fileKey, write.docVersion)
+  }
 }
 
 export function snapshotDiagnosticsBeforeWrite(path: string, before: string | null, after: string, docVersion: number | undefined, owner?: OwnerKey): void {
@@ -404,13 +448,10 @@ export function snapshotDiagnosticsBeforeWrite(path: string, before: string | nu
   const lane = laneOf(owner)
   claimWriter(lane, fileKey)
   armAwaitingWrite(lane, fileKey, docVersion)
-  for (const [pendingId, entry] of pending) {
-    const kept = entry.files.filter(file => plainPathKey(file.uri) !== fileKey)
-    if (kept.length === entry.files.length) continue
-    if (kept.length === 0) pending.delete(pendingId)
-    else entry.files = kept
-    logForDebugging(`LSP diagnostics: ${entry.serverName}'s publish for ${fileKey} predates the write — no data until it publishes again`)
-  }
+  dropPendingForFile(
+    fileKey,
+    serverName => `LSP diagnostics: ${serverName}'s publish for ${fileKey} predates the write — no data until it publishes again`,
+  )
   let step: LineShiftStep | null = null
   try {
     step = before === null ? null : lineShiftStepBetween(before, after)
@@ -441,13 +482,10 @@ export function snapshotDiagnosticsBeforeWrite(path: string, before: string | nu
 
 export function noteOutOfBandWrite(path: string, versions: ReadonlyArray<{ serverName: string; docVersion: number }>): void {
   const fileKey = plainPathKey(path)
-  for (const [pendingId, entry] of pending) {
-    const kept = entry.files.filter(file => plainPathKey(file.uri) !== fileKey)
-    if (kept.length === entry.files.length) continue
-    if (kept.length === 0) pending.delete(pendingId)
-    else entry.files = kept
-    logForDebugging(`LSP diagnostics: ${entry.serverName}'s publish for ${fileKey} predates a write outside the tools — no data until it publishes the re-synced text`)
-  }
+  dropPendingForFile(
+    fileKey,
+    serverName => `LSP diagnostics: ${serverName}'s publish for ${fileKey} predates a write outside the tools — no data until it publishes the re-synced text`,
+  )
   const previous = writeBaselines.peek(fileKey)
   const next = new Map<string, WriteBaseline>(previous ?? [])
   for (const { serverName, docVersion } of versions) {

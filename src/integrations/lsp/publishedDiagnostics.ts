@@ -39,7 +39,15 @@ function formatSeverity(severity: number | undefined): Diagnostic['severity'] {
   }
 }
 
-function convertDiagnostics(rawDiagnostics: PublishDiagnosticsParams['diagnostics']): Diagnostic[] {
+export function convertDiagnostics(
+  rawDiagnostics: ReadonlyArray<{
+    range: { start: { line: number; character: number }; end: { line: number; character: number } }
+    severity?: number
+    message: unknown
+    source?: string
+    code?: string | number | null
+  }>,
+): Diagnostic[] {
   return rawDiagnostics.map(diag => ({
     message: formatDiagnosticMessage(diag.message),
     severity: formatSeverity(diag.severity),
