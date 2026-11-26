@@ -10,11 +10,12 @@ import type { MercuryRecord } from '../../fabric/record.js'
 import { faultPoint, fsyncEnabled, publishAtomicSync } from '../../../platform/substrate/fileStore.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { foldWorkerRecord } from '../mirrorRecord.js'
+import { keptLine, sideNote } from '../rowGraph.js'
 import { historyHead, historyIndex, historyPartDir, sealedExtents, sealedFile, type HistoryIndexRow } from '../historyParts.js'
 import { rangeFromFd, transcriptLineBytes } from '../transcriptBytes.js'
 
 type Range = { at: number; len: number; torn: boolean; relinkTo?: string }
-type ChainRow = Range & { parent?: string; originalParent?: string }
+type ChainRow = Range & { parent?: string; originalParent?: string; row: boolean; note: boolean }
 type Segment = NonNullable<FoldMetadata['preservedSegment']>
 const sticky = new Set(['summary', 'custom-title', 'ai-title', 'last-prompt', 'tag', 'agent-name', 'agent-color', 'agent-setting', 'session-brief', 'session-brief-add', 'mode', 'advisor-switch', 'swarm-switch', 'model', 'worktree-state', 'pr-link'])
 
@@ -98,7 +99,8 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
   const metadata = new Map<string, Range>()
   const preservedMeta = new Map<string, Range>()
   const nodes = new Map<string, ChainRow>()
-  const segments: Segment[] = []
+  const segments: Array<Segment & { at: number }> = []
+  const folds: number[] = []
   const missing = selected && new Set(selected)
   let at = 0, lastYield = 0, batch = ''
   try {
@@ -118,7 +120,8 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
         if (record === null || typeof record !== 'object' || typeof record.recordId !== 'string' || !record.payload) continue
         const id = record.recordId, uid = record.annotations?.uuid
         const payload = record.payload
-        const mirror = foldWorkerRecord(record, id)?.uuid ?? null
+        const shown = foldWorkerRecord(record, id)
+        const mirror = shown?.uuid ?? null
         if (range.at >= head.start) {
           const row: HistoryIndexRow = [id, typeof uid === 'string' ? uid : null, range.at, bytes.length, mirror]
           batch += JSON.stringify(row) + '\n'
@@ -128,21 +131,42 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
           if (sticky.has(payload.metaKind)) metadata.set(JSON.stringify([payload.metaKind, payload.metaKind === 'summary' ? payload.fields.leafUuid : record.sessionId]), range)
           else if (segment && (payload.metaKind === 'file-history-snapshot' || payload.metaKind === 'attribution-snapshot')) preservedMeta.set(JSON.stringify([payload.metaKind, payload.fields.messageId]), range)
           else if (segment && payload.metaKind === 'content-replacement') preservedMeta.set(id, range)
-        } else if (segment && (!selected || (selected.has(id) && (mirror !== null || payload.kind === 'attachment')))) {
-          nodes.set(id, { ...range, parent: record.parentId, originalParent: record.parentId })
-          if (!selected && payload.kind === 'boundary' && payload.boundaryKind === 'compact') {
+        } else if (segment) {
+          nodes.set(id, { ...range, parent: record.parentId, originalParent: record.parentId, row: mirror !== null || payload.kind === 'attachment', note: sideNote(shown) })
+          if (payload.kind === 'boundary' && payload.boundaryKind === 'compact') {
+            folds.push(range.at)
             const prior = (payload.fields?.compactMetadata as { preservedSegment?: Segment } | undefined)?.preservedSegment
-            if (prior) segments.push(prior)
+            if (prior) segments.push({ ...prior, at: range.at })
           }
         }
       }
       if (batch) writeAll(index, Buffer.from(batch))
     } finally { closeSync(index) }
-    const carry = [...metadata.values(), ...(!selected || nodes.size ? preservedMeta.values() : [])]
+    const lineOf = (listed: readonly string[], end: number): string[] => {
+      const floor = folds.findLast(at => at < end) ?? -1
+      const notes = new Map<string, string[]>()
+      for (const [id, row] of nodes) {
+        if (!row.note || row.parent === undefined || row.at <= floor || row.at >= end) continue
+        const beside = notes.get(row.parent)
+        if (beside) beside.push(id)
+        else notes.set(row.parent, [id])
+      }
+      return keptLine(listed, at => nodes.get(at)?.parent, at => notes.get(at) ?? []).filter(id => nodes.get(id)?.row)
+    }
+    for (const prior of segments) {
+      if (!nodes.has(prior.headUuid) || !nodes.has(prior.tailUuid) || prior.keptUuids?.every(id => nodes.get(id)?.row) === false) continue
+      let parent: string = prior.anchorUuid
+      for (const id of prior.keptUuids ? lineOf(prior.keptUuids, prior.at) : [prior.headUuid]) {
+        nodes.get(id)!.parent = parent
+        parent = id
+      }
+      for (const [id, row] of nodes) if (id !== prior.headUuid && row.parent === prior.anchorUuid) row.parent = prior.tailUuid
+    }
+    const keptUuids = segment?.keptUuids?.filter(id => nodes.get(id)?.row)
+    const carry = [...metadata.values(), ...(!keptUuids || keptUuids.length ? preservedMeta.values() : [])]
     if (selected) carry.sort((a, b) => a.at - b.at)
-    if (segment?.keptUuids && selected && missing) {
+    if (segment?.keptUuids && keptUuids && missing) {
       if (!await alreadyArchived(head, missing)) return false
-      const keptUuids = segment.keptUuids.filter(id => nodes.has(id))
       if (keptUuids.length !== segment.keptUuids.length && boundary.payload.kind === 'boundary') {
         const { fields } = boundary.payload
         const headUuid = keptUuids[0], tailUuid = keptUuids.at(-1)
@@ -151,21 +175,14 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
         const stored = { ...boundary, payload: { ...boundary.payload, fields: { ...fields, compactMetadata } } }
         line = line.slice(0, line.lastIndexOf('\n', line.length - 2) + 1) + JSON.stringify(stored) + '\n'
       }
-      let parent = segment.anchorUuid
-      for (const id of keptUuids) {
+      let parent: string = segment.anchorUuid
+      for (const id of lineOf(keptUuids, Infinity)) {
         const row = nodes.get(id)!
-        if (row.parent !== parent) row.relinkTo = parent
+        if (row.originalParent !== parent) row.relinkTo = parent
         carry.push(row)
         parent = id
       }
     } else if (segment) {
-      for (const prior of segments) {
-        const first = nodes.get(prior.headUuid)
-        if (first && nodes.has(prior.tailUuid)) {
-          first.parent = prior.anchorUuid
-          for (const [id, row] of nodes) if (id !== prior.headUuid && row.parent === prior.anchorUuid) row.parent = prior.tailUuid
-        }
-      }
       let id: string | undefined = segment.tailUuid
       const seen = new Set<string>()
       for (;;) {
