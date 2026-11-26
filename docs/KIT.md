@@ -9,7 +9,7 @@ selection.
 ## The menu
 
 Pressing `Enter` on Boot Menu's **MCPs & Skills** row opens the menu: the same
-three-panel frame as the Boot Menu, with a NEXT SESSION summary counting what
+Boot Menu frame, with a summary counting what
 the next session loads. Two sections:
 
 - **MCPs**: configured servers, extension servers and eligible account
