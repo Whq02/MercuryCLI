@@ -200,12 +200,29 @@ section('a pixel step after a screenshot step in the same sequence is refused as
     driver.frontmostApplication = async () => ({ ok: true, value: { ...front } })
     driver.accessibilityTree = async (app, ...rest) => (app.identity === terminal.identity ? { ok: true, value: { elements: [{ depth: 1, role: 'AXTextArea', title: 'shell', value: `$ make ui-check\n${TERMINAL_LINE}\nok`, frame: { x: 0, y: 20, width: 400, height: 280 }, focused: true }], truncated: false, reason: null } } : treeBefore(app, ...rest))
     bouncing.findApplication = async () => ({ ok: true, value: { ...editor } })
-    bouncing.activateApplication = async () => { front = editor; return { ok: true, value: { ...editor } } }
+    let activated = 0
+    bouncing.activateApplication = async () => { activated++; front = editor; return { ok: true, value: { ...editor } } }
+    const mixedCapturesBefore = driver.acts.filter(act => act.act === 'capture').length
     const mixed = await call({ action: 'sequence', steps: [{ action: 'screenshot' }, { action: 'focusApp', focusApp: { name: editor.name } }, { action: 'screenshot' }, { action: 'click', x: 20, y: 20 }] })
     const lines = mixed.result.split('\n')
     const terminalRoad = process.platform === 'darwin'
     const notReturned = lines.filter(line => line === NOT_RETURNED).length
-    check(terminalRoad ? "a failed sequence that read terminal text raw and then took an image keeps the terminal's own line that begins 'screenshot: ' and replaces only the image step's line" : "off macOS a terminal has no text road: both screenshot steps took images, so a failed sequence replaces both their lines and keeps no raw terminal line", mixed.outcome === 'failed' && mixed.imagePath === undefined && (terminalRoad ? lines.includes(TERMINAL_LINE) && notReturned === 1 : !lines.includes(TERMINAL_LINE) && notReturned === 2) && !lines.some(line => /^screenshot: \/.*\.png — display/.test(line)), mixed.result)
+    check(
+      terminalRoad
+        ? "a failed sequence that read terminal text raw and then took an image keeps the terminal's own line that begins 'screenshot: ' and replaces only the image step's line"
+        : 'off macOS a terminal has no text road: step 1 always takes an image, so the later pixel click is refused before step 1 with zero captures, no focus switch, no raw terminal line and no screenshot lines',
+      mixed.outcome === 'failed' &&
+        mixed.imagePath === undefined &&
+        (terminalRoad
+          ? lines.includes(TERMINAL_LINE) && notReturned === 1
+          : !lines.includes(TERMINAL_LINE) &&
+            notReturned === 0 &&
+            mixed.result.includes('sequence 0/4 completed · click refused: the last screenshot was taken in this same message') &&
+            driver.acts.filter(act => act.act === 'capture').length === mixedCapturesBefore &&
+            activated === 0) &&
+        !lines.some(line => /^screenshot: \/.*\.png — display/.test(line)),
+      mixed.result,
+    )
     driver.frontmostApplication = frontBefore
     driver.accessibilityTree = treeBefore
     delete bouncing.findApplication

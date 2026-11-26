@@ -54,8 +54,9 @@ t.section('§3 — the resize journey on the REAL binary')
     'the ↑-selected older prompt HELD its row through wide→narrow→wide',
     /▸.*first task/.test(txt),
   )
+  const headers = (txt.match(/Mercury — prompts/g) ?? []).length
   const mascots = (txt.match(/▖▟▆▙▗/g) ?? []).length
-  t.check('exactly one mascot (no stale critter resurrect)', mascots === 1, String(mascots))
+  t.check('exactly one popup header and no stale mascot resurrect', headers === 1 && mascots === 0, `headers=${headers} mascots=${mascots}`)
 }
 
 t.finish('prove-b2-focus-pointer')
