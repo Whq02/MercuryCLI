@@ -38,7 +38,7 @@ export function devinCliLogoutConfirmOptions(): Array<{ label: string; value: 'c
   ]
 }
 
-export function devinCliDetailLines(): string[] {
+export function devinCliDetailLines(missing: readonly string[] | null = null): string[] {
   return [
     DEVIN_CLI_ACTION_TITLE,
     '',
@@ -49,8 +49,7 @@ export function devinCliDetailLines(): string[] {
     'Mercury never reads credentials.toml',
     'or holds a token.',
     '',
-    'Press Enter to run devin auth login,',
-    'status, or logout.',
+    ...(missing ?? ['Press Enter to run devin auth login,', 'status, or logout.']),
     '',
     'Attach from chat: /crew attach devin.',
   ]
@@ -82,6 +81,11 @@ function resolveDevinPlan(
     }
   }
   return { ok: true, plan }
+}
+
+export function devinCliMissingOutcome(world: SpawnWorld = hostSpawnWorld()): DevinCliRunOutcome | null {
+  const resolved = resolveDevinPlan('status', world)
+  return !resolved.ok && resolved.outcome.kind === 'missing' ? resolved.outcome : null
 }
 
 function waitForReturnKey(stdout: NodeJS.WriteStream, label: string): void {
