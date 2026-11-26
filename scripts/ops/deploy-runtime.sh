@@ -50,14 +50,21 @@ else
 fi
 
 runtime_folder_in_use() {
-  local dir="$1" real f pid procs line lsof_out lsof_rc
+  local dir="$1" real f pid procs line lsof_out lsof_rc link_target cmdline ps_ok=0 proc_seen=0
+  runtime_in_use_reason=""
   real="$(cd "$dir" 2>/dev/null && pwd -P)" || return 1
-  if ! procs="$(ps -axo command= 2>/dev/null)" || [ -z "$procs" ]; then return 0; fi
-  while IFS= read -r line; do
-    case "$line" in
-      *"$real/"*) return 0 ;;
-    esac
-  done <<< "$procs"
+  if procs="$(ps -axo command= 2>/dev/null)" && [ -n "$procs" ]; then
+    ps_ok=1
+  elif procs="$(ps -A -o args= 2>/dev/null)" && [ -n "$procs" ]; then
+    ps_ok=1
+  fi
+  if [ "$ps_ok" -eq 1 ]; then
+    while IFS= read -r line; do
+      case "$line" in
+        *"$real/"*) runtime_in_use_reason=holder; return 0 ;;
+      esac
+    done <<< "$procs"
+  fi
   if command -v lsof >/dev/null 2>&1; then
     local files=()
     for f in "$real/manifest.json" "$real/mercury.mjs" "$real/vendor/node/bin/node" "$real/vendor/node/node.exe"; do
@@ -66,15 +73,46 @@ runtime_folder_in_use() {
     if [ "${#files[@]}" -gt 0 ]; then
       lsof_rc=0
       lsof_out="$(lsof -w -t -- "${files[@]}" 2>&1)" || lsof_rc=$?
-      if [ -n "$lsof_out" ] || [ "$lsof_rc" -gt 1 ]; then return 0; fi
+      if [ -n "$lsof_out" ]; then
+        while IFS= read -r line; do
+          case "$line" in
+            ''|*[!0-9]*) ;;
+            *) runtime_in_use_reason=holder; return 0 ;;
+          esac
+        done <<< "$lsof_out"
+        runtime_in_use_reason=unknown
+        return 0
+      elif [ "$lsof_rc" -ne 1 ]; then
+        runtime_in_use_reason=unknown
+        return 0
+      fi
     fi
-  elif [ -d /proc ]; then
-    for pid in /proc/[0-9]*; do
-      case "$(readlink "$pid/exe" 2>/dev/null || true)" in "$real/"*) return 0 ;; esac
-      for f in "$pid"/fd/*; do
-        case "$(readlink "$f" 2>/dev/null || true)" in "$real/"*) return 0 ;; esac
+  fi
+  if [ "$ps_ok" -eq 0 ] || ! command -v lsof >/dev/null 2>&1; then
+    if [ -d /proc ]; then
+      for pid in /proc/[0-9]*; do
+        [ -d "$pid" ] || continue
+        if cmdline="$(LC_ALL=C tr '\0' ' ' < "$pid/cmdline" 2>/dev/null)" && [ -n "$cmdline" ]; then
+          proc_seen=1
+          case "$cmdline" in *"$real/"*) runtime_in_use_reason=holder; return 0 ;; esac
+        fi
+        if link_target="$(readlink "$pid/exe" 2>/dev/null)" && [ -n "$link_target" ]; then
+          proc_seen=1
+          case "$link_target" in "$real/"*) runtime_in_use_reason=holder; return 0 ;; esac
+        fi
+        for f in "$pid"/fd/*; do
+          [ -L "$f" ] || continue
+          if link_target="$(readlink "$f" 2>/dev/null)" && [ -n "$link_target" ]; then
+            proc_seen=1
+            case "$link_target" in "$real/"*) runtime_in_use_reason=holder; return 0 ;; esac
+          fi
+        done
       done
-    done
+    fi
+  fi
+  if [ "$ps_ok" -eq 0 ] && [ "$proc_seen" -eq 0 ]; then
+    runtime_in_use_reason=unknown
+    return 0
   fi
   return 1
 }
@@ -146,7 +184,11 @@ for b in "$builds"/*/; do
   [ "$(basename "$b")" = "$name" ] && continue
   case "$(basename "$b")" in .staging-*) rm -rf "$b"; continue ;; esac
   if runtime_folder_in_use "$b"; then
-    echo "kept            → $b (a daemon or session still runs from it)"
+    if [ "$runtime_in_use_reason" = "unknown" ]; then
+      echo "kept            → $b (could not tell whether a process still runs from it)"
+    else
+      echo "kept            → $b (a daemon or session still runs from it)"
+    fi
   else
     rm -rf "$b"
   fi
