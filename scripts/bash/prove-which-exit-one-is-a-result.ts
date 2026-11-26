@@ -120,87 +120,87 @@ check('grep exit 1 keeps its own label', JSON.stringify(interpretCommandResult('
 const plainFail = await drive('cat /mercury-no-such-file-0x')
 check('an ordinary non-zero exit is still an error ending `Exited with code 1`', !plainFail.ok && /Exited with code 1/.test(plainFail.ok ? '' : plainFail.error), `${plainFail.ok ? 'settled as a result' : plainFail.error.slice(-80)} — only the lookup commands in the table in src/tools/shell/commandSemantics.ts may read exit 1 as a result`)
 
-section('§5 compound scripts with variables, substitutions, loops and short-circuit guards')
-const varGrepNoMatch = await drive("F=$(printf 'alpha\\nbeta\\n'); printf '%s\\n' \"$F\" | grep -c nomatch")
-check('variables + command substitution ending in unmatched grep is a labelled result (exit 1)', varGrepNoMatch.ok && varGrepNoMatch.out.code === 1 && varGrepNoMatch.out.returnCodeInterpretation === 'no matches found' && varGrepNoMatch.out.exitNote === 'no matches found (exit code 1)' && varGrepNoMatch.content.endsWith('no matches found (exit code 1)') && !varGrepNoMatch.content.includes('Exited with code') && varGrepNoMatch.out.stdout.trim() === '0', varGrepNoMatch.ok ? JSON.stringify(varGrepNoMatch.out) : varGrepNoMatch.error.slice(0, 200))
-
-const loopDiffDiffer = await drive("for x in one two; do printf '%s\\n' \"$x\" >/dev/null; done; diff <(printf 'left\\n') <(printf 'right\\n')")
-check('for-loop followed by diff of differing process substitutions is a labelled result (exit 1)', loopDiffDiffer.ok && loopDiffDiffer.out.code === 1 && loopDiffDiffer.out.returnCodeInterpretation === 'files differ' && loopDiffDiffer.out.exitNote === 'files differ (exit code 1)' && loopDiffDiffer.content.endsWith('files differ (exit code 1)') && !loopDiffDiffer.content.includes('Exited with code'), loopDiffDiffer.ok ? JSON.stringify(loopDiffDiffer.out) : loopDiffDiffer.error.slice(0, 200))
-
-const varGrepMatch = await drive("F=$(printf 'alpha\\nbeta\\n'); printf '%s\\n' \"$F\" | grep -c alpha")
-check('variables + command substitution ending in matching grep exits 0 with no exit note', varGrepMatch.ok && varGrepMatch.out.code === 0 && varGrepMatch.out.exitNote === undefined && varGrepMatch.out.stdout.trim() === '1', varGrepMatch.ok ? JSON.stringify(varGrepMatch.out) : varGrepMatch.error.slice(0, 200))
-
-const loopDiffSame = await drive("for x in one two; do printf '%s\\n' \"$x\" >/dev/null; done; diff <(printf 'same\\n') <(printf 'same\\n')")
-check('for-loop followed by identical diff exits 0 with no exit note', loopDiffSame.ok && loopDiffSame.out.code === 0 && loopDiffSame.out.exitNote === undefined, loopDiffSame.ok ? JSON.stringify(loopDiffSame.out) : loopDiffSame.error.slice(0, 200))
-
-const varGrepExit2 = await drive("F=$(printf 'alpha\\n'); printf '%s\\n' \"$F\" | grep --mercury-no-such-flag alpha")
-check('compound script ending in grep exit 2 stays an error', !varGrepExit2.ok && /Exited with code 2/.test(varGrepExit2.error), varGrepExit2.ok ? JSON.stringify(varGrepExit2.out) : varGrepExit2.error.slice(-160))
-
-const varRealFail = await drive('F=/mercury-no-such-file-0x; cat "$F"')
-check('compound script ending in a real failure stays an error', !varRealFail.ok && /Exited with code 1/.test(varRealFail.error), varRealFail.ok ? JSON.stringify(varRealFail.out) : varRealFail.error.slice(-160))
-
-const trailingComment = await drive("F=alpha; printf '%s\\n' \"$F\" | grep nomatch;\n# trailing note")
-check('trailing semicolon and comment do not hide closing grep exit 1', trailingComment.ok && trailingComment.out.code === 1 && trailingComment.out.returnCodeInterpretation === 'no matches found', trailingComment.ok ? JSON.stringify(trailingComment.out) : trailingComment.error.slice(0, 200))
-
-const varTestFalse = await drive('F=/mercury-no-such-file-0x; [ -f "$F" ]')
-check('variable assignment followed by false [ test ] is a labelled result (exit 1)', varTestFalse.ok && varTestFalse.out.code === 1 && varTestFalse.out.returnCodeInterpretation === 'condition is false', varTestFalse.ok ? JSON.stringify(varTestFalse.out) : varTestFalse.error.slice(0, 200))
-
-const orGrep = await drive("false || printf 'alpha\\n' | grep nomatch")
-check('false || pipeline ending in unmatched grep guarantees grep ran and reads as no matches found', orGrep.ok && orGrep.out.code === 1 && orGrep.out.returnCodeInterpretation === 'no matches found', orGrep.ok ? JSON.stringify(orGrep.out) : orGrep.error.slice(0, 200))
-
-const simpleAndGrep = await drive('true && grep nomatch /dev/null')
-check('established simple path true && grep keeps no matches found (1.1.0 contract)', simpleAndGrep.ok && simpleAndGrep.out.code === 1 && simpleAndGrep.out.returnCodeInterpretation === 'no matches found', simpleAndGrep.ok ? JSON.stringify(simpleAndGrep.out) : simpleAndGrep.error.slice(0, 200))
-
-const shortCircuitAndPipe = await drive("F=$(printf 'alpha\\n'); false && printf '%s\\n' \"$F\" | grep nomatch")
-check('compound short-circuited false && pipeline ending in grep stays an error', !shortCircuitAndPipe.ok && /Exited with code 1/.test(shortCircuitAndPipe.error), shortCircuitAndPipe.ok ? JSON.stringify(shortCircuitAndPipe.out) : shortCircuitAndPipe.error.slice(-160))
-
-const earlyExitCompound = await drive("F=$(printf 'alpha\\n'); exit 1; printf '%s\\n' \"$F\" | grep nomatch")
-check('compound script with earlier exit 1 before closing grep stays an error', !earlyExitCompound.ok && /Exited with code 1/.test(earlyExitCompound.error), earlyExitCompound.ok ? JSON.stringify(earlyExitCompound.out) : earlyExitCompound.error.slice(-160))
-
-const quotedToken = await drive('cat /mercury-no-such-file-0x "foo; grep x"')
-check('a grep token inside quotes never turns a failing command into no matches', !quotedToken.ok && /Exited with code 1/.test(quotedToken.error), quotedToken.ok ? JSON.stringify(quotedToken.out) : quotedToken.error.slice(-160))
-
-const heredocToken = await drive("cat /mercury-no-such-file-0x <<EOF\ngrep nomatch /dev/null\nEOF")
-check('a grep line inside a heredoc never turns a failing command into no matches', !heredocToken.ok && /Exited with code 1/.test(heredocToken.error), heredocToken.ok ? JSON.stringify(heredocToken.out) : heredocToken.error.slice(-160))
-
-const nestedLoop = await drive("for x in a; do diff <(printf 'a\\n') <(printf 'b\\n'); done")
-check('a compound nested for-loop ending in diff stays an error (executing stage not established at top level)', !nestedLoop.ok && /Exited with code 1/.test(nestedLoop.error), nestedLoop.ok ? JSON.stringify(nestedLoop.out) : nestedLoop.error.slice(-160))
-
-const errexitSeen = await drive("set -e; false; printf 'the shell went on after false\\n'")
-const errexitHolds = !(errexitSeen.ok && errexitSeen.out.stdout.includes('the shell went on after false'))
-const errexitFail = await drive("F=$(printf 'alpha\\n'); set -e; false; printf '%s\\n' \"$F\" | grep nomatch")
-check(
-  `compound set -e earlier failure before closing grep: ${errexitHolds ? 'the shell left at false, so it stays an error' : 'this shell ran on past false (seen through the same tool), so grep ran last and it is no matches found'}`,
-  errexitHolds ? !errexitFail.ok && /Exited with code 1/.test(errexitFail.error) : errexitFail.ok && errexitFail.out.code === 1 && errexitFail.out.returnCodeInterpretation === 'no matches found',
-  errexitFail.ok ? JSON.stringify(errexitFail.out) : errexitFail.error.slice(-160),
-)
-
-const pipefailFail = await drive("F=$(printf 'hit\\n'); set -o pipefail; (printf '%s\\n' \"$F\"; exit 1) | grep hit")
-check('compound set -o pipefail earlier pipeline failure before matching grep stays an error', !pipefailFail.ok && /Exited with code 1/.test(pipefailFail.error), pipefailFail.ok ? JSON.stringify(pipefailFail.out) : pipefailFail.error.slice(-160))
-
-const negatedGrep = await drive("F=$(printf 'hit\\n'); ! printf '%s\\n' \"$F\" | grep hit")
-check('compound negated pipeline ! grep (exit 1 means matched) stays an error', !negatedGrep.ok && /Exited with code 1/.test(negatedGrep.error), negatedGrep.ok ? JSON.stringify(negatedGrep.out) : negatedGrep.error.slice(-160))
-
-const loopExitBeforeDiff = await drive('for x in a; do exit 1; done; diff <(printf same) <(printf same)')
-check('compound for-loop calling exit 1 before closing diff stays an error (never says files differ)', !loopExitBeforeDiff.ok && /Exited with code 1/.test(loopExitBeforeDiff.error), loopExitBeforeDiff.ok ? JSON.stringify(loopExitBeforeDiff.out) : loopExitBeforeDiff.error.slice(-160))
-
-const loopColonDiff = await drive('for x in a; do :; done; diff <(printf left) <(printf right)')
-check('compound for-loop with benign : before differing diff reads as files differ (exit 1)', loopColonDiff.ok && loopColonDiff.out.code === 1 && loopColonDiff.out.returnCodeInterpretation === 'files differ', loopColonDiff.ok ? JSON.stringify(loopColonDiff.out) : loopColonDiff.error.slice(0, 200))
-
-const loopDynamicBeforeDiff = await drive('c=exit; for x in a; do "$c" 1; done; diff <(printf same) <(printf same)')
-check('compound for-loop with dynamic command before closing diff stays an error', !loopDynamicBeforeDiff.ok && /Exited with code 1/.test(loopDynamicBeforeDiff.error), loopDynamicBeforeDiff.ok ? JSON.stringify(loopDynamicBeforeDiff.out) : loopDynamicBeforeDiff.error.slice(-160))
-
-const paramAbortBeforeDiff = await drive('F=$(printf x); : "${MERCURY_UNSET_PROBE_0X:?missing}"; diff <(printf same) <(printf same)')
-check('compound prefix parameter-error abort before closing diff stays an error', !paramAbortBeforeDiff.ok && /Exited with code 1/.test(paramAbortBeforeDiff.error), paramAbortBeforeDiff.ok ? JSON.stringify(paramAbortBeforeDiff.out) : paramAbortBeforeDiff.error.slice(-160))
-
-const arithAbortBeforeDiff = await drive('F=$((1/0)); diff <(printf same) <(printf same)')
-check('compound prefix arithmetic-error abort before closing diff stays an error', !arithAbortBeforeDiff.ok && /Exited with code 1/.test(arithAbortBeforeDiff.error), arithAbortBeforeDiff.ok ? JSON.stringify(arithAbortBeforeDiff.out) : arithAbortBeforeDiff.error.slice(-160))
-
 const WIRED_HINT = 'the shell marks that it reached the closing command and that the script then ended on 1 (marksTheClosing and marksAnEndOnOne in src/platform/shell/bashProvider.ts, read by readClosingMarks in src/platform/shell/shellExec.ts); interpretCommandResult in src/tools/shell/commandSemantics.ts reads exit 1 as a result only with both marks'
 
 if (process.platform === 'win32') {
-  console.log('\n  [SKIP — LOUD] the bash road of Windows carries no closing marks: its readings are those of §1 to §5')
+  console.log('\n  [SKIP — LOUD] the bash road of Windows carries no closing marks: its readings are those of §1 to §4')
 } else {
+  section('§5 compound scripts with variables, substitutions, loops and short-circuit guards')
+  const varGrepNoMatch = await drive("F=$(printf 'alpha\\nbeta\\n'); printf '%s\\n' \"$F\" | grep -c nomatch")
+  check('variables + command substitution ending in unmatched grep is a labelled result (exit 1)', varGrepNoMatch.ok && varGrepNoMatch.out.code === 1 && varGrepNoMatch.out.returnCodeInterpretation === 'no matches found' && varGrepNoMatch.out.exitNote === 'no matches found (exit code 1)' && varGrepNoMatch.content.endsWith('no matches found (exit code 1)') && !varGrepNoMatch.content.includes('Exited with code') && varGrepNoMatch.out.stdout.trim() === '0', varGrepNoMatch.ok ? JSON.stringify(varGrepNoMatch.out) : varGrepNoMatch.error.slice(0, 200))
+
+  const loopDiffDiffer = await drive("for x in one two; do printf '%s\\n' \"$x\" >/dev/null; done; diff <(printf 'left\\n') <(printf 'right\\n')")
+  check('for-loop followed by diff of differing process substitutions is a labelled result (exit 1)', loopDiffDiffer.ok && loopDiffDiffer.out.code === 1 && loopDiffDiffer.out.returnCodeInterpretation === 'files differ' && loopDiffDiffer.out.exitNote === 'files differ (exit code 1)' && loopDiffDiffer.content.endsWith('files differ (exit code 1)') && !loopDiffDiffer.content.includes('Exited with code'), loopDiffDiffer.ok ? JSON.stringify(loopDiffDiffer.out) : loopDiffDiffer.error.slice(0, 200))
+
+  const varGrepMatch = await drive("F=$(printf 'alpha\\nbeta\\n'); printf '%s\\n' \"$F\" | grep -c alpha")
+  check('variables + command substitution ending in matching grep exits 0 with no exit note', varGrepMatch.ok && varGrepMatch.out.code === 0 && varGrepMatch.out.exitNote === undefined && varGrepMatch.out.stdout.trim() === '1', varGrepMatch.ok ? JSON.stringify(varGrepMatch.out) : varGrepMatch.error.slice(0, 200))
+
+  const loopDiffSame = await drive("for x in one two; do printf '%s\\n' \"$x\" >/dev/null; done; diff <(printf 'same\\n') <(printf 'same\\n')")
+  check('for-loop followed by identical diff exits 0 with no exit note', loopDiffSame.ok && loopDiffSame.out.code === 0 && loopDiffSame.out.exitNote === undefined, loopDiffSame.ok ? JSON.stringify(loopDiffSame.out) : loopDiffSame.error.slice(0, 200))
+
+  const varGrepExit2 = await drive("F=$(printf 'alpha\\n'); printf '%s\\n' \"$F\" | grep --mercury-no-such-flag alpha")
+  check('compound script ending in grep exit 2 stays an error', !varGrepExit2.ok && /Exited with code 2/.test(varGrepExit2.error), varGrepExit2.ok ? JSON.stringify(varGrepExit2.out) : varGrepExit2.error.slice(-160))
+
+  const varRealFail = await drive('F=/mercury-no-such-file-0x; cat "$F"')
+  check('compound script ending in a real failure stays an error', !varRealFail.ok && /Exited with code 1/.test(varRealFail.error), varRealFail.ok ? JSON.stringify(varRealFail.out) : varRealFail.error.slice(-160))
+
+  const trailingComment = await drive("F=alpha; printf '%s\\n' \"$F\" | grep nomatch;\n# trailing note")
+  check('trailing semicolon and comment do not hide closing grep exit 1', trailingComment.ok && trailingComment.out.code === 1 && trailingComment.out.returnCodeInterpretation === 'no matches found', trailingComment.ok ? JSON.stringify(trailingComment.out) : trailingComment.error.slice(0, 200))
+
+  const varTestFalse = await drive('F=/mercury-no-such-file-0x; [ -f "$F" ]')
+  check('variable assignment followed by false [ test ] is a labelled result (exit 1)', varTestFalse.ok && varTestFalse.out.code === 1 && varTestFalse.out.returnCodeInterpretation === 'condition is false', varTestFalse.ok ? JSON.stringify(varTestFalse.out) : varTestFalse.error.slice(0, 200))
+
+  const orGrep = await drive("false || printf 'alpha\\n' | grep nomatch")
+  check('false || pipeline ending in unmatched grep guarantees grep ran and reads as no matches found', orGrep.ok && orGrep.out.code === 1 && orGrep.out.returnCodeInterpretation === 'no matches found', orGrep.ok ? JSON.stringify(orGrep.out) : orGrep.error.slice(0, 200))
+
+  const simpleAndGrep = await drive('true && grep nomatch /dev/null')
+  check('established simple path true && grep keeps no matches found (1.1.0 contract)', simpleAndGrep.ok && simpleAndGrep.out.code === 1 && simpleAndGrep.out.returnCodeInterpretation === 'no matches found', simpleAndGrep.ok ? JSON.stringify(simpleAndGrep.out) : simpleAndGrep.error.slice(0, 200))
+
+  const shortCircuitAndPipe = await drive("F=$(printf 'alpha\\n'); false && printf '%s\\n' \"$F\" | grep nomatch")
+  check('compound short-circuited false && pipeline ending in grep stays an error', !shortCircuitAndPipe.ok && /Exited with code 1/.test(shortCircuitAndPipe.error), shortCircuitAndPipe.ok ? JSON.stringify(shortCircuitAndPipe.out) : shortCircuitAndPipe.error.slice(-160))
+
+  const earlyExitCompound = await drive("F=$(printf 'alpha\\n'); exit 1; printf '%s\\n' \"$F\" | grep nomatch")
+  check('compound script with earlier exit 1 before closing grep stays an error', !earlyExitCompound.ok && /Exited with code 1/.test(earlyExitCompound.error), earlyExitCompound.ok ? JSON.stringify(earlyExitCompound.out) : earlyExitCompound.error.slice(-160))
+
+  const quotedToken = await drive('cat /mercury-no-such-file-0x "foo; grep x"')
+  check('a grep token inside quotes never turns a failing command into no matches', !quotedToken.ok && /Exited with code 1/.test(quotedToken.error), quotedToken.ok ? JSON.stringify(quotedToken.out) : quotedToken.error.slice(-160))
+
+  const heredocToken = await drive("cat /mercury-no-such-file-0x <<EOF\ngrep nomatch /dev/null\nEOF")
+  check('a grep line inside a heredoc never turns a failing command into no matches', !heredocToken.ok && /Exited with code 1/.test(heredocToken.error), heredocToken.ok ? JSON.stringify(heredocToken.out) : heredocToken.error.slice(-160))
+
+  const nestedLoop = await drive("for x in a; do diff <(printf 'a\\n') <(printf 'b\\n'); done")
+  check('a compound nested for-loop ending in diff stays an error (executing stage not established at top level)', !nestedLoop.ok && /Exited with code 1/.test(nestedLoop.error), nestedLoop.ok ? JSON.stringify(nestedLoop.out) : nestedLoop.error.slice(-160))
+
+  const errexitSeen = await drive("set -e; false; printf 'the shell went on after false\\n'")
+  const errexitHolds = !(errexitSeen.ok && errexitSeen.out.stdout.includes('the shell went on after false'))
+  const errexitFail = await drive("F=$(printf 'alpha\\n'); set -e; false; printf '%s\\n' \"$F\" | grep nomatch")
+  check(
+    `compound set -e earlier failure before closing grep: ${errexitHolds ? 'the shell left at false, so it stays an error' : 'this shell ran on past false (seen through the same tool), so grep ran last and it is no matches found'}`,
+    errexitHolds ? !errexitFail.ok && /Exited with code 1/.test(errexitFail.error) : errexitFail.ok && errexitFail.out.code === 1 && errexitFail.out.returnCodeInterpretation === 'no matches found',
+    errexitFail.ok ? JSON.stringify(errexitFail.out) : errexitFail.error.slice(-160),
+  )
+
+  const pipefailFail = await drive("F=$(printf 'hit\\n'); set -o pipefail; (printf '%s\\n' \"$F\"; exit 1) | grep hit")
+  check('compound set -o pipefail earlier pipeline failure before matching grep stays an error', !pipefailFail.ok && /Exited with code 1/.test(pipefailFail.error), pipefailFail.ok ? JSON.stringify(pipefailFail.out) : pipefailFail.error.slice(-160))
+
+  const negatedGrep = await drive("F=$(printf 'hit\\n'); ! printf '%s\\n' \"$F\" | grep hit")
+  check('compound negated pipeline ! grep (exit 1 means matched) stays an error', !negatedGrep.ok && /Exited with code 1/.test(negatedGrep.error), negatedGrep.ok ? JSON.stringify(negatedGrep.out) : negatedGrep.error.slice(-160))
+
+  const loopExitBeforeDiff = await drive('for x in a; do exit 1; done; diff <(printf same) <(printf same)')
+  check('compound for-loop calling exit 1 before closing diff stays an error (never says files differ)', !loopExitBeforeDiff.ok && /Exited with code 1/.test(loopExitBeforeDiff.error), loopExitBeforeDiff.ok ? JSON.stringify(loopExitBeforeDiff.out) : loopExitBeforeDiff.error.slice(-160))
+
+  const loopColonDiff = await drive('for x in a; do :; done; diff <(printf left) <(printf right)')
+  check('compound for-loop with benign : before differing diff reads as files differ (exit 1)', loopColonDiff.ok && loopColonDiff.out.code === 1 && loopColonDiff.out.returnCodeInterpretation === 'files differ', loopColonDiff.ok ? JSON.stringify(loopColonDiff.out) : loopColonDiff.error.slice(0, 200))
+
+  const loopDynamicBeforeDiff = await drive('c=exit; for x in a; do "$c" 1; done; diff <(printf same) <(printf same)')
+  check('compound for-loop with dynamic command before closing diff stays an error', !loopDynamicBeforeDiff.ok && /Exited with code 1/.test(loopDynamicBeforeDiff.error), loopDynamicBeforeDiff.ok ? JSON.stringify(loopDynamicBeforeDiff.out) : loopDynamicBeforeDiff.error.slice(-160))
+
+  const paramAbortBeforeDiff = await drive('F=$(printf x); : "${MERCURY_UNSET_PROBE_0X:?missing}"; diff <(printf same) <(printf same)')
+  check('compound prefix parameter-error abort before closing diff stays an error', !paramAbortBeforeDiff.ok && /Exited with code 1/.test(paramAbortBeforeDiff.error), paramAbortBeforeDiff.ok ? JSON.stringify(paramAbortBeforeDiff.out) : paramAbortBeforeDiff.error.slice(-160))
+
+  const arithAbortBeforeDiff = await drive('F=$((1/0)); diff <(printf same) <(printf same)')
+  check('compound prefix arithmetic-error abort before closing diff stays an error', !arithAbortBeforeDiff.ok && /Exited with code 1/.test(arithAbortBeforeDiff.error), arithAbortBeforeDiff.ok ? JSON.stringify(arithAbortBeforeDiff.out) : arithAbortBeforeDiff.error.slice(-160))
+
   section('§6 exit 1 is a result only when the closing command ran last (each command runs in the real shell, through the tool)')
   type Want = 'error' | 'ok' | 'no matches found' | 'files differ' | 'condition is false'
   const RAN_LAST: Array<[string, string, Want, { timeout?: number }?]> = [
