@@ -3,7 +3,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { startMicrotask, startTimeout, stopTimeout } from '../../../platform/async/timers.js'
-import { subprocessEnv } from '../../../platform/processes/subprocessEnv.js'
+
 const MAX_LINE_BUFFER_BYTES = 8 * 1024 * 1024
 const EXIT_CLOSE_BACKSTOP_MS = 1_500
 const STDERR_TAIL_BYTES = 4_096
@@ -29,7 +29,7 @@ export function realNdjsonChild(
   const child: ChildProcess = spawn(cmd, args, {
     windowsHide: true,
     cwd: opts.cwd,
-    env: opts.env ?? subprocessEnv(),
+    env: opts.env,
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   const lineListeners = new Set<(line: string) => void>()

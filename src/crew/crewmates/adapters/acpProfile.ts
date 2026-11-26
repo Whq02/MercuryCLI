@@ -18,9 +18,8 @@ import { getCwd } from '../../../platform/files/cwd.js'
 import { getPathsForPermissionCheck } from '../../../platform/files/fsOperations.js'
 import { localPath } from '../../../platform/files/path.js'
 import { nativePathToShell } from '../../../platform/host-os/paths.js'
-import { envVarKey } from '../../../platform/host-os/spawn.js'
 import { isRecord } from '../../../platform/primitives/isRecord.js'
-import { subprocessEnv } from '../../../platform/processes/subprocessEnv.js'
+import { devinCliChildEnv, subprocessEnv } from '../../../platform/processes/subprocessEnv.js'
 import {
   isExternalPermissionOptionKind,
   sanitizeExternalCardText,
@@ -128,17 +127,6 @@ function acpDeclaredCapabilities(
     'usage-totals': { state: 'unknown', source: 'acp:usage_update is not in every agent — unnegotiated' },
     'artifact-replies': { state: 'unsupported', source: 'acp:no artifact-thread vocabulary in v1' },
   }
-}
-
-function childEnvFor(adapterKind: AcpAdapterKind): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...subprocessEnv({ stripProviderCredentials: adapterKind === 'devin' }) }
-  if (adapterKind === 'devin') {
-    const blocked = envVarKey('WINDSURF_API_KEY')
-    for (const key of Object.keys(env)) {
-      if (envVarKey(key) === blocked) delete env[key]
-    }
-  }
-  return env
 }
 
 function streamOfNdjsonChild(c: NdjsonChildLike): Stream {
@@ -597,7 +585,8 @@ function ensureChild(state: AcpClientState): { c: NdjsonChildLike; conn: ClientC
   if (state.child && state.conn) return { c: state.child, conn: state.conn, gen: state.childGen }
   const [cmd, ...args] = state.command
   const gen = ++state.childGen
-  const c = state.spawnImpl(cmd, args, { cwd: state.seatCwd, env: childEnvFor(state.adapterKind) })
+  const env = state.adapterKind === 'devin' ? devinCliChildEnv() : subprocessEnv()
+  const c = state.spawnImpl(cmd, args, { cwd: state.seatCwd, env })
   const app = acpClientApp({ name: 'mercury' })
     .onRequest('session/request_permission', ctx =>
       handlePermissionRequest(state, c, gen, ctx.requestId, ctx.params, ctx.signal),

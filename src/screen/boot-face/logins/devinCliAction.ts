@@ -3,10 +3,9 @@ import { readSync } from 'node:fs'
 import { startTimeout } from '../../../platform/async/timers.js'
 import { errorMessage } from '../../../platform/errors/errors.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
-import { envVarKey } from '../../../platform/host-os/spawn.js'
 import { markConsoleLent, markConsoleReturned } from '../../../platform/processes/process.js'
 import { hostSpawnWorld, spawnPlanOf, type SpawnWorld } from '../../../platform/processes/spawnPlan.js'
-import { subprocessEnv } from '../../../platform/processes/subprocessEnv.js'
+import { devinCliChildEnv } from '../../../platform/processes/subprocessEnv.js'
 import { reclaimTerminalAfterChild } from '../../../platform/shell/terminalHandback.js'
 import { drainStdin } from '../../renderer/instance/stdin.js'
 import instances from '../../renderer/instances.js'
@@ -147,15 +146,6 @@ function outcomeOf(
     ok: true,
     receipt: `devin auth ${action} finished (exit 0).`,
   }
-}
-
-function devinCliChildEnv(platform: string): NodeJS.ProcessEnv {
-  const clone: NodeJS.ProcessEnv = { ...subprocessEnv({ stripProviderCredentials: true, platform }) }
-  const blocked = envVarKey('WINDSURF_API_KEY', platform)
-  for (const key of Object.keys(clone)) {
-    if (envVarKey(key, platform) === blocked) delete clone[key]
-  }
-  return clone
 }
 
 export async function runDevinCliAction(
