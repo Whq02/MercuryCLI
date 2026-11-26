@@ -72,7 +72,7 @@ const RESIZE_STOPS: Array<[number, number]> = [[64, 20], [100, 30], [177, 49]]
 const NOT_A_VIEW = new Set(['exit', 'logout', 'zen', 'keysetup', 'rename', 'title', 'crewmates', 'browse', 'goal', 'copy'])
 const TEXT_ROUTES = ['goal', 'copy']
 const MARK: Readonly<Record<string, string>> = {
-  defaultprovider: 'Default provider', hooks: 'configured hook', permissions: 'Permissions:', export: 'Export conversation',
+  defaultprovider: 'Default provider', hooks: 'configured hook', permissions: 'Permissions:', export: 'Export conversation', schedule: 'Mercury — saturn',
   keys: 'input atlas', workbench: 'Mercury — prompts', console: 'Mercury — console', sessions: 'Mercury · resume', mcp: 'Mercury · mcp', goal: 'Goal',
   context: 'Mercury — context', feedback: 'Feedback — which kind', samples: 'SAMPLES · this session',
 }
@@ -158,7 +158,7 @@ const commands = await getCommands(process.cwd())
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 const routes = commands.filter(command => command.type === 'local-jsx' && !NOT_A_VIEW.has(command.name) && (onlyRoute === undefined || command.name === onlyRoute))
 console.log(`routes: ${routes.map(command => command.name).join(' ')}`)
-const expectedRoutes = ['agents', 'appearance', 'caching', 'capabilities', 'context', 'critter', 'daemon', 'defaultprovider', 'diff', 'effort', 'export', 'extensions', 'feedback', 'health', 'help', 'hooks', 'keys', 'logins', 'mcp', 'memory', 'model', 'palette', 'permissions', 'run', 'runs', 'samples', 'saturn', 'sessions', 'skills', 'submodels', 'trace', 'workbench']
+const expectedRoutes = ['agents', 'appearance', 'caching', 'capabilities', 'context', 'critter', 'daemon', 'defaultprovider', 'diff', 'effort', 'export', 'extensions', 'feedback', 'health', 'help', 'hooks', 'keys', 'logins', 'mcp', 'memory', 'model', 'palette', 'permissions', 'run', 'runs', 'samples', 'schedule', 'sessions', 'skills', 'submodels', 'trace', 'workbench']
 if (onlyRoute === undefined) check('every view route the compositor census knows is in the walk (the nine that never paint a view are named)', expectedRoutes.every(name => routes.some(command => command.name === name)), expectedRoutes.filter(name => !routes.some(command => command.name === name)).join(' '))
 
 const sessionFile = workerTranscriptPath({ sessionId: SEED_SESSION, workspaceId: process.cwd() })

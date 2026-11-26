@@ -60,8 +60,8 @@ const textOf = (grid: Grid | undefined): string[] => (grid ?? []).map(row => row
 
 const toTheChat: Send[] = [
   { awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, awaitSettleTicks: 2, data: '\r' },
-  { awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2, data: '/saturn' },
-  { awaitText: 'Schedules — next fire', requireAwait: true, awaitSettleTicks: 2, data: '\r' },
+  { awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2, data: '/schedule' },
+  { awaitText: 'Schedules (Saturn): the board', requireAwait: true, awaitSettleTicks: 2, data: '\r' },
   { awaitText: LEGEND, requireAwait: true, awaitSettleTicks: 4, data: '', mark: 'saturn' },
 ]
 const onTheFace: Send[] = [{ awaitText: LEGEND, requireAwait: true, awaitSettleTicks: 4, data: '', mark: 'saturn' }]
@@ -101,7 +101,7 @@ async function capture(cols: number, rows: number, scene: { name: string; door: 
       child.on('close', code => { clearTimeout(deadline); resolveRun({ code, text }) })
     })
     const captured = (existsSync(output) ? JSON.parse(readFileSync(output, 'utf8')) : {}) as { marks?: Array<{ label: string; grid: Grid }>; sendReceipts?: unknown[] }
-    check(`${cols}x${rows} ${scene.name}: the drive reached the Saturn page`, result.code === 0 && captured.sendReceipts?.length === sends.length, `an awaited text never painted (${scene.door ? 'the splash receipt opens the page on the face' : '/saturn typed in a new chat'}); the output tail reads: ${result.text.trim().slice(-700)}`)
+    check(`${cols}x${rows} ${scene.name}: the drive reached the Saturn page`, result.code === 0 && captured.sendReceipts?.length === sends.length, `an awaited text never painted (${scene.door ? 'the splash receipt opens the page on the face' : '/schedule typed in a new chat'}); the output tail reads: ${result.text.trim().slice(-700)}`)
     const grid = captured.marks?.find(m => m.label === 'saturn')?.grid
     const frame = textOf(grid)
     if (framesDir !== undefined) {
@@ -137,7 +137,7 @@ try {
     check(
       door
         ? `${cols}x${rows} ${name}: the page opens in the classic layout (its title row and its legend)`
-        : `${cols}x${rows} ${name}: /saturn opens in the pop-up (its title row and its legend, no (>_) classic banner)`,
+        : `${cols}x${rows} ${name}: /schedule opens in the pop-up (its title row and its legend, no (>_) classic banner)`,
       page.length > 0 && (door || !frame.some(r => r.includes('(>_)'))),
       `the title row "${titleNeedle}" and the legend must both paint; the frame reads: ${shown(frame).slice(0, 600)}`,
     )
@@ -153,7 +153,7 @@ try {
     check(`${cols}x${rows} wide: the words stand once, in the detail pane beside the empty list box`, at >= 0 && /╭─+╮\s+$/.test(frame[at]!.slice(0, col)) && countOf(squash(frame.join('\n')), WORDS[0]!) === 1 && inOrder(squash(pane.join('\n')), WORDS) && !frame.some(r => r.includes(CLASSIC_TITLE)), `the wide layout draws the board's detail pane right of the list box, and nothing else of it (composeBootMenuWide in assets/splash/splash-core.mjs reads detailOverride, never noticeLine); the frame reads: ${shown(frame).slice(0, 900)}`)
     check(`${cols}x${rows} wide: the facts block, the status line and the legend keep their places under the pane`, facts > 0 && /^Next fire\s+—/.test(pane[facts + 1] ?? '') && /^Held\s+0\b/.test(pane[facts + 2] ?? '') && /^Sessions\s+\d+ live\b/.test(pane[facts + 3] ?? '') && frame.some(r => /^\s+no (schedules on \d+ live sessions?|live sessions hold schedules)\s*$/.test(r)) && frame.some(r => r.includes(LEGEND)), `the summary rows (saturnSummaryRows) and the status line (saturnStatusLine) of src/screen/boot-face/BootSaturnScreen.tsx keep their places in the wide layout; the pane reads: ${shown(pane)}`)
   }
-  check('the Saturn page made no model call', fixture.messageRequests().length === 0, 'opening /saturn and the face door must stay on the page; a key reached the model API')
+  check('the Saturn page made no model call', fixture.messageRequests().length === 0, 'opening /schedule and the face door must stay on the page; a key reached the model API')
 } finally {
   await fixture.close()
 }

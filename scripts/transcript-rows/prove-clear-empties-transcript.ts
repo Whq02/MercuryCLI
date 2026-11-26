@@ -86,7 +86,7 @@ try {
       t('keyed: the cleared USER prompt is off the glass', !paneHas('why does the manifest pin zod?'))
       t('keyed: the cleared THINKING text is off the glass', !paneHas('The manifest'))
       t('keyed: the cleared REPLY text is off the glass', !paneHas('The pin keeps'))
-      t('keyed: the fresh-session welcome returned (home card)', paneHas('/crewmates  /saturn  /health  /trace'))
+      t('keyed: the fresh-session welcome returned (home card)', paneHas('/crewmates  /schedule  /health  /trace'))
       t('keyed: the BORN chat is the focused one (its ready model status row)', rows.some(r => /^\s*ready · .+← back/.test(r)))
       t('keyed: POISON — the Boot face never took the frame', !has('New Session in '))
     }
@@ -136,7 +136,7 @@ try {
           sends: [
             { atTick: 999, awaitText: 'ready · ', minTick: 10, awaitSettleTicks: 4, data: '/clear' },
             { afterPrevTicks: 4, data: '\r' },
-            { data: 'after the clear: run it\r', awaitText: '/crewmates  /saturn  /health  /trace', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
+            { data: 'after the clear: run it\r', awaitText: '/crewmates  /schedule  /health  /trace', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
             { data: '', atTick: 999, awaitText: 'Running 1 bash command', requireAwait: true, minTick: 4, awaitSettleTicks: 2, mark: 'mid-turn' },
             { data: '', atTick: 999, awaitText: 'CLEARED-TURN-DONE', requireAwait: true, minTick: 4, awaitSettleTicks: 3, mark: 'later' },
           ],

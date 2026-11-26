@@ -2538,7 +2538,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: ['node', BIN, '--resume', SID],
       sends: [
-        { atTick: 30, data: '/saturn' },
+        { atTick: 30, data: '/schedule' },
         { atTick: 36, data: '\r' },
         { atTick: 44, data: '\u001b[B' },
         { atTick: 46, data: '\u001b[B' },

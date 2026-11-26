@@ -414,7 +414,7 @@ Where you land: every start with no explicit journey lands on the home screen
 (New Session · Continue Last Session, once session history exists ·
 Logins/Keys · Session Manager (Concourse) · Boot Menu, where MCPs & Skills and
 Agents live for the next session · Profiles; inside a chat, use `/health`,
-`/saturn`, and `/sessions`) whether Mercury was started as
+`/schedule`, and `/sessions`) whether Mercury was started as
 `node dist\mercury.mjs` or through the `mercury` launcher of a release
 install. Starting with a prompt argument, `--continue`, or `--resume` goes
 straight into the chat. Inside the chat, shift+← walks back to the concourse

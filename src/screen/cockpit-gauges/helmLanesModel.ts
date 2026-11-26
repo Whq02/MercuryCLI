@@ -241,9 +241,9 @@ function shedCommandOf(key: string): string {
   if (key === 'work') return '/workbench'
   if (key === 'files') return '/browse'
   if (key === 'mission') return '/goal'
+  if (key === 'saturn') return '/schedule'
   return `/${key}`
 }
-
 function shedPointerOf(shed: readonly string[]): string {
   return '  more: ' + [...new Set(shed.map(shedCommandOf))].join(' · ')
 }
