@@ -7,6 +7,10 @@ export function isTerminalApplication(app: DesktopApplication): boolean {
   return process.platform === 'darwin' && TERMINALS.has(app.identity)
 }
 
+export function wantsTerminalText(app: DesktopApplication, input: { pixels?: boolean; full?: boolean; display?: number; region?: unknown }): boolean {
+  return isTerminalApplication(app) && !input.pixels && !input.full && input.display === undefined && input.region === undefined
+}
+
 function terminalTextWords(app: DesktopApplication, value: DesktopFocusedText): string {
   const range = value.visibleRange
   const visible = range && Number.isInteger(range.location) && Number.isInteger(range.length) && range.location >= 0 && range.length >= 0 && range.location + range.length <= value.text.length
