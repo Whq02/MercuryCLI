@@ -21,7 +21,7 @@ import { childGetsOwnProcessGroup } from '../host-os/processes.js'
 import { WINDOWS_STARTS_A_PROGRAM_IN, folderWindowsStartsIn, windowsPathToPosixPath } from '../files/windowsPaths.js'
 import { getGlobPreambleCommand } from './globPreamble.js'
 import { carriedByFile, msysArgvCarries, msysSourceLine, protectBackslashRunsFromMsysArgv } from './msysArgv.js'
-import type { BuildExecCommandOptions, FrameHandOver, ShellProvider } from './shellProvider.js'
+import type { BuildExecCommandOptions, ClosingPlace, FrameHandOver, ShellProvider } from './shellProvider.js'
 import { PIPELINE_STATUS_ARRAY, loginFilesNotCarried, type ShellRecord } from './shellRecord.js'
 import { passedOverAs } from '../errors/passedOver.js'
 
@@ -49,6 +49,26 @@ function msysSpawnArgs(commandString: string, noLoginFiles: boolean): string[] {
 
 function markFrameRead(cwdFileInShell: string): string {
   return `{ : >| ${quote([cwdFileInShell])}; } 2>/dev/null`
+}
+
+const RUNS_NOTHING = 'for __mercury_none in; do :; done'
+
+const SEES_THE_MARK = /\bDEBUG\b|\bBASH_XTRACEFD\b|\bverbose\b|\bset\b[^;&|\n]*\s-[A-Za-z]*v/
+const READS_THE_LAST_STATUS = /\$\{?\?/
+
+function closingToMark(command: string, closing: ClosingPlace | undefined): ClosingPlace | undefined {
+  if (closing === undefined || SEES_THE_MARK.test(command) || READS_THE_LAST_STATUS.test(command.slice(closing.at))) return undefined
+  return closing
+}
+
+function marksTheClosing(reachedPath: string, after: ClosingPlace['after']): string {
+  const mark = `{ ${RUNS_NOTHING} 2>/dev/null >| ${quote([reachedPath])} || ${RUNS_NOTHING}; }`
+  return after === '||' ? `! ${mark} || ` : `${mark} && `
+}
+
+function marksAnEndOnOne(endedOnOnePath: string, id: number | string): string {
+  const other = `__mercury_${String(id).replace(/\W/g, '_')}`
+  return `{ for ${other} in \${?#1}; do builtin exit "$?"; done 2>/dev/null && ! { ${RUNS_NOTHING} 2>/dev/null >| ${quote([endedOnOnePath])} || ${RUNS_NOTHING}; }; }`
 }
 
 export async function createBashShellProvider(
@@ -83,8 +103,14 @@ export async function createBashShellProvider(
       const cwdFile = cwdFileName(opts.id)
       const cwdFileNative = join(tmpdir(), cwdFile)
       const cwdFileInShell = isWindows ? windowsPathToPosixPath(cwdFileNative) : cwdFileNative
-      const preparedCommand = rewriteWindowsNullRedirect(command)
-      const pipelineStatusPath = preparedCommand.includes('|') ? `${cwdFileInShell}-pipeline` : undefined
+      const closing = isWindows ? undefined : closingToMark(command, opts.closing)
+      const closingMarks = closing === undefined ? undefined : { reached: `${cwdFileInShell}-closing`, endedOnOne: `${cwdFileInShell}-closing-1` }
+      const preparedCommand = rewriteWindowsNullRedirect(
+        closing === undefined || closingMarks === undefined
+          ? command
+          : `${command.slice(0, closing.at)}${marksTheClosing(closingMarks.reached, closing.after)}${command.slice(closing.at)}`,
+      )
+      const pipelineStatusPath = command.includes('|') ? `${cwdFileInShell}-pipeline` : undefined
       const jobsPath = isWindows && STARTS_A_JOB.test(command) ? `${cwdFileInShell}-jobs` : undefined
 
       const parts: string[] = []
@@ -128,7 +154,7 @@ export async function createBashShellProvider(
         parts.push(`{ pwd -W >> ${quotedCwdFile} 2>/dev/null || true; }`)
       }
 
-      const frame = parts.join(' && ')
+      const frame = closingMarks === undefined ? parts.join(' && ') : `${parts.join(' && ')} || ${marksAnEndOnOne(closingMarks.endedOnOne, opts.id)}`
       const prefix = shellPrefix()
       const wrapped = prefix
         ? formatShellPrefixCommand(prefix, isWindows ? frame : shellStartLine(record.path, frame))
@@ -167,6 +193,7 @@ export async function createBashShellProvider(
       return {
         commandString,
         cwdFilePath: cwdFileInShell,
+        ...(closingMarks !== undefined ? { closingMarks } : {}),
         ...(pipelineStatusPath !== undefined ? { pipelineStatusPath } : {}),
         ...(jobsPath !== undefined ? { jobsPath } : {}),
         ...(handOver !== undefined ? { handOver } : {}),

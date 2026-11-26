@@ -24,7 +24,7 @@ import { getInitialSettings } from '../settings/settings.js'
 import { getCachedPowerShellPath } from './powershellDetection.js'
 import { createPowerShellProvider } from './powershellProvider.js'
 import type { ShellProvider, ShellType } from './shellProvider.js'
-import type { FrameHandOver } from './shellProvider.js'
+import type { ClosingPlace, FrameHandOver } from './shellProvider.js'
 import { fallbackEngineBinary, systemShellRecord } from './shellRecord.js'
 import { wrapSpawn, createAbortedCommand, createFailedCommand, type ExecResult, type ShellCommand } from './shellProcess.js'
 import { noteMsysGroupLeftBehind, noteShellOfThisProcess, tellProcessGroupTheShell, tellWhatProcessGroupEnds } from '../processes/processGroup.js'
@@ -288,6 +288,7 @@ const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000
 
 type ExecOptions = {
   backgroundIntent?: boolean
+  closing?: ClosingPlace
   cwd?: string
   inheritSessionEnv?: boolean
   onProgress?: (recentLines: string, allLines: string, numLines: number, numBytes: number, incomplete: boolean) => void
@@ -357,7 +358,7 @@ async function execOnARoad(
   }
 
   const road = await spawnRoad(shellType)
-  const frame = await road.provider.buildExecCommand(command, { id: randomBytes(6).toString('hex') })
+  const frame = await road.provider.buildExecCommand(command, { id: randomBytes(6).toString('hex'), ...(options.closing === undefined ? {} : { closing: options.closing }) })
   const runFolder = runFolderFor(asked, notes)
   if (typeof runFolder !== 'string') return runFolder
   if (frame.handOver === undefined) {
@@ -544,6 +545,7 @@ function afterTheCommand(run: ThirdRoad, result: ExecResult): void {
   if (handOver !== undefined && road.provider.origin !== 'engine') ranUnderABashOfWindows.add(result)
   const cwdFile = shellPathToNative(frame.cwdFilePath)
   followShellFolder(run, result, cwdFile)
+  if (frame.closingMarks !== undefined) readClosingMarks(result, shellPathToNative(frame.closingMarks.reached), shellPathToNative(frame.closingMarks.endedOnOne))
   if (frame.pipelineStatusPath !== undefined) readPipelineStatus(result, shellPathToNative(frame.pipelineStatusPath))
   if (frame.jobsPath !== undefined) readJobsGroup(road.provider.shellPath, result, frame.jobsPath)
   if (handOver?.file !== undefined) dropOwnFile(handOver.file.path, "the file that carried the command's frame")
@@ -586,6 +588,12 @@ function followShellFolder(run: ThirdRoad, result: ExecResult, cwdFile: string):
       tell(shellDirectoryStays(run.runFolder, `${moving} does not resolve (${errorMessage(error)})`))
     }
   }
+}
+
+function readClosingMarks(result: ExecResult, reached: string, endedOnOne: string): void {
+  result.closingEndedOnOne = existsSync(reached) && existsSync(endedOnOne)
+  dropOwnFile(reached, 'the mark that the closing command was reached')
+  dropOwnFile(endedOnOne, 'the mark that the command ended on status 1')
 }
 
 function readPipelineStatus(result: ExecResult, file: string): void {

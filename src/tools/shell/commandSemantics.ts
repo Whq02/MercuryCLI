@@ -1,4 +1,4 @@
-import { pinnedCommandAnalysis, preparedSecurityParse } from '../../permissions/rules/decision/commandAnalysis.js'
+import { closingStatement, pinnedCommandAnalysis, preparedSecurityParse, type ClosingStatement } from '../../permissions/rules/decision/commandAnalysis.js'
 import { posixExitSignalsCount } from '../../platform/host-os/processes.js'
 
 type CommandSemantic = (exitCode: number) => { isError: boolean; message?: string }
@@ -98,13 +98,24 @@ function commandWord(stage: string): string {
   return words[i] ?? ''
 }
 
+export function closingTableCommand(command: string): ClosingStatement | undefined {
+  const closing = closingStatement(command)
+  return closing !== undefined && Object.hasOwn(COMMAND_SEMANTICS, commandWord(closing.stage)) ? closing : undefined
+}
+
 export function interpretCommandResult(
   command: string,
   exitCode: number,
   _stdout: string,
   _stderr: string,
+  ran?: { stage: string; endedOnOne: boolean; pipeline: number[] | undefined },
 ): { isError: boolean; message?: string } {
   if (exitCode === 0) return { isError: false }
+  if (exitCode === 1 && ran !== undefined) {
+    const itsOwn = ran.endedOnOne && (ran.pipeline === undefined || ran.pipeline[ran.pipeline.length - 1] === 1)
+    const semantic = itsOwn ? COMMAND_SEMANTICS[commandWord(ran.stage)] : undefined
+    return semantic === undefined ? { isError: true, message: 'failed with exit code 1' } : semantic(1)
+  }
   const base = baseCommandFor(command)
   if (base === 'which' && exitCode > 1 && exitCode < 126 && exitCode <= whichOperandCount(command)) {
     return { isError: false, message: 'a name was not found' }

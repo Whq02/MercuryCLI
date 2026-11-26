@@ -62,6 +62,37 @@ export function preparedCommandSpans(command: string): CommandSpan[] | null {
   return commandSpans(root)
 }
 
+export type ClosingStatement = { at: number; after: '&&' | '||' | ';'; stage: string }
+
+function lastStageOf(node: Node): Node | undefined {
+  if (node.type === 'command' || (node.type === 'test_command' && node.children[0]?.type === '[')) return node
+  if (node.type === 'pipeline') {
+    const last = node.children[node.children.length - 1]
+    return last === undefined ? undefined : lastStageOf(last)
+  }
+  if (node.type !== 'redirected_statement') return undefined
+  const piped = node.children.flatMap(child => (child.type === 'heredoc_redirect' ? child.children.filter(inner => inner.type === 'pipeline') : []))
+  const tail = piped[piped.length - 1] ?? node.children[0]
+  return tail === undefined ? undefined : lastStageOf(tail)
+}
+
+export function closingStatement(command: string): ClosingStatement | undefined {
+  const root = preparedCommandRoot(command)
+  const at = root === null || root.type !== 'program' ? null : placeIn(command, root)
+  if (root === null || at === null) return undefined
+  let node = root.children.findLast(child => child.type !== ';' && child.type !== 'comment')
+  let after: ClosingStatement['after'] = ';'
+  while (node?.type === 'list') {
+    const operator = node.children[1]?.type
+    if (operator !== '&&' && operator !== '||') return undefined
+    after = operator
+    node = node.children[2]
+  }
+  const stage = node === undefined ? undefined : lastStageOf(node)
+  if (node === undefined || stage === undefined) return undefined
+  return { at: node.startIndex + at - root.startIndex, after, stage: stage.text }
+}
+
 const NOT_WORDS: ReadonlySet<string> = new Set(['variable_assignment', 'file_redirect', 'herestring_redirect'])
 const QUOTED_WORDS: ReadonlySet<string> = new Set(['raw_string', 'string'])
 
