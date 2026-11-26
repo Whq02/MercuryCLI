@@ -134,7 +134,7 @@ export function pickerLineRenderer({ i, headings, inner, selectRow, commitCurren
         key={line.key}
         id={`model:row:${line.key}`}
         selected={on}
-        unavailable={m.gated}
+        unavailable={m.gated || m.pending}
         onSelect={() => selectRow(idx)}
         onActivate={commitCurrent}
         flexDirection="column"
@@ -145,11 +145,11 @@ export function pickerLineRenderer({ i, headings, inner, selectRow, commitCurren
             <Text color={on ? TERRA : FAINT}>{on ? `${figures.pointer} ` : '  '}</Text>
             {model ? (
               <>
-                <Text bold color={m.gated ? SAND : hasAlias(m) ? IVORY : FAINT}>{cell(alias, columns.alias)}</Text>
+                <Text bold color={m.gated ? SAND : m.pending ? FAINT : hasAlias(m) ? IVORY : FAINT}>{cell(alias, columns.alias)}</Text>
                 <Text color={FAINT}>{idText}</Text>
               </>
             ) : (
-              <Text bold color={m.gated ? SAND : IVORY}>{m.name}</Text>
+              <Text bold color={m.gated ? SAND : m.pending ? FAINT : IVORY}>{m.name}</Text>
             )}
             {model ? <>
               <Text color={stateColor}>{stateText}</Text>

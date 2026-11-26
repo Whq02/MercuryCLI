@@ -20,7 +20,7 @@ async function preflightUnseenScreenshot(driver: RoadNeeds['driver'], input: Inp
   return front.ok && !isTerminalApplication(front.value) ? bad : null
 }
 
-export async function sequenceRoad({ run, input, context, owner, signal, toolUseId, sameMessage, driver, canUseTool, parentAssistantMessage, adoptShot, shotLines, finish, ComputerTool }: RoadNeeds, steps: Input[]): Promise<ComputerAnswer> {
+export async function sequenceRoad({ run, input, context, owner, signal, toolUseId, sameMessage, driver, canUseTool, parentAssistantMessage, adoptShot, shotLines, finish, runStep, ComputerTool }: RoadNeeds, steps: Input[]): Promise<ComputerAnswer> {
   const preflight = await preflightUnseenScreenshot(driver, input, steps)
   if (preflight !== null) {
     run.result = `sequence 0/${steps.length} completed · ${preflight.action} refused: ${SCREENSHOT_UNSEEN}; nothing further done`
@@ -75,7 +75,7 @@ export async function sequenceRoad({ run, input, context, owner, signal, toolUse
       }
       mayRead = reads || (front.ok && (appApproved(owner, front.value.identity) || readable.has(front.value.identity)))
       firstBefore = front.ok ? { app: front.value } : {}
-      if (mayRead && front.ok) firstBefore = await readObservation(driver, signal, false, front.value.identity)
+      if (mayRead && front.ok) firstBefore = await readObservation(driver, signal, false, front.value.identity, front.value)
     } else if (!mayRead && reads) {
       mayRead = true
     }
@@ -105,7 +105,7 @@ export async function sequenceRoad({ run, input, context, owner, signal, toolUse
       completed++
       continue
     }
-    const answer = await ComputerTool.call(ACT_ACTIONS.has(step.action) ? { ...step, capture: false, settleMs: last ? input.settleMs : 0 } : step.action === 'wait' || step.action === 'focusApp' ? { ...step, capture: false } : step, context, canUseTool, parentAssistantMessage)
+    const answer = await runStep(ACT_ACTIONS.has(step.action) ? { ...step, capture: false, settleMs: last ? input.settleMs : 0 } : step.action === 'wait' || step.action === 'focusApp' ? { ...step, capture: false } : step)
     const stepLines = answer.data.result.split('\n').filter(line => line !== WEB_CONTENT_NOTICE)
     run.contentShown ||= stepLines.length !== answer.data.result.split('\n').length
     afterState = stepLines.find(line => STATE_LINE.test(line)) ?? ''
@@ -135,7 +135,7 @@ export async function sequenceRoad({ run, input, context, owner, signal, toolUse
   if (!signal.aborted) {
     const before = firstBefore ?? {}
     const front = await driver.frontmostApplication()
-    const after = mayRead && front.ok ? await readObservation(driver, signal, false, before.app?.identity ?? front.value.identity) : front.ok ? { app: front.value } : {}
+    const after = mayRead && front.ok ? await readObservation(driver, signal, false, before.app?.identity ?? front.value.identity, front.value) : front.ok ? { app: front.value } : {}
     afterState = `${stateWord(before, after, anyChanged || observationChanged(before, after, !anyScrolled))} · ${treeObservation(after)}`
   }
   if (signal.aborted) {

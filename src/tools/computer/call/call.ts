@@ -41,7 +41,7 @@ import { captchaLine, challengeAction, frontAfterCard, isPlanRefusal, planOf } f
 import { faultNote, faultText } from './act.js'
 import { factsLine, interruptedText, readWords, treeLimitsOf } from './words.js'
 import { type Shot, takeScreenshot, toolUseIdOfParent, toolUseIdsOfParent } from './shot.js'
-import type { CallRun, ComputerDoor, FocusDriver, RoadNeeds } from '../roads/needs.js'
+import type { CallRun, ComputerAnswer, ComputerDoor, FocusDriver, RoadNeeds } from '../roads/needs.js'
 import { sequenceRoad } from '../roads/sequence.js'
 import { focusAppRoad } from '../roads/focusApp.js'
 import { actRoad } from '../roads/act.js'
@@ -49,7 +49,7 @@ import { readRoad } from '../roads/read.js'
 import { treeRoad } from '../roads/tree.js'
 import { cursorRoad, displaysRoad, frontmostRoad } from '../roads/facts.js'
 
-export async function computerCall(ComputerTool: ComputerDoor, input: Input, context: ToolUseContext, canUseTool?: CanUseToolFn, parentAssistantMessage?: AssistantMessage): Promise<{ data: Output; effect: ToolEffect }> {
+export async function computerCall(ComputerTool: ComputerDoor, input: Input, context: ToolUseContext, canUseTool?: CanUseToolFn, parentAssistantMessage?: AssistantMessage, inSequence = false): Promise<{ data: Output; effect: ToolEffect }> {
   const startedAt = Date.now()
   const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
   const signal = context.abortController?.signal ?? new AbortController().signal
@@ -69,8 +69,10 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
     return finish()
   }
   const driver = resolution.driver
-  const permissions = await driver.permissions()
-  if (permissions.ok) rememberDesktopPermissions(permissions.value)
+  if (!inSequence) {
+    const permissions = await driver.permissions()
+    if (permissions.ok) rememberDesktopPermissions(permissions.value)
+  }
   const takeShot = (wanted: number | undefined, label: string | undefined, settleMs = 0, observe?: DesktopBounds): Promise<Shot> =>
     takeScreenshot(owner, driver, context, toolUseId, wanted, label, signal, input.region, settleMs, observe, input.full, input.scale, true, sameMessage)
   const shotLines = new Set<string>()
@@ -87,9 +89,10 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
     activeShotLine = shot.line
     shotLines.add(shot.line)
   }
-  const needs: RoadNeeds = { run, input, context, owner, signal, toolUseId, sameMessage, driver, canUseTool, parentAssistantMessage, takeShot, adoptShot, shotLines, finish, ComputerTool }
+  const runStep = (step: Input): Promise<ComputerAnswer> => computerCall(ComputerTool, step, context, canUseTool, parentAssistantMessage, true)
+  const needs: RoadNeeds = { run, input, context, owner, signal, toolUseId, sameMessage, driver, canUseTool, parentAssistantMessage, takeShot, adoptShot, shotLines, finish, runStep, ComputerTool }
   try {
-    const invalid = tableRefusal(input)
+    const invalid = inSequence ? null : tableRefusal(input)
     const badRegion = input.region === undefined ? null : regionRefusal(input.region, screenOf(owner))
     if (invalid !== null || badRegion !== null) {
       run.result = invalid ?? badRegion!
@@ -125,7 +128,7 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
       const checked = consumeCheckedAct(owner, challengeAnswered ? challengeAction(input.action) : input.action)
       const judged: DesktopJudgedApp | null = checked?.app ?? null
       const viaGrant = checked?.viaGrant === true
-      return await actRoad(needs, plan, challengeAnswered, checked, judged, viaGrant)
+      return await actRoad(needs, plan, challengeAnswered, checked, judged, viaGrant, inSequence)
     }
     const turnFront = await driver.frontmostApplication()
     if (turnFront.ok) noteTurnHome(owner, turnKeyOf(context), { identity: turnFront.value.identity, name: turnFront.value.name })
