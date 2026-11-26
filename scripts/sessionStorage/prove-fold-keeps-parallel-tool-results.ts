@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from 'node:util'
 import { randomUUID } from 'node:crypto'
-import { appendFileSync, copyFileSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { appendFileSync, copyFileSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { AssistantMessage, Message, PartialFoldDirection, UserMessage } from '../../src/engine/message-shapes/message.ts'
@@ -31,7 +31,8 @@ const { loadConversationForResume } = await import('../../src/sessions/resume/co
 const { buildScreenConversation, cleanForTranscript } = await import('../../src/sessions/transcripts/chain.ts')
 const { loadTranscriptFile } = await import('../../src/sessions/transcripts/loading.ts')
 const { _resetTranscriptReaderForTesting } = await import('../../src/sessions/transcripts/transcriptReader.ts')
-const { historyHead, historyLines } = await import('../../src/sessions/transcripts/historyParts.ts')
+const { listCrewmateTranscriptPaths } = await import('../../src/sessions/transcripts/paths.ts')
+const { historyHead, historyLines, historyPartDir } = await import('../../src/sessions/transcripts/historyParts.ts')
 const { pairConversationMessages } = await import('../../src/engine/message-shapes/resultPairing.ts')
 const { buildPostFoldMessages, foldConversation, partialFoldConversation, annotateBoundaryWithPreservedSegment } = await import('../../src/engine/compaction/foldConversation.ts')
 const { contextBuilder } = await import('../../src/engine/rows/turn/context.ts')
@@ -108,7 +109,20 @@ async function verify(scene: string, sid: ReturnType<typeof start>, selected: Me
   appendFileSync(twin, last)
   const calls = selected.flatMap(m => m.type === 'assistant' ? m.message.content.flatMap(b => b.type === 'tool_use' ? [b.id] : []) : [])
   const expectedPairs = calls.length ? [[calls, calls.map(id => [id, `answer ${id}`, false])]] : []
-  for (const [view, path] of [['sealed', file], ['one-file', twin]] as const) {
+  const views: [string, string][] = [['sealed', file], ['one-file', twin]]
+  if (!legacy) {
+    const rollback = join(home, `${boundary.uuid}.rollback.jsonl`)
+    const lines = readFileSync(file, 'utf8').trimEnd().split('\n').map(line => {
+      const record = JSON.parse(line)
+      const segment = record.payload.fields?.compactMetadata?.preservedSegment
+      if (record.recordId !== boundary.uuid || !segment) return line
+      delete segment.keptUuids
+      return JSON.stringify(record)
+    })
+    writeFileSync(rollback, lines.join('\n') + '\n')
+    views.push(['released walk', rollback])
+  }
+  for (const [view, path] of views) {
     _resetTranscriptReaderForTesting()
     const loaded = await loadTranscriptFile(path, { throwOnError: true })
     const screen = buildScreenConversation(loaded.messages)
@@ -211,34 +225,22 @@ try {
     check('empty projection', 'a full seal with no stale segment if no selected chain row is resident', historyHead(file).boundary === empty.uuid && emptyRecord !== undefined && !JSON.stringify(emptyRecord).includes('preservedSegment'))
   }
   {
-    const sid = start(), file = getTranscriptPath()
-    const original = [user('Original prompt.'), reply('Original answer.'), user('Summarize this suffix.')]
+    const sid = start()
+    const original = [user('First request.'), reply('Earlier material. '.repeat(1400)), user('Second request.'), reply('Keep this answer.')]
     await recordTranscript(original)
-    const first = buildPostFoldMessages(await fold(original, { at: 2, direction: 'from' }))
-    await recordTranscript(first)
-    const later = user('Another suffix.')
-    await recordTranscript([later])
-    const second = await fold([...first, later], { at: first.length, direction: 'from' })
-    const after = reply('After both folds.')
-    await recordTranscript([...buildPostFoldMessages(second), after])
+    const first = await fold(original)
+    const replay = [...buildPostFoldMessages(first), user('Next request.'), reply('Next answer.')]
+    await recordTranscript(replay)
+    const second = await fold(replay)
+    await recordTranscript(buildPostFoldMessages(second))
     await flushSessionStorage()
-    const expected = ids(cleanForTranscript(first))
-    const legacy = join(home, 'nested-legacy.jsonl')
-    const bytes = readFileSync(file, 'utf8').trimEnd().split('\n').map(line => {
-      const record = JSON.parse(line)
-      const segment = record.payload.fields?.compactMetadata?.preservedSegment
-      if (segment) delete segment.keptUuids
-      return JSON.stringify(record)
-    })
-    writeFileSync(legacy, bytes.join('\n') + '\n')
-    for (const [road, path] of [['manifest', file], ['released walk', legacy]]) {
-      const screen = buildScreenConversation((await loadTranscriptFile(path!, { throwOnError: true })).messages)
-      check('nested partial from', `${road} keeps the earlier boundary, summary and whole selected prefix once, in order`, isDeepStrictEqual(ids(screen).filter(id => expected.includes(id)), expected) && screen.at(-1)?.uuid === after.uuid)
-    }
-    if (exchange) {
-      copyFileSync(file, join(exchange, 'nested.jsonl'))
-      writeFileSync(join(exchange, 'nested-witness.json'), JSON.stringify({ sid, expected, after: after.uuid }))
-    }
+    const paths = await listCrewmateTranscriptPaths(getTranscriptPath(), sid)
+    const forks = paths.filter(path => raw(path).some(row => row.recordId === first.boundaryMarker.uuid))
+    const file = forks[0]
+    const expected = ids(cleanForTranscript(replay))
+    check('fold summariser fork', 'the second full fold replayed the first fold into one fork', historyHead(getTranscriptPath()).boundary === second.boundaryMarker.uuid && forks.length === 1)
+    check('fold summariser fork', 'the replay wrote no archive or index', file !== undefined && historyHead(file).before === 0 && !existsSync(historyPartDir(file)))
+    check('fold summariser fork', 'replayed rows stand once in their original physical order', file !== undefined && isDeepStrictEqual(raw(file).map(row => row.recordId).filter(id => expected.some(uuid => uuid === id)), expected))
   }
   {
     start()

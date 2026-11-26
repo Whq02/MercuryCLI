@@ -13,12 +13,6 @@ const stampOf = (row: TranscriptMessage): number => {
   return Number.isNaN(at) ? -1 : at
 }
 
-export function carriedSegment(segment: Segment | undefined, parentOf: (id: UUID) => UUID | null | undefined): Segment | undefined {
-  if (!segment) return undefined
-  const anchorUuid = parentOf(segment.headUuid)
-  return anchorUuid && anchorUuid !== segment.anchorUuid && parentOf(segment.tailUuid) ? { ...segment, anchorUuid } : segment
-}
-
 class TranscriptRows {
   private positions = new Map<UUID, number>()
   private ordinal = 0
@@ -182,11 +176,6 @@ class TranscriptRows {
     }
     for (const id of kept) {
       const row = this.get(id)
-      if (segment.keptUuids && row && foldBoundaryRow(row)) {
-        const prior = row.compactMetadata.preservedSegment
-        const preservedSegment = carriedSegment(prior, id => kept.has(id) ? this.get(id)?.parentUuid : undefined)
-        if (preservedSegment !== prior) this.set(id, { ...row, compactMetadata: { ...row.compactMetadata, preservedSegment } })
-      }
       if (row?.type !== 'assistant') continue
       const usage = row.message.usage
       if (usage !== undefined && usage.input_tokens === 0 && usage.output_tokens === 0 && usage.cache_creation_input_tokens === 0 && usage.cache_read_input_tokens === 0) continue

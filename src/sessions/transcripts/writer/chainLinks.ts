@@ -101,7 +101,7 @@ export class ChainPart {
         const sessionId = getSessionId()
         const slug = getPlanSlugCache().get(sessionId)
 
-        for (const message of beforeSealing(messages)) {
+        for (const message of isSidechain ? messages : beforeSealing(messages)) {
           const sourceAssistantUuid = message.type === 'user' ? message.sourceToolAssistantUUID : undefined
           const effectiveParentUuid =
             sourceAssistantUuid && !this.leafDescendsQuietly(parentUuid, sourceAssistantUuid)

@@ -1,4 +1,4 @@
-import { randomUUID, type UUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { closeSync, fsyncSync, linkSync, mkdirSync, openSync, readSync, rmSync, statSync, writeSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { FoldMetadata } from '../../../engine/message-shapes/message.js'
@@ -10,12 +10,11 @@ import type { MercuryRecord } from '../../fabric/record.js'
 import { faultPoint, fsyncEnabled, publishAtomicSync } from '../../../platform/substrate/fileStore.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { foldWorkerRecord } from '../mirrorRecord.js'
-import { carriedSegment } from '../rowGraph.js'
 import { historyHead, historyIndex, historyPartDir, sealedExtents, sealedFile, type HistoryIndexRow } from '../historyParts.js'
 import { rangeFromFd, transcriptLineBytes } from '../transcriptBytes.js'
 
-type Range = { at: number; len: number; torn: boolean; relinkTo?: string; innerSegment?: Segment }
-type ChainRow = Range & { parent?: string; originalParent?: string; keptParent?: UUID }
+type Range = { at: number; len: number; torn: boolean; relinkTo?: string }
+type ChainRow = Range & { parent?: string; originalParent?: string }
 type Segment = NonNullable<FoldMetadata['preservedSegment']>
 const sticky = new Set(['summary', 'custom-title', 'ai-title', 'last-prompt', 'tag', 'agent-name', 'agent-color', 'agent-setting', 'session-brief', 'session-brief-add', 'mode', 'advisor-switch', 'swarm-switch', 'model', 'worktree-state', 'pr-link'])
 
@@ -25,10 +24,7 @@ function linkedCopy(fd: number, row: Range, parent: string, file: string): Buffe
   const record = JSON.parse(bytes.toString('utf8')) as MercuryRecord
   record.parentId = asRecordId(parent)
   const payload = record.payload
-  if (payload.kind === 'boundary' || payload.kind === 'notice') {
-    payload.fields = { ...payload.fields, parentUuid: parent }
-    if (row.innerSegment) payload.fields.compactMetadata = { ...payload.fields.compactMetadata as FoldMetadata, preservedSegment: row.innerSegment }
-  }
+  if (payload.kind === 'boundary' || payload.kind === 'notice') payload.fields = { ...payload.fields, parentUuid: parent }
   else if (payload.kind === 'unknown-retained') {
     const line = payload.fields.line
     if (line && typeof line === 'object') (line as Record<string, unknown>).parentUuid = parent
@@ -102,7 +98,7 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
   const metadata = new Map<string, Range>()
   const preservedMeta = new Map<string, Range>()
   const nodes = new Map<string, ChainRow>()
-  const segments = new Map<string, Segment>()
+  const segments: Segment[] = []
   const missing = selected && new Set(selected)
   let at = 0, lastYield = 0, batch = ''
   try {
@@ -134,9 +130,9 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
           else if (segment && payload.metaKind === 'content-replacement') preservedMeta.set(id, range)
         } else if (segment && (!selected || (selected.has(id) && (mirror !== null || payload.kind === 'attachment')))) {
           nodes.set(id, { ...range, parent: record.parentId, originalParent: record.parentId })
-          if (payload.kind === 'boundary' && payload.boundaryKind === 'compact') {
+          if (!selected && payload.kind === 'boundary' && payload.boundaryKind === 'compact') {
             const prior = (payload.fields?.compactMetadata as { preservedSegment?: Segment } | undefined)?.preservedSegment
-            if (prior) segments.set(id, prior)
+            if (prior) segments.push(prior)
           }
         }
       }
@@ -158,20 +154,12 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
       let parent = segment.anchorUuid
       for (const id of keptUuids) {
         const row = nodes.get(id)!
-        row.keptParent = parent
         if (row.parent !== parent) row.relinkTo = parent
         carry.push(row)
         parent = id
       }
-      for (const [id, prior] of segments) {
-        const inner = carriedSegment(prior, uuid => nodes.get(uuid)?.keptParent)
-        if (inner === prior) continue
-        const row = nodes.get(id)!
-        row.relinkTo = row.keptParent
-        row.innerSegment = inner
-      }
     } else if (segment) {
-      for (const prior of segments.values()) {
+      for (const prior of segments) {
         const first = nodes.get(prior.headUuid)
         if (first && nodes.has(prior.tailUuid)) {
           first.parent = prior.anchorUuid
