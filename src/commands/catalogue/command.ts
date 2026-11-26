@@ -99,6 +99,7 @@ type LocalJSXCommand = CommandBase & {
   type: 'local-jsx'
   load: () => Promise<{ call: LocalJSXCommandCall }>
   headlessVerbs?: readonly string[]
+  promptWithArgs?: true
 }
 
 export type Command = PromptCommand | LocalCommand | LocalJSXCommand

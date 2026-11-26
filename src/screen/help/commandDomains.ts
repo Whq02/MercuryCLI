@@ -18,7 +18,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
       'agents',
       'crewmates', 'crew', 'swarm', 'swarmchat',
       'general', 'team', 'whisper',
-      'daemon', 'saturn', 'seats', 'kill', 'unkill',
+      'daemon', 'schedule', 'seats', 'kill', 'unkill',
     ],
   },
   {

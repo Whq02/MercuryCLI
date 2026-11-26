@@ -36,7 +36,7 @@ covers the whole repository ([TRUST.md](TRUST.md)).
 
 Running `mercury` with no arguments opens the home screen, with no chat behind it. The rows are **New Session**, **Continue Last Session** (once history exists), **Logins/Keys**, **Session Manager (Concourse)**, **Boot Menu**, and **Profiles**. The line below shows the model and the current folder.
 
-In Boot Menu, **MCPs & Skills** and **Agents** set up the next session. Inside a chat, use `/mcp`, `/skills` or `/agents`. Use `/health` for diagnostics (`mercury health` also runs from a terminal) and `/saturn` for the [scheduler](SATURN.md). To reopen another folder’s chat before starting one, open Session Manager, press `Ctrl+G`, choose the folder, then open a parked chat or press `Enter` on **older chats** to browse. Inside a chat, `/sessions` opens the session picker.
+In Boot Menu, **MCPs & Skills** and **Agents** set up the next session. Inside a chat, use `/mcp`, `/skills` or `/agents`. Use `/health` for diagnostics (`mercury health` also runs from a terminal) and `/schedule` for the [scheduler](SATURN.md). To reopen another folder’s chat before starting one, open Session Manager, press `Ctrl+G`, choose the folder, then open a parked chat or press `Enter` on **older chats** to browse. Inside a chat, `/sessions` opens the session picker.
 
 Pressing `m` on the home screen opens the default model and effort picker whenever `engine.sessionDefaults` is not `false`. Boot Menu starts with **NEXT SESSION** and the two editors, followed by **TRUST COMBO**
 (`Content-rule wards`, `Debug tool`, `C/C++ IDE lane (clangd)`,

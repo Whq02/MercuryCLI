@@ -7,7 +7,7 @@ import { Box, Text } from '../../screen/themedRenderer.js'
 import type { CanUseToolFn, SetToolJSXFn, ToolUseContext } from '../../tools/kit/tool.js'
 import type { Command } from '../../commands/catalogue/commands.js'
 import type { LocalJSXCommandOnDone } from '../../commands/catalogue/command.js'
-import { builtinCommands, commandOffInPlainWorld, commandSeat, findCommand, getCommandName, isCommandEnabled, meetsAvailabilityRequirement } from '../../commands/catalogue/commands.js'
+import { builtinCommands, commandOffInPlainWorld, commandSeat, findBundledPromptSkill, findCommand, getCommandName, isCommandEnabled, meetsAvailabilityRequirement } from '../../commands/catalogue/commands.js'
 import samples, { SAMPLES_OFF_SENTENCE } from '../../commands/samples/index.js'
 import { bareUsageLine, requiresArgument } from '../../integrations/skills/argumentHint.js'
 import { generateCommandSuggestions } from '../../screen/suggestions/commandSuggestions.js'
@@ -535,14 +535,34 @@ export async function processSlashCommand(
   try {
     let result: ProcessUserInputBaseResult
     if (command.type === 'local-jsx') {
-      result = await runLocalJsxCommand(
-        command,
-        commandName,
-        args,
-        context,
-        setToolJSX,
-        uuid,
-      )
+      if (command.promptWithArgs === true && args.trim() !== '') {
+        const promptSkill = findBundledPromptSkill(command.name)
+        if (promptSkill === undefined) {
+          return availabilityAnswer(`The /${getCommandName(command)} command exists but is not enabled in this session.`)
+        }
+        result = await executePromptCommand(
+          promptSkill,
+          commandName,
+          args,
+          context,
+          imageContentBlocks,
+          attachmentMessages,
+          uuid,
+          setToolJSX,
+          canUseTool,
+        )
+      } else if (command.promptWithArgs === true && getIsNonInteractiveSession()) {
+        return availabilityAnswer(unavailableCommandLine(command, args))
+      } else {
+        result = await runLocalJsxCommand(
+          command,
+          commandName,
+          args,
+          context,
+          setToolJSX,
+          uuid,
+        )
+      }
     } else if (command.type === 'local') {
       result = await runLocalCommand(command, args, context, uuid)
     } else if (requiresArgument(command) && args.trim() === '') {

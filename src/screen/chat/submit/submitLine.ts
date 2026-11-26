@@ -62,7 +62,10 @@ export function readSubmitLine({ commandsRef }: SubmitDeps, input: string, helpe
   const seatMode = options?.armedMode ?? pendingInput.mode();
   const seatPastes = options?.pastedContents ?? pendingInput.pastedContents();
   const seatCommand = text.startsWith('/') && seatMode !== 'bash' ? resolveSlashCommand(text, commandsRef.current) : undefined;
-  const seat = seatCommand === undefined ? 'session' : commandSeat(seatCommand);
+  const expanded = seatCommand !== undefined && seatCommand.type === 'local-jsx' && seatCommand.promptWithArgs === true ? expandPastedTextRefs(text, seatPastes).trim() : '';
+  const spaceAt = expanded.search(/\s/);
+  const promptArgs = spaceAt !== -1 && expanded.slice(spaceAt).trim() !== '';
+  const seat = seatCommand === undefined || promptArgs ? 'session' : commandSeat(seatCommand);
   return { input, helpers, options, submittedAt, text, focusedNow, seatMode, seatPastes, seatCommand, seat };
 }
 

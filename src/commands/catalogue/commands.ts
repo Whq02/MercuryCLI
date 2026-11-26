@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import { memoize } from 'lodash-es'
-import type { Command, CommandSeat } from './command.js'
+import type { Command, CommandSeat, PromptCommand } from './command.js'
 import { getCommandName } from './command.js'
 import { isCommandEnabled } from './enablement.js'
 import verify from '../verify/index.js'
@@ -218,7 +218,8 @@ export function sessionSeatCommandTable(commands: readonly Command[]): Command[]
   return commands.filter(
     command =>
       commandSeat(command) === 'session' ||
-      (command.type === 'local-jsx' && (command.headlessVerbs?.length ?? 0) > 0),
+      (command.type === 'local-jsx' &&
+        ((command.headlessVerbs?.length ?? 0) > 0 || command.promptWithArgs === true)),
   )
 }
 
@@ -293,7 +294,7 @@ const loadAllCommands = memoize(async (cwd: string): Promise<Command[]> => {
     })
 
   return [
-    ...getBundledSkills(),
+    ...getBundledSkills().filter(command => !builtinNames.has(command.name)),
     ...dropBuiltinShadows(skillCommands, 'skill directory'),
     ...dropBuiltinShadows(extensionCommands, 'extension command'),
     ...dropBuiltinShadows(extensionSkills, 'extension skill'),
@@ -322,11 +323,29 @@ function dedupeCommandsByName(commands: Command[]): Command[] {
   return deduped
 }
 
+function activeBundledSkills(): Command[] {
+  const kit = sessionKitOf()
+  return getBundledSkills()
+    .filter(
+      command =>
+        meetsAvailabilityRequirement(command) &&
+        isCommandEnabled(command) &&
+        !kitDropsCommand(kit, command),
+    )
+    .map(command => withKitSkillMark(kit, command))
+}
+
+export function findBundledPromptSkill(name: string): PromptCommand | undefined {
+  const found = activeBundledSkills().find(command => command.name === name && command.type === 'prompt')
+  return found !== undefined && found.type === 'prompt' ? found : undefined
+}
+
 export async function getCommands(cwd: string): Promise<Command[]> {
   const allCommands = await loadAllCommands(cwd)
   const kit = sessionKitOf()
   if (kit !== undefined) {
-    noteBootSkillRoster(allCommands.filter(isKitGovernedSkillCommand).map(command => command.name))
+    const governed = dedupeCommandsByName([...getBundledSkills(), ...allCommands])
+    noteBootSkillRoster(governed.filter(isKitGovernedSkillCommand).map(command => command.name))
   }
   const base = dedupeCommandsByName(
     allCommands
@@ -379,7 +398,7 @@ export function getMcpSkillCommands(
 
 export const getSkillToolCommands = memoize(
   async (cwd: string): Promise<Command[]> => {
-    const commands = await getCommands(cwd)
+    const commands = dedupeCommandsByName([...activeBundledSkills(), ...(await getCommands(cwd))])
     return commands.filter(
       command =>
         command.type === 'prompt' &&
@@ -396,7 +415,7 @@ export const getSkillToolCommands = memoize(
 export const getSlashCommandToolSkills = memoize(
   async (cwd: string): Promise<Command[]> => {
     try {
-      const commands = await getCommands(cwd)
+      const commands = dedupeCommandsByName([...activeBundledSkills(), ...(await getCommands(cwd))])
       return commands.filter(
         command =>
           command.type === 'prompt' &&

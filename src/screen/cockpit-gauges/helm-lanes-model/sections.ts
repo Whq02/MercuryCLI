@@ -276,8 +276,8 @@ export function saturnSection({ input, tok, nowMs }: SectionFacts): LanesSection
   return {
     key: 'saturn',
     glyph: GLYPH.inProgress,
-    label: 'saturn',
-    open: '/saturn',
+    label: 'schedule',
+    open: '/schedule',
     rows: [
       {
         kind: 'rail',
@@ -288,7 +288,7 @@ export function saturnSection({ input, tok, nowMs }: SectionFacts): LanesSection
         nameColor: tok.textSecondary,
         verb: words.verb,
         verbColor: tok.textMuted,
-        row: { kind: 'command', command: '/saturn', label: 'wake:glance' },
+        row: { kind: 'command', command: '/schedule', label: 'wake:glance' },
       },
     ],
   }
