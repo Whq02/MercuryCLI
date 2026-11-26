@@ -138,7 +138,10 @@ export const BrowserTool = buildTool({
   },
   keepEmptyInputs: ['files'],
   maxResultSizeChars: 20_000,
-  async description() {
+  async description(input?: Input) {
+    if (input?.op === ATTACH_OP) {
+      return 'Join a Chromium the user started with remote debugging on (loopback only): read and drive tabs with per-origin consent; close detaches without closing the browser'
+    }
     return 'Drive a headless Chrome for Testing from the managed cache (or an operator-pinned browser; installed browsers are never launched) with full provenance: navigate, click, type, scroll, wait on events, extract text or the accessibility tree, read the console, screenshot; attach joins a Chromium the user started with remote debugging on'
   },
   wireDescription() {
