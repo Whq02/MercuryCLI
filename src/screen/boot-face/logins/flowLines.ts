@@ -6,6 +6,7 @@ import { META_LOGIN_FAMILY_LABEL } from '../../../models/sign-in/flow-cards/logi
 import { clampText, DETAIL_W } from './facts.js';
 import { receiptPaneLines, signedInStatusWayOut, maskedDraftLine, anthropicFlowLegendOf, anthropicFlowStatusOf, anthropicFlowPaneLines, wrapHard } from './anthropicLines.js';
 import { keyPromptPaneLines, type FaceKeyLegId, type LoginsPickId, keyLegTitle, loginsPickPaneLines } from './pickLines.js';
+import { DEVIN_CLI_ACTION_TITLE, type DevinCliAction } from './devinCliAction.js';
 
 export type FaceDeviceFamily = 'moonshot' | 'huggingface' | 'xai' | 'nous' | 'orcarouter' | 'meta';
 
@@ -178,7 +179,8 @@ export type LoginsFlowPaneV1 =
   | { kind: 'handles'; handles: HandlesWaitStateV1; draftLen: number }
   | { kind: 'opdevice'; opdevice: OpenaiDeviceStateV1 }
   | { kind: 'client'; client: GeminiClientStateV1; draftLen: number; draft: string }
-  | { kind: 'receipt'; receipt: string; ok: boolean; backToPicker?: boolean };
+  | { kind: 'external-run'; action: DevinCliAction }
+  | { kind: 'receipt'; receipt: string; ok: boolean; backToPicker?: boolean; external?: true };
 
 export function loginsFlowLegendOf(pane: LoginsFlowPaneV1): string {
   switch (pane.kind) {
@@ -200,6 +202,8 @@ export function loginsFlowLegendOf(pane: LoginsFlowPaneV1): string {
       return 'c copy code · esc stop watching';
     case 'client':
       return pane.client.step !== 5 ? '↵ next · o open · esc back' : pane.client.field === 'id' ? '↵ continue · esc back' : '↵ store · esc back';
+    case 'external-run':
+      return 'running in terminal…';
     case 'receipt':
       return '↵ done';
   }
@@ -235,6 +239,10 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
           return 'OpenRouter — three doors';
         case 'gemini':
           return 'Gemini — an API key or a Google account';
+        case 'devin-cli':
+          return DEVIN_CLI_ACTION_TITLE;
+        case 'devin-cli-logout-confirm':
+          return 'Sign out of Devin CLI?';
       }
       break;
     case 'key':
@@ -255,7 +263,10 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
       return 'waiting on the OpenAI device code';
     case 'client':
       return `Google account — step ${pane.client.step} of 6`;
+    case 'external-run':
+      return `running devin auth ${pane.action}`;
     case 'receipt':
+      if (pane.external === true) return 'Devin CLI — ↵ returns to the roster';
       return pane.ok ? `connected — ${signedInStatusWayOut(pane.backToPicker === true)}` : 'not connected — ↵ returns to the roster';
   }
 }
@@ -276,7 +287,20 @@ export function loginsFlowPaneLines(pane: LoginsFlowPaneV1): string[] {
       return openaiDevicePaneLines(pane.opdevice);
     case 'client':
       return geminiClientPaneLines(pane.client, pane.draftLen, pane.draft);
+    case 'external-run':
+      return [
+        DEVIN_CLI_ACTION_TITLE,
+        '',
+        `Running devin auth ${pane.action}…`,
+        '',
+        'finish in the terminal to return here',
+      ];
     case 'receipt':
+      if (pane.external === true) {
+        const body = pane.receipt.split('\n').flatMap(line => wrapPlain(line, DETAIL_W));
+        const capped = body.length > 10 ? [...body.slice(0, 9), '…'] : body;
+        return [DEVIN_CLI_ACTION_TITLE, '', ...capped, '', '↵ done — back to the roster'];
+      }
       return receiptPaneLines(pane.receipt, pane.ok, pane.backToPicker === true);
   }
 }
@@ -289,4 +313,5 @@ export type OpenFlowState =
   | { kind: 'handles'; handles: HandlesWaitStateV1 }
   | { kind: 'opdevice'; opdevice: OpenaiDeviceStateV1 }
   | { kind: 'client'; client: GeminiClientStateV1 }
-  | { kind: 'receipt'; receipt: string; ok: boolean };
+  | { kind: 'external-run'; action: DevinCliAction }
+  | { kind: 'receipt'; receipt: string; ok: boolean; external?: true };
