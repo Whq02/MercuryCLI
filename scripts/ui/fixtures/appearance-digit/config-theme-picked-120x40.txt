@@ -9,7 +9,7 @@ next                    │ │ Mercury · config                               
 files · project         │ │ › Theme                             Oasis dark                                           │ │
   ↵ browse              │ │                                                                                          │ │
                         │ │                                                                                          │ │
-vitals                  │ │                                                                                          │ │
+usage                   │ │                                                                                          │ │
   spend —               │ │                                                                                          │ │
   ctx — · —             │ │                                                                                          │ │
   health — run /health  │ │                                                                                          │ │

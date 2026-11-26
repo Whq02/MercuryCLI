@@ -7,7 +7,7 @@ next                │ │ Mercury · config                                   
 files · orchard     │ │ / Search settings…                                                       │ │
   ↵ browse          │ │                                                                          │ │
                     │ │ › Auto-compact                      on                                   │ │
-vitals              │ │   Auto-compact window               auto                                 │ │
+usage               │ │   Auto-compact window               auto                                 │ │
   spend —           │ │   Session concourse                 on                                   │ │
   ctx — · —         │ │   Seats                             17 · this machine's reading          │ │
   health — run…     │ │   Tips                              on                                   │ │

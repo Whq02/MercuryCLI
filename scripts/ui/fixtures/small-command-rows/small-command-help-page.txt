@@ -5,11 +5,11 @@ next                    │   ▀▄▄▄▀▄▄▄▀                       
   /health               │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
   /memory               │                                                                                                                  │
   /goal                 │                                                                                                                  │
-                        │ 18:12:12 [sam] ❯ start                                                                                           │
+                        │ 20:19:29 [sam] ❯ start                                                                                           │
 files · project         │                                                                                                                  │
-  ↵ browse              │ 18:12:12 [Mercury] Command rows ready.                                                                           │
+  ↵ browse              │ 20:19:29 [Mercury] Command rows ready.                                                                           │
                         │                                                                                                                  │
-vitals                  │ ❯ /crewmates off                                                                                                 │
+usage                   │ ❯ /crewmates off                                                                                                 │
   spend $0.00           │   └ crewmates off for this session                                                                               │
   ctx 0% · 1000k        │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
   health — run /health  │     running finishes                                                                                             │

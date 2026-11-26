@@ -9,7 +9,7 @@ next                    │ ╭────────────────�
 files · project         │ │ context —                                                                                │ │
   ↵ browse              │ │ effort  low [medium] high xhigh max · ctrl+e changes it                                  │ │
                         │ │ 'gpt 6 luna' names no listed model (nearest: Opus 5 · GLM-5.3 · GLM-5.2); pick a row     │ │
-vitals                  │ │ below                                                                                    │ │
+usage                   │ │ below                                                                                    │ │
   spend —               │ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │
   ctx — · —             │ │ pgup/pgdn page                                                                           │ │
   health — run /health  │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
