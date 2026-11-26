@@ -154,9 +154,10 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
     return { agent, name: String(row.name), state: wakes.state(agent), ...(wait ? { wait } : {}), ...(wakeProblem ? { wakeProblem } : {}), ...(team !== undefined ? { team } : {}), ...(captainId(team) === agent ? { captain: true as const } : {}) }
   })
   const reserveCount = (team: string, agent: string): number => new Set(db.prepare("SELECT agent, value FROM interests JOIN members USING (agent) WHERE kind = 'membership' AND enrolled = 1 UNION ALL SELECT agent, team AS value FROM enrollments").all().filter(row => row.agent !== agent && row.agent !== 'main' && boardLabelKey(String(row.value)) === boardLabelKey(team)).map(row => String(row.agent))).size
+  const reservedCaptain = (team: string, agent: string): boolean => hasEnrollments && db.prepare('SELECT * FROM enrollments WHERE captain = 1').all().some(row => row.agent !== agent && row.agent !== 'main' && String(row.team ?? '') !== '' && boardLabelKey(String(row.team)) === boardLabelKey(team))
   const checkEnrollment = (agent: string, team: string | undefined, captain = false): void => {
     if (team !== undefined && !validTeam(team)) throw new Error('Use a team label of letters, numbers, dots, dashes or underscores; all and general are reserved.')
-    if (team !== undefined && agent !== 'main' && reserveCount(team, agent) >= 4 && !captainId(team) && !captain) throw new Error(`Name a captain for team ${team} before its fifth seat, or launch this named seat with captain: true.`)
+    if (team !== undefined && agent !== 'main' && reserveCount(team, agent) >= 4 && !captainId(team) && !reservedCaptain(team, agent) && !captain) throw new Error(`Name a captain for team ${team} before its fifth seat, or launch this named seat with captain: true.`)
   }
   const appoint = (team: string, agent: string): void => {
     const current = captainRows(team)

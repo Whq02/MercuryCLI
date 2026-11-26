@@ -53,7 +53,7 @@ export function enroll(ctx: StoreContext, p: BoardPrincipal): void {
     const fresh = !member(p.author.agentId)
     const returning = db.prepare('SELECT agent FROM retirements WHERE agent = ?').get(p.author.agentId) != null
     if (returning) takeName(p.name, p.author.agentId)
-    if (!reservation && (fresh || teamOf(p.author.agentId) !== team)) checkEnrollment(p.author.agentId, team)
+    if (fresh || teamOf(p.author.agentId) !== team) checkEnrollment(p.author.agentId, team, reservation?.captain === 1)
     db.prepare('INSERT INTO members (agent, name, execution) VALUES (?, ?, ?) ON CONFLICT(agent) DO UPDATE SET name = excluded.name, execution = excluded.execution').run(p.author.agentId, p.name, p.author.executionId)
     if (returning) {
       db.prepare('UPDATE members SET enrolled = 1 WHERE agent = ?').run(p.author.agentId)
