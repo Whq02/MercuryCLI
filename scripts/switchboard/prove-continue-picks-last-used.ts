@@ -431,6 +431,23 @@ try {
     const futAfter = readSessionLastUsedMsCachedSync(fFuture, futSt.mtimeMs, futSt.size, undefined, futureAt + 2_000)
     check('§3 future-clock null in lastUsedCache recovers once nowMs passes occurredAt (never pinned forever)', futBefore === null && futAfter === futureAt + 1_000, `before=${String(futBefore)} after=${String(futAfter)}`)
 
+    const fGrace = join(SCRATCH, 'grace-clamped.jsonl')
+    const graceNow = Date.now()
+    const graceAt = graceNow + 3_000
+    writeFileSync(
+      fGrace,
+      encodeSeedTranscript(
+        [
+          makeRow(sid('98'), graceAt, { type: 'user', message: { role: 'user', content: 'within 5s grace' } }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sid('98'),
+      ),
+    )
+    const graceSt = statSync(fGrace)
+    const graceClamped = readSessionLastUsedMsCachedSync(fGrace, graceSt.mtimeMs, graceSt.size, undefined, graceNow)
+    const graceExact = readSessionLastUsedMsCachedSync(fGrace, graceSt.mtimeMs, graceSt.size, undefined, graceNow + 4_000)
+    check('§3 time clamped inside 5s grace carries recheckAtMs and returns exact occurredAt once clock passes it', graceClamped === graceNow && graceExact === graceAt, `clamped=${String(graceClamped)} exact=${String(graceExact)} want=${graceAt}`)
+
     const fHuge = join(SCRATCH, 'huge-no-tail-turn.jsonl')
     const hugeHeader = encodeSeedTranscript(
       [
@@ -464,7 +481,7 @@ try {
       const res1 = readSessionLastUsedMsCachedSync(fHuge, hugeSt.mtimeMs, hugeSt.size)
       activePass = 2
       const res2 = readSessionLastUsedMsCachedSync(fHuge, hugeSt.mtimeMs, hugeSt.size)
-      check('§3 backward scan caps bytes read (<= 2.5 MiB on a 3.6 MiB file), falls back to null, and does not cache budget-hit null as final', res1 === null && res2 === null && hugeBytes1 <= 2_600_000 && hugeBytes2 > 0, `fileBytes=${hugeSt.size} pass1Bytes=${hugeBytes1} pass2Bytes=${hugeBytes2} res1=${String(res1)}`)
+      check('§3 backward scan caps bytes read (<= 2.5 MiB on a 3.6 MiB file), falls back to null, and caches by (path, mtime, size) so repeat reads cost 0 bytes', res1 === null && res2 === null && hugeBytes1 <= 2_600_000 && hugeBytes2 === 0, `fileBytes=${hugeSt.size} pass1Bytes=${hugeBytes1} pass2Bytes=${hugeBytes2} res1=${String(res1)}`)
     } finally {
       setTranscriptReaderIoForTesting(nodeTranscriptReaderIo)
     }
