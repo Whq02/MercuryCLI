@@ -417,13 +417,27 @@ export type ResumeFacts = Pick<
   | 'prRepository'
   | 'turnEnd'
   | 'turnOpen'
+  | 'displacedNotices'
 >
+
+function hostNoticesBehindLaterRows(messages: Map<UUID, TranscriptMessage>, chain: TranscriptMessage[]): UUID[] {
+  const graph = transcriptRows(messages)
+  const displaced: UUID[] = []
+  let newest = -1
+  for (const row of chain) {
+    const position = graph.positionOf(row.uuid)
+    if (row.type === 'user' && row.isVirtual === true && position < newest) displaced.push(row.uuid)
+    newest = Math.max(newest, position)
+  }
+  return displaced
+}
 
 export function resumeFactsOf(
   fold: Omit<TranscriptFoldState, 'progressBridge'>,
   sessionId: UUID,
   chain: TranscriptMessage[],
 ): ResumeFacts {
+  const displacedNotices = hostNoticesBehindLaterRows(fold.messages, chain)
   return {
     fileHistorySnapshots: buildFileHistorySnapshotChain(fold.fileHistorySnapshots, chain),
     attributionSnapshots: buildAttributionSnapshotChain(fold.attributionSnapshots, chain),
@@ -448,6 +462,7 @@ export function resumeFactsOf(
     prRepository: fold.prRepositories.get(sessionId),
     turnEnd: fold.turnEnds.get(sessionId),
     ...(fold.turnsOpen.has(sessionId) ? { turnOpen: true } : {}),
+    ...(displacedNotices.length > 0 ? { displacedNotices } : {}),
   }
 }
 

@@ -10,7 +10,7 @@ import { withoutRetractedReplies } from '../../engine/connector/midTurnText.js'
 import { restoreBoundPrefixFromMessages } from '../../models/roads/anthropic/boundPrefixRecord.js'
 import { declaredRouteOf } from '../../models/roads/routeLaw.js'
 import type { AssistantMessage, AttachmentMessage, Message, NormalizedUserMessage, UserMessage } from '../../engine/message-shapes/message.js'
-import type { SessionListing, SerializedMessage, TurnEnded } from '../transcripts/transcriptEntries.js'
+import type { SessionListing, SerializedMessage, TranscriptMessage, TurnEnded } from '../transcripts/transcriptEntries.js'
 import { PERMISSION_MODES } from '../../permissions/rules/permissions.js'
 import { suppressNextSkillListing } from '../../engine/attachment-shapes/skillListing.js'
 import { getCwd } from '../../platform/files/cwd.js'
@@ -44,6 +44,7 @@ import { runSessionStartHooks } from '../../daemon/runner/sessionStart.js'
 import { electConversationEnd } from '../transcripts/conversationEnd.js'
 import { resumeFactsOf, type ResumeFacts } from '../transcripts/sessionListings.js'
 import {
+  buildConversationChain,
   checkResumeConsistency,
   lastSession,
   sessionIdOfListing,
@@ -227,6 +228,7 @@ function detectInterruption(
   messages: Message[],
   stops: ReadonlyMap<string, string>,
   turnOpen: boolean,
+  displacedNotices: ReadonlySet<string>,
 ): InternalInterruptionState {
   if (messages.length === 0) return { kind: 'none' }
   let ended = false
@@ -234,7 +236,7 @@ function detectInterruption(
   while (lastIndex >= 0) {
     const row = messages[lastIndex]!
     if (saysRunEndedTurn(row)) ended = true
-    if (row.type === 'system' || row.type === 'progress' || isSyntheticApiErrorAssistant(row)) {
+    if (row.type === 'system' || row.type === 'progress' || isSyntheticApiErrorAssistant(row) || displacedNotices.has(row.uuid)) {
       lastIndex--
       continue
     }
@@ -279,6 +281,7 @@ function deserializeMessagesWithInterruptDetection(
   serialized: Message[],
   turnEnd?: TurnEnded,
   turnOpen = false,
+  displacedNotices: readonly UUID[] = [],
 ): { messages: Message[]; turnInterruptionState: TurnInterruptionState } {
   try {
     let messages = withoutRetractedReplies(
@@ -294,7 +297,7 @@ function deserializeMessagesWithInterruptDetection(
 
     const detected: InternalInterruptionState = ended
       ? { kind: 'none' }
-      : detectInterruption(messages, stops, turnOpen)
+      : detectInterruption(messages, stops, turnOpen, new Set(displacedNotices))
 
     let turnInterruptionState: TurnInterruptionState
     if (detected.kind === 'interrupted_turn') {
@@ -501,12 +504,33 @@ type WalkedTranscript = {
   facts: ResumeFacts
 }
 
+function lastRowWithNoTurn(messages: Map<UUID, TranscriptMessage>): TranscriptMessage | undefined {
+  const referencedParents = new Set<string>()
+  for (const message of messages.values()) {
+    if (message.parentUuid && !message.isSidechain) referencedParents.add(message.parentUuid)
+  }
+  let best: TranscriptMessage | undefined
+  let bestTime = 0
+  for (const message of messages.values()) {
+    if (referencedParents.has(message.uuid)) continue
+    if (message.isSidechain) continue
+    const time = Date.parse(message.timestamp)
+    if (Number.isNaN(time)) continue
+    if (time > bestTime) {
+      bestTime = time
+      best = message
+    }
+  }
+  return best
+}
+
 async function walkTranscriptFile(path: string): Promise<WalkedTranscript> {
   const loaded = await loadTranscriptFile(path)
   const elected = electConversationEnd(loaded.messages)
-  if (elected === undefined) return { messages: [], sessionId: undefined, facts: {} }
-  const rows = elected.rows
-  const sessionId = (rows.at(-1) ?? elected.primary).sessionId as UUID
+  const last = elected === undefined ? lastRowWithNoTurn(loaded.messages) : (elected.rows.at(-1) ?? elected.primary)
+  if (last === undefined) return { messages: [], sessionId: undefined, facts: {} }
+  const rows = elected?.rows ?? buildConversationChain(loaded.messages, last)
+  const sessionId = last.sessionId as UUID
   return {
     messages: removeExtraFields(rows),
     sessionId,
@@ -549,6 +573,7 @@ function listingFactsOf(listing: SessionListing): ResumeFacts {
     prRepository: listing.prRepository,
     turnEnd: listing.turnEnd,
     ...(listing.turnOpen === true ? { turnOpen: true } : {}),
+    ...(listing.displacedNotices !== undefined ? { displacedNotices: listing.displacedNotices } : {}),
   }
 }
 
@@ -633,7 +658,7 @@ export async function loadConversationForResume(
     }
 
     const { messages: deserialized, turnInterruptionState } =
-      deserializeMessagesWithInterruptDetection(rawMessages, facts.turnEnd, facts.turnOpen === true)
+      deserializeMessagesWithInterruptDetection(rawMessages, facts.turnEnd, facts.turnOpen === true, facts.displacedNotices)
 
     const recordedModel =
       getEngineModelOverride() === undefined && facts.model

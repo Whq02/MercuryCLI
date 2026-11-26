@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import type { UUID } from 'node:crypto'
+import { randomUUID, type UUID } from 'node:crypto'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -19,13 +19,14 @@ const { loadConversationForResume } = await import('../../src/sessions/resume/co
 const { createBranchSession } = await import('../../src/sessions/branches/branchManifest.ts')
 const { transcriptMessageIndex } = await import('../../src/sessions/transcripts/materialize.ts')
 const { _resetTranscriptReaderForTesting } = await import('../../src/sessions/transcripts/transcriptReader.ts')
-const { adoptResumedSessionFile, flushSessionStorage, recordTranscript } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { adoptResumedSessionFile, flushSessionStorage, getTranscriptPath, recordTranscript, resetProjectForTesting } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 const { switchSession } = await import('../../src/boot/process-state/processState.ts')
 const { asSessionId } = await import('../../src/sessions/transcripts/ids.ts')
-const { createSystemMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
-const { SYNTHETIC_MODEL } = await import('../../src/engine/message-shapes/factories.ts')
+const { createFoldBoundaryMessage, createSystemMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { SYNTHETIC_MODEL, createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
 const { LEAF_SCENES, LEAF_UNFINISHED_SCENE, writeLeafScene } = await import('../lib/resumeLeafScenes.ts')
 import type { LeafScene } from '../lib/resumeLeafScenes.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 
 let checks = 0
 let failures = 0
@@ -40,7 +41,7 @@ function section(title: string): void {
 const j = (value: unknown): string => JSON.stringify(value) ?? ''
 
 type Row = { uuid: UUID; type: string; message?: { model?: string; content?: unknown } }
-type Seen = { ids: UUID[]; lastTurn: UUID | undefined; interruption?: string; sessionId?: string }
+type Seen = { ids: UUID[]; lastTurn: UUID | undefined; interruption?: string; sessionId?: string; told?: { uuid: UUID; meta: boolean }; displaced?: UUID[] | 'none' }
 type Source = { id: string; file: string }
 type Door = { name: string; hint: string; read: (source: Source) => Promise<Seen | null> }
 
@@ -56,7 +57,8 @@ async function resumed(id: string, file: string | undefined): Promise<Seen | nul
   const loaded = await loadConversationForResume(id, file)
   if (loaded === null) return null
   const told = loaded.turnInterruptionState.kind === 'interrupted_prompt' ? loaded.turnInterruptionState.message.uuid : undefined
-  return { ...seenOf(loaded.messages.filter(row => row.uuid !== told)), interruption: loaded.turnInterruptionState.kind, sessionId: loaded.sessionId }
+  const asked = loaded.turnInterruptionState.kind === 'interrupted_prompt' ? { uuid: loaded.turnInterruptionState.message.uuid, meta: loaded.turnInterruptionState.message.isMeta === true } : undefined
+  return { ...seenOf(loaded.messages.filter(row => row.uuid !== told)), interruption: loaded.turnInterruptionState.kind, sessionId: loaded.sessionId, told: asked, displaced: 'displacedNotices' in loaded ? loaded.displacedNotices : 'none' }
 }
 
 const pathDoor: Door = {
@@ -151,6 +153,135 @@ try {
         door.hint,
         j({ holds: seen === null ? null : wanted.map(id => seen.ids.includes(id)), hasLate: seen?.ids.includes(scene.reports[0]!), interruption: seen?.interruption }),
       )
+    }
+  }
+
+  section('§4 a file that holds no prompt and no reply elects no end: each door still answers what it answered before the election')
+  {
+    const NO_TURN = 'when electConversationEnd elects nothing, the door must hand back what it handed back before it read the election: a session an earlier build resumes stays resumable, and one it refuses stays refused'
+    let clock = Date.now() - 60_000
+    const at = <T extends Message>(row: T): T => {
+      row.timestamp = new Date(++clock).toISOString()
+      return row
+    }
+    const sealed = async (behind: (open: AssistantMessage) => Message[]): Promise<Source & { rows: UUID[] }> => {
+      resetProjectForTesting()
+      _resetTranscriptReaderForTesting()
+      const id = randomUUID()
+      switchSession(asSessionId(id))
+      const open = at(createAssistantMessage({ content: [{ type: 'tool_use', id: 'call_sealed', name: 'Read', input: { file_path: 'fixture' } }] }))
+      await recordTranscript([at(createUserMessage({ content: 'fixture turn' })), open])
+      await recordTranscript([at(createFoldBoundaryMessage('auto', 1500, open.uuid))])
+      const rows = behind(open).map(at)
+      for (const row of rows) await recordTranscript([row])
+      await flushSessionStorage()
+      return { id, file: getTranscriptPath(), rows: rows.map(row => row.uuid) }
+    }
+    const lone = await sealed(open => [createUserMessage({ sourceToolAssistantUUID: open.uuid, content: [{ type: 'tool_result', tool_use_id: 'call_sealed', content: 'fixture report' }] })])
+    for (const door of doors) {
+      const seen = await door.read(lone)
+      check(
+        `a sealed call's result alone behind a fold line whose summary never landed, by ${door.name}: the session is resumed as before, in its own session, as a turn that was cut`,
+        seen !== null && seen.ids.includes(lone.rows[0]!) && (seen.sessionId ?? lone.id) === lone.id && (seen.interruption ?? 'interrupted_prompt') !== 'none',
+        `${door.hint}; ${NO_TURN}`,
+        j({ loaded: seen !== null, rows: seen?.ids.length, hasResult: seen?.ids.includes(lone.rows[0]!), sessionId: seen?.sessionId === lone.id, interruption: seen?.interruption }),
+      )
+    }
+    const alone = await sealed(() => [])
+    const noted = await sealed(() => [createSystemMessage('a crew row behind the fold line', 'info')])
+    resetProjectForTesting()
+    _resetTranscriptReaderForTesting()
+    const notes = randomUUID()
+    switchSession(asSessionId(notes))
+    adoptResumedSessionFile()
+    await recordTranscript([at(createSystemMessage('a first note', 'info'))])
+    await recordTranscript([at(createSystemMessage('a second note', 'info'))])
+    await flushSessionStorage()
+    const refused: Array<[string, Source]> = [['a fold line alone', alone], ['a fold line and a crew row', noted], ['notes alone', { id: notes, file: getTranscriptPath() }]]
+    for (const [name, source] of refused) {
+      check(`${name}, by path: refused as before, no conversation is made up`, (await pathDoor.read(source)) === null, `${pathDoor.hint}; ${NO_TURN}`)
+    }
+  }
+
+  section('§5 a host notice is written between a call and its result, and the run dies before the reply: the turn is still read as cut; where the notice was the newest row, the reading is what it was')
+  {
+    const CUT = 'resumeFactsOf in src/sessions/transcripts/sessionListings.ts must name as displacedNotices each host notice (a user row marked isVirtual) that the line places behind a row written after it in the FILE, never by a stamp, and detectInterruption in src/sessions/resume/conversationRecovery.ts must pass over the rows named there and no other when it looks for the last row'
+    let clock = Date.now() - 30_000
+    const at = <T extends Message>(row: T): T => {
+      row.timestamp = new Date(++clock).toISOString()
+      return row
+    }
+    type Shape = { calls: number; before: 'notice' | 'two notices' | 'crew row' | 'prompt' | 'nothing'; results: number; reply: boolean; after: 'notice' | 'notice stamped earlier' | 'crew row' | 'nothing' }
+    type Turn = { source: Source; before: UUID[]; after: UUID | undefined; typed: UUID | undefined }
+    const turn = async (shape: Shape): Promise<Turn> => {
+      resetProjectForTesting()
+      _resetTranscriptReaderForTesting()
+      const id = randomUUID()
+      switchSession(asSessionId(id))
+      const issued = Array.from({ length: shape.calls }, (_, index) => {
+        const row = at(createAssistantMessage({ content: [{ type: 'tool_use', id: `call_${index}`, name: 'Read', input: { file_path: 'fixture' } }] }))
+        row.message.id = 'msg_cut'
+        row.message.model = 'claude-sonnet-5'
+        row.message.stop_reason = 'tool_use'
+        return row
+      })
+      await recordTranscript([at(createUserMessage({ content: 'fixture turn' })), ...issued])
+      const notices = shape.before === 'notice' || shape.before === 'two notices' ? Array.from({ length: shape.before === 'notice' ? 1 : 2 }, () => at(createUserMessage({ content: 'a crewmate finished', isVirtual: true }))) : []
+      for (const notice of notices) await recordTranscript([notice])
+      const typed = shape.before === 'prompt' ? at(createUserMessage({ content: 'a prompt typed while the call ran' })) : undefined
+      if (typed !== undefined) await recordTranscript([typed])
+      if (shape.before === 'crew row') await recordTranscript([at(createSystemMessage('a crew row', 'info'))])
+      for (const [index, row] of issued.slice(0, shape.results).entries()) await recordTranscript([at(createUserMessage({ sourceToolAssistantUUID: row.uuid, content: [{ type: 'tool_result', tool_use_id: `call_${index}`, content: 'fixture report' }] }))])
+      if (shape.reply) {
+        const reply = at(createAssistantMessage({ content: 'finished fixture reply' }))
+        reply.message.model = 'claude-sonnet-5'
+        reply.message.stop_reason = 'end_turn'
+        await recordTranscript([reply])
+      }
+      const trailing = shape.after === 'notice' || shape.after === 'notice stamped earlier' ? at(createUserMessage({ content: 'a crewmate finished later', isVirtual: true })) : undefined
+      if (trailing !== undefined && shape.after === 'notice stamped earlier') trailing.timestamp = new Date(clock - 20_000).toISOString()
+      if (trailing !== undefined) await recordTranscript([trailing])
+      if (shape.after === 'crew row') await recordTranscript([at(createSystemMessage('a crew row behind the result', 'info'))])
+      await flushSessionStorage()
+      return { source: { id, file: getTranscriptPath() }, before: notices.map(row => row.uuid), after: trailing?.uuid, typed: typed?.uuid }
+    }
+    const cutShapes: Array<[string, Shape]> = [
+      ['one call, a host notice before its result, no reply', { calls: 1, before: 'notice', results: 1, reply: false, after: 'nothing' }],
+      ['two parallel calls, a host notice before their results, no reply', { calls: 2, before: 'notice', results: 2, reply: false, after: 'nothing' }],
+      ['one call, two host notices before its result, no reply', { calls: 1, before: 'two notices', results: 1, reply: false, after: 'nothing' }],
+      ['one call, a host notice before its result, a crew row behind it, no reply', { calls: 1, before: 'notice', results: 1, reply: false, after: 'crew row' }],
+    ]
+    for (const [name, shape] of cutShapes) {
+      const cut = await turn(shape)
+      for (const door of doors) {
+        const seen = await door.read(cut.source)
+        check(
+          `${name}, by ${door.name}: the resume is told the turn was cut, by the sentence the product adds and not by a notice`,
+          seen !== null && seen.interruption === 'interrupted_prompt' && seen.told?.meta === true && !cut.before.includes(seen.told.uuid) && j(seen.displaced) === j(cut.before),
+          CUT,
+          j({ interruption: seen?.interruption, toldByTheProductsSentence: seen?.told?.meta, toldIsANotice: seen?.told === undefined ? undefined : cut.before.includes(seen.told.uuid), namedDisplaced: j(seen?.displaced) === j(cut.before) }),
+        )
+      }
+    }
+    const plain = await pathDoor.read((await turn({ calls: 1, before: 'nothing', results: 1, reply: false, after: 'nothing' })).source)
+    const crewed = await pathDoor.read((await turn({ calls: 1, before: 'crew row', results: 1, reply: false, after: 'nothing' })).source)
+    check('controls, by path: the same cut with no notice, and with a crew row in its place, are told as cut, and a file with no such notice is handed no fact about one', [plain, crewed].every(seen => seen !== null && seen.interruption === 'interrupted_prompt' && seen.told?.meta === true && seen.displaced === 'none'), CUT, j([plain, crewed].map(seen => ({ interruption: seen?.interruption, meta: seen?.told?.meta, displaced: seen?.displaced }))))
+    const done = await pathDoor.read((await turn({ calls: 1, before: 'notice', results: 1, reply: true, after: 'nothing' })).source)
+    check('control, by path: the turn finished with the notice in it: no interruption', done !== null && done.interruption === 'none', CUT, j({ interruption: done?.interruption }))
+    const typed = await turn({ calls: 1, before: 'prompt', results: 1, reply: false, after: 'nothing' })
+    const asked = await pathDoor.read(typed.source)
+    check('control, by path: a real prompt typed between a call and its result, the run cut before the reply, is still the prompt nobody answered', asked !== null && asked.interruption === 'interrupted_prompt' && asked.told?.uuid === typed.typed && asked.told?.meta === false, CUT, j({ interruption: asked?.interruption, toldIsThePrompt: asked?.told?.uuid === typed.typed, meta: asked?.told?.meta }))
+    const newest: Array<[string, Shape]> = [
+      ['a host notice behind a finished reply', { calls: 1, before: 'nothing', results: 1, reply: true, after: 'notice' }],
+      ['a second host notice behind the result, no reply', { calls: 1, before: 'notice', results: 1, reply: false, after: 'notice' }],
+      ['a host notice written behind the result and stamped before it (its board event\'s own time)', { calls: 1, before: 'nothing', results: 1, reply: false, after: 'notice stamped earlier' }],
+      ['a host notice behind a call that was never answered', { calls: 1, before: 'nothing', results: 0, reply: false, after: 'notice' }],
+      ['two calls, one result, then a host notice, the other call open', { calls: 2, before: 'nothing', results: 1, reply: false, after: 'notice' }],
+    ]
+    for (const [name, shape] of newest) {
+      const scene = await turn(shape)
+      const seen = await pathDoor.read(scene.source)
+      check(`control, by path: ${name}: the notice was the newest row, so the reading stops on it as before and no sentence is added`, seen !== null && seen.interruption === 'interrupted_prompt' && seen.told?.uuid === scene.after && seen.told?.meta === false && !(Array.isArray(seen.displaced) && seen.displaced.includes(scene.after!)), CUT, j({ interruption: seen?.interruption, toldIsTheNotice: seen?.told?.uuid === scene.after, meta: seen?.told?.meta, displaced: seen?.displaced === 'none' ? 'none' : seen?.displaced?.length }))
     }
   }
 } finally {
