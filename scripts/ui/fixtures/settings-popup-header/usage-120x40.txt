@@ -9,7 +9,7 @@ next                    │ transcript row 49 · · · · · · · · · · · �
 files · orchard         │ │                                                                                          │ │
   ↵ browse              │ │ Anthropic usage                                                                          │ │
                         │ │ API key · …-key                                                                          │ │
-vitals                  │ │ credits: not reported by the provider                                                    │ │
+usage                   │ │ credits: not reported by the provider                                                    │ │
   spend —               │ │                                                                                          │ │
   ctx — · —             │ │ Subscription                                                                             │ │
   health — run /health  │ │ none — /logins anthropic connects a subscription account · n/a                           │ │

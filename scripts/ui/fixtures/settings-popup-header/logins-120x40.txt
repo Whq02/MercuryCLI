@@ -9,7 +9,7 @@ next                    │ transcript row 49 · · · · · · · · · · · �
 files · orchard         │ │                                                                                          │ │
   ↵ browse              │ │ Sign in                                                                                  │ │
                         │ │                                                                                          │ │
-vitals                  │ │ Choose a provider to sign in.                                                            │ │
+usage                   │ │ Choose a provider to sign in.                                                            │ │
   spend —               │ │                                                                                          │ │
   ctx — · —             │ │   OpenAI — ChatGPT subscription or API key                                               │ │
   health — run /health  │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key                           │ │

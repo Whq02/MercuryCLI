@@ -7,7 +7,7 @@ next                │ │ Mercury · logins                                   
 files · orchard     │ │ Sign in                                                                  │ │
   ↵ browse          │ │                                                                          │ │
                     │ │ Choose a provider to sign in.                                            │ │
-vitals              │ │                                                                          │ │
+usage               │ │                                                                          │ │
   spend —           │ │   OpenAI — ChatGPT subscription or API key                               │ │
   ctx — · —         │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key           │ │
   health — run…     │ │     ANTHROPIC_API_KEY (env) …-key                                        │ │

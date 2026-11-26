@@ -5,9 +5,9 @@ next                    │   ▀▄▄▄▀▄▄▄▀                       
   /health               │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
                         │                                                                                                                  │
 files · project         │                                                                                                                  │
-  ↵ browse              │ 18:12:12 [sam] ❯ start                                                                                           │
+  ↵ browse              │ 20:19:29 [sam] ❯ start                                                                                           │
                         │                                                                                                                  │
-vitals                  │ 18:12:12 [Mercury] Command rows ready.                                                                           │
+usage                   │ 20:19:29 [Mercury] Command rows ready.                                                                           │
   spend $0.00           │                                                                                                                  │
   ctx 0% · 1000k        │ ❯ /crewmates off                                                                                                 │
   health — run /health  │   └ crewmates off for this session                                                                               │
@@ -15,9 +15,9 @@ vitals                  │ 18:12:12 [Mercury] Command rows ready.              
                         │     running finishes                                                                                             │
                         │ you turned crewmates off: the Crewmate tool has left the roster; reasoning restarts on the next turn             │
                         │                                                                                                                  │
-                        │ 18:12:29 [sam] ❯ run the cell                                                                                    │
+                        │ 20:19:46 [sam] ❯ run the cell                                                                                    │
                         │                                                                                                                  │
-                        │   18:12:29 [Mercury] Eval js · Calculate the value                                                               │
+                        │   20:19:47 [Mercury] Eval js · Calculate the value                                                               │
                         │     └ Starting kernel…                                                                                           │
                         │                                                                                                                  │
                         │                                                                                                                  │
