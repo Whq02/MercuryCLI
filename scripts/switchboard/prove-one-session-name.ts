@@ -142,7 +142,7 @@ function seedNoticeFirstTranscript(
   if (opts.prompt !== undefined) turn(1, opts.prompt, {})
   if (opts.mission !== undefined) {
     const directive = buildMissionDirective(opts.mission.goal)
-    const origin = { kind: 'screen-command', command: 'mission' }
+    const origin = { kind: 'screen-command', command: 'goal' }
     rows.push({ type: 'queue-operation', operation: 'enqueue', timestamp: at(3), sessionId, content: directive, commandUuid: uuidOf(3), mode: 'prompt', isMeta: true, origin })
     turn(3, directive, { isMeta: true, origin })
     turn(5, `${MISSION_HOLD_HEAD} ${opts.mission.goal} — no close yet. Continue.`, { isMeta: true })

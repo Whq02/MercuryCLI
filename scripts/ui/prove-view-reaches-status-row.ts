@@ -52,9 +52,9 @@ try {
     if (payload === undefined) continue
     const lines = rowsOf(payload.grid)
     if (frameDir !== undefined) writeFileSync(join(frameDir, `${tag}.txt`), lines.join('\n') + '\n')
-    const top = lines.findIndex(line => /^\s*(?:❯ )?lanes\b.*╭/.test(line))
-    const left = top < 0 ? -1 : lines[top]!.indexOf('╭')
-    const rightEdge = top < 0 ? -1 : lines[top]!.lastIndexOf('╮')
+    const top = lines.findIndex(line => /^(?:╭─+╮|(?:crew \d+|work|runs|recent|goal|workbench|next|files|saturn|vitals)[^╭]*)╭─+╮/.test(line))
+    const left = top < 0 ? -1 : (lines[top]!.startsWith('╭') ? lines[top]!.indexOf('╭', 1) : lines[top]!.indexOf('╭'))
+    const rightEdge = top < 0 || left < 0 ? -1 : lines[top]!.indexOf('╮', left + 1)
     const bottom = top < 0 ? -1 : lines.findIndex((line, index) => index > top && line[left] === '╰' && line[rightEdge] === '╯')
     const status = lines.findIndex(line => line.includes(BACK))
     check(`${tag}: the pane opens on its top border at row 0 beside the lanes label`, top === 0, `the view pane must start on row 0 with the lanes label; change the view layout so no row paints above it — top ${top}`)

@@ -9,7 +9,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
   {
     key: 'work',
     label: 'current work',
-    names: ['run', 'runs', 'workbench', 'diff', 'mission', 'samples'],
+    names: ['run', 'runs', 'workbench', 'diff', 'goal', 'samples'],
   },
   {
     key: 'crew',
