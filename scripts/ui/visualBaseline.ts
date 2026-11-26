@@ -219,6 +219,14 @@ export function canonicalizeCheckoutRows(
       styles.push(grid.styles[y] ?? [])
       return
     }
+    const chipClip = new RegExp(`(ctx [^·]*· )${checkout.basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} ⌥[^·]*…$`).exec(row)
+    if (chipClip && chipClip.index !== undefined && row.length - chipClip.index - chipClip[1]!.length <= 'mercury'.length + 1) {
+      const at = chipClip.index + chipClip[1]!.length
+      const width = row.length - at
+      text.push(row.slice(0, at) + 'mercury'.slice(0, width - 1) + '…')
+      styles.push(compress([...cells.slice(0, at), ...Array.from({ length: width }, () => cells[at] ?? null)]))
+      return
+    }
     const cut = clipped.exec(row)
     if (cut && cut.index !== undefined && cut[0].length >= 'files · mercury'.length) return take(respell(row, cells, cut.index, cut[0], 'files · mercury'))
     keep()
