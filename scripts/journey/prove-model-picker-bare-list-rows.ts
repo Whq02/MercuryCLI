@@ -5,6 +5,7 @@ import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
+import figures from 'figures'
 import stripAnsi from 'strip-ansi'
 import stringWidth from 'string-width'
 
@@ -178,17 +179,28 @@ const rowText = (line: string): string => (line.includes('│ │ ') ? `  ${(lin
 const cellsOf = (text: string): string[] => text.replace(/^(?:❯ | {2})/, '').trim().split(/ {2,}/)
 const nameOfCells = (cells: string[]): string => (cells[0] === '—' ? cells[1] ?? '' : cells[0] ?? '')
 const sameName = (painted: string, name: string): boolean => painted === name || (painted.endsWith('…') && name.startsWith(painted.slice(0, -1)))
-const rowLines = (frame: string): string[] => linesOf(frame).filter(line => /│ (?:│ | {2})/.test(line) && isRowText(rowText(line)))
+const rowLines = (frame: string): string[] => linesOf(frame).filter(line => new RegExp(`│ (?:│ | {2}|${figures.pointer} )`).test(line) && isRowText(rowText(line)))
 const rowNames = (frame: string): string[] => rowLines(frame).map(line => nameOfCells(cellsOf(rowText(line))))
 const rowLine = (frame: string, name: string): string => rowLines(frame).find(line => sameName(nameOfCells(cellsOf(rowText(line))), name)) ?? ''
 const hasRow = (frame: string, name: string): boolean => rowLine(frame, name) !== ''
 const headingOf = (frame: string, title: string): string => innerOf(linesOf(frame).find(line => line.includes(title)) ?? '').trim()
-const cardOf = (frame: string): string[] => linesOf(frame).filter(line => line.includes('│ │ ')).map(line => (line.split('│ │ ')[1] ?? '').replace(/\s*│ │\s*$/, '').trimEnd())
+const cardOf = (frame: string): string[] => {
+  const lines = linesOf(frame)
+  const at = lines.findIndex(line => {
+    const text = innerOf(line)
+    return text.startsWith(`${figures.pointer} `) && isRowText(text)
+  })
+  if (at < 0) return []
+  const head = innerOf(lines[at]!).slice(figures.pointer.length + 1).trimEnd()
+  const after = lines[at + 1]
+  if (after === undefined) return [head]
+  const sub = innerOf(after).trimEnd()
+  const isTag = sub.startsWith('  ') && sub.trim() !== '' && !isRowText(sub) && !isHeading(sub) && !isDoorLine(sub) && !/^ {2}[↑↓] \d+ more/.test(sub)
+  return isTag ? [head, sub.trim()] : [head]
+}
 const focusOf = (frame: string): string => {
-  const boxed = cardOf(frame)[0]
-  if (boxed !== undefined) return nameOfCells(cellsOf(`  ${boxed}`))
-  const caret = linesOf(frame).map(innerOf).find(text => text.startsWith('❯ ') && isRowText(text))
-  return caret === undefined ? '' : nameOfCells(cellsOf(caret))
+  const head = cardOf(frame)[0]
+  return head === undefined ? '' : nameOfCells(cellsOf(`  ${head}`))
 }
 const cardWords = (frame: string): string => (cardOf(frame)[1] ?? '').trim()
 const ctxCell = (frame: string, name: string): string => cellsOf(rowText(rowLine(frame, name))).find(cell => / ctx$/.test(cell)) ?? ''

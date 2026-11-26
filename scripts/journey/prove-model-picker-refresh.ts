@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import figures from 'figures'
 import { EventEmitter } from 'node:events'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -111,7 +112,7 @@ try {
   await action
   await flush()
   check('the changed rows replace the cached list', /GPT-6 Astra\s{2,}gpt-6-astra\s{2,}\d/.test(first.seen()) && !/GPT-5\.6 Terra\s{2,}gpt-5\.6-terra\s{2,}\d/.test(first.seen()), first.seen(), 'the picker in src/commands/model/picker/roads.ts must repaint from the new catalogue after refreshOpenaiCatalogue bumps the epoch')
-  check('the highlight follows the same id when the row moves', /│ │ GPT-5\.6 Sol\s{2,}gpt-5\.6-sol\s{2,}current/.test(first.seen()), first.seen().split('\n').filter(l => l.includes('│ │ ')).join(' | '), 'the focused row in src/commands/model/picker/roads.ts must follow the model id, not its index, when rows move')
+  check('the highlight follows the same id when the row moves', new RegExp(`│\\s+${figures.pointer} GPT-5\\.6 Sol\\s{2,}gpt-5\\.6-sol\\s{2,}current`).test(first.seen()), first.seen().split('\n').filter(l => l.includes(`${figures.pointer} `)).join(' | '), 'the focused row in src/commands/model/picker/roads.ts must follow the model id, not its index, when rows move')
   check('the changed list uses the existing notice', first.seen().includes('GPT — the live list changed'), '', 'the notice is set in src/commands/model/picker/roads.ts when the live list changes')
   first.unmount()
 

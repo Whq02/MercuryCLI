@@ -1,3 +1,4 @@
+import figures from 'figures'
 import assert from 'node:assert/strict'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -63,7 +64,7 @@ try {
     const capture = (name: string, view = m) => saveFrame(view, cols, name)
     try {
       assert.ok(await waitFor(() => m.screen().includes('Mercury'), 5000), m.screen())
-      assert.ok(await waitFor(() => m.screen().includes('│ │ Ghost GLM'), 5000), m.screen())
+      assert.ok(await waitFor(() => m.lines().some(line => new RegExp(`│\\s+${figures.pointer} Ghost GLM`).test(line)), 5000), m.screen())
       await capture('ghost')
       const row = namedCompatModelOptions().find(row => row.value === '__mercury_connect__:compat/ghost')!
       const endpoint = configuredCompatEndpoints().find(endpoint => endpoint.name === 'ghost')!
@@ -78,7 +79,7 @@ try {
       let previous: string | undefined
       let moves = 0
       assert.ok(await waitFor(() => {
-        const selected = m.lines().find(line => line.includes('│ │ ')) ?? ''
+        const selected = m.lines().find(line => new RegExp(`│\\s+${figures.pointer} `).test(line)) ?? ''
         if (selected.includes('Locked GLM')) return true
         if (selected !== previous && moves < 8) { previous = selected; moves++; m.push(KEY.down) }
         return false

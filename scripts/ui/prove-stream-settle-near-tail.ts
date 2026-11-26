@@ -234,7 +234,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
     throw new Error(`screen never settled for ${label} within ${ceilingMs}ms (top=${topMarkFrom(lastFrame) ?? 'none'})\n${lastFrame}`)
   }
 
-  const replyLinesNear = rows === 40 ? 35 : 46
+  const replyLinesNear = rows === 40 ? 37 : 48
 
   try {
     await waitScreenSettled(`${tag} initial mount`, frame => frame.includes('Type a prompt'))
