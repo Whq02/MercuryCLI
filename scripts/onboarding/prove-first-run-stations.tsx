@@ -45,7 +45,7 @@ if (scenario !== null) {
         return Array.from({ length: 11 }, (_, dc) => {
           const ch = line[dc] ?? ' '
           const s = stillMount.styleAt(dc, dr)
-          return `${ch}[${s?.fg ?? ''}/${s?.bg ?? ''}]`
+          return `${ch}[${s?.fg ?? 'default'}/${s?.bg ?? 'default'}]`
         }).join('')
       })
       .join('\n')
@@ -54,20 +54,22 @@ if (scenario !== null) {
     const element = h(AppStateProvider as never, {} as never, h(KeybindingSetup as never, {} as never, h(Onboarding as never, { onDone: () => {} } as never)))
     const mounted = await mountOffscreen(element, 120, 40)
     await waitFor(() => mounted.screen().includes('Choose your theme'), 15_000)
+    await settle(350)
     const idx = mounted.lines().findIndex(l => l.includes('Choose your theme'))
+    const critterCol = (mounted.lines()[idx - 1] ?? '').indexOf('│') + 2
     const samples: string[] = []
     let firstStillSlice = ''
     for (let t = 0; t < 8; t++) {
       await settle(350)
-      samples.push(snapshotBox(mounted, idx - 1, 11))
+      samples.push(snapshotBox(mounted, idx - 1, critterCol - 1))
       if (t === 0) {
         firstStillSlice = [0, 1, 2]
           .map(dr => {
             const line = mounted.lines()[idx - 1 + dr] ?? ''
             return Array.from({ length: 11 }, (_, dc) => {
-              const ch = line[12 + dc] ?? ' '
-              const s = mounted.styleAt(12 + dc, idx - 1 + dr)
-              return `${ch}[${s?.fg ?? ''}/${s?.bg ?? ''}]`
+              const ch = line[critterCol + dc] ?? ' '
+              const s = mounted.styleAt(critterCol + dc, idx - 1 + dr)
+              return `${ch}[${s?.fg ?? 'default'}/${s?.bg ?? 'default'}]`
             }).join('')
           })
           .join('\n')
@@ -159,6 +161,7 @@ const run = (tag: string, extraEnv: Record<string, string>): Record<string, stri
   if (tag === 'still-critter') {
     for (const k of ['MERCURY_REDUCED_MOTION', 'MERCURY_CRITTER_IDLE', 'MERCURY_CRITTER_GAZE', 'MERCURY_CRITTER_SLEEP', 'MERCURY_LIVE_GLYPHS', 'NO_COLOR']) delete env[k]
     env.MERCURY_CRITTER = 'jellyfish'
+    env.FORCE_COLOR = '3'
   }
   for (const key of Object.keys(env)) {
     if (/^(ANTHROPIC_AUTH_TOKEN|ANTHROPIC_API_KEY|MERCURY_OAUTH_TOKEN|MERCURY_API_KEY_FILE_DESCRIPTOR|OPENAI_API_KEY|ZAI_API_KEY|OPENROUTER_API_KEY|GOOGLE_API_KEY|GEMINI_API_KEY|MOONSHOT_API_KEY|DEEPSEEK_API_KEY|HF_TOKEN|XAI_API_KEY|MODEL_API_KEY|MERCURY_COMPAT_BASE_URL|CURSOR_TRACE_ID|VSCODE_GIT_ASKPASS_MAIN|__CFBundleIdentifier|VisualStudioVersion|TERMINAL_EMULATOR)$/.test(key) && !(key in extraEnv)) delete env[key]
