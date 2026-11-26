@@ -140,9 +140,7 @@ export async function resolveReadTarget(
     if (!handle) throw new Error(`no element for selector ${selector} within the ${deadline}ms deadline`)
     return handle as ElementHandle<Element>
   } catch (err) {
-    if (isDriverTimeout(err)) {
-      throw new Error(`no element for selector ${selector} within the ${deadline}ms deadline${framesDiagnosis(s)}`)
-    }
+    if (isDriverTimeout(err)) throw new Error(await selectorMissWords(s, selector, deadline, frame, 'attached'))
     throw err
   }
 }

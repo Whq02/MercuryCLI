@@ -96,4 +96,17 @@ section('S4 a page whose script is held when the wait runs out: the answer comes
   check('control: the page answers again once its script lets go', after.outcome === 'succeeded', after.result)
 }
 
+section('S5 extract on a selector that never attaches: the same diagnosis; a hidden one is read as before')
+{
+  const READ = 'resolveReadTarget in src/tools/browser/ops/targets.ts must answer a miss with selectorMissWords, the diagnosis the acts and waitFor use'
+  const absent = await run({ op: 'extract', selector: '#nowhere', timeoutMs: 600 })
+  check('absent: the sentence it was, with the frames line', absent.outcome === 'failed' && absent.result === `extract failed: no element for selector #nowhere within the 600ms deadline; 1 child frame(s) present (${A.origin}/framed); set frame to an index from extract or a unique URL substring`, `${absent.result} — change: ${READ}`)
+  const framed = await run({ op: 'extract', selector: '#inner', timeoutMs: 600 })
+  check('inside a child frame: it names the frame and the frame road', framed.outcome === 'failed' && framed.result === `extract failed: #inner lives inside a child frame (${A.origin}/framed); set frame to its index from extract or a unique URL substring`, `${framed.result} — change: ${READ}`)
+  const hidden = await run({ op: 'extract', selector: '#desc', timeoutMs: 600 })
+  check('a hidden selector is still read', hidden.outcome !== 'failed' && hidden.result.includes('description words'), hidden.result)
+  const inFrame = await run({ op: 'extract', selector: '#inner', frame: 1, timeoutMs: 2000 })
+  check('control: with the frame set the same selector is read', inFrame.outcome !== 'failed' && inFrame.result.includes('Frame button'), inFrame.result)
+}
+
 await finish('prove-browser-wait-misses')
