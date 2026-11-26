@@ -57,6 +57,7 @@ try {
   const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
   const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
   const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { PopupHost } = await import('../../src/screen/overlays/PopupHost.js')
   const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
   const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
@@ -78,7 +79,7 @@ try {
     const body = rail > 0
       ? React.createElement(Box, { flexDirection: 'row', flexGrow: 1, minHeight: 0, overflow: 'hidden' }, React.createElement(Box, { flexDirection: 'column', width: rail, flexShrink: 0, overflow: 'hidden', borderStyle: 'single' }, ...Array.from({ length: Math.max(0, rows - 2) }, (_, index) => React.createElement(Text, { key: index, wrap: 'truncate-end' }, index === 0 ? 'FILES' : 'f'.repeat(rail)))), React.createElement(Box, { width: columns - rail - centreCols, flexShrink: 0 }), centre)
       : centre
-    return React.createElement(AppStateProvider as never, {}, React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: columns, height: rows }, body, React.createElement(SettingsPopupSlot, { overlay: true, hostRef: centreRef, framed: true }))))
+    return React.createElement(AppStateProvider as never, {}, React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: columns, height: rows }, body, React.createElement(PopupHost, { hostRef: centreRef, framed: true, children: host => React.createElement(SettingsPopupSlot, { host, overlay: true }) }))))
   }
   const mount = async (columns: number, rows: number, rail: number, centreCols = columns - rail - 2) => {
     width = columns
