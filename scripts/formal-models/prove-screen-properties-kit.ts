@@ -311,7 +311,7 @@ async function runKitScenario(scenario: KitScenario): Promise<void> {
   if (!frame.includes('mcps & skills')) {
     throw new Error(`KitMenuScreen did not paint title:\n${frame}`)
   }
-  const hasSummaryBox = frame.includes('NEXT SESSION')
+  const hasSummaryBox = frame.includes('Applies')
 
   const assertPointerInvariant = (phase: string, current: string, expectedWrites: number): BuiltRow => {
     if (closedCount !== 0) throw new Error(`${phase}: closed before Escape (closed=${closedCount})`)
@@ -319,7 +319,7 @@ async function runKitScenario(scenario: KitScenario): Promise<void> {
       throw new Error(`${phase}: unexpected store writes=${writeLog.length}, expected ${expectedWrites}`)
     }
     const { pointerLines, uniqueMarkers } = focusedKitMarkers(current)
-    const expectedPointers = hasSummaryBox ? 2 : 1
+    const expectedPointers = 1
     if (pointerLines.length !== expectedPointers || uniqueMarkers.length !== 1) {
       throw new Error(`${phase}: expected ${expectedPointers} pointer line(s) agreeing on 1 member marker, got lines=${pointerLines.length} unique=${uniqueMarkers.join(',')}:\n${current}`)
     }

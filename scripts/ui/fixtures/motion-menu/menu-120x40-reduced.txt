@@ -5,36 +5,36 @@
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                      ⌁ boot menu
+                                                       boot menu
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ … 7 more above                                                 │  │ ❯ Motion                                   │
-   │   Computer use                                    default (on) │  │                                            │
-   │   Access type                                   default (asks) │  │ What it controls                           │
-   │                                                                │  │ The cockpit's idle motion — the mascot's   │
-   │ SAMPLES                                                        │  │ blink and breath, the live glyphs, and     │
-   │   Samples                                        default (off) │  │ the clock that paces them. Applies now.    │
-   │                                                                │  │                                            │
-   │ AGENTS                                                         │  │ Current value                              │
-   │   Crewmates                                       default (on) │  │ reduced                                    │
-   │                                                                │  │ now: reduced (set by you)                  │
-   │ MISCELLANEOUS                                                  │  │ … (the trail continues — taller terminal)  │
-   │   Launch animation                                default (on) │  │                                            │
-   │   Godot language lanes                           default (off) │  ╰────────────────────────────────────────────╯
-   │   Godot control surface (VULCAN)                 default (off) │  ╭────────────────────────────────────────────╮
-   │   Unity dev lanes                                default (off) │  │ LAUNCH SUMMARY                             │
-   │   Blender dev lanes                              default (off) │  │ Saved      r0 · default                    │
-   │   Aseprite dev lanes                             default (off) │  │ Harness    helm                            │
-   │   Cap failover posture                         default (offer) │  │ Readiness  ● ready                         │
-   │   Session Concourse at boot                      default (off) │  ╰────────────────────────────────────────────╯
-   │   Seats                             6 · this machine's reading │  ╭────────────────────────────────────────────╮
-   │                                                                │  │ ENVIRONMENT                                │
-   │ PERFORMANCE                                                    │  │ Mercury    Opus 5                          │
-   │ ❯ Motion                                               reduced │  │ Critter    Octopus                         │
-   │                                                                │  │ Dir        orchard-src                     │
-   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  changes reach new sessions                                                                  │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   Motion
+   │ … 3 more above                                                 │
+   │   C/C++ IDE lane (clangd)                         default (on) │   What it controls
+   │   Sovereign mode                                 default (off) │   The cockpit's idle motion — the mascot's
+   │                                                                │   blink and breath, the live glyphs, and
+   │ COMPUTER USE                                                   │   the clock that paces them. Applies now.
+   │   Computer use                                    default (on) │
+   │   Access type                                   default (asks) │   Current value
+   │                                                                │   reduced
+   │ SAMPLES                                                        │   now: reduced (set by you)
+   │   Samples                                        default (off) │   reduced cadence: 250 ms a tick (250 ms
+   │                                                                │     floor)
+   │ AGENTS                                                         │   doors: /config · Boot Menu
+   │   Crewmates                                       default (on) │   the status line says reduced while reduced
+   │                                                                │
+   │ MISCELLANEOUS                                                  │   When on
+   │   Launch animation                                default (on) │   ◦ full — every idle animation at its own
+   │   Godot language lanes                           default (off) │     cadence, whatever a frame costs
+   │   Godot control surface (VULCAN)                 default (off) │   ◦ reduced — the clock at the slow
+   │   Unity dev lanes                                default (off) │     cadence, the mascot still, the glyphs
+   │   Blender dev lanes                              default (off) │     turning slowly; the status line says
+   │   Aseprite dev lanes                             default (off) │   … (the trail continues — taller terminal)
+   │   Cap failover posture                         default (offer) │
+   │   Session Concourse at boot                      default (off) │   Saved      r0 · default
+   │   Seats                             6 · this machine's reading │   Harness    helm
+   │                                                                │
+   │ PERFORMANCE                                                    │   Mercury    Opus 5
+   │ ❯ Motion                                               reduced │   Critter    Octopus
+   ╰────────────────────────────────────────────────────────────────╯   Dir        orchard-src
+    changes reach new sessions
                           ↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts · esc back

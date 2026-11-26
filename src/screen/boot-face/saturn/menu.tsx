@@ -18,7 +18,6 @@ export function saturnMenuOf({ mainModel, saturnSummaryRows, facts, nowMs, wordG
   const environment = bootEnvironment(mainModel, process.cwd());
   const base = {
     title: 'saturn scheduler',
-    summaryTitle: 'SATURN',
     summaryRows: saturnSummaryRows(facts, nowMs),
     environment,
     glowWord: wordGlow,

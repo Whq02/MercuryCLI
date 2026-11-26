@@ -44,8 +44,8 @@ console.log('§2 the composed ready line, both faces, through the splash core')
     plainSegments[1],
   ]
   const cardRows = [
-    { icon: '▸', label: 'New Session', ctx: '' },
-    { icon: '↻', label: 'Continue Last Session', ctx: '' },
+    { label: 'New Session', ctx: '' },
+    { label: 'Continue Last Session', ctx: '' },
   ]
   const keyMap = keyHintLabel(stripKeyMapHintOf('boot-settings', ['boot-settings', 'concourse']), 'windows')
   const plain = core.composeLockup(100, 30, { cardRows, cardSel: 0, hintSegments: plainSegments, tinyHint: '↵', stripLines: () => [], keyMap }).lines.map(strip)

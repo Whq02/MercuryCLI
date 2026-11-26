@@ -5,36 +5,36 @@
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                     ⌁ health check
+                                                      health check
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ Keybindings file                                               │  │ ❯                                          │
-   │   ▲ warn                                                       │  │                                            │
-   │                                                                │  │ ▲ warn                                     │
-   │   evidence:                                                    │  │                                            │
-   │   ~/.mercury/keybindings.json holds 2                          │  │ evidence:                                  │
-   │   unknown actions                                              │  │ ~/.mercury/keybindings.json holds 2        │
-   │                                                                │  │ unknown actions                            │
-   │   Unknown actions are ignored at load;                         │  │                                            │
-   │   the file keeps working.                                      │  │ Unknown actions are ignored at load;       │
-   │                                                                │  │ the file keeps working.                    │
-   │   → remove the unknown rows, or re-run                         │  │ … (the trail continues — taller terminal)  │
-   │   the keybindings check                                        │  ╰────────────────────────────────────────────╯
-   │                                                                │  ╭────────────────────────────────────────────╮
-   │   f — apply the safe remedy                                    │  │ CERTIFICATE                                │
-   ╰────────────────────────────────────────────────────────────────╯  │ Verdict    ▲ caution                       │
-                                                                       │ Checks     6 · 1 stale · 1 warn · 1 unkno… │
-                                                                       │ Issued     2m ago · 830ms                  │
-                                                                       │ Build      1.0.0-beta.1 · main @ abcdef1   │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    Opus 5                          │
-                                                                       │ Critter    Octopus                         │
-                                                                       │ Dir        orchard-src                     │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  verdict caution · 6 checks · issued 2m ago · 830ms · read-only                              │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   ▲ warn
+   │ Keybindings file                                               │
+   │   ▲ warn                                                       │   evidence:
+   │                                                                │   ~/.mercury/keybindings.json holds 2
+   │   evidence:                                                    │   unknown actions
+   │   ~/.mercury/keybindings.json holds 2                          │
+   │   unknown actions                                              │   Unknown actions are ignored at load;
+   │                                                                │   the file keeps working.
+   │   Unknown actions are ignored at load;                         │
+   │   the file keeps working.                                      │   → remove the unknown rows, or re-run
+   │                                                                │   the keybindings check
+   │   → remove the unknown rows, or re-run                         │
+   │   the keybindings check                                        │   f — apply the safe remedy
+   │                                                                │
+   │   f — apply the safe remedy                                    │
+   ╰────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+                                                                        Verdict    ▲ caution
+                                                                        Checks     6 · 1 stale · 1 warn · 1 unknown…
+                                                                        Issued     2m ago · 830ms
+                                                                        Build      1.0.0-beta.1 · main @ abcdef1
+
+                                                                        Mercury    Opus 5
+                                                                        Critter    Octopus
+                                                                        Dir        orchard-src
+    verdict caution · 6 checks · issued 2m ago · 830ms · read-only
                                               ↑↓ move · ↵ back · esc back

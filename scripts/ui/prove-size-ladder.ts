@@ -33,8 +33,8 @@ ladderHint = 'change composeLockup in assets/splash/splash-core.mjs so it never 
     core
       .composeLockup(c, r, {
         cardRows: [
-          { icon: '▸', label: 'New Session', ctx: 'fresh chat in this repo' },
-          { icon: '↻', label: 'Continue Last Session', ctx: '5m ago' },
+          { label: 'New Session', ctx: 'fresh chat in this repo' },
+          { label: 'Continue Last Session', ctx: '5m ago' },
         ],
         cardSel: 0,
         hintSegments: [{ key: '↵', label: '', tone: 'ivory' }],

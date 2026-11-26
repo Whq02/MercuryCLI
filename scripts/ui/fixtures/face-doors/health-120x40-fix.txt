@@ -5,36 +5,36 @@
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                     ⌁ health check
+                                                      health check
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ NEXT                                                           │  │ ❯ Anthropic credential                     │
-   │   open /logins to re-verify                            ◓ stale │  │                                            │
-   │   remove the unknown rows, or re-run the keyb…          ▲ warn │  │ fix · destructive remedy                   │
-   │                                                                │  │                                            │
-   │ RUNTIME                                                        │  │ drop the cached credential snapshot        │
-   │   Node runtime                                            ✓ ok │  │ and force a fresh verification             │
-   │   Bundle integrity                                        ✓ ok │  │ round-trip                                 │
-   │   Keybindings file                                      ▲ warn │  │                                            │
-   │                                                                │  │ evidence: last verified 26h ago            │
-   │ PROVIDERS                                                      │  │                                            │
-   │ ❯ Anthropic credential                                 ◓ stale │  │ … (the trail continues — taller terminal)  │
-   │                                                                │  ╰────────────────────────────────────────────╯
-   │ ESTATE                                                         │  ╭────────────────────────────────────────────╮
-   │   Daemon reachability                                ◌ unknown │  │ CERTIFICATE                                │
-   │   Certificate store                                      · off │  │ Verdict    ▲ caution                       │
-   ╰────────────────────────────────────────────────────────────────╯  │ Checks     6 · 1 stale · 1 warn · 1 unkno… │
-                                                                       │ Issued     2m ago · 830ms                  │
-                                                                       │ Build      1.0.0-beta.1 · main @ abcdef1   │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    Opus 5                          │
-                                                                       │ Critter    Octopus                         │
-                                                                       │ Dir        orchard-src                     │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  verdict caution · 6 checks · issued 2m ago · 830ms · read-only                              │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   Anthropic credential
+   │ NEXT                                                           │
+   │   open /logins to re-verify                            ◓ stale │   fix · destructive remedy
+   │   remove the unknown rows, or re-run the keyb…          ▲ warn │
+   │                                                                │   drop the cached credential snapshot
+   │ RUNTIME                                                        │   and force a fresh verification
+   │   Node runtime                                            ✓ ok │   round-trip
+   │   Bundle integrity                                        ✓ ok │
+   │   Keybindings file                                      ▲ warn │   evidence: last verified 26h ago
+   │                                                                │
+   │ PROVIDERS                                                      │   DESTRUCTIVE — this discards state that
+   │ ❯ Anthropic credential                                 ◓ stale │   cannot be mechanically recovered.
+   │                                                                │   ↵ apply · esc cancel
+   │ ESTATE                                                         │
+   │   Daemon reachability                                ◌ unknown │
+   │   Certificate store                                      · off │
+   ╰────────────────────────────────────────────────────────────────╯
+
+
+
+
+                                                                        Verdict    ▲ caution
+                                                                        Checks     6 · 1 stale · 1 warn · 1 unknown…
+                                                                        Issued     2m ago · 830ms
+                                                                        Build      1.0.0-beta.1 · main @ abcdef1
+
+                                                                        Mercury    Opus 5
+                                                                        Critter    Octopus
+                                                                        Dir        orchard-src
+    verdict caution · 6 checks · issued 2m ago · 830ms · read-only
                                                   ↵ apply · esc cancel

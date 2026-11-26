@@ -267,7 +267,7 @@ section('§2 --chat: the hint row without m menu, the bottom row names m, m open
   check('the hint row reads >_  ·  ↵  ·  ↑↓, m menu gone', trimmedRow(face, '>_  ·') === CHAT_HINT, trimmedRow(face, '>_  ·'))
   check('the bottom row names m beside the shift arrow', trimmedRow(face, SHIFT_ARROW) === `${SHIFT_ARROW} no chat open · ${PHRASE}`, trimmedRow(face, SHIFT_ARROW))
   check('m opens the picker over the face, centred inside its blank one-cell gutter (top row 3, its left border under its title, its bottom border inside the band)', rowWith(picker, 'Mercury · model') !== '' && pickerFrames(picker), `${pickerWords(picker)} · ${picker.slice(3, 8).join(' | ')}`)
-  check('the Boot Menu did not open and no row reads frontier:', picker.length > 0 && !picker.some(l => l.includes('CONTROL PLANE')) && !picker.some(l => l.includes('frontier:')))
+  check('the Boot Menu did not open and no row reads frontier:', picker.length > 0 && !picker.some(l => l.includes('TRUST COMBO')) && !picker.some(l => l.includes('frontier:')))
   check('the Anthropic heading reads the key door with its tail and the live count', anthropicKeyHeading(picker), headingOf(picker, ANTHROPIC_TITLE))
   check('esc closes the picker back to the face', trimmedRow(closed, '>_  ·') === CHAT_HINT && !closed.some(l => l.includes('Mercury · model')), trimmedRow(closed, '>_  ·'))
 }
@@ -323,13 +323,13 @@ section('§5 the setting off (engine.sessionDefaults false in settings.json): ev
   const homeChat = seededHome('off-chat', off)
   const b = capture('off-chat', homeChat, ['--chat'], [
     { atTick: 999, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'face', data: 'm' },
-    { requireAwait: true, awaitText: 'CONTROL PLANE', awaitStableTicks: 3, mark: 'menu', data: '' },
-  ], { total: 200, ready: ['CONTROL PLANE'] })
+    { requireAwait: true, awaitText: 'TRUST COMBO', awaitStableTicks: 3, mark: 'menu', data: '' },
+  ], { total: 200, ready: ['TRUST COMBO'] })
   check('the drive delivered every send (exit 0)', b.status === 0, `exit ${b.status}`)
   const face = b.marks.get('face') ?? []
   check('--chat: the hint row keeps m menu', trimmedRow(face, '>_  ·') === FULL_HINT, trimmedRow(face, '>_  ·'))
   check('--chat: the bottom row reads ⇧→ no chat open alone', trimmedRow(face, SHIFT_ARROW) === `${SHIFT_ARROW} no chat open`, trimmedRow(face, SHIFT_ARROW))
-  check('--chat: m opens the Boot Menu', (b.marks.get('menu') ?? []).some(l => l.includes('CONTROL PLANE')))
+  check('--chat: m opens the Boot Menu', (b.marks.get('menu') ?? []).some(l => l.includes('TRUST COMBO')))
 }
 
 section('§6 a fresh home with no sign-in: the bottom row stands at the height where the card would fill the terminal, and nothing moves where it already stood')

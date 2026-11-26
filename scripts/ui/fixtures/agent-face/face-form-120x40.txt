@@ -5,36 +5,36 @@
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀ 
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀  
                                                             
-                                                        ⌁ agents
+                                                         agents
                                                             
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ agent form                                                     │  │ ❯ destination                              │
-   │ ❯ destination                                          project │  │                                            │
-   │   identifier                                       draft-scout │  │ create agent                               │
-   │   description         Use this agent when the frame needs a m… │  │                                            │
-   │   system prompt                                     (required) │  │ → /repo/.mercury/agents/draft-scout.md     │
-   │   tools                                              all tools │  │ runs: inherit · effort session             │
-   │   disallowed tools                                      (none) │  │                                            │
-   │   skills                                                (none) │  │ ✗ System prompt (body) is required         │
-   │   model                                                inherit │  │                                            │
-   │   effort                                       inherit session │  │ save disabled while errors exist           │
-   │   permission mode                                    (default) │  │                                            │
-   │   max turns                                        (unlimited) │  │                                            │
-   │   memory                                                 (off) │  ╰────────────────────────────────────────────╯
-   │   background                                   (model decides) │  ╭────────────────────────────────────────────╮
-   │   isolation                                       (shared cwd) │  │ AGENTS                                     │
-   │   initial prompt                                        (none) │  │ Agents     2 active · 1 off                │
-   │   instruction profile                        (session default) │  │ Issues     none                            │
-   │   color                                            (automatic) │  │ Applies    ● live sessions see new agents  │
-   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    fable                           │
-                                                                       │ Critter    Crab                            │
-                                                                       │ Dir        orchard                         │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  the agent form — ↵ edits a row · s saves                                                    │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   destination                                  
+   │ agent form                                                     │                                                
+   │ ❯ destination                                          project │   create agent                                 
+   │   identifier                                       draft-scout │                                                
+   │   description         Use this agent when the frame needs a m… │   → /repo/.mercury/agents/draft-scout.md       
+   │   system prompt                                     (required) │   runs: inherit · effort session               
+   │   tools                                              all tools │                                                
+   │   disallowed tools                                      (none) │   ✗ System prompt (body) is required           
+   │   skills                                                (none) │                                                
+   │   model                                                inherit │   save disabled while errors exist             
+   │   effort                                       inherit session │                                                
+   │   permission mode                                    (default) │                                                
+   │   max turns                                        (unlimited) │                                                
+   │   memory                                                 (off) │                                                
+   │   background                                   (model decides) │                                                
+   │   isolation                                       (shared cwd) │                                                
+   │   initial prompt                                        (none) │                                                
+   │   instruction profile                        (session default) │                                                
+   │   color                                            (automatic) │                                                
+   ╰────────────────────────────────────────────────────────────────╯                                                
+                                                                                                                     
+                                                                                                                     
+                                                                        Agents     2 active · 1 off                  
+                                                                        Issues     none                              
+                                                                        Applies    ● live sessions see new agents    
+                                                                                                                     
+                                                                        Mercury    fable                             
+                                                                        Critter    Crab                              
+                                                                        Dir        orchard                           
+    the agent form — ↵ edits a row · s saves                                                                         
                            ↑↓ move · ↵ edit field · g generate · s save · ⌫ clear · esc back

@@ -517,15 +517,14 @@ home3 = tempfile.mkdtemp(prefix='splash-widemenu-home-')
 try:
     env3 = {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home3}
     raw = run_pty(150, 60, env3)
-    for needle in ('CONTROL PLANE', 'SETTING DETAIL', 'LAUNCH SUMMARY', 'ENVIRONMENT',
-                   'What it controls', 'System ready'):
+    for needle in ('TRUST COMBO', 'What it controls', 'Saved', 'Harness', 'Mercury', 'Dir'):
         check(f'wide menu carries {needle!r}', needle in raw)
     lines = vis_lines(raw)
     check('wide menu fits 150 cols', all(len(l) <= 150 for l in lines),
           f'max={max(len(l) for l in lines)}')
     raw = run_pty(100, 34, env3)
     check('classic single-column at 100 cols (no panels)',
-          'SETTING DETAIL' not in raw and 'boot menu' in raw)
+          'What it controls' not in raw and 'boot menu' in raw)
     raw = run_pty(150, 60, {'MERCURY_HOME': home3, 'MERCURY_REDUCED_MOTION': '1', **INLINE},
                   send=[(0.6, b'm'), (1.2, b'\r'), (1.8, b'\x1b'), (2.4, b'\r')], oneshot=False)
     saved3 = None
@@ -553,8 +552,8 @@ try:
                   oneshot=False, run_for=0.6 + 0.25 * downs + 1.6)
     last_frame = STRIP.sub('', raw).split('boot menu')[-1]
     check('wide menu SURVIVES selecting Sovereign mode (tier = size, not selection)',
-          'SETTING DETAIL' in last_frame and '❯ Sovereign mode' in last_frame,
-          'final frame lost the panels' if 'SETTING DETAIL' not in last_frame else 'selection missed')
+          'What it controls' in last_frame and '❯ Sovereign mode' in last_frame,
+          'final frame lost the wide layout' if 'What it controls' not in last_frame else 'selection missed')
     check('over-budget detail clamps with the honest ellipsis row',
           'the trail continues' in last_frame or 'When off' in last_frame)
     longproj = tempfile.mkdtemp(prefix='splash-a-very-long-repository-directory-name-')
@@ -563,8 +562,8 @@ try:
                       cwd=longproj)
         plain_lines = [STRIP.sub('', l) for l in vis_lines(raw)]
         dir_lines = [l for l in plain_lines if ' Dir ' in l or l.strip().startswith('Dir')]
-        check('ENVIRONMENT Dir row stays inside its border (clipVis backstop)',
-              len(dir_lines) > 0 and all(l.rstrip().endswith('│') for l in dir_lines),
+        check('ENVIRONMENT Dir row stays inside the terminal width (clipVis backstop)',
+              len(dir_lines) > 0 and all(len(l.rstrip()) <= 150 for l in dir_lines),
               dir_lines[0] if dir_lines else 'no Dir row found')
     finally:
         shutil.rmtree(longproj, ignore_errors=True)

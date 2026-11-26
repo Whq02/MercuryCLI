@@ -5,36 +5,36 @@
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                        ⌁ logins
+                                                         logins
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │                                                                │  │ ❯ Kimi (Moonshot)                          │
-   │ signed in                                                      │  │                                            │
-   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │ On the sign-in page, enter this code:      │
-   │   Anthropic — Claude subscription or Console sign-in / API key │  │     ABCD-1234                              │
-   │                                                 op@example.com │  │ If nothing opened, visit:                  │
-   │   Hugging Face — sign-in or Hub token           keyed-op …k9f2 │  │ https://auth.kimi.ai/activate?user_cod     │
-   │ ❯ Kimi (Moonshot) — device-code sign-in or API key             │  │ e=ABCD-1234                                │
-   │                              kimi.ai (global) · window reached │  │ waiting · expires in 5m                    │
-   │                                                                │  │ the Kimi host did not answer (socket       │
-   │ available                                                      │  │ hangup) — still trying until the code…     │
-   │   OpenRouter — browser sign-in or API key        not signed in │  │ c copies the URL · esc cancels             │
-   │   Google Gemini — Google sign-in, API key        not signed in │  │                                            │
-   │   GLM (Z.AI) — API key (general or GLM Coding Plan)            │  ╰────────────────────────────────────────────╯
-   │                                                  not signed in │  ╭────────────────────────────────────────────╮
-   │   DeepSeek — API key                             not signed in │  │ LOGINS                                     │
-   │   xAI — Grok subscription sign-in or API key     not signed in │  │ Families   22                              │
-   │   Meta — Muse Code sign-in or API key            not signed in │  │ Signed in  4 of 22                         │
-   │   Mistral — API key                              not signed in │  │ Ready      4 lanes                         │
-   │   Nous Portal — sign-in or API key               not signed in │  ╰────────────────────────────────────────────╯
-   │   MiniMax — API key or M Plan key                not signed in │  ╭────────────────────────────────────────────╮
-   │   Together AI — API key                          not signed in │  │ ENVIRONMENT                                │
-   │   Cohere — API key                               not signed in │  │ Mercury    Opus 5                          │
-   │   Groq — API key                                 not signed in │  │ Critter    Octopus                         │
-   │ … 6 more below                                                 │  │ Dir        orchard-src                     │
-   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  waiting on the Kimi device code                                                             │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   Kimi (Moonshot)
+   │ signed in                                                      │
+   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │   On the sign-in page, enter this code:
+   │   Anthropic — Claude subscription or Console sign-in / API key │       ABCD-1234
+   │                                                 op@example.com │   If nothing opened, visit:
+   │   Hugging Face — sign-in or Hub token           keyed-op …k9f2 │   https://auth.kimi.ai/activate?user_cod
+   │ ❯ Kimi (Moonshot) — device-code sign-in or API key             │   e=ABCD-1234
+   │                              kimi.ai (global) · window reached │   waiting · expires in 5m
+   │                                                                │   the Kimi host did not answer (socket
+   │ available                                                      │   hangup) — still trying until the code…
+   │   OpenRouter — browser sign-in or API key        not signed in │   c copies the URL · esc cancels
+   │   Google Gemini — Google sign-in, API key        not signed in │
+   │   GLM (Z.AI) — API key (general or GLM Coding Plan)            │
+   │                                                  not signed in │
+   │   DeepSeek — API key                             not signed in │
+   │   xAI — Grok subscription sign-in or API key     not signed in │
+   │   Meta — Muse Code sign-in or API key            not signed in │
+   │   Mistral — API key                              not signed in │
+   │   Nous Portal — sign-in or API key               not signed in │
+   │   MiniMax — API key or M Plan key                not signed in │
+   │   Together AI — API key                          not signed in │
+   │   Cohere — API key                               not signed in │
+   │   Groq — API key                                 not signed in │   Families   22
+   │   Melious AI — API key                           not signed in │   Signed in  4 of 22
+   │   OrcaRouter — device-code sign-in or API key    not signed in │   Ready      4 lanes
+   │   Cerebras — API key                             not signed in │
+   │   Fireworks — API key                            not signed in │   Mercury    Opus 5
+   │ … 2 more below                                                 │   Critter    Octopus
+   ╰────────────────────────────────────────────────────────────────╯   Dir        orchard-src
+    waiting on the Kimi device code
                                                 c copy url · esc cancel

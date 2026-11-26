@@ -779,18 +779,6 @@ function composeProjects(projects, selIdx, w) {
   return { lines: lines.map(l => '  ' + l), rowLines }
 }
 
-function panelLines(title, contentLines, w) {
-  const bc = paint(DUNE)
-  const red = accentFg()
-  const inner = w - 2
-  return [
-    boxTop(inner, bc),
-    boxRow(' ' + red + BOLD + title + R, inner, bc),
-    ...contentLines.map(l => boxRow(clipVis(l, inner - 1), inner, bc)),
-    boxBot(inner, bc),
-  ]
-}
-
 const MENU_FLOOR_COLS = 64
 const MENU_FLOOR_ROWS = 13
 const menuBelowFloor = (cols, rowsAvail) => cols < MENU_FLOOR_COLS || rowsAvail < MENU_FLOOR_ROWS
@@ -860,6 +848,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   const cRows = []
   const cRowEntry = []
   let selLine = 0
+  let selEnd = 0
   let lastGroup = null
   m.entries.forEach((r2, i) => {
     if (r2.group !== lastGroup) {
@@ -901,31 +890,47 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
       cRowEntry.push(-1)
       cRows.push(' ' + paint(AMBERC) + '▲ ' + r2.warn + R)
     }
+    if (sel) selEnd = cRows.length - 1
   })
   const wordH = rasterHard(WORD).lines.length
   const headH = withHead ? 1 + rasterHard(HEADSTD).lines.length : 0
-  const leftInteriorBudget = Math.max(9, rowsAvail - headH - wordH - 10 - 3 - Math.max(0, legendLines.length - 1))
+  const leftInteriorBudget = Math.max(9, rowsAvail - headH - wordH - 8 - 2 - Math.max(0, legendLines.length - 1))
   let cShown = cRows
   let cShownEntry = cRowEntry
-  let windowLead = 0
   if (cRows.length > leftInteriorBudget) {
-    const visRows = leftInteriorBudget - 2
-    let start = Math.max(0, Math.min(selLine - (visRows >> 1), cRows.length - visRows))
-    let end = start + visRows
-    if (m.fitLabels && selLine + 1 < cRows.length && cRowEntry[selLine + 1] === -1 && selLine + 1 >= end) {
-      start = Math.min(cRows.length - visRows, start + 1)
+    let start = 0
+    let end = leftInteriorBudget - 1
+    if (selEnd < leftInteriorBudget - 1) {
+      start = 0
+      end = leftInteriorBudget - 1
+    } else if (selLine >= cRows.length - (leftInteriorBudget - 1)) {
+      end = cRows.length
+      start = cRows.length - (leftInteriorBudget - 1)
+    } else {
+      const visRows = leftInteriorBudget - 2
+      const lo = Math.max(1, selEnd - visRows + 1)
+      const hi = Math.min(selLine, cRows.length - visRows - 1)
+      start = Math.max(lo, Math.min(selLine - (visRows >> 1), hi))
       end = start + visRows
     }
     cShown = [
-      start > 0 ? ' ' + faint + `… ${start} more above` + R : ' ',
+      ...(start > 0 ? [' ' + faint + `… ${start} more above` + R] : []),
       ...cRows.slice(start, end),
-      end < cRows.length ? ' ' + faint + `… ${cRows.length - end} more below` + R : ' ',
+      ...(end < cRows.length ? [' ' + faint + `… ${cRows.length - end} more below` + R] : []),
     ]
-    cShownEntry = [-1, ...cRowEntry.slice(start, end), -1]
-    windowLead = 1
+    cShownEntry = [
+      ...(start > 0 ? [-1] : []),
+      ...cRowEntry.slice(start, end),
+      ...(end < cRows.length ? [-1] : []),
+    ]
   }
-  void windowLead
-  const leftPanel = panelLines('CONTROL PLANE', cShown, LEFT_W)
+  const bc = paint(DUNE)
+  const leftInner = LEFT_W - 2
+  const leftPanel = [
+    boxTop(leftInner, bc),
+    ...cShown.map(l => boxRow(clipVis(l, leftInner - 1), leftInner, bc)),
+    boxBot(leftInner, bc),
+  ]
 
   const textW = RIGHT_W - 5
   const detailLineW = RIGHT_W - 4
@@ -935,7 +940,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
     const d2 = r2.detail || null
     const pinned2 = r2.pinnedVal !== null && r2.pinnedVal !== undefined
     const rows2 = []
-    rows2.push(fixedRow(' ' + red + '❯ ' + R + BOLD + ivory + r2.label + R))
+    rows2.push(fixedRow(' ' + BOLD + ivory + r2.label + R))
     rows2.push(fixedRow(''))
     rows2.push(fixedRow(' ' + red + 'What it controls' + R))
     for (const l of wrapWords(d2 ? d2.controls : r2.summary, textW)) rows2.push(fixedRow(' ' + mid + l + R))
@@ -966,8 +971,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   const detailHead = row ? (m.fitLabels ? clipWords(row.detailLabel ?? row.label, RIGHT_W - 6) : row.label) : ''
   const dItems = m.detailOverride
     ? [
-        fixedRow(' ' + red + '❯ ' + R + BOLD + ivory + detailHead + R),
-        fixedRow(''),
+        ...(detailHead ? [fixedRow(' ' + BOLD + ivory + detailHead + R), fixedRow('')] : []),
         ...m.detailOverride.map(raw => wrapRow(raw, l => ' ' + mid + l + R)),
       ]
     : row
@@ -992,9 +996,8 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
     : [
         kv('Saved', m.summary.profile),
         kv('Harness', m.summary.harness),
-        kv('Readiness', '', undefined) + paint(TEALC) + '● ready' + R,
       ]
-  const summaryPanel = panelLines(m.summaryTitle ?? 'LAUNCH SUMMARY', sRows, RIGHT_W)
+  const summaryBlock = sRows.length > 0 ? ['', ...sRows] : []
 
   const dirBudget = RIGHT_W - 2 - 1 - 1 - 11
   const fullTail = m.environment.dirTail
@@ -1011,18 +1014,18 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
     kv('Critter', m.environment.critter, m.environment.critterHue ? hexFg(m.environment.critterHue, ACC.t256) : accentFg()),
     kv('Dir', '', undefined) + ivory + dirBase + R + faint + dirTail + R,
   ]
-  const envPanel = panelLines('ENVIRONMENT', eRows, RIGHT_W)
+  const envBlock = ['', ...eRows]
 
   const word = rasterHard(WORD, wordToneGlow(m.glowWord ?? null))
   const headLines = withHead ? rasterHard(HEADSTD).lines : null
-  const chromeRows = (headLines ? 1 + headLines.length : 0) + word.lines.length + 10
+  const chromeRows = (headLines ? 1 + headLines.length : 0) + word.lines.length + 8 + Math.max(0, legendLines.length - 1)
   const geometryBudget =
-    rowsAvail - chromeRows - summaryPanel.length - envPanel.length - 3
+    rowsAvail - chromeRows - summaryBlock.length - envBlock.length
   const maxDetailRows = Math.max(...m.entries.map(r2 => buildDetailItems(r2).length))
   if (withHead && geometryBudget < maxDetailRows) return null
   const detailBudget = Math.max(
     8,
-    leftPanel.length - summaryPanel.length - envPanel.length - 3,
+    leftPanel.length - summaryBlock.length - envBlock.length,
     geometryBudget,
   )
   const expandDetailRows = items =>
@@ -1038,10 +1041,10 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   let keepEnv = true
   if (m.detailOverrideConfirms && dRows.length > effectiveDetailBudget) {
     keepEnv = false
-    effectiveDetailBudget += envPanel.length
+    effectiveDetailBudget += envBlock.length
     if (dRows.length > effectiveDetailBudget) {
       keepSummary = false
-      effectiveDetailBudget += summaryPanel.length
+      effectiveDetailBudget += summaryBlock.length
     }
   }
   const wholeLines = room => {
@@ -1061,31 +1064,21 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
       ? [...wholeLines(Math.max(0, effectiveDetailBudget - hintShown.length)), ...hintShown]
       : dRows
   const dPadded = [...dShown, ...Array(Math.max(0, effectiveDetailBudget - dShown.length)).fill('')]
-  const detailPanel = panelLines('SETTING DETAIL', dPadded, RIGHT_W)
 
   const lines = []
   if (headLines) lines.push('', ...headLines)
   lines.push('', dividerLine(word.width), '', ...word.lines, '')
-  lines.push(faint + '⌁ ' + (m.title ?? 'boot menu') + R)
+  lines.push(faint + (m.title ?? 'boot menu') + R)
   lines.push('')
   const zipStart = lines.length
   const rightCol = [
-    ...detailPanel,
-    ...(keepSummary ? summaryPanel : []),
-    ...(keepEnv ? envPanel : []),
-  ]
+    ...dPadded,
+    ...(keepSummary ? summaryBlock : []),
+    ...(keepEnv ? envBlock : []),
+  ].map(l => clipVis(l, RIGHT_W - 1))
   const totalW = LEFT_W + 2 + RIGHT_W
   lines.push(...zipCols(leftPanel, rightCol, LEFT_W, 2).map(l => padVis(l, totalW)))
-  const bc = paint(DUNE)
-  lines.push(
-    boxTop(totalW - 2, bc),
-    boxRow(
-      clipVis(' ' + paint(TEALC) + '● ' + R + ivory + 'System ready' + R + faint + `  │  ${m.statusRight}` + R, totalW - 3),
-      totalW - 2,
-      bc,
-    ),
-    boxBot(totalW - 2, bc),
-  )
+  lines.push(padVis(' ' + faint + clipVis(m.statusRight, totalW - 1) + R, totalW))
   const askCut = m.asking && m.detailOverrideConfirms && dRows.length > effectiveDetailBudget
   lines.push(...(askCut ? [paint(TEALC) + clipVis(m.asking, totalW) + R] : legendLines.map(line => faint + line + R)))
   const blockW = Math.max(...lines.map(vis))
@@ -1097,7 +1090,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   })
   const entryLines = []
   cShownEntry.forEach((entryIdx, k) => {
-    if (entryIdx >= 0) entryLines.push({ entry: entryIdx, line: zipStart + 2 + k })
+    if (entryIdx >= 0) entryLines.push({ entry: entryIdx, line: zipStart + 1 + k })
   })
   return { lines: centered, entryLines }
 }
@@ -1464,7 +1457,7 @@ function composeCompactFace(cols, rows, opts) {
     rasterHard, dividerLine, wordTone, wordToneGlow, rampLabel, rampSample, sampleFace,
     boxTop, boxBot, boxSep, boxRow, clipVis,
     composeHint, composeCard, composeStrip, composeProjects, composeLockup, composeCompactFace, placeBlock,
-    composeBootMenu, composeBootMenuWide, composeBootMenuClassic, panelLines,
+    composeBootMenu, composeBootMenuWide, composeBootMenuClassic,
     vis, cpWidth, MARK_RE, padVis, wrapWords, zipCols, mixc,
     T256, CREAM, RED, VOID, FAINT, IVORY, MIDCREAM, DEEPRED, MIDRED, DUNE, PX,
     TEALC, AMBERC, CRIMSONC,

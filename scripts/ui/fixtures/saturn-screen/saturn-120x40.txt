@@ -5,36 +5,36 @@
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                   ⌁ saturn scheduler
+                                                    saturn scheduler
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ journey session                                                │  │ ❯ aaaa1111  in 2h                          │
-   │ ❯ aaaa1111  in 2h                                        in 2h │  │                                            │
-   │   bbbb2222  tomorrow 07:30                               in 1d │  │ aaaa1111 · fire                            │
-   │                                                                │  │                                            │
-   │ box (machine)                                                  │  │ when: in 2h                                │
-   │   eeee5555  in 6h                                        in 6h │  │ next: in 2h                                │
-   │                                                                │  │ last: 22 hours ago                         │
-   │ ops · parked                                                   │  │ model: claude-opus-5                       │
-   │   cccc3333  every day 09:00                             paused │  │ account: anthropic/oauth ·                 │
-   │   dddd4444  in 20m                     no future fire · 2 held │  │ op@example.com                             │
-   ╰────────────────────────────────────────────────────────────────╯  │ … (the trail continues — taller terminal)  │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ SATURN                                     │
-                                                                       │ Schedules  5                               │
-                                                                       │ Next fire  in 2h                           │
-                                                                       │ Held       2 — /logins releases sign-in h… │
-                                                                       │ Sessions   2 live                          │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    Opus 5                          │
-                                                                       │ Critter    Octopus                         │
-                                                                       │ Dir        orchard-src                     │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  5 schedules · 2 held · read-only until a verb                                               │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   aaaa1111  in 2h
+   │ journey session                                                │
+   │ ❯ aaaa1111  in 2h                                        in 2h │   aaaa1111 · fire
+   │   bbbb2222  tomorrow 07:30                               in 1d │
+   │                                                                │   when: in 2h
+   │ box (machine)                                                  │   next: in 2h
+   │   eeee5555  in 6h                                        in 6h │   last: 22 hours ago
+   │                                                                │   model: claude-opus-5
+   │ ops · parked                                                   │   account: anthropic/oauth ·
+   │   cccc3333  every day 09:00                             paused │   op@example.com
+   │   dddd4444  in 20m                     no future fire · 2 held │   preflight at write: ready
+   ╰────────────────────────────────────────────────────────────────╯
+                                                                        note: the standing summary
+
+
+
+
+
+
+
+
+                                                                        Schedules  5
+                                                                        Next fire  in 2h
+                                                                        Held       2 — /logins releases sign-in hol…
+                                                                        Sessions   2 live
+
+                                                                        Mercury    Opus 5
+                                                                        Critter    Octopus
+                                                                        Dir        orchard-src
+    5 schedules · 2 held · read-only until a verb
       ↑↓ move · pgup/pgdn page · a schedule birth… · x delete · n run-now · p pause/resume · r refresh · esc back

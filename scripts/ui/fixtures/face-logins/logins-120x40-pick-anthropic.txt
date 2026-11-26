@@ -5,36 +5,36 @@
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                        ⌁ logins
+                                                         logins
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ Anthropic                                                      │  │ ❯ Claude subscription — browser sign-in    │
-   │ ❯ Claude subscription — browser sign-in                        │  │                                            │
-   │   Anthropic Console — browser sign-in                          │  │ One Anthropic family, two credentials:     │
-   │   Anthropic API key — usage-based billing                      │  │ the Claude subscription signs in with      │
-   ╰────────────────────────────────────────────────────────────────╯  │ the browser; usage-based billing signs     │
-                                                                       │ in to the Anthropic Console, which         │
-                                                                       │ mints an API key.                          │
-                                                                       │                                            │
-                                                                       │ esc — back to the roster                   │
-                                                                       │                                            │
-                                                                       │                                            │
-                                                                       │                                            │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ LOGINS                                     │
-                                                                       │ Families   22                              │
-                                                                       │ Signed in  4 of 22                         │
-                                                                       │ Ready      4 lanes                         │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    Opus 5                          │
-                                                                       │ Critter    Octopus                         │
-                                                                       │ Dir        orchard-src                     │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  Anthropic — subscription or usage-based billing                                             │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   Claude subscription — browser sign-in
+   │ Anthropic                                                      │
+   │ ❯ Claude subscription — browser sign-in                        │   One Anthropic family, two credentials:
+   │   Anthropic Console — browser sign-in                          │   the Claude subscription signs in with
+   │   Anthropic API key — usage-based billing                      │   the browser; usage-based billing signs
+   ╰────────────────────────────────────────────────────────────────╯   in to the Anthropic Console, which
+                                                                        mints an API key.
+
+                                                                        esc — back to the roster
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                        Families   22
+                                                                        Signed in  4 of 22
+                                                                        Ready      4 lanes
+
+                                                                        Mercury    Opus 5
+                                                                        Critter    Octopus
+                                                                        Dir        orchard-src
+    Anthropic — subscription or usage-based billing
                                               ↑↓ move · ↵ pick · esc back

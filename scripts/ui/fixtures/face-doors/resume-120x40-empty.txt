@@ -5,36 +5,36 @@
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                    ⌁ resume session
+                                                     resume session
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   ╰────────────────────────────────────────────────────────────────╯  │ ❯                                          │
-                                                                       │                                            │
-                                                                       │ nothing to resume yet                      │
-                                                                       │                                            │
-                                                                       │ n births a fresh session here —            │
-                                                                       │ the chat, the session and the board        │
-                                                                       │ row come into being together.              │
-                                                                       │                                            │
-                                                                       │                                            │
-                                                                       │                                            │
-                                                                       │                                            │
-                                                                       │                                            │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ SESSIONS                                   │
-                                                                       │ Scope      all history — every project     │
-                                                                       │ Sessions   0                               │
-                                                                       │ Opens      in place                        │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    Opus 5                          │
-                                                                       │ Critter    Octopus                         │
-                                                                       │ Dir        orchard-src                     │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  no sessions to resume in the full history — n births one                                    │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   nothing to resume yet
+   ╰────────────────────────────────────────────────────────────────╯
+                                                                        n births a fresh session here —
+                                                                        the chat, the session and the board
+                                                                        row come into being together.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                        Scope      all history — every project
+                                                                        Sessions   0
+                                                                        Opens      in place
+
+                                                                        Mercury    Opus 5
+                                                                        Critter    Octopus
+                                                                        Dir        orchard-src
+    no sessions to resume in the full history — n births one
                                   n new session · d prune · a this project · esc back
