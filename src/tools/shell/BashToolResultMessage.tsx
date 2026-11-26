@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { Box, Text } from '../../screen/themedRenderer.js'
 import { FAINT } from '../../screen/theme/mercuryPalette.js'
-import { KeyboardShortcutHint } from '../../screen/theme/KeyboardShortcutHint.js'
 import { MessageResponse } from '../kit/MessageResponse.js'
 import { OutputLine } from '../../screen/shell-output/OutputLine.js'
 import { ShellTimeDisplay } from '../../screen/shell-output/ShellTimeDisplay.js'
@@ -59,7 +58,7 @@ export default function BashToolResultMessage({
       {inBackground && (
         <MessageResponse height={1}>
           <Text color={FAINT} dimColor>
-            Running in the background <KeyboardShortcutHint shortcut="↓" action="manage" parens />
+            Running in the background
           </Text>
         </MessageResponse>
       )}
