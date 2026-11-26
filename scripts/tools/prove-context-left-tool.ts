@@ -39,7 +39,6 @@ const { getTools, getAllBaseTools, assembleToolPool } = await import('../../src/
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { contextFillView } = await import('../../src/engine/context-window/contextFill.ts')
 const { isDeferredTool } = await import('../../src/tools/tool-search/prompt.ts')
-const { TOOL_FAMILY_BY_NAME } = await import('../../src/screen/widgets/toolGlyphs.ts')
 const { ALL_CREWMATE_DISALLOWED_TOOLS } = await import('../../src/tools/kit/crewmateBarredTools.ts')
 type Tool = import('../../src/tools/kit/tool.ts').Tool
 type Message = import('../../src/engine/message-shapes/message.ts').Message
@@ -203,7 +202,6 @@ section('§9 every roster that counts tools by name carries it')
   const row = toolCensus().anchor.rows.find(entry => entry.name === TOOL_NAME)
   check('the live census rows the tool', row !== undefined)
   check('the census row carries the declared contract and this proof', row?.declared !== null && row?.proof === 'scripts/tools/prove-context-left-tool.ts', JSON.stringify(row))
-  check('the glyph registry gives it a family', TOOL_FAMILY_BY_NAME[TOOL_NAME] !== undefined, JSON.stringify(TOOL_FAMILY_BY_NAME[TOOL_NAME]))
   check('no agent is barred from it — a background sub-agent asks about its own window through the one filter', !ALL_CREWMATE_DISALLOWED_TOOLS.has(TOOL_NAME))
   check('its result is indexed for transcript search (extractSearchText)', typeof subject.extractSearchText === 'function' && subject.extractSearchText({ text: 'Context: x' } as never) === 'Context: x')
 }

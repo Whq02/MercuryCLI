@@ -284,7 +284,7 @@ for (const scene of ROW_SCENES) {
   for (const needle of scene.mustNotShow) check(`${scene.id}: no row reads "${needle}" (RED on the base: the bare line, no reason)`, !joined.includes(needle), joined.slice(-900))
   const stored = join(FRAMES, `${scene.id}-110x40.txt`)
   const pane = (r: string): string => r.replace(/\s*│\s*$/, '').replace(/^.*?│ ?/, '').replace(/^│ ?/, '').trimEnd()
-  const rowsOfInterest = rows.filter((r, i) => r.includes('▲ ') || r.includes('▨ Update') || (i > 0 && rows[i - 1]!.includes('▲ ') && pane(r).trim() !== '')).map(pane)
+  const rowsOfInterest = rows.filter((r, i) => r.includes('▲ ') || r.includes('✕ Update') || (i > 0 && rows[i - 1]!.includes('▲ ') && pane(r).trim() !== '')).map(pane)
   if (RECORD) writeFileSync(stored, rowsOfInterest.join('\n') + '\n')
   if (frameDir) writeFileSync(join(frameDir, `${scene.id}-110x40.txt`), rowsOfInterest.join('\n') + '\n')
   check(`${scene.id}: the error rows equal the stored frame ${stored.replace(`${import.meta.dir}/`, '')}`, existsSync(stored) && readFileSync(stored, 'utf8') === rowsOfInterest.join('\n') + '\n', existsSync(stored) ? `rows differ: ${rowsOfInterest.join(' | ')}` : 'no stored frame — run with --record')

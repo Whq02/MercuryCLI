@@ -1,9 +1,5 @@
 #!/usr/bin/env bun
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
-import { fileURLToPath } from 'node:url'
-import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
-import { describeCapturePreflight, preflightCaptureDriver } from '../lib/capturePreflight.ts'
-import { resolveExecutionProfile } from '../lib/executionProfile.ts'
 
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = {
@@ -15,105 +11,16 @@ process.env.NODE_ENV = 'test'
   MERCURY_DEMO: false,
 }
 
-const SELF = fileURLToPath(import.meta.url)
+const { checker } = await import('../engine-durability/harness.ts')
+const {
+  EMPTY_FACETS,
+  facetsSatisfy,
+  parseSearchQuery,
+  renderableSearchText,
+  toolInputFiles,
+} = await import('../../src/screen/virtual-message-list/transcriptSearch.ts')
 
-if (process.env.TOOLGLYPH_RENDER_CHILD) {
-  const React = await import('react')
-  const { render, Box, Text } = (await import('../../src/screen/themedRenderer.js')) as {
-    render: (n: React.ReactNode) => Promise<unknown>
-    Box: React.ComponentType<Record<string, unknown>>
-    Text: React.ComponentType<Record<string, unknown>>
-  }
-  const { TOOL_FAMILY_MARKS } = await import('../../src/screen/widgets/toolGlyphs.js')
-  void render(
-    React.createElement(
-      Box,
-      { flexDirection: 'column' },
-      ...Object.entries(TOOL_FAMILY_MARKS).map(([family, mark]) =>
-        React.createElement(
-          Text,
-          { key: family },
-          `${mark.glyph}|${mark.fallback}|${family}`,
-        ),
-      ),
-    ),
-  )
-  setTimeout(() => process.exit(0), 900)
-} else {
-  const { spawnSync } = await import('node:child_process')
-  const { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } = await import('node:fs')
-  const { tmpdir } = await import('node:os')
-  const { join } = await import('node:path')
-  const { checker } = await import('../engine-durability/harness.ts')
-  const {
-    TOOL_FAMILY_BY_NAME,
-    TOOL_FAMILY_MARKS,
-    toolFamilyFor,
-  } = await import('../../src/screen/widgets/toolGlyphs.ts')
-  const { charWidth, GLYPH } = await import('../../src/screen/theme/glyphs.ts')
-  const {
-    EMPTY_FACETS,
-    facetsSatisfy,
-    NON_INDEXING_TOOLS,
-    parseSearchQuery,
-    renderableSearchText,
-    toolInputFiles,
-  } = await import('../../src/screen/virtual-message-list/transcriptSearch.ts')
-
-  const t = checker()
-  const scratch = mkdtempSync(join(tmpdir(), 'hz-toolproj-'))
-
-
-  t.section('§1 — the glyph registry is total, width-stable and not colour-only')
-  {
-
-    const marks = Object.values(TOOL_FAMILY_MARKS)
-    t.check(
-      'every family mark is exactly one cell under the canonical width model',
-      marks.every(m => charWidth(m.glyph) === 1),
-      marks.map(m => `${m.glyph}=${charWidth(m.glyph)}`).join(' ') + ' | change the glyph of the wide mark in TOOL_FAMILY_MARKS in src/screen/widgets/toolGlyphs.ts',
-    )
-    const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{1F1E6}-\u{1F1FF}]/u
-    t.check('no emoji in the vocabulary', !marks.some(m => EMOJI.test(m.glyph)), 'cell-grid safe | replace the emoji glyph in TOOL_FAMILY_MARKS in src/screen/widgets/toolGlyphs.ts')
-    t.check(
-      'the families are visually DISTINCT — one glyph each',
-      new Set(marks.map(m => m.glyph)).size === marks.length,
-      `${new Set(marks.map(m => m.glyph)).size}/${marks.length} | give each family its own glyph in TOOL_FAMILY_MARKS in src/screen/widgets/toolGlyphs.ts`,
-    )
-    t.check(
-      'and their text fallbacks are distinct too — the family survives a glyphless profile',
-      new Set(marks.map(m => m.fallback)).size === marks.length,
-      marks.map(m => m.fallback).join(',') + ' | give each family its own fallback in TOOL_FAMILY_MARKS in src/screen/widgets/toolGlyphs.ts',
-    )
-    const statusSpine = new Set([
-      GLYPH.ok, GLYPH.pending, GLYPH.inProgress, GLYPH.done, GLYPH.read,
-      GLYPH.fail, GLYPH.warn, GLYPH.circledBullet, GLYPH.fisheye, GLYPH.diamond,
-      GLYPH.cursor, GLYPH.prompt,
-    ])
-    const collisions = marks.filter(m => statusSpine.has(m.glyph))
-    t.check(
-      'no family mark collides with the honest-state spine',
-      collisions.length === 0,
-      collisions.map(m => m.glyph).join(' ') + ' | change the colliding glyph in TOOL_FAMILY_MARKS in src/screen/widgets/toolGlyphs.ts, it matches a status glyph in src/screen/theme/glyphs.ts',
-    )
-    t.check(
-      'tone is a TOKEN ROLE, never a colour literal',
-      marks.every(m => ['accent', 'info', 'textSecondary'].includes(m.tone)),
-      [...new Set(marks.map(m => m.tone))].join(',') + ' | use only accent, info or textSecondary as tone in TOOL_FAMILY_MARKS in src/screen/widgets/toolGlyphs.ts',
-    )
-
-    t.check('Bash is shell', toolFamilyFor('Bash') === 'shell', toolFamilyFor('Bash'))
-    t.check('Grep is search', toolFamilyFor('Grep') === 'search', toolFamilyFor('Grep'))
-    t.check('Edit is edit', toolFamilyFor('Edit') === 'edit', toolFamilyFor('Edit'))
-    t.check('Agent is delegation', toolFamilyFor('Crewmate') === 'agent', toolFamilyFor('Crewmate'))
-    t.check('Video shares the media integrations family', toolFamilyFor('Video') === 'external' && toolFamilyFor('Video') === toolFamilyFor('Blender') && toolFamilyFor('Video') === toolFamilyFor('Aseprite'), toolFamilyFor('Video'))
-    t.check(
-      'and an MCP tool is external BY CONSTRUCTION — it is somebody else\'s integration',
-      toolFamilyFor('mcp__chrome-devtools__click') === 'external',
-      toolFamilyFor('mcp__chrome-devtools__click'),
-    )
-  }
-
+const t = checker()
 
   t.section('§3 — the operators')
   {
@@ -240,55 +147,5 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     )
   }
 
-  t.section('§5 — REAL RENDER: every mark reaches the grid as one cell')
-  {
-    const ROOT = join(import.meta.dir, '..', '..')
-    const driver = resolveCaptureDriver()
-    const engine = ((): { missing: string } | { python: string; entry: string } => {
-      if (driver.kind === 'unavailable') return { missing: `${driver.reason} (${driver.remedy})` }
-      const preflight = preflightCaptureDriver(driver, ROOT)
-      return preflight.ok ? { python: driver.python, entry: captureEngineEntry(driver, ROOT) } : { missing: describeCapturePreflight(preflight) }
-    })()
-    if ('missing' in engine) {
-      if (resolveExecutionProfile(ROOT).kind === 'hosted-gate') t.check('the hosted gate captures the real render', false, engine.missing)
-      else console.log(`  [SKIP] §5 the real render needs a capture engine this host does not have — ${engine.missing}`)
-    } else {
-      const out = join(scratch, 'glyphs.json')
-      const cfg = join(scratch, 'cfg.json')
-      writeFileSync(
-        cfg,
-        JSON.stringify({
-          argv: [process.execPath, 'run', SELF],
-          sends: [],
-          total: 150,
-          cols: 40,
-          rows: 16,
-          out,
-        }),
-      )
-      const r = spawnSync(engine.python, [engine.entry, cfg], {
-        encoding: 'utf8',
-        timeout: vshotBudgetMs(60_000),
-        env: { ...process.env, TERM: 'xterm-256color', TOOLGLYPH_RENDER_CHILD: '1' },
-      })
-      let lines: string[] = []
-      try {
-        const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: { c: string }[][] }
-        lines = payload.grid.map(cells => cells.map(cell => cell.c).join(''))
-      } catch {
-      }
-      t.check('the vocabulary rendered', r.status === 0 && lines.length > 0, `exit=${r.status} | the TOOLGLYPH_RENDER_CHILD arm at the top of this file did not paint: run it under the capture driver from scripts/lib/captureDriver.ts and read its error`)
-      for (const [family, mark] of Object.entries(TOOL_FAMILY_MARKS)) {
-        const line = lines.find(l => l.includes(`|${family}`))
-        t.check(
-          `${family}: the mark paints, and its separator lands in column 2`,
-          line !== undefined && line.startsWith(`${mark.glyph}|`),
-          (line?.slice(0, 12).trim() ?? 'missing') + ' | fix the glyph of this family in TOOL_FAMILY_MARKS in src/screen/widgets/toolGlyphs.ts, it must paint as one cell then a pipe',
-        )
-      }
-    }
-  }
-
-  rmSync(scratch, { recursive: true, force: true })
-  t.finish('prove-tool-projection')
-}
+t.finish('prove-tool-projection')
+export {}

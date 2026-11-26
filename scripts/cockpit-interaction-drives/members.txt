@@ -13,4 +13,3 @@ prove-printable-unbinding.ts
 prove-profile-card.ts
 prove-scroll-anchor.ts
 prove-spectral-depth.ts
-prove-tool-projection.ts

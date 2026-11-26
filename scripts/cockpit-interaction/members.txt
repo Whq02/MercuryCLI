@@ -10,3 +10,4 @@ prove-shipped-keys-pins.ts
 prove-sleep-redirect.ts
 prove-terminal-profile.ts
 prove-trace-frame-window.ts
+prove-tool-projection.ts

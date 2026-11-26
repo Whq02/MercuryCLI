@@ -23,8 +23,6 @@ const RESUME = 'ResumeCrewmate'
 const AGENT_ID = 'a1b2c3d4e'
 
 tally.section('§1 the old names are names no build ships: the renderer, the tool list, the alias road, the render shim, the launch-receipt readers')
-const { toolFamilyFor } = await import('../../src/screen/widgets/toolGlyphs.ts')
-tally.check('the transcript renderer paints a recorded row under the old tool name as it paints any unknown tool — no family remembers it', toolFamilyFor(OLD_TOOL) === toolFamilyFor('FrobnicateTool') && toolFamilyFor(OLD_RESUME) === toolFamilyFor('FrobnicateTool'), 'remove any family entry for the old tool names from toolFamilyFor in src/screen/widgets/toolGlyphs.ts')
 const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
 const { findToolByName } = await import('../../src/tools/kit/tool.ts')
 const tools = getAllBaseTools()
