@@ -5,6 +5,7 @@ import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
+import figures from 'figures'
 import stripAnsi from 'strip-ansi'
 import stringWidth from 'string-width'
 
@@ -193,7 +194,7 @@ const rowText = (line: string): string => (line.includes('│ │ ') ? `  ${(lin
 const cellsOf = (text: string): string[] => text.replace(/^(?:❯ | {2})/, '').trim().split(/ {2,}/)
 const nameOfCells = (cells: string[]): string => (cells[0] === '—' ? cells[1] ?? '' : cells[0] ?? '')
 const sameName = (painted: string, name: string): boolean => painted === name || (painted.endsWith('…') && name.startsWith(painted.slice(0, -1)))
-const rowLines = (frame: string): string[] => linesOf(frame).filter(line => /│ (?:│ | {2})/.test(line) && isRowText(rowText(line)))
+const rowLines = (frame: string): string[] => linesOf(frame).filter(line => new RegExp(`│ (?:│ | {2}|${figures.pointer} )`).test(line) && isRowText(rowText(line)))
 const rowLine = (frame: string, name: string): string => rowLines(frame).find(line => sameName(nameOfCells(cellsOf(rowText(line))), name)) ?? ''
 const hasRow = (frame: string, name: string): boolean => rowLine(frame, name) !== ''
 const headingOf = (frame: string, title: string): string => innerOf(linesOf(frame).find(line => line.includes(title)) ?? '').trim()

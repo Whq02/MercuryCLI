@@ -1,3 +1,4 @@
+import figures from 'figures'
 import { rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { delimiter, join } from 'node:path'
@@ -35,7 +36,10 @@ export function freePort(): Promise<number> {
   })
 }
 
-const bare = (line: string): string => line.replace(/[│╭╮╰╯─]/g, ' ').replace(/\s+/g, ' ').trim()
+const bare = (line: string): string => {
+  const flat = line.replace(/[│╭╮╰╯─]/g, ' ').replace(/\s+/g, ' ').trim()
+  return flat.startsWith(`${figures.pointer} `) ? flat.slice(figures.pointer.length + 1) : flat
+}
 const NEXT_ROW = /^(?:.* local\/\S+ .*|other checkpoint.*|[▸▾].*)$/
 
 export function cardOf(lines: readonly string[], label: string): Card {
