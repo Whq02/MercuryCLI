@@ -55,7 +55,7 @@ export function MercuryMissionIndicator(): React.ReactNode {
     <Box flexShrink={0}>
       <Text color={tokens.info}>
         {MISSION_ACTIVE_GLYPH}
-        <Text color={IVORY}> /mission {standing.state === 'paused' ? 'paused' : 'active'}</Text>
+        <Text color={IVORY}> /goal {standing.state === 'paused' ? 'paused' : 'active'}</Text>
         {elapsedSuffix ? <Text color={FAINT}>{elapsedSuffix}</Text> : null}
       </Text>
     </Box>

@@ -1,5 +1,6 @@
 import { checkForLSPDiagnostics, foldDriveCase, settleWritesAwaitingReport, subscribePublishedReports, writesAwaitingReport } from '../../integrations/lsp/LSPDiagnosticRegistry.js'
 import type { LSPServerManager } from '../../integrations/lsp/LSPServerManager.js'
+import { pullWrittenFiles } from '../../integrations/lsp/publishedDiagnostics.js'
 import { ownerFromToolUseContext } from '../run-owner/resolveOwner.js'
 import type { OwnerKey } from '../run-owner/ownerKey.js'
 import { toolMatchesName, type ToolUseContext } from '../../tools/kit/tool.js'
@@ -67,15 +68,19 @@ export async function deliverAfterRevalidation(
   resynced: readonly string[],
   deadlineMs = RESYNC_REPORT_WAIT_MS,
   settle?: { owner: OwnerKey | undefined; written: readonly string[] },
+  manager?: LSPServerManager,
 ): Promise<Attachment[]> {
   const written = settle?.written ?? []
-  const waitFor = [...resynced, ...written]
+  const pulls = manager === undefined ? new Map<string, Promise<unknown>>() : pullWrittenFiles(manager, written, deadlineMs)
+  const pushed = written.filter(path => !pulls.has(path))
+  const waitFor = [...resynced, ...pushed]
   if (waitFor.length > 0) {
-    const writtenKeys = new Set(written.map(path => foldDriveCase(path)))
+    const writtenKeys = new Set(pushed.map(path => foldDriveCase(path)))
     const stillAwaited = (path: string): boolean => writtenKeys.has(path) && writesAwaitingReport(settle?.owner).some(armed => foldDriveCase(armed) === path)
     const unanswered = await awaitFreshReports(waitFor, deadlineMs, stillAwaited)
     logForDebugging(`diagnostics: ${resynced.length} document(s) re-synced from disk and ${written.length} just written awaited before delivery${unanswered.length > 0 ? `; no fresh report within ${deadlineMs} ms for ${unanswered.join(', ')} — their earlier publishes are held back` : ''}`)
   }
+  await Promise.all(pulls.values())
   if (settle !== undefined && written.length > 0) settleWritesAwaitingReport(settle.owner, written)
   return deliverDiagnostics(settle?.owner)
 }
@@ -90,7 +95,7 @@ export async function getLSPDiagnosticAttachments(context: ToolUseContext): Prom
   const written = manager === undefined ? [] : armed.filter(path => isOpenOn(manager, path))
   const unserved = armed.filter(path => !written.includes(path))
   if (unserved.length > 0) settleWritesAwaitingReport(owner, unserved)
-  return deliverAfterRevalidation(resynced, RESYNC_REPORT_WAIT_MS, { owner, written })
+  return deliverAfterRevalidation(resynced, RESYNC_REPORT_WAIT_MS, { owner, written }, manager)
 }
 
 export async function settleWriterDiagnosticsAtTurnEnd(context: ToolUseContext): Promise<Attachment[]> {

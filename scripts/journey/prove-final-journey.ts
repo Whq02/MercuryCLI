@@ -374,10 +374,10 @@ if (j5d && j1) {
   check('diff close: prompt row back at its baseline position', promptRow(j5d) === promptY0, `row ${promptRow(j5d)} vs ${promptY0}`)
 }
 
-console.log('\n── J6 · /saturn board: rows painted · verbs armed · close ─')
+console.log('\n── J6 · /schedule board: rows painted · verbs armed · close ─')
 purgeDrafts()
 const SATURN_OPEN = [
-  { atTick: 36, data: '/saturn' },
+  { atTick: 36, data: '/schedule' },
   { atTick: 42, data: '\r' },
 ]
 const j6a = capture('j6-board', SATURN_OPEN, 60, { cols: 140, ready: 'b2c3d4e5' })

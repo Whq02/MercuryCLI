@@ -197,7 +197,7 @@ export async function runLaunch(args: RunLaunchArgs): Promise<void> {
             return command.supportsNonInteractive === true
           }
           if (command.type === 'local-jsx') {
-            return (command.headlessVerbs ?? []).length > 0
+            return (command.headlessVerbs ?? []).length > 0 || command.promptWithArgs === true
           }
           return false
         })

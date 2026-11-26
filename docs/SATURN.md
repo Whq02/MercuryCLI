@@ -1,6 +1,6 @@
 # Saturn: session schedules
 
-<!-- answers: Saturn is Mercury's scheduler. Schedule a prompt to an existing session or start a new session on a clock from the `/saturn` board; inside a session the model schedules with `CronCreate` and the `/loop` skill. -->
+<!-- answers: Saturn is Mercury's scheduler. Open the board with `/schedule` or schedule with `/schedule <what and when>`; inside a session the model uses `CronCreate` and the `/loop` skill. -->
 
 Saturn is Mercury's scheduler. A schedule is a **session fact**: it rides the
 durable session record, is fired by the background daemon, and every fire
@@ -22,18 +22,18 @@ Saturn supports two schedule types, and the board shows both:
 
 ## The board
 
-`/saturn` opens the board inside the chat, in the chat's own frame, with `Esc`
-returning to the chat. Rows group under the session that owns them,
+`/schedule` opens the board as a pop-up over the chat, with `Esc` or a click
+outside returning to the chat. Rows group under the session that owns them,
 with box schedules under their own `box (machine)` section. The legend lists
 the keys: `↑↓ move · pgup/pgdn page · a schedule birth… · x delete · n run-now · p
 pause/resume · r refresh · esc back`. A row's trail shows the time expression
 verbatim, the account it will fire on (an identity, never a token), held fires
 with their reasons, and the fired-late or missed receipt tail. Press `a` in
-`/saturn` to schedule a new session.
+`/schedule` to schedule a new session, or run `/schedule <what and when>` to schedule through the model.
 
 While a future fire stands, the session's row on the Session Concourse shows
 it in the NOW cell (`next fire in 2h · `) beside whatever the session is
-doing. The side rail's SATURN row
+doing. The side rail's `schedule` row
 shows what stands across every session: `2 scheduled · in 4m` while a real fire
 is ahead, or `1 scheduled · 1 held` when a fire is banked and nothing is ahead
 (a held fire is never shown as due, and `due now` means a fire whose time has

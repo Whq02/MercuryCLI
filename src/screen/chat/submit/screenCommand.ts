@@ -23,7 +23,7 @@ export function readCommandArgs({ text, seatPastes }: SubmitLine): CommandArgs {
 export function holdCommandForLanding(deps: SubmitDeps, line: SubmitLine, { args }: CommandArgs): boolean {
   const { addNotification } = deps;
   const { seatCommand } = line;
-  if (seatCommand !== undefined && (seatCommand.type === 'local-jsx' && seatCommand.name === 'mission' ? args !== '' : HELD_FOR_LANDING.has(seatCommand.name)) && landingInFlight() && !hasFocusedSession()) {
+  if (seatCommand !== undefined && (seatCommand.type === 'local-jsx' && seatCommand.name === 'goal' ? args !== '' : HELD_FOR_LANDING.has(seatCommand.name)) && landingInFlight() && !hasFocusedSession()) {
     armForLanding(deps, line);
     addNotification({ key: 'landing-hold', text: `the session is landing — /${getCommandName(seatCommand)} sends when it lands`, priority: 'immediate', timeoutMs: Infinity });
     return true;

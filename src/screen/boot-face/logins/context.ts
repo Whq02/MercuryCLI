@@ -5,7 +5,7 @@ import type { KimiRegion } from '../../../models/roads/moonshot/moonshotAccounts
 import type { LoginsScreenFactsV1 } from './facts.js';
 import type { FaceKeyLegId, LoginsPickId } from './pickLines.js';
 import type { FaceDeviceFamily, HandlesLegId, OpenFlowState } from './flowLines.js';
-
+import type { DevinCliAction } from './devinCliAction.js';
 export type LoginsFlowContext = {
   given: LoginsScreenFactsV1 | undefined;
   setAppStateMaybe: ReturnType<typeof useSetAppStateMaybe>;
@@ -28,6 +28,7 @@ export type LoginsFlowContext = {
   openGuideStep: (step: 1 | 2 | 3 | 4 | 5, from: 'walk' | 'pick', note?: string | null) => void;
   startHandlesRun: (leg: HandlesLegId) => void;
   startOpenaiDeviceRun: () => void;
+  startDevinCliRun: (action: DevinCliAction) => void;
   model: ReturnType<typeof useAnthropicLoginModel>;
   openPick: (pick: LoginsPickId, cursor?: number) => void;
   submitKey: (leg: FaceKeyLegId, raw: string) => void;

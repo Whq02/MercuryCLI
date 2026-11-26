@@ -13,7 +13,7 @@ Mercury CLI（mercury-cli.ai，npm 套件 `mercury-tech-cli`）在終端機中�
 - **Mneme 混合 RAG 專案記憶：** 使用裝置端的 118 MB BGE 語意嵌入模型（`bge-base-en-v1.5`），並包含 BM25 詞彙排序與引用追蹤、逐字保留的釘選規則、感知分支的啟動上下文、寫入時的矛盾檢查、工作階段交接筆記，以及 `/memory page` 瀏覽器圖譜。
 - **編譯器、AST 與 DAP 偵錯工具：** 連接 LSP 程式碼智慧與可預覽的重構（`LspRead`、`LspRename`、`LspMoveSymbol`、`LspMoveFile`、`LspCodeAction`、`LspFormat`），支援 57 種語言的 tree-sitter AST 結構搜尋與改寫（`AstSearch`、`AstEdit`），並提供內建的 Debug Adapter Protocol（`Debug`）偵錯器（`debugpy`、`js-debug`、`lldb`、`gdb`、`dlv`），用於單步進入失敗的 Python、Node、Go 與 Rust 測試，另有可持續保存狀態的 Python 與 JavaScript `Eval` 儲存格。
 - **無需金鑰的 `WebSearch` 與 Markdown 格式的 `WebFetch`：** 透過供應商原生搜尋、Brave 或 Tavily 金鑰、官方 API（Stack Exchange、npm、PyPI、crates.io、GitHub、Hacker News、Wikipedia）、SearXNG，以及無需金鑰的 DuckDuckGo 進行搜尋，並在 38,000 字元的單次呼叫預算內，以 Markdown 格式擷取公開文件。
-- **桌面電腦操作、Whisper 語音、Saturn 排程與編輯器橋接：** 控制桌面應用程式（`Computer`），在裝置端以 Whisper 轉寫按住說話的語音聽寫（`/voice`），以 Saturn 排程週期性或一次性的工作階段（`/saturn`），並透過 Agent Client Protocol（`mercury acp`）連接 VS Code；Unity、Blender、Godot 與 Aseprite 也有對應的橋接。
+- **桌面電腦操作、Whisper 語音、Saturn 排程與編輯器橋接：** 控制桌面應用程式（`Computer`），在裝置端以 Whisper 轉寫按住說話的語音聽寫（`/voice`），以 Saturn 排程週期性或一次性的工作階段（`/schedule`），並透過 Agent Client Protocol（`mercury acp`）連接 VS Code；Unity、Blender、Godot 與 Aseprite 也有對應的橋接。
 - **影片生成（`Video`）：** 將提示詞與專案參考檔案傳送給已設定的 MiniMax 生成器（[docs/VIDEO.md](../VIDEO.md)），並將生成的 MP4，以及可選的 1 秒 PNG 預覽影格儲存到你的專案中。
 
 Mercury 被用來建置 Mercury 本身，同時執行多個工作階段與模型來完成長時間任務。難處在於追蹤這些工作：哪些仍在執行、哪些已經變更，以及哪些需要決策。每個工作階段結束時都會寫下自己的交接筆記；下一個工作階段啟動時，會讀取一次該筆記，並與我的釘選規則一併載入，從而防止工作階段之間的上下文汙染。
@@ -212,7 +212,7 @@ Boot Menu 的 Performance 區段包含 Motion 設定：`auto`、`full`、`reduce
 
 在首頁按 `/concourse` 或 `Shift+→` 即可開啟工作階段清單。清單會先顯示目前專案中正在執行的工作階段，接著依由新到舊的順序，顯示未在執行的已保存對話。
 
-每個正在執行的工作階段都有一個 NOW 儲存格，顯示其目前的活動。選取一列並按 `Enter`，即可返回該對話，其他工作階段會繼續執行。當機的工作階段會以 NEEDS YOU 狀態留在工作階段清單上，並顯示原因，直到你將其釋放為止。
+每個正在執行的工作階段都有一個 NOW 儲存格，顯示其目前的活動。選取一列並按 `Enter`，即可返回該對話，其他工作階段會繼續執行。當機的工作階段會以 needs you 狀態留在工作階段清單上，並顯示原因，直到你將其釋放為止。
 
 [docs/SESSIONS.md](../SESSIONS.md) 說明工作階段的生命週期。
 
@@ -365,7 +365,7 @@ docker run --rm mercury --version
 - **代理人、跨供應商 crewmate（`Crewmate`）、工作樹與檔案租約。** 兩個內建代理人（`mercury-crew` 負責各類委派工作，`mercury-scout` 負責唯讀偵查），與你在 `/agents` 中建立的代理人定義並存。可在任何已登入的供應商上啟動 crewmate，將平行工作隔離在 `git worktree` 檢出副本中（`isolation: "worktree"`），以行程內的專案檔案租約協調共用檔案（`mcp__mercury__lease_take`、`mcp__mercury__lease_release`、`mcp__mercury__lease_list`），並可用 `SendMessage` 與 `ResumeCrewmate` 依名稱或 ID 引導或恢復 crewmate。在 `/crewmates` 與 `/runs` 中可追蹤 crewmate。參見 [docs/CREW.md](../CREW.md)。
 - **桌面電腦操作。** 原生桌面驅動可用時預設啟用。`Computer` 工具會擷取螢幕畫面，並控制前景應用程式中的滑鼠與鍵盤。Mercury 在操作前會依名稱與身分確認應用程式；除非你的權限規則、工作階段授權、存取設定或權限模式已允許該操作，否則會請求核准；按 `Esc` 即可停止；同一時間只允許一個工作階段控制桌面；螢幕畫面也不會寫入已保存的對話檔案。設定 `MERCURY_COMPUTER_USE=0` 即可移除此工具。參見 [docs/COMPUTER-USE.md](../COMPUTER-USE.md)。
 - **裝置端 Whisper 語音輸入（`/voice`）。** `/voice on` 會在首次使用時下載 60 MB 的英文語音模型（`base.en-q5_1`），驗證其 SHA-256 摘要，並啟用聽寫；`/voice off` 則將其停用。按住空白鍵 1 秒即可開始說話，放開即停止；或在語音已開啟時直接執行 `/voice`，以開始與停止一段錄音（take）。Whisper 在裝置端轉寫，因此語音音訊絕不會離開你的機器。`MERCURY_WHISPER_MODEL` 可選擇 `tiny.en-q5_1`、`small.en-q5_1`、多語言的 `base-q5_1`，或本機的 `.gguf` 檔案。參見 [docs/VOICE.md](../VOICE.md)。
-- **Saturn 排程與工作階段排程器（`/saturn`）。** 可為既有工作階段排程一則提示詞（`CronCreate`、`CronList`、`CronDelete`、`ScheduleWakeup`、`/loop`），也可排程新工作階段在設定的時間啟動。排程可以只執行一次，也可以重複執行。參見 [docs/SATURN.md](../SATURN.md)。
+- **Saturn 排程與工作階段排程器（`/schedule`）。** 可為既有工作階段排程一則提示詞（`CronCreate`、`CronList`、`CronDelete`、`ScheduleWakeup`、`/loop`），也可排程新工作階段在設定的時間啟動。排程可以只執行一次，也可以重複執行。參見 [docs/SATURN.md](../SATURN.md)。
 - **VS Code（ACP）、Unity、Blender、Godot 與 Aseprite 橋接。** `mercury acp` 可連接支援 Agent Client Protocol 的編輯器。VS Code 擴充功能（`mercury bridge install`）透過該協定在編輯器中執行 Mercury：包括對話、工作階段、代理人、成品（artifacts）與審閱，並隨每則提示詞附上編輯器的選取範圍與診斷資訊。另有獨立且需要明確啟用的整合，可連接正在執行的 Unity（`MERCURY_UNITY=1`）、Blender（`MERCURY_BLENDER=1`）與 Godot（`MERCURY_GODOT_TOOLS=1`）編輯器，並提供對 Aseprite 的批次存取（`MERCURY_ASEPRITE=1`）。參見 [Unity](../UNITY-BRIDGE.md)、[Blender](../BLENDER-BRIDGE.md)、[Godot](../VULCAN-GODOT-TOOLS.md) 與 [Aseprite](../ASEPRITE-BRIDGE.md)。
 - **擴充功能。** 每個擴充功能都只有一份清單（manifest）。可從 git URL、本機資料夾或壓縮檔加入來源，並須經其貢獻雜湊值（contributions hash）核准。參見 [docs/EXTENSIONS.md](../EXTENSIONS.md)。
 - **MCPs & Skills。** 依儲存庫設定工作階段要載入的內容，提供具名的預設集，並可在工作階段中調整控制項。參見 [docs/KIT.md](../KIT.md)。
@@ -382,8 +382,8 @@ docker run --rm mercury --version
 
 | 類別 | 指令 |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
-| crew & delegation | `/agents` `/crewmates` `/crew` `/swarm` `/swarmchat` `/general` `/team` `/whisper` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/goal` |
+| crew & delegation | `/agents` `/crewmates` `/crew` `/swarm` `/swarmchat` `/general` `/team` `/whisper` `/daemon` `/schedule` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/export` `/copy` `/usage` `/restart` |
 | memory & goals | `/memory` |
 | model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |

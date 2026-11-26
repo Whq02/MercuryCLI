@@ -31,6 +31,7 @@ prove-lsp-refactor-move.ts
 prove-lsp-refactor-rename.ts
 prove-lsp-refusal-resets.ts
 prove-lsp-rename-fanout.ts
+prove-lsp-rename-stale-diagnostics.ts
 prove-lsp-request-deadline.ts
 prove-lsp-restart-command.ts
 prove-lsp-restart-reaps.ts

@@ -303,7 +303,7 @@ async function mount(cols: number, rows: number): Promise<Scene> {
   const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(cols, rows) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Harness, { scrollRef })))
-  const painted = await until(() => ink.lastFrameText() !== '' && stripAnsi(ink.lastFrameText()).includes('crew ·'))
+  const painted = await until(() => ink.lastFrameText() !== '' && /crew \d+/.test(stripAnsi(ink.lastFrameText())))
   check(`the cockpit painted with the crew lane at ${cols}x${rows}`, painted, stripAnsi(ink.lastFrameText()).slice(0, 300))
   await sleep(400)
   return {
@@ -324,7 +324,7 @@ const cells = (line: string): string[] => Array.from(line)
 type Cockpit = { left: number; right: number; bottom: number; railRight: number; composerTop: number }
 function cockpitOf(lines: string[]): Cockpit | null {
   const first = cells(lines[0] ?? '')
-  const left = first.indexOf('╭')
+  const left = first[0] === '╭' ? first.indexOf('╭', 1) : first.indexOf('╭')
   const right = first.indexOf('╮', left + 1)
   if (left < 0 || right < 0) return null
   let bottom = -1

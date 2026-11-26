@@ -39,7 +39,9 @@ config home beside the first (`~/.mercury2`) and a `mercury2` command that
 starts Mercury in it. A profile has its own logins, settings, history and
 memory; the program and your project folders, their instruction files among
 them, are shared, and every profile reads your own `MERCURY.md` and `rules`
-folder from the first home. Removing a profile there deletes its command; its
+folder from the first home. Each new profile starts on the next critter
+(crab, octopus, jellyfish, clam, then round again) until you pick one with
+`/critter`. Removing a profile there deletes its command; its
 folder, logins included, stays on disk until you delete it. Each profile
 command carries a managed marker so updates can refresh it; remove that marker
 line to keep a hand edit.
@@ -279,7 +281,7 @@ the server definitions themselves.
 | `activity.tips.words` | Custom tips: `tips` is a string list and `excludeDefault` chooses whether the built-in tips also appear. |
 | `activity.verbs` | Custom activity verbs: `verbs` is a string list and `mode` is `append` or `replace`. |
 | `activity.progress` | The ring in the terminal tab while a turn runs: `false` turns it off, `true` keeps it on where the terminal draws one; unset, the terminal's own capability decides. `/config`'s Terminal progress bar row reads it and names it when set. |
-| `view.files` | Shows the FILES box in the sidebar. |
+| `view.files` | Shows the `files` panel in the side rail. |
 | `view.modelPicker.centred` | Centres the model picker; `false` places it at the left edge. |
 | `view.syntaxOff` | Disables syntax colouring. |
 | `view.reducedMotion` | Suppresses authored animation. |
@@ -287,7 +289,7 @@ the server definitions themselves.
 | `view.firstRunCards` | First-run card placement: `centred` or `top-left`. |
 | `view.ping` | Pings the terminal when a chat finishes while you are away; on unless `false`. |
 | `view.accountIdentity` | Shows the signed-in account on the screens; `false` takes every address, username and key tail off them (for a recording) and leaves the account word. The Logins screen, `/accounts` and the health report still name the account. On unless `false`. |
-| `view.zen` | Zen mode: `true` hides the lanes and vitals rails and the chat takes the full width of the terminal. Off unless `true`; `/zen` flips it and the Zen mode row of `/config` shows it. |
+| `view.zen` | Zen mode: `true` hides the left and right side rails and the chat takes the full width of the terminal. Off unless `true`; `/zen` flips it and the Zen mode row of `/config` shows it. |
 | `context.wayBack` | Shows the way-back hint beside a notice. |
 | `input.suggestions` | Enables prompt suggestions. |
 | `apollo.preflightQuestions` | Apollo's interview budget, 1–20 questions, 7 by default. |

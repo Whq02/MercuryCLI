@@ -189,7 +189,7 @@ try {
     const LADDER = [400, 800, 1200, 1600, 2200, 3000, 4200, 6000, 8000, 10_000]
     const NONBLANK = 200
     const BACK = keyHintLabel('⇧← back').replace(/\s+/g, '')
-    const BOARD = 'STATUS&TITLE'
+    const BOARD = 'status&title'
     const isChat = (s: string): boolean => s.includes(BACK) || s.includes('Typeaprompt')
     const stations: Array<{ from: number; ready: (s: string) => boolean }> = [
       { from: 0, ready: s => s.includes(BOARD) },

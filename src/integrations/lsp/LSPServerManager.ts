@@ -6,7 +6,7 @@ import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import { getAllLspServers } from './config.js'
 import type { LSPStopResult } from './LSPClient.js'
-import { noteOutOfBandWrite } from './LSPDiagnosticRegistry.js'
+import { noteDocumentLifecycle, noteOutOfBandWrite } from './LSPDiagnosticRegistry.js'
 import { createLSPServerInstance, isLspStartFailure, type LSPServerInstance } from './LSPServerInstance.js'
 import { MERCURY_PYRIGHT_SERVER_NAME, pyrightWorkspaceConfiguration } from './pyrightLane.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -345,6 +345,7 @@ export function createLSPServerManager(): LSPServerManager {
       return
     }
     const languageId = languageIdFor(server, filePath)
+    noteDocumentLifecycle(server.name, filePath)
     await server.sendNotification('textDocument/didOpen', {
       textDocument: {
         uri,
@@ -412,6 +413,7 @@ export function createLSPServerManager(): LSPServerManager {
           })
         }
       } finally {
+        noteDocumentLifecycle(server.name, filePath)
         deleteTracking(uri, server.name)
       }
     })
@@ -453,6 +455,11 @@ export function createLSPServerManager(): LSPServerManager {
             `LSP closeAllFiles: ${serverName} refused didClose for ${uri}: ${err instanceof Error ? err.message : String(err)}`,
           )
         } finally {
+          try {
+            noteDocumentLifecycle(serverName, fileURLToPath(uri))
+          } catch (error) {
+            passedOver(error)
+          }
           deleteTracking(uri, serverName)
         }
       }),

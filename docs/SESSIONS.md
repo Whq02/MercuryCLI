@@ -36,7 +36,7 @@ covers the whole repository ([TRUST.md](TRUST.md)).
 
 Running `mercury` with no arguments opens the home screen, with no chat behind it. The rows are **New Session**, **Continue Last Session** (once history exists), **Logins/Keys**, **Session Manager (Concourse)**, **Boot Menu**, and **Profiles**. The line below shows the model and the current folder.
 
-In Boot Menu, **MCPs & Skills** and **Agents** set up the next session. Inside a chat, use `/mcp`, `/skills` or `/agents`. Use `/health` for diagnostics (`mercury health` also runs from a terminal) and `/saturn` for the [scheduler](SATURN.md). To reopen another folder’s chat before starting one, open Session Manager, press `Ctrl+G`, choose the folder, then open a parked chat or press `Enter` on **older chats** to browse. Inside a chat, `/sessions` opens the session picker.
+In Boot Menu, **MCPs & Skills** and **Agents** set up the next session. Inside a chat, use `/mcp`, `/skills` or `/agents`. Use `/health` for diagnostics (`mercury health` also runs from a terminal) and `/schedule` for the [scheduler](SATURN.md). To reopen another folder’s chat before starting one, open Session Manager, press `Ctrl+G`, choose the folder, then open a parked chat or press `Enter` on **older chats** to browse. Inside a chat, `/sessions` opens the session picker.
 
 Pressing `m` on the home screen opens the default model and effort picker whenever `engine.sessionDefaults` is not `false`. Boot Menu starts with **NEXT SESSION** and the two editors, followed by **TRUST COMBO**
 (`Content-rule wards`, `Debug tool`, `C/C++ IDE lane (clangd)`,
@@ -75,12 +75,12 @@ Pressing `Enter` on New Session creates a session for the current folder on your
 default model, and opens it. The session, the chat and its board row are created
 together (the record is on the board before the chat paints)
 and no prompt is sent: the session starts blank and ready, just like a row
-opened from the board. A `/mission` (`/goal`) typed in the moment before the runner
+opened from the board. A `/goal` typed in the moment before the runner
 is ready still belongs to the chat you opened: it is held like any line and sent
 to the session when the runner is ready, the session arms it, and the rail shows
 it from the session's card.
 
-`/goal <goal>` (`/mission <goal>`) sends the goal to the session, which owns it:
+`/goal <goal>` sends the goal to the session, which owns it:
 the session arms the standing goal (up to 4,000 characters, split into its end
 state and any constraints, each one a criterion), writes the goal card, and
 starts a turn with the goal directive when it is idle (mid-turn the goal joins
@@ -120,18 +120,18 @@ the footer indicator clears, and bare `/goal` shows the achieved goal with its r
 turns and duration; when `not yet`, the turn continues with `Mission not
 completed: <goal> — <what is open>. Continue.`; when `impossible`, the goal
 pauses with the reason as the note. The only brake on the loop: three
-consecutive turn ends without a tool call pause the goal (`"mission paused
+consecutive turn ends without a tool call pause the goal (`"goal paused
 after 3 turns without a tool call — your next message resumes it"`), while a
 turn with any tool call since the previous judged end never trips it; a turn
-that ends on a question to you pauses it the same way (`"mission paused — <why>
-· your next message resumes it; /mission clear ends it"`). A pause keeps the
+that ends on a question to you pauses it the same way (`"goal paused — <why>
+· your next message resumes it; /goal clear ends it"`). A pause keeps the
 goal armed. Your next message resumes a paused goal; a scheduled wake does not.
 
 Pressing `Enter` opens a chat immediately using a pre-warmed
 background runner. The new session loads the
 repository's MCPs & Skills selection (or the preset you selected in Boot Menu), and
-the launch receipt names which ([KIT.md](KIT.md)). The board's `+ new session · n`
-tab, at the right end of its SESSIONS title, starts a new session from the
+the launch receipt names which ([KIT.md](KIT.md)). The board's `+ new · n`
+tab, at the right end of its `sessions` title, starts a new session from the
 board in the project the board shows, focused at once.
 When every session slot is taken, the launch waits up to 20 seconds for one to free
 and starts automatically when it does; otherwise the home screen reports how many live
@@ -262,7 +262,7 @@ New Session that has not received your first message is excluded from that
 timer: without limit by default, or for the
 `MERCURY_SESSION_NEWBORN_GRACE_MINUTES` you set, and the first message ends
 the grace period either way. A session started this way and never messaged that the daemon finds
-stopped at its next reconcile is released instead of being marked NEEDS YOU,
+stopped at its next reconcile is released instead of being marked `needs you`,
 because there is nothing to resume.
 
 ## A session names itself
@@ -302,8 +302,8 @@ tool from its first request; the crewmates-allowed grant stays unchanged.
 With it off, a background session's launch refusal names the three ways to allow it.
 A hop updates focus immediately. `/runs`
 and the board's work chip show the focused session's own work
-and never another's. A shell's row on the board, or in the side rail's RUNS
-lane, opens its card: the whole command, the directory it runs in, the time it
+and never another's. A shell's row on the board, or in the side rail's `runs`
+panel, opens its card: the whole command, the directory it runs in, the time it
 has run, its exit code once it has ended, and the last lines of its output,
 read from the output file the session's runner writes, under a
 count of the lines shown against the lines it has written. On a short window
@@ -396,13 +396,13 @@ succeed, to read it when it needs it. A run with no screen (`mercury run`)
 gives the same line on stderr and in a `notice` row
 (`code: "mention_dropped"`), and lists it in the outcome's `notices`.
 
-The session box at the top of the view holds the critter and, while
-a turn runs, the working row in its own capsule beside it: a slim box of
-five rows, the sprite at its left and the capsule to its right, the capsule
-taking the rest of the box's width. The sprite sits level with the
-capsule's middle however tall the capsule grows (the lower of the two
-middle rows when the capsule has an even number of rows): a status that
-stacks or wraps onto more lines lengthens the capsule downwards and the
+The status band at the top of the view holds the critter and, while
+a turn runs, the working row beside it, over a hairline divider: the sprite at
+its left and the working row to its right, taking the rest of the band's width.
+The sprite sits level with the
+working row's middle however tall it grows (the lower of the two
+middle rows when it has an even number of rows): a status that
+stacks or wraps onto more lines lengthens it downwards and the
 sprite follows its middle. The same small sprite is the critter everywhere
 it appears (the session box, the compact layout's band, and the header above the chat),
 and clicking it or running `/critter` chooses the
@@ -420,7 +420,7 @@ the session's runner hosts is still running): `"crewmate thought for
 28m"`.
 The timer counts the crewmates running now; when the last of them finishes
 or is stopped the row reads `ready` again on the next beat, and the finished
-rows keep their own elapsed time in the CREW box, `/crewmates` and `/runs`. At its
+rows keep their own elapsed time in the `crew` panel, `/crewmates` and `/runs`. At its
 right end, before the way back, the row names the folder and the branch the
 session works on (`mercury ⌥ main`; the folder alone where there is no
 branch). When the row is too narrow for everything, the state words
@@ -472,7 +472,7 @@ own watchdog's warning point: never sooner than five minutes of silence, and
 never later than the watchdog's own cut. On the routes whose keep-alives
 feed the watchdog the budget is six minutes (twelve in patient mode), so the
 row can name the silence from five (`"no stream events for 5m — the session
-may be stuck (the watchdog aborts at 6m)"`); on the quiet routes, whose budget
+may be stuck (the watchdog aborts at 6m)"`); on the silent routes, whose budget
 is fifteen minutes, the row names what it saw from seven and a half (`"no
 stream events for 8m — the session may be stuck (the watchdog aborts at
 15m)"`). Every wait, warning and reissue line spells a minute or more in
@@ -533,34 +533,34 @@ parallel sessions fit (`"y run it once"` or `"n no probe — the machine's own
 reading decides"`, `"esc keeps the default · asked once, never again"`). The
 board is scoped to that project: its
 sessions that are running, waiting for a slot, or finished and waiting for a
-merge, and beneath them, PARKED, the project's chats with no running worker.
+merge, and beneath them, `parked`, the project's chats with no running worker.
 When you pick another project through the REPO picker (`Ctrl+G`), the board shows that project's
 sessions instead, while every other project's sessions keep running. Activity
 in other repositories stays visible: each other project with activity
-paints one summary line under OTHER PROJECTS, between the live rows and
-PARKED (`"N running in foo"`, with its finished and needs-you counts and
+paints one summary line under `other projects`, between the live rows and
+`parked` (`"N running in foo"`, with its finished and needs-you counts and
 `"switch to see them"` in its NOW cell), and pressing `Enter` on it switches the view
 through the REPO picker's path; at most three lines paint, and a `"+N
 more projects with activity"` line opens the picker itself. The chat you are in stays visible across a project
 switch: the board always includes the focused
 session, wherever it lives, marked with `✦ "from <its project>"` beside its
-title (among the live rows when running, or at the top of PARKED when stopped),
+title (among the live rows when running, or at the top of `parked` when stopped),
 and pressing `Enter` opens it; focusing a session of the current
 project returns the carried row to its own project board. Two things on the board
 are machine-wide: the status row's seats fraction counts every running
-session on the machine, and the NEEDS YOU block lists every open question
-across all projects so no question goes unseen; pressing `Enter` on a NEEDS
-YOU row switches the view to its project and opens the chat.
+session on the machine, and the `needs you` block lists every open question
+across all projects so no question goes unseen; pressing `Enter` on a `needs
+you` row switches the view to its project and opens the chat.
 
 The board is two panes. On the left is the live view of the chosen session:
 its header line (`"<title> · <project> · <model> · <effort>"` with `"↵ enter
 session"` at its right), its running transcript, and its own message box at
 the foot, where a message waits for the session's next turn. On the right is
-the session list: the grouped rows under `status & title`, `PROJECT` and
-`last used` (the time since the session last did anything), a `⋮` row when
-more rows lie beyond the window, the NEEDS YOU block below the list, and the
-row keys in the pane's own legend: `↑↓ choose · ↵ enter · n new · p pause · x
-stop · a archive · pgup/pgdn scroll`. The list has focus when the board
+the session list: the grouped rows under `status & title`, `project` and
+`last used` (the time since the session's last conversation turn), a `⋮` row
+when more rows lie beyond the window, the `needs you` block below the list, and
+the resting bottom legend (`tab`, `/`, `?`, `esc`, with `?` listing the
+selected row's keys). The list has focus when the board
 opens, and choosing another row switches the live view; `tab` moves to the
 live view's message box and back. Under 100 columns the two panes stack, the
 live view on top. The status row below the panes names the project and the
@@ -569,7 +569,7 @@ seats in use against the ceiling, the number turning amber over it.
 Pressing `Enter` on a live row switches to that session's chat (with its own
 model, permission prompts, and counters) while every
 other session's runner keeps working. The parked rows list the project's
-stopped chats touched within the last week, newest first,
+stopped chats active within the last week (by last conversation turn), newest first,
 up to ten, each showing its stored title (or its first prompt line)
 and `"parked · <age>"`. Pressing `Enter` on a parked row resumes it in place: its transcript paints at
 once, the daemon starts a runner for that session behind the paint, it
@@ -615,7 +615,7 @@ in place. On a list too narrow for that column a row carries the cell only
 when it needs you: the head of a crash reason, a waiting ask or a refused
 park stands where its project and last-used cells were, and the live line
 stays off there. When a runner crashes, its row
-shows NEEDS YOU with the exit code and the last error or stderr line;
+shows `needs you` with the exit code and the last error or stderr line;
 the row stays across reconciles until you act on the session or release the row.
 The daemon's log records the same line for every crash. `ctrl+x ctrl+x` stops the selected
 session (the row stays, marked stopped with the next step), the chord
@@ -649,8 +649,8 @@ found in the project folder from before is read once and moved on its
 first touch; the folder keeps its copy, and the health check's Project estate row
 names it with the one `git rm --cached` line that untracks it.
 
-The left rail carries a FILES box named for the focused session's
-folder; switching into a session of another project moves the box and its tree
+The left rail carries a `files` panel named for the focused session's
+folder; switching into a session of another project moves the panel and its tree
 with it. Pressing `Enter` or clicking it opens the folder's tree as a menu over
 the chat: `→` unfolds a folder and `←` folds it, `/` filters the rows by
 name, `Enter` on a file inserts `@` and its path at the composer's cursor and closes
@@ -674,7 +674,7 @@ terminal capability replies to finish so escape codes never leak into your
 shell or editor. Clicking outside closes any popup over the chat that `Esc` closes,
 stepping back one level without selecting text, opening a
 link or pressing anything in the chat beneath it.
-The `view.files` setting set to false takes the FILES box off the rail.
+The `view.files` setting set to false takes the `files` panel off the rail.
 
 A session can work in a worktree of its repository instead of the checkout
 itself: `--worktree [name]` at launch cuts one (with `--multiplex`, inside a tmux
@@ -1015,7 +1015,7 @@ never left on screen.
 
 The hint row under the composer displays every such receipt or notice
 for several seconds. While one is shown, the default
-hints (`? for shortcuts · ctrl+x p for commands + files`) step aside and
+hints (`? for shortcuts · ctrl+x p commands + files`) step aside and
 return when it clears, so a receipt (such as the model id resolved by
 `/defaultprovider`) stays readable at 80 columns. On a
 narrow window the session counts step aside the same way, the notice is truncated

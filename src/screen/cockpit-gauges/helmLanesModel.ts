@@ -240,9 +240,10 @@ function shedCommandOf(key: string): string {
   if (key === 'recent') return '/sessions'
   if (key === 'work') return '/workbench'
   if (key === 'files') return '/browse'
+  if (key === 'mission') return '/goal'
+  if (key === 'saturn') return '/schedule'
   return `/${key}`
 }
-
 function shedPointerOf(shed: readonly string[]): string {
   return '  more: ' + [...new Set(shed.map(shedCommandOf))].join(' · ')
 }
@@ -292,7 +293,7 @@ export function buildLanesModel(input: LanesInput): LanesModel {
   const mustKeep = new Set<string>([...HELM_DENSITY_FLOOR, ...density.keep])
   if (cursorSection) mustKeep.add(cursorSection)
   const shedSet = new Set<string>()
-  let spent = 1 + built.reduce((n, s) => n + costOf(s), 0)
+  let spent = built.reduce((n, s) => n + costOf(s), 0)
   for (const k of density.shedOrder) {
     if (spent <= shedCeiling) break
     const s = built.find(x => x.key === k)
@@ -301,7 +302,7 @@ export function buildLanesModel(input: LanesInput): LanesModel {
     spent -= costOf(s)
   }
   const sections = built.filter(s => !shedSet.has(s.key))
-  let paintedRows = 1
+  let paintedRows = 0
   if (boxed) {
     const firstClipped = sections.findIndex(section => {
       const cost = costOf(section)
