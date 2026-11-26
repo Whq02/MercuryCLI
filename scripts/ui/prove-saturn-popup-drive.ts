@@ -219,6 +219,44 @@ for (const [cols, rows] of [[120, 40], [80, 24]] as Array<[number, number]>) {
 }
 
 {
+  const CLICK = '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m'
+  const res = await runDrive('saturn-mouse-120x40', 120, 40, 'box', [
+    { requireAwait: true, awaitText: FACE_READY, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: ADMITTED, awaitSettleTicks: 2, data: '/saturn' },
+    { requireAwait: true, awaitText: 'Schedules — next fire', awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: 'aaaa1111', awaitSettleTicks: 4, data: '', mark: 'open' },
+    { requireAwait: true, awaitText: 'bbbb2222', awaitSettleTicks: 1, targetText: 'bbbb2222', targetDx: 2, data: CLICK },
+    { requireAwait: true, awaitText: 'bbbb2222', awaitSettleTicks: 2, data: '', mark: 'clicked-row' },
+    { requireAwait: true, awaitText: 'bbbb2222', awaitSettleTicks: 1, data: 'p' },
+    { requireAwait: true, awaitText: "paused '", awaitSettleTicks: 2, data: '', mark: 'clicked-paused' },
+    { requireAwait: true, awaitText: "paused '", awaitSettleTicks: 1, data: 'a' },
+    { requireAwait: true, awaitText: 'Opening mission', awaitSettleTicks: 2, targetText: 'Opening mission', targetDx: 2, data: CLICK },
+    { requireAwait: true, awaitText: 'Opening mission', awaitSettleTicks: 2, data: '', mark: 'form-selected' },
+    { requireAwait: true, awaitText: 'Opening mission', awaitSettleTicks: 1, targetText: 'Opening mission', targetDx: 2, data: CLICK },
+    { requireAwait: true, awaitText: 'review', awaitSettleTicks: 2, data: '', mark: 'pick-open' },
+    { requireAwait: true, awaitText: 'review', awaitSettleTicks: 1, targetText: 'review', targetDx: 2, data: CLICK },
+    { requireAwait: true, awaitText: 'review', awaitSettleTicks: 2, data: '', mark: 'pick-selected' },
+    { requireAwait: true, awaitText: 'review', awaitSettleTicks: 1, targetText: 'review', targetDx: 2, data: CLICK },
+    { requireAwait: true, awaitText: 'Review the recent work', awaitSettleTicks: 2, data: '', mark: 'form-picked' },
+    { requireAwait: true, awaitText: 'Review the recent work', awaitSettleTicks: 1, data: '\x1b' },
+    { requireAwait: true, awaitText: 'bbbb2222', awaitSettleTicks: 2, data: '\x1b' },
+    { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 2, data: '', mark: 'closed' },
+  ])
+  const clickedRow = res.marks.get('clicked-row') ?? []
+  const clickedPaused = res.marks.get('clicked-paused') ?? []
+  const formSelected = res.marks.get('form-selected') ?? []
+  const pickOpen = res.marks.get('pick-open') ?? []
+  const pickSelected = res.marks.get('pick-selected') ?? []
+  const formPicked = res.marks.get('form-picked') ?? []
+  const rowA = clickedPaused.find(line => line.includes('aaaa1111')) ?? ''
+  const rowB = clickedPaused.find(line => line.includes('bbbb2222')) ?? ''
+  check('saturn-mouse-120x40: clicking the second schedule moves the cursor onto bbbb2222', clickedRow.some(line => /❯.*bbbb2222/.test(line)) && !clickedRow.some(line => /❯.*aaaa1111/.test(line)), clickedRow.filter(line => line.includes('1111') || line.includes('2222')).join(' | '))
+  check('saturn-mouse-120x40: pausing after clicking bbbb2222 pauses only bbbb2222', flat(clickedPaused).includes("paused 'bbbb2222'") && rowB.includes('paused') && rowA.includes('in 2h') && !rowA.includes('paused'), `rowA=${rowA.trim()} rowB=${rowB.trim()}`)
+  check('saturn-mouse-120x40: clicking a birth form row selects then opens its picker', formSelected.some(line => /❯.*Opening mission/.test(line)) && flat(pickOpen).includes('Mercury — saturn · opening') && flat(pickOpen).includes('review'), `selected=${formSelected.find(l => l.includes('Opening')) ?? ''} pick=${flat(pickOpen).slice(0, 180)}`)
+  check('saturn-mouse-120x40: clicking a picker option selects then applies it to the birth form', res.status === 0 && pickSelected.some(line => /❯.*review/.test(line)) && formPicked.some(line => line.includes('Opening mission') && line.includes('Review the recent work')), `status=${res.status} picked=${formPicked.find(l => l.includes('Opening')) ?? ''} ${res.output.slice(-220)}`)
+}
+
+{
   const DRAFT = 'keep-saturn-draft'
   const CLICK = '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m'
   const res = await runDrive('saturn-draft-120x40', 120, 40, 'rail', [

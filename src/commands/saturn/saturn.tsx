@@ -5,7 +5,7 @@ import { CommandPopupLease } from '../../screen/overlays/CommandPopupSlot.js'
 import { claimCommandPopup } from '../../screen/cockpit/commandPopup.js'
 import { crewDoorShape } from '../../screen/fullscreen-layout/CrewViewSlot.js'
 import { CommandCenter, SectionHeader } from '../../screen/widgets/components.js'
-import { CursorRow } from '../../screen/widgets/CursorRow.js'
+import { InteractiveRow } from '../../screen/widgets/InteractiveRow.js'
 import { useMercuryTokens } from '../../screen/widgets/useMercuryTokens.js'
 import { saturnEmptyDetailLines, useSaturnController } from '../../screen/boot-face/BootSaturnScreen.js'
 import type { LocalJSXCommandCall } from '../catalogue/command.js'
@@ -53,20 +53,27 @@ function SaturnPopup({ onClose }: { onClose: (value?: string) => void }): React.
               {group.items.map(({ index, entry }) => {
                 const isSelected = index === menuM.selIdx
                 const target = rowPropsAt(index)
-                return (
-                  <CursorRow key={target?.props.id ?? `saturn-${index}`} selected={isSelected}>
-                    <Box ref={target?.props.rowRef} flexDirection="row" flexGrow={1} minWidth={0}>
-                      <Text bold={isSelected} color={isSelected ? tokens.textPrimary : undefined}>{isSelected ? `${figures.pointer} ` : '  '}</Text>
-                      <Box flexGrow={1} minWidth={0}>
-                        <Text bold={isSelected} color={isSelected ? tokens.textPrimary : tokens.textSecondary} wrap="truncate-end">{entry.label}</Text>
-                      </Box>
-                      {entry.valueLabel !== '' ? (
-                        <Box flexShrink={0} marginLeft={2}>
-                          <Text color={entry.valueIsDefault ? tokens.textMuted : tokens.warning}>{entry.valueLabel}</Text>
-                        </Box>
-                      ) : null}
+                const content = (
+                  <>
+                    <Text bold={isSelected} color={isSelected ? tokens.textPrimary : undefined}>{isSelected ? `${figures.pointer} ` : '  '}</Text>
+                    <Box flexGrow={1} minWidth={0}>
+                      <Text bold={isSelected} color={isSelected ? tokens.textPrimary : tokens.textSecondary} wrap="truncate-end">{entry.label}</Text>
                     </Box>
-                  </CursorRow>
+                    {entry.valueLabel !== '' ? (
+                      <Box flexShrink={0} marginLeft={2}>
+                        <Text color={entry.valueIsDefault ? tokens.textMuted : tokens.warning}>{entry.valueLabel}</Text>
+                      </Box>
+                    ) : null}
+                  </>
+                )
+                return target !== null ? (
+                  <InteractiveRow key={target.props.id} {...target.props} flexDirection="row" flexGrow={1}>
+                    {content}
+                  </InteractiveRow>
+                ) : (
+                  <Box key={`saturn-${index}`} flexDirection="row" flexGrow={1} minWidth={0}>
+                    {content}
+                  </Box>
                 )
               })}
             </Box>
