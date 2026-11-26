@@ -13,7 +13,7 @@ import {
   fillSessionListing,
 } from '../../sessions/transcripts/sessionStorage.js'
 import type { ResumeEntrypoint } from '../../commands/catalogue/commands.js'
-import type { SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
+import { compareSessionListings, type SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
 
 type SessionFlipOutcome =
   | { flipped: true }
@@ -26,9 +26,7 @@ async function resolveSessionFlipTarget(
   const resumable = listedSessionsOf(all, conversationIdHere())
     .filter(l => isProjectSession(l, getProjectRoot() || ''))
     .filter(l => !isSessionCleared(sessionIdOfListing(l)))
-  resumable.sort(
-    (a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime(),
-  )
+  resumable.sort(compareSessionListings)
   if (wanted && !resumable.some(l => sessionIdOfListing(l) === wanted)) {
     return {
       target: null,

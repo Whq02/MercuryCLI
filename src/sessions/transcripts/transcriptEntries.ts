@@ -3,7 +3,7 @@ import type { Message } from '../../engine/message-shapes/message.js'
 import type { ContentReplacementRecord } from '../../engine/tool-dispatch/toolResultStorage.js'
 import type { FileHistorySnapshot } from './fileHistory.js'
 import type { StorageRowKind, StorageRowOf, StoredRow, WorktreeBinding } from '../../engine/rows/storage.js'
-
+import { compareSessionRecency } from './sessionIndex.js'
 type Flattened<T> = { [K in keyof T]: T[K] }
 type StoredPayload<K extends StorageRowKind> = Flattened<StorageRowOf<K>>
 
@@ -32,7 +32,7 @@ type ListingCore = {
   created: Date
   modified: Date
 }
-type ListingFile = Partial<{ fullPath: string; fileSize: number; messageCount: number; isLite: boolean; sessionId: string }>
+type ListingFile = Partial<{ fullPath: string; fileSize: number; messageCount: number; isLite: boolean; sessionId: string; lastUsedAt: number }>
 type ListingLabels = Partial<{
   summary: string
   customTitle: string
@@ -53,7 +53,7 @@ type ListingPlace = Partial<{
   worktreeSession: PersistedWorktreeSession | null
 }>
 export type TurnEnded = { turnId: string; status: string; trailing: UUID[] }
-type ListingRun = { endedOnError?: boolean; mode?: 'coordinator' | 'normal'; advisor?: boolean; swarm?: boolean; model?: string; turnEnd?: TurnEnded; turnOpen?: boolean }
+type ListingRun = { endedOnError?: boolean; isAuthFailureHusk?: boolean; mode?: 'coordinator' | 'normal'; advisor?: boolean; swarm?: boolean; model?: string; turnEnd?: TurnEnded; turnOpen?: boolean }
 type ListingRecords = Partial<{
   fileHistorySnapshots: FileHistorySnapshot[]
   attributionSnapshots: AttributionSnapshotEntry[]
@@ -63,11 +63,6 @@ type ListingRecords = Partial<{
 }>
 export type SessionListing = Flattened<ListingCore & ListingFile & ListingLabels & ListingPlace & ListingRun & ListingRecords>
 
-const newestFirst =
-  (when: (log: SessionListing) => Date) =>
-  (a: SessionListing, b: SessionListing): number =>
-    when(b).getTime() - when(a).getTime()
-
 const newestDate = (a: SessionListing, b: SessionListing): number => {
   const ta = Date.parse(a.date)
   const tb = Date.parse(b.date)
@@ -75,8 +70,16 @@ const newestDate = (a: SessionListing, b: SessionListing): number => {
   return b.date.localeCompare(a.date)
 }
 
-const LISTING_ORDER = [newestFirst(log => log.modified), newestFirst(log => log.created), newestDate]
+export function compareSessionListings(a: SessionListing, b: SessionListing): number {
+  const aHusk = a.isAuthFailureHusk === true
+  const bHusk = b.isAuthFailureHusk === true
+  if (aHusk !== bHusk) return aHusk ? 1 : -1
+  return compareSessionRecency(
+    { lastUsedMs: a.lastUsedAt ?? null, mtimeMs: new Date(a.modified).getTime(), createdMs: a.created ? new Date(a.created).getTime() : undefined, sessionId: a.sessionId },
+    { lastUsedMs: b.lastUsedAt ?? null, mtimeMs: new Date(b.modified).getTime(), createdMs: b.created ? new Date(b.created).getTime() : undefined, sessionId: b.sessionId },
+  )
+}
 
 export function sortSessionListings(logs: SessionListing[]): SessionListing[] {
-  return logs.sort((a, b) => LISTING_ORDER.reduce((order, compare) => order || compare(a, b), 0))
+  return logs.sort((a, b) => compareSessionListings(a, b) || newestDate(a, b))
 }

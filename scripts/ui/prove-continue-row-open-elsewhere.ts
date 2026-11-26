@@ -107,7 +107,9 @@ function transcriptOf(projectDir: string, sessionId: string): string {
 function seedSession(projectDir: string, sessionId: string, prompt: string): void {
   const file = transcriptOf(projectDir, sessionId)
   mkdirSync(dirname(file), { recursive: true })
-  const ts = new Date().toISOString()
+  clock += 10_000
+  const at = new Date(clock)
+  const ts = at.toISOString()
   const envelope = { isSidechain: false, entrypoint: 'cli', cwd: projectDir, sessionId, version: '1.0.12', gitBranch: 'main', timestamp: ts }
   writeFileSync(
     file,
@@ -125,15 +127,10 @@ function seedSession(projectDir: string, sessionId: string, prompt: string): voi
       sessionId,
     ),
   )
-  makeNewest(projectDir, sessionId)
+  utimesSync(file, at, at)
 }
 
 let clock = Date.now() - 3_600_000
-function makeNewest(projectDir: string, sessionId: string): void {
-  clock += 10_000
-  const at = new Date(clock)
-  utimesSync(transcriptOf(projectDir, sessionId), at, at)
-}
 
 type Held = { sessionId: string; workspaceId: string; focusedBy?: string; attachedBy?: string; focusedAlso?: ReadonlyArray<{ by: string; at: number }>; endedAt?: number }
 function seedRecords(held: Held[]): void {
@@ -327,7 +324,7 @@ try {
   }
 
   console.log('§2 — a session of another project open in another window: the row names its folder as it always did, and nothing more')
-  makeNewest(otherDir, SID_OTHER)
+  seedSession(otherDir, SID_OTHER, 'other trusted prompt')
   for (const [cols, rows, layout] of SIZES) {
     const quiet = keep(`other-project-${cols}x${rows}`, await mountFace(freshDir, cols, rows, []))
     for (const [name, record] of heldElsewhere) {

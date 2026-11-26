@@ -428,8 +428,6 @@ check('the crewmate\'s transcript takes over the centre (its rows paint, the lea
 check('the crewmate\'s rows wear its own nameplate, the operator\'s lines the [you → Lane atlas] plate', atlasRows.every(line => line.includes('[Lane atlas]')) && centreRows.some(line => line.includes('[you → Lane atlas]')), centreRows.filter(line => /\[(Lane atlas|you →)/.test(line)).map(line => line.trim().slice(0, 60)).join(' | '))
 const composer2 = composerRow(frame)
 check('the composer stays on screen under the view', composer2 > 0, 'no composer row — the view must leave the prompt input painted')
-const footer2 = frame.slice(composer2, composer2 + 6).join('\n')
-check('the footer says ↵ sends to the crewmate · esc interrupts it (once)', /sends to Lane atlas/.test(footer2) && /esc interrupts Lane atlas/.test(footer2) && !/Mercury Lead in the rail goes back/.test(footer2), footer2.replace(/\s+/g, ' ').slice(0, 300))
 check('the click dispatched no command (no /tasks board opened)', scene.submits.length === 0, `submits=${JSON.stringify(scene.submits)}`)
 if (viewedAfterClick === undefined) {
   scene.push(press(8, pickerRow) + release(8, pickerRow))
@@ -518,8 +516,6 @@ check('the card says THE MAIN CHAT in the crewmate\'s row', card4.includes('THE 
 const composer4 = composerRow(frame)
 const composerText = composer4 >= 0 ? frame[composer4]!.trim() : ''
 check('the composer placeholder reads "message Lane fjord"', composerText.includes('message Lane fjord'), `the composer row reads "${composerText.slice(0, 80)}"`)
-const footer4 = frame.slice(composer4, composer4 + 6).join('\n')
-check('the footer says ↵ sends to the crewmate · m on Mercury Lead returns the main chat', /sends to Lane fjord/.test(footer4) && /m on Mercury Lead returns the main chat/.test(footer4), footer4.replace(/\s+/g, ' ').slice(0, 300))
 check('a crewmate with no transcript on disk says so in the centre, never a blank', frame.some(line => centre(line).includes('no transcript yet')), frame.slice(6, 12).map(centre).join(' | ').slice(0, 200))
 if (frame.some(line => line.includes(CREW_TITLE))) {
   scene.push(ESC)

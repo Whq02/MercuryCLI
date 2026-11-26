@@ -18,7 +18,7 @@ import type {
   PersistedWorktreeSession,
   TranscriptMessage,
 } from './transcriptEntries.js'
-import { sortSessionListings } from './transcriptEntries.js'
+import { compareSessionListings, sortSessionListings } from './transcriptEntries.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import {
   decodeTranscriptBuffer,
@@ -48,7 +48,7 @@ import {
   getTranscriptPathForSession,
 } from './paths.js'
 import { getProject, getSessionMessages } from './writer.js'
-import { promptLabel, readSessionLabelFacts, sessionFiles, sessionPromptFromWindow, type IndexedSession } from './sessionIndex.js'
+import { promptLabel, readSessionLabelFacts, RECENCY_CLOCK_SLACK_MS, sessionFiles, sessionPromptFromWindow, type IndexedSession } from './sessionIndex.js'
 import { missionGoalBeside } from '../mission-card/missionCard.js'
 import { transcriptRows } from './rowGraph.js'
 import type { SessionMetaFields } from './sessionMeta.js'
@@ -180,7 +180,7 @@ function newestPerKey(logs: SessionListing[], keyOf: (log: SessionListing) => st
     const key = keyOf(log)
     if (!key) continue
     const existing = byKey.get(key)
-    if (!existing || log.modified.getTime() > existing.modified.getTime()) {
+    if (!existing || compareSessionListings(log, existing) < 0) {
       byKey.set(key, log)
     }
   }
@@ -537,12 +537,28 @@ async function progressivePage(
   initialEnrichCount: number,
   priorFailures?: SessionReadFailures,
 ): Promise<SessionPage> {
-  const { logs, nextIndex, readFailures } = await enrichSessionListings(
-    allStatLogs,
-    0,
-    initialEnrichCount,
-  )
-  numberInOrder(logs)
+  const first = await enrichSessionListings(allStatLogs, 0, initialEnrichCount)
+  const logs = first.logs
+  let nextIndex = first.nextIndex
+  let readFailures = first.readFailures
+  if (initialEnrichCount > 0 && logs.length > 0 && nextIndex < allStatLogs.length) {
+    const readBuf = Buffer.alloc(LITE_READ_BUF_SIZE)
+    const collector = createFailureCollector()
+    numbered(logs)
+    while (nextIndex < allStatLogs.length) {
+      const boundary = logs[Math.min(logs.length, initialEnrichCount) - 1]!
+      const boundaryMs = boundary.isAuthFailureHusk ? null : (boundary.lastUsedAt ?? null)
+      const nextMtime = allStatLogs[nextIndex]!.modified.getTime()
+      if (boundaryMs !== null && nextMtime + RECENCY_CLOCK_SLACK_MS < boundaryMs) break
+      const enriched = await enrichListing(allStatLogs[nextIndex++]!, readBuf, collector.add)
+      if (enriched) {
+        logs.push(enriched)
+        numbered(logs)
+      }
+    }
+    readFailures = mergeSessionReadFailures(readFailures, collector.summary())
+  }
+  numbered(logs)
   const merged = mergeSessionReadFailures(priorFailures, readFailures)
   return {
     logs,
@@ -917,7 +933,9 @@ type LiteLabelFacts = {
   prUrl?: string
   prRepository?: string
   endedOnError?: boolean
+  isAuthFailureHusk?: boolean
   lastTimestamp?: string
+  lastUsedAt?: number
 }
 
 async function enrichListing(
@@ -963,6 +981,8 @@ async function enrichListing(
     ...(facts.prUrl !== undefined ? { prUrl: facts.prUrl } : {}),
     ...(facts.prRepository !== undefined ? { prRepository: facts.prRepository } : {}),
     ...(facts.endedOnError !== undefined ? { endedOnError: facts.endedOnError } : {}),
+    ...(facts.isAuthFailureHusk === true ? { isAuthFailureHusk: true } : {}),
+    ...(facts.lastUsedAt !== undefined ? { lastUsedAt: facts.lastUsedAt } : {}),
     ...(projectPath !== undefined ? { projectPath } : {}),
   }
 }

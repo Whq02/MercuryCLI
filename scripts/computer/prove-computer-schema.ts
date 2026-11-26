@@ -120,4 +120,58 @@ section('§4 the shape fields')
   check('isEnabled() follows the flag', ComputerTool.isEnabled() === true)
 }
 
+section('§5 E4: tool description and prompt lead with find for a known role/name while keeping pixels available, backed by real tool results')
+{
+  const { writeFileSync } = await import('node:fs')
+  const { scratchDir } = await import('./computerProofKit.ts')
+  const { allowEverything, ownerOf } = await import('./computerToolKit.ts')
+  const { createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+  const { forgetDesktopOwner } = await import('../../src/integrations/desktop/desktopSession.ts')
+  type ComputerInput = import('../../src/tools/computer/ComputerTool.ts').Input
+  const sceneFile = join(scratchDir('schema-e4'), 'scene.json')
+  const app = { identity: 'com.example.Editor', name: 'Editor', pid: 4242, windowId: 'editor', title: 'Workspace', bounds: { x: 0, y: 0, width: 1280, height: 800 } }
+  writeFileSync(sceneFile, JSON.stringify({
+    displays: [{ index: 0, id: 'e4', originX: 0, originY: 0, width: 1280, height: 800, scale: 2, primary: true }],
+    frontmost: app,
+    cursor: { x: 200, y: 200 },
+    lines: ['Workspace'],
+    tree: [{
+      role: 'AXWindow',
+      title: 'Workspace',
+      focused: true,
+      frame: app.bounds,
+      children: [
+        { role: 'AXButton', title: 'Save', frame: { x: 380, y: 90, width: 80, height: 28 } },
+        ...Array.from({ length: 30 }, (_, i) => ({
+          role: 'AXGroup (AXDocumentArticle)',
+          title: `Feed post #${i + 1}: release checklist update`,
+          value: `Summary of item ${i + 1} with status green`,
+          frame: { x: 40, y: 140 + i * 20, width: 900, height: 18 },
+        })),
+      ],
+    }],
+  }))
+  process.env.MERCURY_DESKTOP_FAKE_SCENE = sceneFile
+  resetDesktopDriverForTest()
+  const ctx = toolContext()
+  forgetDesktopOwner(ownerOf(ctx))
+  const callReal = async (id: string, input: ComputerInput) => {
+    const parent = createAssistantMessage({ content: [{ type: 'tool_use', id, name: 'Computer', input }] })
+    return ComputerTool.call(input, ctx, allowEverything, parent)
+  }
+  const found = await callReal('e4-find', { action: 'find', target: { role: 'AXButton', name: 'Save' } })
+  const tree = await callReal('e4-tree', { action: 'tree' })
+  const shot = await callReal('e4-shot', { action: 'screenshot' })
+  check('real tool results show find costs less than tree (fewer chars) and screenshot (0 images, fewer chars)', found.data.outcome === 'succeeded' && tree.data.outcome === 'succeeded' && shot.data.outcome === 'succeeded' && found.data.imagePath === undefined && shot.data.imagePath !== undefined && found.data.result.length < tree.data.result.length && found.data.result.length < shot.data.result.length, `find=${found.data.result.length} tree=${tree.data.result.length} shot=${shot.data.result.length}`)
+  const findPos = description.indexOf('find')
+  const shotPos = description.indexOf('screenshot')
+  check('returned description() leads with find before screenshot while keeping screenshot available', findPos >= 0 && shotPos > findPos, description)
+  const promptFindPos = prompt.indexOf('find')
+  const promptShotPos = prompt.indexOf('screenshot')
+  check('returned prompt() points to find first for a known role/name while keeping pixels/coordinates available', promptFindPos >= 0 && promptShotPos > promptFindPos && prompt.includes('role/name') && prompt.includes('pixels'), prompt)
+  forgetDesktopOwner(ownerOf(ctx))
+  delete process.env.MERCURY_DESKTOP_FAKE_SCENE
+  resetDesktopDriverForTest()
+}
+
 finish('prove-computer-schema')

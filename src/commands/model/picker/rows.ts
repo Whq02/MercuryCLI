@@ -40,7 +40,7 @@ function fmtCtx(windowSize: number, local = false): string {
 export function resolveCurrentRowId(models: ModelChoice[], served: string): string {
   if (models.some(m => m.id === served)) return served
   const target = stripContext1m(parseUserSpecifiedModel(served))
-  const rows = models.filter(m => !m.gated && !m.action)
+  const rows = models.filter(m => !m.gated && !m.pending && !m.action)
   const resolvedOf = (id: string): string | null => {
     try {
       return parseUserSpecifiedModel(id)
@@ -66,6 +66,13 @@ export function getFocusedModelKey(): string {
   return `${facts.effective}|${facts.setting ?? ''}|${facts.pendingSwitch ? (facts.pendingSwitch.setting ?? 'default') : ''}`
 }
 
+function rowGate(opt: ModelOption): Pick<ModelChoice, 'gated' | 'pending' | 'gatedReason'> {
+  if (opt.unavailable === undefined) return {}
+  return opt.cataloguePending === true
+    ? { pending: true, gatedReason: opt.unavailable }
+    : { gated: true, gatedReason: opt.unavailable }
+}
+
 export function modelChoiceOf(opt: ModelOption, betas: string[] | undefined): ModelChoice {
   let ctx = ''
   let ctxBase = ''
@@ -83,7 +90,7 @@ export function modelChoiceOf(opt: ModelOption, betas: string[] | undefined): Mo
     }
   }
   if (opt.unavailable !== undefined && parseGptModelId(opt.value)) {
-    return { id: opt.value, name: opt.label, tag: opt.description, ctx: '', group: opt.group ?? ANTHROPIC_MODEL_GROUP, gated: true, gatedReason: opt.unavailable }
+    return { id: opt.value, name: opt.label, tag: opt.description, ctx: '', group: opt.group ?? ANTHROPIC_MODEL_GROUP, ...rowGate(opt) }
   }
   if (opt.liveUnknown === true || opt.statedContextWindow !== undefined || qualifiedIdSpaceOf(opt.value)?.qualifiedPrefix !== undefined) {
     return {
@@ -92,7 +99,7 @@ export function modelChoiceOf(opt: ModelOption, betas: string[] | undefined): Mo
       tag: opt.description,
       ctx: opt.statedContextWindow !== undefined ? fmtCtx(opt.statedContextWindow, isLocalModelId(opt.value)) : '',
       group: opt.group ?? ANTHROPIC_MODEL_GROUP,
-      ...(opt.unavailable ? { gated: true, gatedReason: opt.unavailable } : {}),
+      ...rowGate(opt),
     }
   }
   try {
@@ -127,7 +134,7 @@ export function modelChoiceOf(opt: ModelOption, betas: string[] | undefined): Mo
     ...(ctxBase !== '' ? { ctxBase } : {}),
     ...(ctx1m !== '' ? { ctx1m } : {}),
     group: opt.group ?? ANTHROPIC_MODEL_GROUP,
-    ...(opt.unavailable !== undefined ? { gated: true, gatedReason: opt.unavailable } : {}),
+    ...rowGate(opt),
   }
 }
 

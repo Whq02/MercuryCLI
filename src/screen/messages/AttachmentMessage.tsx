@@ -11,6 +11,7 @@ import type { NullRenderingAttachmentType } from './nullRenderingAttachments.js'
 import { UserImageMessage } from './UserImageMessage.js'
 import { UserTextMessage } from './UserTextMessage.js'
 import { useSelectedMessageBg } from './messageActions.js'
+import { imageRowNumbersOf } from '../../engine/message-shapes/normalize.js'
 
 function AttachmentLine({
   children,
@@ -218,6 +219,10 @@ export function AttachmentMessage({
         promptText = parts.join('\n')
       }
       const isTaskNotification = attachment.commandMode === 'task-notification'
+      const promptBlocks = Array.isArray(attachment.prompt)
+        ? attachment.prompt
+        : [{ type: 'text' as const, text: promptText }]
+      const imageIds = imageRowNumbersOf(promptBlocks, attachment.imagePasteIds)
       return (
         <Box
           flexDirection="column"
@@ -236,9 +241,9 @@ export function AttachmentMessage({
               isTaskNotification ? attachment.deliveredAt : undefined
             }
           />
-          {attachment.imagePasteIds?.map((id, index) => (
-            <UserImageMessage key={`${id}-${index}`} imageId={id} />
-          ))}
+          {imageIds.map((id, index) =>
+            id !== null ? <UserImageMessage key={`${id}-${index}`} imageId={id} /> : null,
+          )}
         </Box>
       )
     }

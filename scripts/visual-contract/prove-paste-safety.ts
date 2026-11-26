@@ -104,7 +104,7 @@ t.section('§1 — composer echo: a control-sequence paste renders printables on
   )
   t.check(
     'the frame survived the paste (the 2J inside the paste never executed)',
-    r.lines.some(l => /^(?:╭─+╮|(?:workbench|recent|crew \d+)[^╭]*)╭/.test(l)) && r.lines.some(l => l.includes('↵ sends')),
+    r.lines.some(l => /^(?:╭─+╮|(?:workbench|recent|crew \d+)[^╭]*)╭/.test(l)) && r.lines.some(l => l.includes('? for shortcuts')),
     'chrome rows present',
   )
   t.check('tee captured child output', r.tee.length > 0, `${r.tee.length} bytes`)

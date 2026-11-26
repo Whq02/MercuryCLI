@@ -648,6 +648,10 @@ export interface DaemonMoveReceipt {
   line: string
 }
 
+export function absentDaemonMoveLine(to: string): string {
+  return `background daemon: none running in this home — the next session here starts one on ${to}`
+}
+
 export async function moveDaemonToDeployedBuild(opts: {
   by: string
   runtime?: import('./handover.js').DeployedRuntimeV1 | null
@@ -662,7 +666,7 @@ export async function moveDaemonToDeployedBuild(opts: {
   if (runtime === null) return { state: 'unknown', line: 'background daemon: no installed build to move it onto' }
   const to = runtime.version !== null ? `v${runtime.version}` : `tree ${runtime.buildTree ?? '?'}`
   const first = await handshakeDaemon()
-  if (first.state === 'absent') return { state: 'absent', line: `background daemon: none running — the next session starts one on ${to}` }
+  if (first.state === 'absent') return { state: 'absent', line: absentDaemonMoveLine(to) }
   const d = first.daemon
   if (first.state === 'starting' || d === null) {
     return { state: 'unknown', line: `background daemon: still starting — \`mercury daemon restart\` moves it to ${to} once it answers` }

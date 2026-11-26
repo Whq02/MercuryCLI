@@ -49,8 +49,13 @@ export function pickerGeometry({ inner, lines, compact, i, panelWidth, focusedMo
     return tag === '' ? 1 : 1 + wrapText(tag, panelWidth - 8, 'wrap').split('\n').length
   }
   const reasonLines: string[] | null =
-    focusedModel !== undefined && focusedModel.gated && focusedModel.gatedReason
-      ? wrapPlain(`${focusedModel.id} · ${focusedModel.gatedReason} — not selectable`, inner)
+    focusedModel !== undefined && (focusedModel.gated || focusedModel.pending) && focusedModel.gatedReason
+      ? wrapPlain(
+          focusedModel.pending
+            ? `${focusedModel.id} · ${focusedModel.gatedReason}`
+            : `${focusedModel.id} · ${focusedModel.gatedReason} — not selectable`,
+          inner,
+        )
       : null
   const painted = (text: string): number => wrapText(text, inner, 'wrap').split('\n').length
   const pendingLine = pendingNext

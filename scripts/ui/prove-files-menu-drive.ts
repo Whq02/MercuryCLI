@@ -104,6 +104,7 @@ function seedHopWorld(name: string): { home: string; cwdA: string; cwdB: string 
   const sessionId = '00000000-dddd-4000-8000-000000000002'
   const file = join(home, 'projects', projectSlug(cwdB), `${sessionId}.jsonl`)
   mkdirSync(dirname(file), { recursive: true })
+  const at = new Date(Date.now() - 60 * 60_000)
   const row = (extra: Record<string, unknown>): Record<string, unknown> => ({
     isSidechain: false,
     entrypoint: 'cli',
@@ -113,7 +114,7 @@ function seedHopWorld(name: string): { home: string; cwdA: string; cwdB: string 
     gitBranch: 'main',
     parentUuid: null,
     uuid: `00000000-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, '0')}`,
-    timestamp: new Date().toISOString(),
+    timestamp: at.toISOString(),
     ...extra,
   })
   writeFileSync(
@@ -126,7 +127,6 @@ function seedHopWorld(name: string): { home: string; cwdA: string; cwdB: string 
       sessionId,
     ),
   )
-  const at = new Date(Date.now() - 60 * 60_000)
   utimesSync(file, at, at)
   return { home, cwdA, cwdB }
 }

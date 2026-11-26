@@ -81,6 +81,7 @@ export async function takeScreenshot(
   requestedScale?: number,
   publish = true,
   sameMessage: ReadonlySet<string> = new Set(),
+  compareMap?: ScreenMap | null,
 ): Promise<Shot> {
   const displays = await driver.displays()
   if (!displays.ok) return { ok: false, aborted: false, text: faultText('screenshot', displays.error) }
@@ -157,7 +158,8 @@ export async function takeScreenshot(
   }
   const screen = screenMapOfCapture(toolUseId, capture, captured.points, image)
   if (region || window) screen.region = true
-  const changedFrame = map !== null && ['displayId', 'originX', 'originY', 'pointWidth', 'pointHeight', 'imageWidth', 'imageHeight'].some(key => map[key as keyof ScreenMap] !== screen[key as keyof ScreenMap])
+  const priorMap = compareMap !== undefined ? compareMap : map
+  const changedFrame = priorMap !== null && ['displayId', 'originX', 'originY', 'pointWidth', 'pointHeight', 'imageWidth', 'imageHeight'].some(key => priorMap[key as keyof ScreenMap] !== screen[key as keyof ScreenMap])
   const scale = `scale ${(screen.imageWidth / screen.pointWidth).toFixed(3)} px/pt (native fraction ${factor}${image.width !== dimensions.width || image.height !== dimensions.height ? '; resized for the model route' : ''})`
   const frameWords = `${scale}${changedFrame ? '; frame changed: display, region or route image limits changed — previous coordinates do not apply' : ''}${region || window ? `; coordinates now refer to this ${region ? 'region' : 'window'} (origin ${screen.originX},${screen.originY} pt); full:true takes a full screenshot of the display` : ''}`
   if (publish) setScreen(owner, screen)

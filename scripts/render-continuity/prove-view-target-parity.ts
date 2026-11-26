@@ -211,10 +211,10 @@ t.section('§2 journey: header + CREW lead row + mouse return')
 
     const iView = idxOf(
       iMain + 1,
-      f => inView(f) && childMarked(f) && !leadMarked(f) && has(f, 'esc interrupts') && has(f, 'sends to poise probe'),
+      f => inView(f) && childMarked(f) && !leadMarked(f) && has(f, 'viewing poise probe') && has(f, 'composer → poise probe'),
     )
     t.check(
-      'one click on the child opens it in the view: the composer addresses it, the › mark moves to its row, esc interrupts it, ↵ sends to it',
+      'one click on the child opens it in the view: the composer addresses it, the › mark moves to its row, the status row names viewing and composer target',
       iMain >= 0 && iView > iMain,
       iView >= 0
         ? frames[iView]!.rows.find(r => r.includes('❯ message poise probe'))?.trim().slice(0, 70)

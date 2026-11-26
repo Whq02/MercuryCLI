@@ -1,16 +1,18 @@
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { z } from 'zod/v4'
 import { getMercuryHome } from '../environment/envUtils.js'
 import { errorMessage, isENOENT } from '../errors/errors.js'
 import { passedOver } from '../errors/passedOver.js'
-import { foldPathCase, pathModuleFor, toNativeSeparators } from '../host-os/paths.js'
+import { foldPathCase, pathModuleFor, stripExtendedLengthPrefixForPlatform, toNativeSeparators } from '../host-os/paths.js'
 import { envPathDirs } from '../host-os/programs.js'
+import { logError } from '../logs/errorLog.js'
 import { publishAtomicSync } from '../substrate/fileStore.js'
 import { flagPair } from '../substrate/flagRegistry.js'
-import { pathEntryEquals, resolveLayoutRoots, shimStatus, type LayoutRoots } from '../update-channel/installLayout.js'
+import { pathEntryEquals, readCurrentVersion, reconcileManagedShims, resolveLayoutRoots, runningPayloadDir, shimStatus, type LayoutRoots, type ShimSetOutcome } from '../update-channel/installLayout.js'
 import { resolveInstallProvenance } from '../update-channel/installProvenance.js'
+import { realpathSafe } from '../update-channel/provenanceNotice.js'
 
 export type ProfileRow = { id: number; name: string; home: string; command: string | null; offPath?: string; current: boolean }
 type ProfileRefusal = { ok: false; reason: string }
@@ -32,8 +34,15 @@ const refused = (reason: string): ProfileRefusal => ({ ok: false, reason })
 const notDone = (did: string, again: string) => (error: unknown): ProfileRefusal => refused(`The profile was not ${did} (${errorMessage(error)}): mend that, then ${again} it again.`)
 const homeOf = (first: string, id: number): string => (id === 1 ? first : `${first}${id}`)
 const wordOf = (id: number): string => (id === 1 ? 'mercury' : `mercury${id}`)
-const carries = (text: string | undefined, id: number): boolean => text !== undefined && text.split(/\r?\n/).some(line => line.endsWith(`${COMMAND_MARKER} ${id}`))
-const strange = (file: CommandFile, id: number): boolean => existsSync(file.path) && !carries(textAt(file.path), id)
+const markerLine = (path: string, id: number): string =>
+  `${path.toLowerCase().endsWith('.cmd') ? 'rem' : '#'} ${COMMAND_MARKER} ${id}`
+const carries = (path: string, text: string | undefined, id: number): boolean => {
+  if (text === undefined) return false
+  const want = markerLine(path, id)
+  const body = path.toLowerCase().endsWith('.ps1') && text.startsWith('\uFEFF') ? text.slice(1) : text
+  return body.split(/\r?\n/).some(line => line === want)
+}
+const strange = (file: CommandFile, id: number): boolean => existsSync(file.path) && !carries(file.path, textAt(file.path), id)
 
 function textAt(path: string): string | undefined {
   try {
@@ -95,7 +104,10 @@ function install(first: string): Install | null {
 
 export function commandFiles(found: Install, id: number, home: string): CommandFile[] {
   const env = Object.entries({ ...flagPair('MERCURY_CONFIG_DIR', home), ...found.program })
-  const word = pathModuleFor(found.isWindows ? 'win32' : 'linux').join(found.bin, wordOf(id))
+  const pathMod = found.isWindows && (found.bin.includes('\\') || /^[A-Za-z]:/.test(found.bin))
+    ? pathModuleFor('win32')
+    : pathModuleFor(process.platform === 'win32' ? 'win32' : 'linux')
+  const word = pathMod.join(found.bin, wordOf(id))
   const mark = `${COMMAND_MARKER} ${id}`
   const sh = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`
   const assigned = env.map(([name, value]) => `${name}=${sh(value)}`).join(' ')
@@ -153,8 +165,56 @@ export function listProfiles(): { ok: true; profiles: ProfileRow[] } | ProfileRe
 export function profileCommands(roots: LayoutRoots, profiles: readonly ProfileRow[]): string[] {
   return profiles
     .filter(row => row.id !== 1)
-    .flatMap(row => commandFiles(released(roots), row.id, row.home).filter(file => carries(textAt(file.path), row.id)))
+    .flatMap(row => commandFiles(released(roots), row.id, row.home).filter(file => carries(file.path, textAt(file.path), row.id)))
     .map(file => file.path)
+}
+
+function sameDirectory(left: string, right: string, isWindows: boolean): boolean {
+  const clean = (dir: string): string => {
+    const resolved = stripExtendedLengthPrefixForPlatform(realpathSafe(dir), isWindows ? 'win32' : 'linux')
+    const trimmed = resolved.replace(isWindows ? /[\\/]+$/ : /\/+$/, '')
+    return foldPathCase(trimmed === '' ? resolved : trimmed, isWindows ? 'win32' : 'linux')
+  }
+  return clean(left) === clean(right)
+}
+
+function refreshManagedProfileCommands(roots: LayoutRoots): void {
+  try {
+    const current = readCurrentVersion(roots)
+    if (current === null || shimStatus(roots) !== 'managed') return
+    if (!sameDirectory(runningPayloadDir(), join(roots.versionsDir, current), roots.isWindows)) return
+    const known = family()
+    const ids = [...new Set(known.labels.map(row => row.id))].filter(id => id > 1).sort((a, b) => a - b)
+    if (ids.length === 0) return
+    const found = released(roots)
+    for (const id of ids) {
+      for (const file of commandFiles(found, id, homeOf(known.first, id))) {
+        try {
+          let stat: ReturnType<typeof lstatSync>
+          try {
+            stat = lstatSync(file.path)
+          } catch (error) {
+            if (isENOENT(error)) continue
+            throw error
+          }
+          if (!stat.isFile()) continue
+          const existing = textAt(file.path)
+          if (existing === undefined || existing === file.text || !carries(file.path, existing, id)) continue
+          publishAtomicSync(file.path, file.text, { mode: 0o755, parent: 'must-stand', platform: found.isWindows ? 'win32' : process.platform })
+        } catch (error) {
+          logError(new Error(`profile ${id} command at ${file.path} could not be refreshed (${errorMessage(error)}); the existing file stays as it was`))
+        }
+      }
+    }
+  } catch (error) {
+    logError(new Error(`profile commands in ${roots.binDir} could not be checked (${errorMessage(error)}); they stay as they were`))
+  }
+}
+
+export function reconcileManagedCommands(roots: LayoutRoots = resolveLayoutRoots()): ShimSetOutcome | null {
+  const shims = reconcileManagedShims(roots)
+  if (shims !== null) refreshManagedProfileCommands(roots)
+  return shims
 }
 
 export function createProfile(): { ok: true; profile: ProfileRow } | ProfileRefusal {
@@ -204,7 +264,7 @@ export function removeProfile(id: number): { ok: true; keptHome: string; keptFil
     const home = homeOf(known.first, id)
     const files = commandFiles(found, id, home)
     const keptFiles = files.filter(file => strange(file, id)).map(file => file.path)
-    for (const file of files) if (carries(textAt(file.path), id)) rmSync(file.path)
+    for (const file of files) if (carries(file.path, textAt(file.path), id)) rmSync(file.path)
     save(known.first, known.labels.filter(row => row.id !== id))
     return { ok: true, keptHome: home, ...(keptFiles.length > 0 ? { keptFiles } : {}) }
   } catch (error) {

@@ -464,9 +464,9 @@ async function landLeg(dialect: Dialect): Promise<void> {
   const card = marks['card'] ?? ''
   const viewed = [SEAT_ONE, SEAT_TWO].find(name => card.includes(`viewing ${name}`))
   check(
-    `${tag}: the agent's view reads its model, context and landed state; its transcript card keeps the tool count`,
-    viewed !== undefined && agentRow(card, viewed, servedModel, /\blanded\b/) && rowTokens(card, viewed) && agentRow(landed, viewed, /tool use/) && !card.includes('completed'),
-    'the view must show the seat model, context and landed, and the landed card must keep a tool use count; see the card and landed frame dumps below',
+    `${tag}: the agent's view reads its model, context and landed state; its transcript card reads its model, landed time and context`,
+    viewed !== undefined && agentRow(card, viewed, servedModel, /\blanded\b/) && rowTokens(card, viewed) && agentRow(landed, viewed, servedModel, /\blanded in \d/) && rowTokens(landed, viewed) && !card.includes('completed') && !landed.includes('tool use'),
+    'the view must show the seat model, context and landed, and the landed card must show the seat model, landed in <time> and context without a tool use count; see the card and landed frame dumps below',
   )
   if (failures > 0 && process.env.CREW_KEEP !== '1') for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
   if (failures > 0 || process.env.CREW_KEEP === '1') dump(`${tag} · final grid`, cap.text)

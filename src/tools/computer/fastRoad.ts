@@ -2,9 +2,9 @@ import type { DesktopApplication, DesktopBounds, DesktopCapture, DesktopDisplay,
 import { TREE_UNANSWERED_REASON } from '../../integrations/desktop/driver.js'
 import { getImageProcessor } from '../../platform/images/imageProcessor.js'
 import { pollUntil } from '../../platform/async/deadline.js'
+import { sleep } from '../../platform/async/sleep.js'
 import { boundsOfPixels, pixelOfPoint, type ScreenMap } from './screenMap.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
-
 export interface ElementTarget {
   role?: string
   name?: string
@@ -263,8 +263,8 @@ export interface DesktopObservation {
   tree?: DesktopTree
 }
 
-export async function readObservation(driver: DesktopDriver, signal: AbortSignal, verify = false, identity?: string): Promise<DesktopObservation> {
-  const front = await driver.frontmostApplication()
+export async function readObservation(driver: DesktopDriver, signal: AbortSignal, verify = false, identity?: string, knownFront?: DesktopApplication): Promise<DesktopObservation> {
+  const front = knownFront !== undefined ? { ok: true as const, value: knownFront } : await driver.frontmostApplication()
   if (!front.ok || signal.aborted) return {}
   if (identity !== undefined && front.value.identity !== identity) return { app: front.value }
   const tree = await driver.accessibilityTree(front.value, { depth: verify ? 32 : 3, count: verify ? 2000 : 200, scope: 'window', observation: !verify }, signal)
@@ -321,21 +321,12 @@ export function observationChanged(before: DesktopObservation, after: DesktopObs
 }
 
 export async function settledObservation(driver: DesktopDriver, before: DesktopObservation, signal: AbortSignal, settleMs: number, verify = false): Promise<{ observation: DesktopObservation; changed: boolean }> {
-  const bounded = settleMs > 0 ? AbortSignal.any([signal, AbortSignal.timeout(Math.ceil(settleMs))]) : signal
-  let observation: DesktopObservation = {}
-  let changed = false
-  return pollUntil(
-    async () => {
-      const current = await readObservation(driver, bounded, verify, before.app?.identity)
-      if (current.app) observation = current
-      changed = observationChanged(before, observation)
-      return changed || bounded.aborted ? { observation, changed } : undefined
-    },
-    left => Math.min(50, left),
-    Math.max(0, settleMs),
-    () => ({ observation, changed }),
-    { signal: bounded, onAbort: () => ({ observation, changed }) },
-  )
+  const delayMs = Math.max(0, Math.ceil(settleMs))
+  if (delayMs > 0) await sleep(delayMs, signal)
+  if (signal.aborted) return { observation: {}, changed: false }
+  const readSignal = delayMs > 0 ? AbortSignal.any([signal, AbortSignal.timeout(Math.max(delayMs, verify ? 5_000 : 300))]) : signal
+  const observation = await readObservation(driver, readSignal, verify, before.app?.identity)
+  return { observation, changed: observationChanged(before, observation) }
 }
 
 export const STATE_LINE = /^(?:changed|unchanged|title unchanged, focus not read|not compared) · now:/

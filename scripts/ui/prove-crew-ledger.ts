@@ -449,9 +449,6 @@ async function run(cols: number, rows: number): Promise<void> {
     await sleep(400)
     save('01b-delta-viewed', cols, rows, scene.lines())
     check('delta (landed, still on the roster) is viewed with its transcript', scene.state().viewingCrewmateTaskId === DELTA.id && viewedName(scene.lines(), railCols) === DELTA.name, `viewing=${String(scene.state().viewingCrewmateTaskId)} · status row ${statusOf(scene.lines(), railCols)}`)
-    const landedFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
-    console.log(`the footer on the landed crewmate: ${landedFooter.slice(0, 200)}`)
-    check('the footer says what ↵ does to a landed hosted crewmate — ↵ resumes delta with your line — never "↵ sends to delta"', /↵ resumes delta with your line/.test(landedFooter) && !/↵ sends to delta/.test(landedFooter), landedFooter.slice(0, 240))
     const RESUME_LINE = 'delta, one more folder'
     resumeReceipt = { outcome: 'applied' }
     await typeWords(scene, RESUME_LINE)
@@ -548,9 +545,6 @@ async function run(cols: number, rows: number): Promise<void> {
     const card = cardOf(scene.lines(), railCols)
     console.log(`birch's card: ${card.slice(0, 240)}`)
     check('the card says birch is interrupted (its state word), greyed, and does not promise esc interrupts or x stop', card.includes('interrupted') && !card.includes('esc interrupts') && !card.includes('x stop'), card.slice(0, 240))
-    const footer = footerOf(scene.lines()).replace(/\s+/g, ' ')
-    console.log(`the footer: ${footer.slice(0, 240)}`)
-    check('the footer says esc goes back to Mercury Lead, never esc interrupts birch', /esc[^·]*back[^·]*Mercury Lead/.test(footer) && !/esc interrupts? birch/.test(footer), footer.slice(0, 240))
     const stopsBefore = stops().length
     scene.push(ESC)
     await sleep(600)
@@ -564,8 +558,6 @@ async function run(cols: number, rows: number): Promise<void> {
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('ATLAS-ROW')), 6000)
     await sleep(300)
     check('one click on atlas (running) opens it in the view', atlasRow >= 0 && scene.state().viewingCrewmateTaskId === ATLAS.id, `row ${atlasRow} · viewing=${String(scene.state().viewingCrewmateTaskId)}`)
-    const runningFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
-    check('on the running crewmate the footer still says esc interrupts atlas', /esc interrupts? atlas/.test(runningFooter), runningFooter.slice(0, 240))
     const stopsBeforeAtlas = stops().length
     scene.push(ESC)
     await sleep(600)
@@ -708,9 +700,6 @@ async function run(cols: number, rows: number): Promise<void> {
     await until(() => scene.state().viewingCrewmateTaskId === LOCAL_ID, 4000)
     await sleep(400)
     save('07-local-landed-viewed', cols, rows, scene.lines())
-    const localFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
-    console.log(`the footer on the landed local crewmate: ${localFooter.slice(0, 200)} · composer row "${composerText(scene.lines()).slice(0, 80)}" · status row "${statusOf(scene.lines(), railCols).slice(0, 80)}"`)
-    check('the footer on a landed LOCAL crewmate says ↵ is refused and names the resume door — never "↵ sends to local"', /↵ refused — r in \/crewmates resumes local/.test(localFooter) && !/↵ sends to local/.test(localFooter) && /esc back to Mercury Lead/.test(localFooter), localFooter.slice(0, 240))
     await clickRail(scene, LEAD_ROW, railCols)
     await until(() => scene.state().viewingCrewmateTaskId === undefined, 4000)
     await sleep(900)

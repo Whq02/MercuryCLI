@@ -44,3 +44,4 @@ prove-title-cut-keeps-graphemes.ts
 prove-history-record-pieces.ts
 prove-compaction-history-parts.ts
 prove-parallel-result-under-quiet-row-resume.ts
+prove-fold-keeps-parallel-tool-results.ts

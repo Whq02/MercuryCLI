@@ -5,11 +5,11 @@ workbench               │   ▄▄▄▄▄▄▄▄▄                       
 next                    │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
   /health               │                                                                                                                  │
   /memory               │                                                                                                                  │
-  /mission              │ 01:13:14 [sam] ❯ private reasoning                                                                               │
+  /mission              │ 12:32:17 [sam] ❯ private reasoning                                                                               │
                         │                                                                                                                  │
 files · project         │ ✻ thinking… — the provider returned no thinking text for this model                                              │
   ↵ browse              │                                                                                                                  │
-                        │ 01:13:14 [Mercury] Private reasoning answer.                                                                     │
+                        │ 12:32:18 [Mercury] Private reasoning answer.                                                                     │
 vitals                  │                                                                                                                  │
   spend $0.00           │                                                                                                                  │
   ctx 0% · 1000k        │                                                                                                                  │
@@ -47,4 +47,4 @@ vitals                  │                                                     
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │❯ Type a prompt, or / for commands                                                                                                        │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails
+? for shortcuts · ctrl+x p commands + files

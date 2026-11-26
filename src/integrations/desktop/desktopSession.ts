@@ -222,7 +222,12 @@ export function screenshotPath(label: string): string {
   fs.mkdirSync(dir, { recursive: true })
   pruneDesktopShots(dir, DESKTOP_SHOTS_KEEP - 1)
   const safe = label.replace(/[^a-zA-Z0-9_-]+/g, '-').slice(0, 40) || 'shot'
-  return path.join(dir, `${Date.now()}-${safe}.png`)
+  const stamp = Date.now()
+  let file = path.join(dir, `${stamp}-${safe}.png`)
+  for (let suffix = 1; fs.existsSync(file); suffix++) {
+    file = path.join(dir, `${stamp}-${suffix}-${safe}.png`)
+  }
+  return file
 }
 
 type DesktopPhase = 'idle' | 'driving'

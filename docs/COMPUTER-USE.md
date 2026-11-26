@@ -12,8 +12,9 @@ Mercury does not depend on it.
 
 ## Targeting controls and taking fewer screenshots
 
-Read `tree` when a control's name answers the question; use a screenshot when
-pixels matter. Mouse actions accept `target: { role, name, text }` instead of
+Use `find` first when a known role, name or text answers the question (smaller
+and faster than `tree` or a screenshot); read `tree` to survey a whole window,
+and use a screenshot when pixels matter. Mouse actions accept `target: { role, name, text }` instead of
 `x` and `y`: role and name match exactly, ignoring case and repeated whitespace
 (a role shown with its subrole, `AXCheckBox (AXSwitch)`, answers to either
 word; an element with no title, a web page's static text, is named by its

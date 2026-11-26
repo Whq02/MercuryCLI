@@ -15,7 +15,7 @@ import { KeybindingSetup } from '../keys/KeybindingProviderSetup.js'
 import { useKeybinding } from '../keys/useKeybinding.js'
 import type { Tool } from '../../tools/kit/tool.js'
 import type { Command } from '../../commands/catalogue/commands.js'
-import type { SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
+import { sortSessionListings, type SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
 import { checkCrossProjectResume } from '../session-chooser/crossProjectResume.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import { isFullscreenEnvEnabled, isMouseTrackingEnabled } from '../fullscreen-layout/fullscreen.js'
@@ -222,7 +222,7 @@ export function ResumeSession({
           }
           const nextLogs = filterLogs(batch.logs)
           if (nextLogs.length > 0) {
-            setLogs(prev => (prev ? [...prev, ...nextLogs] : nextLogs))
+            setLogs(prev => sortSessionListings(prev ? [...prev, ...nextLogs] : [...nextLogs]))
           }
         } catch (thrown) {
           if (loadGenRef.current !== gen) return
