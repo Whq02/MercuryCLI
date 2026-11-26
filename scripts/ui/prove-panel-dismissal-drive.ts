@@ -73,7 +73,7 @@ try {
       writeFileSync(config, JSON.stringify({ argv: [node, dist], cwd, cols, rows, out, total: 400, stableTicks: 4, sends: [
         { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 10, awaitSettleTicks: 6, data: '\r' },
         { ...ready, data: `/${panel}\r`, mark: 'chat' },
-        { ...panelReady, targetText: title, targetDx: panel === 'model' ? -2 : -8, data: click('{X}', '{Y}'), mark: 'open' },
+        { ...panelReady, targetText: `│ ${title}`, data: click('{X}', '{Y}'), mark: 'open' },
         panel === 'model'
           ? { afterPrevTicks: 6, targetText: title, targetDx: -11, data: '\x1b[<0;{X};{Y}M', mark: 'edge' }
           : { afterPrevTicks: 6, data: '\x1b[<0;1;1M', mark: 'edge' },
