@@ -19,13 +19,8 @@ const FRAMES = ((): string | undefined => {
   return at >= 0 ? process.argv[at + 1] : undefined
 })()
 
-const ESC = String.fromCharCode(27)
-const sgrClick = (col: number, row: number): string =>
-  `${ESC}[<0;${col};${row}M${ESC}[<0;${col};${row}m`
-const LEAD_ROW = 3
-const FIRST_CHILD_ROW = 4
 const CHILD_RAIL_ROW = 'poise probe · runni…'
-const CARD_KEYS = 'x x stop · p pause'
+const VIEW_ADDRESS = 'viewing poise probe'
 type Frame = { atMs: number; rows: string[] }
 const frameIn = (screens: Frame[], atMs: number): Frame => {
   const f = screens.find(s => s.atMs === atMs)
@@ -97,10 +92,10 @@ t.section("§2 words typed at main while a crewmate runs are the session's own t
     sends: [
       '2000:\\r',
       '6000:spawn the probe\\r',
-      `after:${CHILD_RAIL_ROW}:800:${sgrClick(10, FIRST_CHILD_ROW)}`,
-      `after:${CARD_KEYS}:1500:${sgrClick(10, LEAD_ROW)}`,
-      `after:${CARD_KEYS}:3500:steer the count gently`,
-      `after:${CARD_KEYS}:5000:\\r`,
+      { awaitText: CHILD_RAIL_ROW, afterPrevMs: 800, settleMs: 0, targetText: CHILD_RAIL_ROW },
+      { awaitText: VIEW_ADDRESS, afterPrevMs: 1500, settleMs: 0, targetText: '✶ Mercury Lead' },
+      { awaitText: CHILD_RAIL_ROW, awaitAbsent: VIEW_ADDRESS, afterPrevMs: 2000, settleMs: 0, text: 'steer the count gently' },
+      { awaitText: 'steer the count gently', afterPrevMs: 1500, settleMs: 0, text: '\r' },
     ],
     seconds: 24,
     cols: 120,
@@ -122,9 +117,9 @@ t.section("§2 words typed at main while a crewmate runs are the session's own t
     keepFrames('steer-120x40', screens)
     const timed = screens.filter(f => f.atMs !== -1)
     const childRunning = (f: Frame): boolean => f.rows.some(r => r.includes(CHILD_RAIL_ROW))
-    const iView = timed.findIndex(f => viewOf(f) === 'poise probe' && has(f, 'composer → poise probe'))
+    const iView = timed.findIndex(f => viewOf(f) === 'poise probe' && has(f, 'viewing poise probe ·'))
     t.check(
-      "one click on the running crewmate's CREW row opens it in the view (status names viewing and composer target)",
+      "one click on the running crewmate's CREW row opens it in the view (status names the viewed seat once)",
       iView >= 0,
       iView >= 0 ? `frame @${timed[iView]!.atMs}` : 'no view frame in the series',
     )

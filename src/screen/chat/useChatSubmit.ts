@@ -1,4 +1,3 @@
-import { crewmatePickerSeat } from '../composer/crewmateCommands.js';
 import { featureReached } from '../../platform/substrate/featureReached.js';
 import type { UUID } from 'node:crypto';
 import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
@@ -22,6 +21,7 @@ import type { SessionListing } from '../../sessions/transcripts/transcriptEntrie
 import type { Message, UserMessage } from '../../engine/message-shapes/message.js';
 import type { ComposerHelpers } from '../composer/input-core/composerHelpers.js';
 import type { InputMode } from '../composer/input-core/textInput.js';
+import { crewmatePickerSeat } from '../composer/crewmateCommands.js';
 import type { PastedContent } from '../../platform/config/schema.js';
 import { logForDebugging } from '../../platform/logs/debugLog.js';
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE, type FileStateCache } from '../../platform/files/fileStateCache.js';

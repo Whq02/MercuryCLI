@@ -13,12 +13,14 @@ export function useComposerPlaceholder({
   input,
   submitCount,
   viewingCrewmateName,
+  redirected,
   cockpitActive,
   compact = false,
 }: {
   input: string
   submitCount: number
   viewingCrewmateName?: string
+  redirected: boolean
   cockpitActive?: boolean
   compact?: boolean
 }): string | undefined {
@@ -40,7 +42,7 @@ export function useComposerPlaceholder({
   }, [onboardingHint])
 
   if (!isInputEmpty) return undefined
-  if (viewingCrewmateName) {
+  if (viewingCrewmateName && redirected) {
     return crewmatePlaceholder(
       truncateToWidth(viewingCrewmateName, CREWMATE_NAME_MAX_COLUMNS),
     )

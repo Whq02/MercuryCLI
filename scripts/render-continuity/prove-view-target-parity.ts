@@ -129,13 +129,10 @@ t.section('§1 the projection is exhaustive and honest')
 
 t.section('§2 journey: header + CREW lead row + mouse return')
 {
-  const ESC = String.fromCharCode(27)
-  const sgrClick = (col: number, row: number): string =>
-    `${ESC}[<0;${col};${row}M${ESC}[<0;${col};${row}m`
   const ROOT_ROW = 3
   const CHILD_ROW = 4
   const CHILD_RAIL_ROW = 'poise probe · runni…'
-  const CARD_KEYS = 'x x stop · p pause'
+  const VIEW_ADDRESS = 'viewing poise probe'
 
   const turns: ScriptedTurn[] = [
     {
@@ -165,15 +162,16 @@ t.section('§2 journey: header + CREW lead row + mouse return')
     sends: [
       '2000:\\r',
       '6000:spawn the probe\\r',
-      `after:${CHILD_RAIL_ROW}:1000:${sgrClick(10, CHILD_ROW)}`,
-      `after:${CARD_KEYS}:2500:${sgrClick(10, ROOT_ROW)}`,
+      { awaitText: CHILD_RAIL_ROW, afterPrevMs: 1000, settleMs: 0, targetText: CHILD_RAIL_ROW },
+      { awaitText: VIEW_ADDRESS, afterPrevMs: 2500, settleMs: 0, targetText: '✶ Mercury Lead' },
+      { awaitText: ['✶ Mercury Lead', CHILD_RAIL_ROW, 'spawn the probe'], awaitAbsent: VIEW_ADDRESS, afterPrevMs: 0, settleMs: 0, text: '\x1b[I' },
     ],
     seconds: 20,
     cols: 120,
     rows: 40,
     keep: true,
   })
-  sendsDue(run, 4)
+  sendsDue(run, 5)
 
   const s2Offsets = Array.from({ length: 44 }, (_, i) => String(S(6000 + i * 300)))
   const grab = spawnSync(
@@ -186,7 +184,7 @@ t.section('§2 journey: header + CREW lead row + mouse return')
   } else {
     const { screens } = JSON.parse(grab.stdout) as { screens: Frame[] }
     keepFrames('drill-120x40', screens)
-    const frames = screens.filter(f => f.atMs !== -1)
+    const frames = run.sendLog.flatMap(record => record.screen === undefined ? [] : [{ atMs: record.atMs, rows: record.screen }])
     const has = (f: { rows: string[] }, needle: string | RegExp): boolean =>
       f.rows.some(r => (typeof needle === 'string' ? r.includes(needle) : needle.test(r)))
     const idxOf = (start: number, pred: (f: { rows: string[] }) => boolean): number => {
@@ -196,9 +194,9 @@ t.section('§2 journey: header + CREW lead row + mouse return')
     const leadMarked = (f: { rows: string[] }): boolean => f.rows.some(r => /›\s*✶ Mercury Lead/.test(r))
     const childMarked = (f: { rows: string[] }): boolean => f.rows.some(r => r.includes(`› ◉ ${CHILD_RAIL_ROW}`))
     const childRunning = (f: { rows: string[] }): boolean => f.rows.some(r => r.includes(CHILD_RAIL_ROW))
-    const inView = (f: { rows: string[] }): boolean => has(f, /❯ message poise probe/)
+    const inView = (f: { rows: string[] }): boolean => has(f, VIEW_ADDRESS)
 
-    const iMain = idxOf(0, f => leadMarked(f) && childRunning(f) && !has(f, '❯ message poise'))
+    const iMain = idxOf(0, f => leadMarked(f) && childRunning(f) && !inView(f))
     t.check(`at main, the lead row reads Mercury Lead and wears the › mark (its chat is the view); the child's row reads "${CHILD_RAIL_ROW}" — the .34 rail keeps the name whole and cuts the verb (137a2c1214)`, iMain >= 0, iMain >= 0 ? '' : 'no frame with the marked Mercury Lead row and the child row; rerun with --frames <dir> and read drill-120x40.txt to see what the CREW rail painted')
     const mf = frames[iMain] ?? { rows: [] as string[] }
     const rootIdx = mf.rows.findIndex(r => /✶ Mercury Lead/.test(r))
@@ -211,14 +209,14 @@ t.section('§2 journey: header + CREW lead row + mouse return')
 
     const iView = idxOf(
       iMain + 1,
-      f => inView(f) && childMarked(f) && !leadMarked(f) && has(f, 'viewing poise probe') && has(f, 'composer → poise probe'),
+      f => inView(f) && childMarked(f) && !leadMarked(f) && !has(f, 'composer → poise probe'),
     )
     t.check(
-      'one click on the child opens it in the view: the composer addresses it, the › mark moves to its row, the status row names viewing and composer target',
+      'one click on the child opens it in the view: the › mark moves to its row and the status row names only the view',
       iMain >= 0 && iView > iMain,
       iView >= 0
-        ? frames[iView]!.rows.find(r => r.includes('❯ message poise probe'))?.trim().slice(0, 70)
-        : 'no such frame after the main frame; the click on the child row did not open it in the view, rerun with --frames <dir> and read drill-120x40.txt',
+        ? frames[iView]!.rows.find(r => r.includes(VIEW_ADDRESS))?.trim().slice(0, 70)
+        : frames.map(frame => frame.rows.filter(line => line.includes('poise probe') || line.includes('Mercury Lead')).map(line => line.trim()).join(' | ')).join(' → '),
     )
 
     const iBack = idxOf(

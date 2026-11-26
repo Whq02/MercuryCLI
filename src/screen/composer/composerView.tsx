@@ -238,7 +238,6 @@ export function composerInputBody({
   mode,
   isLoading,
   input,
-  viewedCrewmateName,
   inputBoxRef,
   handleInputBoxClick,
   handleInputTextGesture,
@@ -257,7 +256,6 @@ export function composerInputBody({
   & Pick<ComposerProps, 'isLoading' | 'vimMode' | 'setVimMode'>
   & Pick<ComposerGeometry, 'maxVisibleLines'>
   & Pick<ComposerGates, 'vimEnabled'>
-  & Pick<ComposerCrewmateRefs, 'viewedCrewmateName'>
   & Pick<ReturnType<typeof useComposerSelectionRoad>, 'ownSelection' | 'handleInputBoxClick' | 'handleInputTextGesture'>
   & {
     textInputProps: ReturnType<typeof composerTextInputProps>
@@ -270,7 +268,6 @@ export function composerInputBody({
         mode={mode}
         isLoading={isLoading}
         inputEmpty={input === ''}
-        viewedCrewmateName={viewedCrewmateName}
       />
       <Box
         flexGrow={1}
@@ -335,7 +332,6 @@ export function composerView({
   isPasting,
   searchField,
   isSearchingHistory,
-  crewmateFooterIndex,
   setOverlay,
 }: Pick<ComposerState, 'isCompact' | 'summaryVisible' | 'columns' | 'stash' | 'fullscreen' | 'messages' | 'input' | 'compactBudget' | 'mode' | 'exitState' | 'isPasting' | 'setOverlay'>
   & Pick<ComposerProps, 'hasSuppressedDialogs' | 'compactWork' | 'vimMode' | 'apiKeyStatus' | 'debug' | 'verbose' | 'mcpClients' | 'helpOpen' | 'isLoading' | 'isSearchingHistory'>
@@ -347,7 +343,6 @@ export function composerView({
     compactFocus: CompactWorkFocus
     canFocusSummary: () => boolean
     typeahead: ReturnType<typeof useTypeahead>
-    crewmateFooterIndex: number
   }): React.ReactNode {
   return (
     <Box flexDirection="column">
@@ -392,7 +387,6 @@ export function composerView({
         verbose={verbose}
         messages={messages}
         mcpClients={mcpClients}
-        crewmateFooterIndex={crewmateFooterIndex}
         onOpenTasksDialog={() => setOverlay('tasks-dialog')}
       />
     </Box>
