@@ -90,6 +90,7 @@ const { AppStateProvider } = await import('../../src/screen/app-state/AppState.j
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
 const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { PopupHost } = await import('../../src/screen/overlays/PopupHost.js')
 const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
 const { ScrollKeybindingHandler } = await import('../../src/screen/scroll-keys/ScrollKeybindingHandler.js')
 const popupStore = await import('../../src/screen/cockpit/settingsPopup.js')
@@ -219,7 +220,7 @@ try {
             { width: 120, height: 40, flexDirection: 'column' },
             h(Box, { ref: hostRef, height: 40, flexDirection: 'column' }, h(Text, {}, 'CHAT')),
             h(ScrollKeybindingHandler, { isActive: true, scrollRef: { current: null } }),
-            h(SettingsPopupSlot, { overlay: true, hostRef }),
+            h(PopupHost, { hostRef, children: host => h(SettingsPopupSlot, { host, overlay: true }) }),
           ),
         }),
       }),

@@ -4,7 +4,7 @@ import { recordTranscript } from '../../../sessions/transcripts/writer.js'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import type { ContentBlockParam } from '../../../engine/message-shapes/wire.js'
 import { parseSlashCommand } from '../../../commands/catalogue/slashCommandParsing.js'
-import { findCommand, isCommandEnabled } from '../../../commands/catalogue/commands.js'
+import { findCommand, isCommandEnabled, runsPromptWithArgs } from '../../../commands/catalogue/commands.js'
 import { existsSync } from 'node:fs'
 import type { RowDraft } from '../../../engine/rows/project.js'
 import * as runnerTurn from '../runnerTurn.js'
@@ -42,7 +42,10 @@ function run(ports: RunnerPorts): BootMade<'isMainThreadCommand' | 'takeMainThre
     const parsed = line === undefined ? null : parseSlashCommand(line)
     if (parsed === null) return false
     const found = findCommand(parsed.commandName, [...live.activeCommands, ...getAppState().mcp.commands])
-    if (found !== undefined) return found.type !== 'prompt' || !isCommandEnabled(found) || found.userInvocable === false
+    if (found !== undefined) {
+      if (runsPromptWithArgs(found, parsed.args)) return false
+      return found.type !== 'prompt' || !isCommandEnabled(found) || found.userInvocable === false
+    }
     return /^[a-zA-Z0-9:_-]+$/.test(parsed.commandName) && !existsSync(`/${parsed.commandName}`)
   }
   const executeTurn = (command: QueuedCommand, batch: QueuedCommand[], onMessage: (message: RowDraft) => void, initialNotices?: QueuedCommand[]): Promise<void> => runnerTurn.runTurn(command, batch, onMessage, initialNotices, ports)

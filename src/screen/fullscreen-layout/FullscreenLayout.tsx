@@ -2,7 +2,7 @@ import React, { useCallback, useContext, useInsertionEffect, useMemo, useRef, us
 import { useClaim, useMeasure, usePublish } from '../effects/effects.js'
 import { fileURLToPath } from 'node:url'
 import { logError } from '../../platform/logs/errorLog.js'
-import { Box, MotionParkContext, measureElement, type DOMElement } from '../themedRenderer.js'
+import { Box, MotionParkContext, type DOMElement } from '../themedRenderer.js'
 import type { ScrollBoxHandle } from '../renderer/elements/ScrollBox.js'
 import { ScreenInstanceContext } from '../renderer/elements/ScreenInstanceContext.js'
 import instances from '../renderer/instances.js'
@@ -28,6 +28,7 @@ import type { Message as WireMessage, NormalizedMessage } from '../../engine/mes
 import { isNullRenderingAttachment, isNullRenderingSystemRow } from '../messages/nullRenderingAttachments.js'
 import type { UnseenDivider } from './panes.js'
 import { fullscreenFrame } from './frame.js'
+import { PopupHost } from '../overlays/PopupHost.js'
 export type { UnseenDivider } from './panes.js'
 
 
@@ -290,14 +291,8 @@ export function FullscreenLayout({
       )
     : null
 
-  const lanesBoxRef = useRef<DOMElement | null>(null)
-  const vitalsBoxRef = useRef<DOMElement | null>(null)
   const centreBoxRef = useRef<DOMElement | null>(null)
   const statusBandRef = useRef<DOMElement | null>(null)
-  const [lanesRows, setLanesRows] = useState<number | undefined>(undefined)
-  const [vitalsRows, setVitalsRows] = useState<number | undefined>(undefined)
-  const [centreRows, setCentreRows] = useState<number | undefined>(undefined)
-  const [statusBandRows, setStatusBandRows] = useState<number | undefined>(undefined)
 
   useClaim(() => {
     if (!fullscreen) return
@@ -354,26 +349,6 @@ export function FullscreenLayout({
     }
   }, [cockpit, modalUp, helmVitalsAvailable])
 
-  useMeasure(() => {
-    if (!fullscreen) return
-    if (lanesBoxRef.current) {
-      const h = measureElement(lanesBoxRef.current).height
-      if (h > 0 && h !== lanesRows) setLanesRows(h)
-    }
-    if (vitalsBoxRef.current) {
-      const h = measureElement(vitalsBoxRef.current).height
-      if (h > 0 && h !== vitalsRows) setVitalsRows(h)
-    }
-    if (centreBoxRef.current) {
-      const h = measureElement(centreBoxRef.current).height
-      if (h > 0 && h !== centreRows) setCentreRows(h)
-    }
-    if (statusBandRef.current) {
-      const h = measureElement(statusBandRef.current).height
-      if (h > 0 && h !== statusBandRows) setStatusBandRows(h)
-    }
-  })
-
   const sizeCols = cockpit ? plan.centerCols : columns
   const sizeRows = cockpit ? Math.max(8, rows - 2) : rows
   const sizeVal = useMemo(
@@ -386,11 +361,6 @@ export function FullscreenLayout({
     () => ({ columns: transcriptCols, rows: sizeRows }),
     [transcriptCols, sizeRows],
   )
-
-  const bandFits =
-    centreRows === undefined ||
-    statusBandRows === undefined ||
-    centreRows - 2 >= statusBandRows
 
   if (!fullscreen) {
     return (
@@ -408,50 +378,50 @@ export function FullscreenLayout({
     )
   }
 
-  return fullscreenFrame({
-    bandFits,
-    bottom,
-    bottomFloat,
-    centerFrame,
-    centreBoxRef,
-    chrome,
-    cockpit,
-    columns,
-    commandPopup,
-    commandPopupUp,
-    compactBudget,
-    crewDoor,
-    dividerYRef,
-    elevatedRef,
-    fullscreen,
-    hidePill,
-    isCompact,
-    lanesBoxRef,
-    lanesRows,
-    modal,
-    modalMounted,
-    modalScrollRef,
-    modalUp,
-    newMessageCount,
-    onPillClick,
-    overlay,
-    plan,
-    popupUp,
-    rows,
-    scrollRef,
-    scrollable,
-    setCompactFooterNotice,
-    sizeVal,
-    statusBand,
-    statusBandActive,
-    statusBandRef,
-    terminalRows,
-    tokens,
-    transcriptGutter,
-    transcriptSize,
-    viewedCrewmate,
-    vitalsBoxRef,
-    vitalsRows,
-  })
+  return (
+    <PopupHost hostRef={centreBoxRef} bandRef={statusBandRef} framed={centerFrame}>
+      {host => fullscreenFrame({
+        host,
+        bottom,
+        bottomFloat,
+        centerFrame,
+        centreBoxRef,
+        chrome,
+        cockpit,
+        columns,
+        commandPopup,
+        commandPopupUp,
+        compactBudget,
+        crewDoor,
+        dividerYRef,
+        elevatedRef,
+        fullscreen,
+        hidePill,
+        isCompact,
+        modal,
+        modalMounted,
+        modalScrollRef,
+        modalUp,
+        newMessageCount,
+        onPillClick,
+        overlay,
+        plan,
+        popupUp,
+        rows,
+        scrollRef,
+        scrollable,
+        setCompactFooterNotice,
+        sizeVal,
+        statusBand,
+        statusBandActive,
+        statusBandRef,
+        terminalRows,
+        tokens,
+        transcriptGutter,
+        transcriptSize,
+        viewedCrewmate,
+      })}
+    </PopupHost>
+  )
 }
 export default FullscreenLayout
