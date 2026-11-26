@@ -2,7 +2,6 @@ import { sleep } from '../../../platform/async/sleep.js'
 import { approveApp, consumeCheckedAct, setDrivingApp } from '../../../integrations/desktop/desktopSession.js'
 import { claimDesktop, desktopClaimBusyNote } from '../../../integrations/desktop/desktopClaim.js'
 import { sameWindow } from '../fastRoad.js'
-import { readTerminalText, wantsTerminalText } from '../terminalText.js'
 import { OPERATOR_TYPING_REFUSAL, operatorIsTyping, waitForOperatorPause } from '../operatorPause.js'
 import { SETTLE_CAP_MS, SETTLE_DEFAULT_MS, clamp } from '../call/schema.js'
 import { faultText } from '../call/act.js'
@@ -59,15 +58,10 @@ export async function focusAppRoad({ run, input, owner, signal, takeShot, adoptS
     const settleMs = clamp(input.settleMs ?? (alreadyFront ? 0 : SETTLE_DEFAULT_MS), 0, SETTLE_CAP_MS)
     if (settleMs > 0) await sleep(settleMs, signal)
     if (signal.aborted) { run.result = interruptedAfterActText('focusApp'); return finish() }
-    if (wantsTerminalText(focused, input)) {
-      run.result += `\n${await readTerminalText(driver, focused, signal)}`
-      run.contentShown = true
-    } else {
-      const shot = await takeShot(undefined, input.label)
-      if (shot.ok) { adoptShot(shot); run.result += `\n${shot.line}` } else {
-        run.result += `\n${shot.aborted ? interruptedAfterActText('focusApp') : shot.text}`
-        if (shot.aborted) return finish()
-      }
+    const shot = await takeShot(undefined, input.label)
+    if (shot.ok) { adoptShot(shot); run.result += `\n${shot.line}` } else {
+      run.result += `\n${shot.aborted ? interruptedAfterActText('focusApp') : shot.text}`
+      if (shot.aborted) return finish()
     }
   }
   run.outcome = 'succeeded'

@@ -1,5 +1,5 @@
 import type { CanUseToolFn, ToolEffect, ToolUseContext } from '../../kit/tool.js'
-import { readTerminalText, wantsTerminalText } from '../terminalText.js'
+import { isTerminalApplication, readTerminalText } from '../terminalText.js'
 import { WEB_CONTENT_NOTICE } from '../../shell/webContent.js'
 import { pollUntil } from '../../../platform/async/deadline.js'
 import { sleep } from '../../../platform/async/sleep.js'
@@ -134,7 +134,7 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
     if (turnFront.ok) noteTurnHome(owner, turnKeyOf(context), { identity: turnFront.value.identity, name: turnFront.value.name })
     switch (input.action) {
       case 'screenshot': {
-        if (turnFront.ok && wantsTerminalText(turnFront.value, input)) {
+        if (turnFront.ok && isTerminalApplication(turnFront.value) && !input.pixels && !input.full && input.display === undefined && input.region === undefined) {
           run.result = await readTerminalText(driver, turnFront.value, signal)
           run.outcome = 'succeeded'
           break

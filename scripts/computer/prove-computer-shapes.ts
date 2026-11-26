@@ -129,19 +129,24 @@ section('E3: explicit pixels is accepted on capture-producing acts, focusApp and
 
   if (process.platform === 'darwin') {
     const termApp = { ...frontNow.value, identity: 'com.apple.Terminal', name: 'Terminal' }
+    let focusedTextReads = 0
     driver.frontmostApplication = async () => ({ ok: true, value: { ...termApp } })
     driver.findApplication = async () => ({ ok: true, value: { ...termApp } })
-    driver.focusedText = async () => ({ ok: true, value: { text: 'visible terminal text', title: 'shell', role: 'AXTextArea' } })
+    driver.focusedText = async () => { focusedTextReads++; return { ok: true, value: { text: 'visible terminal text', title: 'shell', role: 'AXTextArea' } } }
     const termFocusDefault = await runTyped({ action: 'focusApp', focusApp: { name: 'Terminal' }, capture: true, settleMs: 0 })
-    check('focusApp capture:true on a terminal preserves terminal-text default without pixels:true', termFocusDefault.outcome === 'succeeded' && termFocusDefault.imagePath === undefined && termFocusDefault.result.includes('visible terminal text'), termFocusDefault.result)
+    check('focusApp capture:true on a terminal preserves prior pixel output with zero terminal-text reads when pixels is omitted', termFocusDefault.outcome === 'succeeded' && termFocusDefault.imagePath !== undefined && focusedTextReads === 0, `focusedTextReads=${focusedTextReads}\n${termFocusDefault.result}`)
     const termFocusPixels = await runTyped({ action: 'focusApp', focusApp: { name: 'Terminal' }, capture: true, pixels: true, settleMs: 0 })
-    check('focusApp capture:true with pixels:true on a terminal returns pixels', termFocusPixels.outcome === 'succeeded' && termFocusPixels.imagePath !== undefined && !termFocusPixels.result.includes('visible terminal text'), termFocusPixels.result)
+    check('focusApp capture:true with pixels:true on a terminal returns pixels with zero terminal-text reads', termFocusPixels.outcome === 'succeeded' && termFocusPixels.imagePath !== undefined && focusedTextReads === 0, `focusedTextReads=${focusedTextReads}\n${termFocusPixels.result}`)
     const termSeqDefault = await runTyped({ action: 'sequence', steps: [{ action: 'wait', durationMs: 0 }], settleMs: 0 })
-    check('sequence implicit capture on a terminal preserves terminal-text default', termSeqDefault.outcome === 'succeeded' && termSeqDefault.imagePath === undefined && termSeqDefault.result.includes('visible terminal text'), termSeqDefault.result)
+    check('sequence implicit final capture on a terminal preserves prior pixel output with zero terminal-text reads when pixels is omitted', termSeqDefault.outcome === 'succeeded' && termSeqDefault.imagePath !== undefined && focusedTextReads === 0, `focusedTextReads=${focusedTextReads}\n${termSeqDefault.result}`)
     const termSeqPixels = await runTyped({ action: 'sequence', steps: [{ action: 'wait', durationMs: 0 }], pixels: true, settleMs: 0 })
-    check('sequence implicit capture with pixels:true on a terminal returns pixels', termSeqPixels.outcome === 'succeeded' && termSeqPixels.imagePath !== undefined && !termSeqPixels.result.includes('visible terminal text'), termSeqPixels.result)
+    check('sequence implicit final capture with pixels:true on a terminal returns pixels with zero terminal-text reads', termSeqPixels.outcome === 'succeeded' && termSeqPixels.imagePath !== undefined && focusedTextReads === 0, `focusedTextReads=${focusedTextReads}\n${termSeqPixels.result}`)
+    const standaloneTerm = await runTyped({ action: 'screenshot' })
+    check('standalone screenshot preserves terminal-text default when pixels is omitted', standaloneTerm.outcome === 'succeeded' && standaloneTerm.imagePath === undefined && standaloneTerm.result.includes('visible terminal text') && focusedTextReads === 1, standaloneTerm.result)
     const terminal = await call({ action: 'sequence', steps: [{ action: 'screenshot' }] })
-    check('screenshot steps preserve the terminal text road', terminal.outcome === 'succeeded' && !terminal.imagePath && terminal.result.includes('visible terminal text'), terminal.result)
+    check('explicit screenshot step preserves terminal-text default when pixels is omitted', terminal.outcome === 'succeeded' && !terminal.imagePath && terminal.result.includes('visible terminal text') && focusedTextReads === 2, terminal.result)
+    const terminalPixels = await runTyped({ action: 'sequence', steps: [{ action: 'screenshot' }], pixels: true })
+    check('sequence pixels:true overrides explicit screenshot step terminal-text default to return pixels', terminalPixels.outcome === 'succeeded' && terminalPixels.imagePath !== undefined && focusedTextReads === 2, terminalPixels.result)
   }
   driver.frontmostApplication = frontOrig
   driver.findApplication = findOrig

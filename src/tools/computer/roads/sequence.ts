@@ -1,4 +1,4 @@
-import { isTerminalApplication, readTerminalText, wantsTerminalText } from '../terminalText.js'
+import { isTerminalApplication, readTerminalText } from '../terminalText.js'
 import { WEB_CONTENT_NOTICE } from '../../shell/webContent.js'
 import type { PermissionDecision } from '../../../permissions/rules/permissions.js'
 import { appApproved, peekCheckedActApp, screenOf } from '../../../integrations/desktop/desktopSession.js'
@@ -81,7 +81,7 @@ export async function sequenceRoad({ run, input, context, owner, signal, toolUse
     }
     if (step.action === 'screenshot') {
       const front = await driver.frontmostApplication()
-      if (front.ok && wantsTerminalText(front.value, { pixels: step.pixels ?? input.pixels, full: step.full ?? input.full, display: step.display, region: step.region ?? input.region })) {
+      if (front.ok && isTerminalApplication(front.value) && !(step.pixels ?? input.pixels) && !(step.full ?? input.full) && step.display === undefined && (step.region ?? input.region) === undefined) {
         for (let at = 0; at < lines.length; at++) if (shotLines.has(lines[at]!)) lines[at] = SCREENSHOT_SUPERSEDED
         lines.push(await readTerminalText(driver, front.value, signal))
         run.contentShown = true
@@ -122,23 +122,14 @@ export async function sequenceRoad({ run, input, context, owner, signal, toolUse
   }
   run.outcome = 'succeeded'
   if (input.capture !== false && steps.at(-1)?.action !== 'screenshot') {
-    const front = process.platform === 'darwin' && !input.pixels && !input.full && input.region === undefined ? await driver.frontmostApplication() : null
-    if (front?.ok && wantsTerminalText(front.value, input)) {
-      for (let at = 0; at < lines.length; at++) if (shotLines.has(lines[at]!)) lines[at] = SCREENSHOT_SUPERSEDED
-      lines.push(await readTerminalText(driver, front.value, signal))
-      run.contentShown = true
-      run.imagePath = run.inlinePath = run.inlineMediaType = undefined
-      run.screen = undefined
+    const shot = await takeScreenshot(owner, driver, context, toolUseId, undefined, input.label, signal, input.region, 0, undefined, input.full, input.scale, false, sameMessage, lastShotScreen)
+    if (shot.ok) {
+      adoptShot(shot)
+      lastShotScreen = shot.screen
+      lines.push(shot.line)
     } else {
-      const shot = await takeScreenshot(owner, driver, context, toolUseId, undefined, input.label, signal, input.region, 0, undefined, input.full, input.scale, false, sameMessage, lastShotScreen)
-      if (shot.ok) {
-        adoptShot(shot)
-        lastShotScreen = shot.screen
-        lines.push(shot.line)
-      } else {
-        lines.push(shot.aborted ? interruptedAfterActText('sequence') : shot.text)
-        if (shot.aborted) run.outcome = 'failed'
-      }
+      lines.push(shot.aborted ? interruptedAfterActText('sequence') : shot.text)
+      if (shot.aborted) run.outcome = 'failed'
     }
   }
   if (!signal.aborted) {

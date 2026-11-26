@@ -8,7 +8,6 @@ import {
 } from '../../../integrations/desktop/desktopSession.js'
 import { claimDesktop, desktopClaimBusyNote } from '../../../integrations/desktop/desktopClaim.js'
 import { sameWindow, settledObservation, stateWord, treeObservation, verificationWords } from '../fastRoad.js'
-import { readTerminalText, wantsTerminalText } from '../terminalText.js'
 import { OPERATOR_TYPING_REFUSAL, operatorIsTyping, waitForOperatorPause } from '../operatorPause.js'
 import { SETTLE_CAP_MS, SETTLE_DEFAULT_MS, clamp } from '../call/schema.js'
 import {
@@ -140,33 +139,18 @@ export async function actRoad({ run, input, context, owner, signal, toolUseId, d
   }
   const deadline = Date.now() + settleMs
   let shot: Shot | undefined
-  let terminalCapture: string | undefined
   if (input.capture === true) {
-    const afterFront = process.platform === 'darwin' && !input.pixels && !input.full && input.display === undefined && input.region === undefined ? await driver.frontmostApplication() : null
-    if (afterFront?.ok && wantsTerminalText(afterFront.value, input)) {
-      if (settleMs > 0) await sleep(settleMs, signal)
-      if (signal.aborted) {
-        await driver.releaseAll()
-        run.result = interruptedAfterActText(input.action)
-        run.outcome = 'failed'
-        return finish()
-      }
-      terminalCapture = await readTerminalText(driver, afterFront.value, signal)
-      run.contentShown = true
-    } else {
-      shot = await takeShot(input.display, input.label, settleMs, input.region ? undefined : plan.observe)
-      if (shot.ok) adoptShot(shot)
-    }
+    shot = await takeShot(input.display, input.label, settleMs, input.region ? undefined : plan.observe)
+    if (shot.ok) adoptShot(shot)
   }
-  const { observation: after, changed } = await settledObservation(driver, { app: ready.value, tree: plan.beforeTree }, signal, shot || terminalCapture !== undefined ? 0 : Math.max(0, deadline - Date.now()), input.verify)
+  const { observation: after, changed } = await settledObservation(driver, { app: ready.value, tree: plan.beforeTree }, signal, shot ? 0 : Math.max(0, deadline - Date.now()), input.verify)
   if (signal.aborted || (shot && !shot.ok && shot.aborted)) {
     await driver.releaseAll()
     run.result = interruptedAfterActText(input.action)
     run.outcome = 'failed'
     return finish()
   }
-  const tail = shot ? (shot.ok ? shot.line : shot.text) : await factsLine(driver, screenOf(owner))
-  run.result = `${act.words} · ${tail}\n${stateWord({ app: ready.value, tree: plan.beforeTree }, after, changed)} · ${treeObservation(after)}${terminalCapture !== undefined ? `\n${terminalCapture}` : ''}`
+  run.result = `${act.words} · ${shot ? shot.ok ? shot.line : shot.text : await factsLine(driver, screenOf(owner))}\n${stateWord({ app: ready.value, tree: plan.beforeTree }, after, changed)} · ${treeObservation(after)}`
   if (input.verify) {
     run.result += `\n${after.app && sameWindow(after.app, front.value) ? verificationWords(plan.beforeTree, after.tree) : 'verification: front window changed — read tree in the application now in front'}`
   }
