@@ -1,7 +1,6 @@
 import * as React from 'react'
-import { useState, useSyncExternalStore } from 'react'
-import { useMeasure } from '../effects/effects.js'
-import { measureElement, type DOMElement } from '../themedRenderer.js'
+import { useSyncExternalStore } from 'react'
+import type { MeasuredHost } from '../overlays/PopupHost.js'
 import { useFocusedWorkspaceCwd } from '../focused-session/useFocusedWorkspaceCwd.js'
 import { useElevatedSurface } from '../widgets/useElevatedSurface.js'
 import { closeFilesMenu, filesMenuVersion, isFilesMenuOpen, subscribeFilesMenu } from '../cockpit/filesMenu.js'
@@ -20,25 +19,13 @@ function filesMenuGeometry(cols: number, rows: number): FilesMenuGeometry {
   return { left: geometry.left, top: geometry.top, width: geometry.width, rowBudget: Math.max(0, geometry.rows - FILES_MENU_CHROME_ROWS) }
 }
 
-export function FilesMenuSlot({ hostRef, framed }: { hostRef: React.RefObject<DOMElement | null>; framed: boolean }): React.ReactNode {
+export function FilesMenuSlot({ host }: { host: MeasuredHost | null }): React.ReactNode {
   useSyncExternalStore(subscribeFilesMenu, filesMenuVersion, filesMenuVersion)
   const open = isFilesMenuOpen()
   const root = useFocusedWorkspaceCwd()
   const elevatedRef = useElevatedSurface()
-  const [host, setHost] = useState<{ columns: number; rows: number } | null>(null)
-  useMeasure(() => {
-    if (!open) return
-    const element = hostRef.current
-    if (!element) return
-    const measured = measureElement(element)
-    if (measured.width <= 0 || measured.height <= 0) return
-    if (host === null || host.columns !== measured.width || host.rows !== measured.height) {
-      setHost({ columns: measured.width, rows: measured.height })
-    }
-  })
-  if (!open || host === null) return null
-  const inset = framed ? 1 : 0
-  const geometry = filesMenuGeometry(host.columns - 2 * inset, host.rows - 2 * inset)
+  if (!open || !host) return null
+  const geometry = filesMenuGeometry(host.columns, host.rows)
   return (
     <PopupGutter contentRef={elevatedRef} {...geometry} rows={geometry.rowBudget + FILES_MENU_CHROME_ROWS}>
       <MercuryFilesMenu

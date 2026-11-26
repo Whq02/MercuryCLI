@@ -169,10 +169,10 @@ try {
     if (scene === 'disclosure') sends.push(
       { awaitText: 'Reading 1 file', targetText: 'Reading 1 file', targetDx: 3, requireAwait: true, awaitSettleTicks: 2, data: CLICK, mark: 'live' },
       { awaitText: 'Expanded group (1 call)', requireAwait: true, awaitSettleTicks: 2, data: '', mark: 'live-expanded' },
-      { awaitText: 'Expanded group', targetText: 'Expanded group', targetDx: 3, requireAwait: true, data: CLICK },
+      { awaitText: 'Expanded group', targetText: 'Expanded group', targetDx: 9, requireAwait: true, data: CLICK },
       { awaitText: 'ready ·', targetText: summary, targetDx: 3, requireAwait: true, awaitSettleTicks: 3, data: CLICK, mark: 'settled' },
       { awaitText: 'Expanded group (4 calls)', requireAwait: true, awaitSettleTicks: 2, data: '', mark: 'settled-expanded' },
-      { awaitText: 'Expanded group', targetText: 'Expanded group', targetDx: 3, requireAwait: true, data: CLICK },
+      { awaitText: 'Expanded group', targetText: 'Expanded group', targetDx: 9, requireAwait: true, data: CLICK },
     )
     writeFileSync(cfg, JSON.stringify({ argv: [NODE, DIST], cwd, cols, rows, total: 350, out: grid, sends, readyText: [DONE, summary, 'ready ·'], readySettleTicks: 5 }))
     try {

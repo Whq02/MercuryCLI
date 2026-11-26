@@ -42,6 +42,7 @@ const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { PopupHost } = await import('../../src/screen/overlays/PopupHost.js')
 const { FilesMenuSlot } = await import('../../src/screen/fullscreen-layout/FilesMenuSlot.tsx')
 const { openFilesMenu, closeFilesMenu, isFilesMenuOpen } = await import('../../src/screen/cockpit/filesMenu.ts')
 const { setComposerInsert } = await import('../../src/screen/composer/composerInsert.ts')
@@ -71,7 +72,7 @@ const snapshot = async (scene: Mounted, label: string, cols: number) => {
 }
 function Fixture(): React.ReactNode {
   const host = React.useRef<import('../../src/screen/themedRenderer.ts').DOMElement | null>(null)
-  return h(Box, { ref: host, width: '100%', height: 28, flexDirection: 'column' }, h(Text, null, 'Files reader fixture'), h(FilesMenuSlot, { hostRef: host, framed: false }))
+  return h(Box, { ref: host, width: '100%', height: 28, flexDirection: 'column' }, h(Text, null, 'Files reader fixture'), h(PopupHost, { hostRef: host, children: host => h(FilesMenuSlot, { host }) }))
 }
 try {
   for (const cols of [80, 120]) {

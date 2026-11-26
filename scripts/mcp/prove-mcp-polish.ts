@@ -17,6 +17,7 @@ try {
   const React = await import('react')
   const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
   const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { PopupHost } = await import('../../src/screen/overlays/PopupHost.js')
   const { CommandPopupSlot, commandPopupGeometry } = await import('../../src/screen/overlays/CommandPopupSlot.tsx')
   const claims = await import('../../src/screen/cockpit/commandPopup.ts')
   const { call } = await import('../../src/commands/mcp/mcp.tsx')
@@ -38,7 +39,7 @@ try {
       function Screen() {
         const host = React.useRef<any>(null)
         const claim = React.useSyncExternalStore(claims.subscribeCommandPopup, claims.commandPopupClaim, claims.commandPopupClaim)
-        return React.createElement(ThemeProvider, {}, React.createElement(Box, { ref: host, width: cols, height: 40, flexDirection: 'column' }, ...Array.from({ length: 40 }, (_, row) => React.createElement(Text, { key: row }, ('chat background ' + row).padEnd(cols, '.'))), claim ? React.createElement(CommandPopupSlot, { hostRef: host, framed: false, scrollRef: null, shape: claim.shape }, view) : null))
+        return React.createElement(ThemeProvider, {}, React.createElement(Box, { ref: host, width: cols, height: 40, flexDirection: 'column' }, ...Array.from({ length: 40 }, (_, row) => React.createElement(Text, { key: row }, ('chat background ' + row).padEnd(cols, '.'))), claim ? React.createElement(PopupHost, { hostRef: host, children: host => React.createElement(CommandPopupSlot, { host, scrollRef: null, shape: claim.shape }, view) }) : null))
       }
       const m = await mountOffscreen(React.createElement(Screen), cols, 40)
       const until = async (text: string) => assert.ok(await waitFor(() => m.screen().includes(text), 5000), m.screen())

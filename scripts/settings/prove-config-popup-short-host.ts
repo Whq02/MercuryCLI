@@ -25,6 +25,7 @@ const React = await import('react')
 const { Box, Text } = await import('../../src/screen/themedRenderer.js')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { PopupHost } = await import('../../src/screen/overlays/PopupHost.js')
 const slot = await import('../../src/screen/overlays/SettingsPopupSlot.js')
 const store = await import('../../src/screen/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
@@ -60,7 +61,7 @@ function scaffold(scene: Scene, centreRef: React.RefObject<DOMElement | null>): 
           ...Array.from({ length: body }, (_, index) => React.createElement(Text, { key: index, wrap: 'truncate-end' }, index === 0 ? 'CENTRE' : 'c'.repeat(scene.columns))),
         ),
         React.createElement(Box, { height: scene.bottom, flexShrink: 0, flexDirection: 'column' }, ...Array.from({ length: scene.bottom }, (_, index) => React.createElement(Text, { key: index }, 'B'.repeat(scene.columns)))),
-        React.createElement(slot.SettingsPopupSlot, { overlay: true, hostRef: centreRef, framed: false }),
+        React.createElement(PopupHost, { hostRef: centreRef, children: host => React.createElement(slot.SettingsPopupSlot, { host, overlay: true }) }),
       ),
     ),
   )
