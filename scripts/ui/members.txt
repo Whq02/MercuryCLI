@@ -19,6 +19,7 @@ prove-config-model-doors-drive.ts
 prove-consent-card-fits-drive.ts
 prove-consent-card-holds-under-words.ts
 prove-crew-live-drive.ts
+prove-crew-receipt-counts-drive.ts
 prove-crew-seats-drive.ts
 prove-crewmates-door-drive.ts
 prove-exit-note-drive.ts

@@ -343,8 +343,14 @@ function decorateOf(this: TranscriptRows, spine: TranscriptMessage[], seen: Set<
     const siblings = group.filter(row => !seen.has(row.uuid)).sort(byTime)
     const results: TranscriptMessage[] = []
     for (const member of group) {
-      for (const child of this.ordered(this.children.get(member.uuid) ?? [])) {
-        if (child.type === 'user' && !seen.has(child.uuid) && Array.isArray(child.message.content) && child.message.content.some(block => block.type === 'tool_result')) results.push(child)
+      const pending = this.ordered(this.children.get(member.uuid) ?? [])
+      while (pending.length > 0) {
+        const child = pending.shift()!
+        if (child.type === 'attachment' || (child.type === 'system' && child.subtype !== 'compact_boundary' && child.subtype !== 'microcompact_boundary')) {
+          pending.push(...this.ordered(this.children.get(child.uuid) ?? []))
+        } else if (child.type === 'user' && !seen.has(child.uuid) && Array.isArray(child.message.content) && child.message.content.some(block => block.type === 'tool_result')) {
+          results.push(child)
+        }
       }
     }
     results.sort(byTime)

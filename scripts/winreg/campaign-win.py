@@ -82,6 +82,7 @@ if seed.returncode != 0:
 
 READY = "\u276f"
 COMPOSER = "? for shortcuts"
+BOARD = "\u2502 sessions "
 FIRST_CLASS_ENV = {
     "TERM": "xterm-256color",
     "COLORTERM": "truecolor",
@@ -204,7 +205,7 @@ SCENARIOS = [
                 "MERCURY_CONCOURSE": "always",
                 "MERCURY_CONCOURSE_FIXTURE": CONCOURSE_FIXTURE},
         "cfg": {"cols": 142, "rows": 38, "total": 300, "argv": [PS7, *SHELL_ARGS],
-                 "readyText": ["SESSIONS", "Fix OAuth callback"], "readySettleTicks": 3,
+                 "readyText": [BOARD, "Fix OAuth callback"], "readySettleTicks": 3,
                  "hostProfile": "wt", "cwd": REPO},
     },
     {
@@ -213,7 +214,7 @@ SCENARIOS = [
                 "MERCURY_CONCOURSE": "always",
                 "MERCURY_CONCOURSE_FIXTURE": CONCOURSE_FIXTURE},
         "cfg": {"cols": 205, "rows": 53, "total": 300, "argv": [PS7, *SHELL_ARGS],
-                 "readyText": ["SESSIONS", "Fix OAuth callback"], "readySettleTicks": 3,
+                 "readyText": [BOARD, "Fix OAuth callback"], "readySettleTicks": 3,
                  "hostProfile": "wt", "cwd": REPO},
     },
     {
