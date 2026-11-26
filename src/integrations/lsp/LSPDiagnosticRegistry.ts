@@ -380,8 +380,11 @@ export function recordPublishedReport(serverName: string, file: DiagnosticFile, 
 }
 
 export function noteDocumentLifecycle(serverName: string, fileUriOrPath: string): void {
-  const last = newestReport(serverName, plainPathKey(fileUriOrPath))
+  const fileKey = plainPathKey(fileUriOrPath)
+  const last = newestReport(serverName, fileKey)
   if (last !== undefined) last.version = undefined
+  const baseline = writeBaselines.peek(fileKey)?.get(serverName)
+  if (baseline !== undefined) baseline.docVersion = undefined
 }
 
 export function subscribePublishedReports(cb: ReportListener): () => void {

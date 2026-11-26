@@ -112,7 +112,7 @@ function buildInitializeParams(workspaceFolder: string, initializationOptions: u
         publishDiagnostics: {
           relatedInformation: true,
           tagSupport: { valueSet: [1, 2] },
-          versionSupport: true,
+          versionSupport: false,
           codeDescriptionSupport: true,
           dataSupport: false,
         },

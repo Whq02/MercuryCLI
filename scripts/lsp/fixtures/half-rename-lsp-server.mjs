@@ -25,6 +25,7 @@ let config = {
   holdNextPullForFile: '',
 }
 let saveCount = 0
+let versionsAsked = false
 
 function send(msg) {
   const body = Buffer.from(JSON.stringify(msg), 'utf8')
@@ -168,6 +169,7 @@ function flushSettledState(dir, ext) {
 
 function onMessage(msg) {
   if (msg.method === 'initialize') {
+    versionsAsked = msg.params?.capabilities?.textDocument?.publishDiagnostics?.versionSupport === true
     const capabilities = {
       textDocumentSync: { openClose: true, change: 1, save: { includeText: false } },
       renameProvider: true,
@@ -215,7 +217,7 @@ function onMessage(msg) {
       if (Array.isArray(p.diagnostics) && p.diagnostics.length > 0) persistentDiagnostics.set(p.uri, p.diagnostics)
       else persistentDiagnostics.delete(p.uri)
     }
-    publish(p.uri, p.diagnostics ?? [], p.version)
+    publish(p.uri, p.diagnostics ?? [], p.version ?? (versionsAsked ? p.versionIfAsked : undefined))
     send({ jsonrpc: '2.0', id: msg.id, result: { ok: true } })
     return
   }

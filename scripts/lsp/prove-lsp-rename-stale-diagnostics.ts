@@ -59,7 +59,7 @@ if (!manager) throw new Error('LSP manager failed to initialize')
 const registry = await import('../../src/integrations/lsp/LSPDiagnosticRegistry.js')
 const { deliverAfterRevalidation, getLSPDiagnosticAttachments } = await import('../../src/engine/attachments/diagnostics.js')
 const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.js')
-const { awaitDiagnosticStabilization, runMercuryLspOp } = await import('../../src/tools/lsp/mercuryOps.js')
+const { awaitDiagnosticStabilization, runMercuryLspOp, syncServersAfterWrite } = await import('../../src/tools/lsp/mercuryOps.js')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 const { BASH_TOOL_NAME } = await import('../../src/tools/kit/names/bash.js')
 const { processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.js')
@@ -814,6 +814,62 @@ try {
       'the captain\'s no-write scene on the real pull server: a pending report with no write behind it makes 0 requests and the newer finding is told',
       requests === 0 && JSON.stringify(delivered).includes('NEW-GENUINE'),
       `requests=${requests}; delivered=${JSON.stringify(delivered).slice(0, 240)}`,
+    )
+  }
+
+  section('§7 versions: no server is asked to stamp them, and a reopened document counts from 1 again')
+  {
+    const soloCtx = makeContext()
+    const solo = async (name: string): Promise<{ file: string; publish: (diagnostics: unknown[], stamp: Record<string, number>) => Promise<void>; write: (before: string, after: string) => Promise<void> }> => {
+      registry.resetAllLSPDiagnosticState()
+      await manager.closeAllFiles()
+      const file = path.join(pushDir, name)
+      return {
+        file,
+        publish: async (diagnostics, stamp) => {
+          await manager.sendRequest(file, 'test/publish', { uri: pathToFileURL(file).href, diagnostics, ...stamp })
+          await syncStub(file)
+        },
+        write: async (before, after) => {
+          writeFileSync(file, after)
+          await syncServersAfterWrite(manager, file, after, before)
+        },
+      }
+    }
+
+    const asked = await solo('asked.zz')
+    writeFileSync(asked.file, 'export const asked = 1\n')
+    await manager.openFile(asked.file, 'export const asked = 1\n')
+    await configureStub(asked.file, QUIET_STUB)
+    await asked.publish([], { versionIfAsked: 1 })
+    await getLSPDiagnosticAttachments(soloCtx)
+    await asked.write('export const asked = 1\n', 'export const asked = 2\n')
+    await asked.publish([stubFinding('Real error after one edit.')], { versionIfAsked: 1 })
+    const askedStart = Date.now()
+    const askedDrain = asDiagAttachments(await getLSPDiagnosticAttachments(soloCtx))
+    const askedMs = Date.now() - askedStart
+    check(
+      'a server that stamps a version only when asked, and then a constant one, is not asked: its report after an edit is told at once, as on 1.1.0',
+      totalDiagCount(askedDrain) === 1 && modelFacingText(askedDrain).includes('Real error after one edit.') && askedMs < 1_000,
+      `told ${totalDiagCount(askedDrain)} after ${askedMs} ms — buildInitializeParams in src/integrations/lsp/LSPServerInstance.ts must not ask for publishDiagnostics versions: the write guards of src/integrations/lsp/LSPDiagnosticRegistry.ts then reach servers they never reached`,
+    )
+
+    const reopened = await solo('reopened.zz')
+    writeFileSync(reopened.file, 'export const reopened = 1\n')
+    await manager.openFile(reopened.file, 'export const reopened = 1\n')
+    await reopened.publish([], { version: 1 })
+    await reopened.write('export const reopened = 1\n', 'export const reopened = 2\n')
+    await reopened.publish([], { version: 2 })
+    await getLSPDiagnosticAttachments(soloCtx)
+    await manager.closeFile(reopened.file)
+    writeFileSync(reopened.file, 'export const reopened = 3\n')
+    await manager.openFile(reopened.file, 'export const reopened = 3\n')
+    await reopened.publish([stubFinding('Real error in the reopened text.')], { version: 1 })
+    const reopenedDrain = asDiagAttachments(await getLSPDiagnosticAttachments(soloCtx))
+    check(
+      'a document closed and opened again counts from 1: its first report is told, not dropped as older than the last write',
+      totalDiagCount(reopenedDrain) === 1 && modelFacingText(reopenedDrain).includes('Real error in the reopened text.'),
+      `told ${totalDiagCount(reopenedDrain)} — noteDocumentLifecycle in src/integrations/lsp/LSPDiagnosticRegistry.ts must void the write baseline's document version for the server that closed or opened the file`,
     )
   }
 } finally {
