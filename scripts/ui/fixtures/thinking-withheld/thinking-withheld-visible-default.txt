@@ -1,23 +1,23 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-workbench               │╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│
-  visible reasoning     ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-                        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-next                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
-  /health               │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
+workbench               │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+  visible reasoning     │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+                        │   ▀▄▄▄▀▄▄▄▀                                                                                                      │
+next                    │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+  /health               │                                                                                                                  │
   /memory               │                                                                                                                  │
-  /mission              │                                                                                                                  │
-                        │ 00:31:56 [sam] ❯ private reasoning                                                                               │
-files · project         │                                                                                                                  │
-  ↵ browse              │ 00:31:56 [Mercury] Private reasoning answer.                                                                     │
+  /mission              │ 01:13:14 [sam] ❯ private reasoning                                                                               │
                         │                                                                                                                  │
-vitals                  │ 00:32:05 [sam] ❯ visible reasoning                                                                               │
-  spend $0.00           │                                                                                                                  │
-  ctx 0% · 1000k        │ ● Preserved thinking: 2 thinking blocks written by Opus 4.8 stay out of the requests to Opus 5.5 (the            │
-  health — run /health  │ conversation switched models); the model re-plans without them.                                                  │
-                        │                                                                                                                  │
+files · project         │ 01:13:14 [Mercury] Private reasoning answer.                                                                     │
+  ↵ browse              │                                                                                                                  │
+                        │ 01:13:23 [sam] ❯ visible reasoning                                                                               │
+vitals                  │                                                                                                                  │
+  spend $0.00           │ ● Preserved thinking: 2 thinking blocks written by Opus 4.8 stay out of the requests to Opus 5.5 (the            │
+  ctx 0% · 1000k        │ conversation switched models); the model re-plans without them.                                                  │
+  health — run /health  │                                                                                                                  │
                         │ ✻ thinking… ⌄                                                                                                    │
                         │                                                                                                                  │
-                        │ 00:32:05 [Mercury] Visible reasoning answer.                                                                     │
+                        │ 01:13:23 [Mercury] Visible reasoning answer.                                                                     │
+                        │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │

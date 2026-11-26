@@ -1,19 +1,19 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-workbench               │╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│
-  /crewmates off        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-                        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-next                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
-  /health               │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
+workbench               │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+  /crewmates off        │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+                        │   ▀▄▄▄▀▄▄▄▀                                                                                                      │
+next                    │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+  /health               │                                                                                                                  │
   /memory               │                                                                                                                  │
-  /mission              │                                                                                                                  │
-                        │ 00:31:28 [sam] ❯ start                                                                                           │
-files · project         │                                                                                                                  │
-  ↵ browse              │ 00:31:28 [Mercury] Command rows ready.                                                                           │
+  /mission              │ 01:11:28 [sam] ❯ start                                                                                           │
                         │                                                                                                                  │
-vitals                  │ ❯ /crewmates off                                                                                                 │
-  spend $0.00           │   └ crewmates off for this session                                                                               │
-  ctx 0% · 1000k        │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
-  health — run /health  │     running finishes                                                                                             │
+files · project         │ 01:11:28 [Mercury] Command rows ready.                                                                           │
+  ↵ browse              │                                                                                                                  │
+                        │ ❯ /crewmates off                                                                                                 │
+vitals                  │   └ crewmates off for this session                                                                               │
+  spend $0.00           │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
+  ctx 0% · 1000k        │     running finishes                                                                                             │
+  health — run /health  │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │

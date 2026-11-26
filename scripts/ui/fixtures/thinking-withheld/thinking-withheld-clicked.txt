@@ -1,16 +1,16 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-workbench               │╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│
-  private reasoning     ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-                        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-next                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
-  /health               │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
+workbench               │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+  private reasoning     │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+                        │   ▀▄▄▄▀▄▄▄▀                                                                                                      │
+next                    │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+  /health               │                                                                                                                  │
   /memory               │                                                                                                                  │
-  /mission              │                                                                                                                  │
-                        │ 00:31:56 [sam] ❯ private reasoning                                                                               │
-files · project         │                                                                                                                  │
-  ↵ browse              │ ✻ thinking… — the provider returned no thinking text for this model                                              │
+  /mission              │ 01:13:14 [sam] ❯ private reasoning                                                                               │
                         │                                                                                                                  │
-vitals                  │ 00:31:56 [Mercury] Private reasoning answer.                                                                     │
+files · project         │ ✻ thinking… — the provider returned no thinking text for this model                                              │
+  ↵ browse              │                                                                                                                  │
+                        │ 01:13:14 [Mercury] Private reasoning answer.                                                                     │
+vitals                  │                                                                                                                  │
   spend $0.00           │                                                                                                                  │
   ctx 0% · 1000k        │                                                                                                                  │
   health — run /health  │                                                                                                                  │

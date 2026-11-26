@@ -4,7 +4,7 @@ workbench               │ transcript row 47 · · · · · · · · · · · �
                         │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
 next                    │                                                                                              │
   /health               │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-  /memory               │ │ ▖▟▆▙▗ Mercury · logins                                                                   │ │
+  /memory               │ │ Mercury · logins                                                                         │ │
   /mission              │ │                                                                                          │ │
                         │ │                                                                                          │ │
 files · orchard         │ │ Sign in                                                                                  │ │

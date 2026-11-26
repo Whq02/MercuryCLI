@@ -52,7 +52,7 @@
   "                                                                  ⇧→ concourse"
  ],
  "crew-empty": [
-  "  ▄▄▄▄▄▄▄▄▄   ✶ Mercury · ● ready · Opus 5.5 · effort high · ctx —",
+  "  ▄▄▄▄▄▄▄▄▄   ✶ Mercury · ready · Opus 5.5 · effort high · ctx —",
   "  ▄▄▄▄▄▄▄▄▄   fixture-cwd",
   "",
   " ╭────────────────────────────────────────────────────────────────────────────╮",
@@ -78,7 +78,7 @@
   "1 session on · 0 monitors here · 0 crewmates here                   ⇧← concourse"
  ],
  "chat": [
-  "  ▄▄▄▄▄▄▄▄▄   ✶ Mercury · ● ready · Opus 5.5 · effort high · ctx —",
+  "  ▄▄▄▄▄▄▄▄▄   ✶ Mercury · ready · Opus 5.5 · effort high · ctx —",
   "  ▄▄▄▄▄▄▄▄▄   fixture-cwd",
   "  ▀▄▄▄▀▄▄▄▀",
   "────────────────────────────────────────────────────────────────────────────────",
@@ -104,7 +104,7 @@
   "1 session on · 0 monitors here · 0 crewmates here                   ⇧← concourse"
  ],
  "help": [
-  "  ▄▄▄▄▄▄▄▄▄   ✶ Mercury · ● ready · Opus 5.5 · effort high · ctx —",
+  "  ▄▄▄▄▄▄▄▄▄   ✶ Mercury · ready · Opus 5.5 · effort high · ctx —",
   "  ▄▄▄▄▄▄▄▄▄   fixture-cwd",
   "  ▀▄▄▄▀▄▄▄▀",
   "────────────────────────────────────────────────────────────────────────────────",
@@ -209,24 +209,24 @@
  ],
  "view-panel": [
   "  ▄▄▄▄▄▄▄▄▄   ◉ fjord · claude-opus-5-5 · landed in 4s · 890 context · started …",
-  "  ▄▄▄▄▄▄▄▄▄   esc back to Mercury Lead · in /crewmates: m main chat · c clear ·…",
+  "  ▄▄▄▄▄▄▄▄▄   esc back to Mercury Lead · in /crewmates: m main chat · c clear",
   "  ▀▄▄▄▀▄▄▄▀",
   "────────────────────────────────────────────────────────────────────────────────",
   "",
-  "00:39:06 [you → fjord] ❯ crew-screens-mate fjord: take your part of the screens",
+  "01:08:04 [you → fjord] ❯ crew-screens-mate fjord: take your part of the screens",
   "drive",
   "",
-  "00:39:06 [fjord] fjord: one short wait, then the report",
+  "01:08:04 [fjord] fjord: one short wait, then the report",
   "",
   "    Sleep        4s",
   "",
-  "00:39:10 [fjord] fjord: reports in with one line for the view",
+  "01:08:08 [fjord] fjord: reports in with one line for the view",
   "",
   "",
   "",
   "",
   "",
-  "✶ Waiting… · 26s · ↓ ~543",
+  "✶ Waiting… · 25s · ↓ ~543",
   "⊠ sovereign · auto-approved",
   "╭──────────────────────────────────────────────────────────────────────────────╮",
   "│❯ message fjord                                                               │",
