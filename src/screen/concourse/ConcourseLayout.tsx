@@ -184,11 +184,12 @@ function boardHelpLegend({
 }): string {
   const prio = (keys: string): number => legendPriorityOf(keys, { splitOn })
   const olderBrowse = olderRows > 0
-  const selectionClass = boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId))
+  const selectedRow = sessionRows.find(r => r.sessionId === boardSelectedId)
+  const selectionClass = boardSelectionClassOf(selectedRow)
   const composerEnter =
     region === 'live' && !olderBrowse
       ? !liveDraftEmpty
-        ? [{ keys: '↵', label: 'send' }]
+        ? [{ keys: '↵', label: selectedRow?.state === 'working' ? 'queue' : 'send' }]
         : armedSelected
           ? [
               { keys: '↵', label: 'enters (armed)' },

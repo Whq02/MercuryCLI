@@ -154,7 +154,7 @@ try {
 
 
 const BURST = 'concourse rail echo!'
-const LIST_FOCUSED = 'new session · n'
+const LIST_FOCUSED = '+ new · n'
 const fixture2 = referenceFixtureSnapshot() as { needsYou: unknown; counts: Record<string, unknown> }
 fixture2.needsYou = []
 fixture2.counts['needsYou'] = 0
