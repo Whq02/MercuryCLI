@@ -43,7 +43,7 @@ if (g) {
   const rows = g.grid.map(r => r.map(c => c.c))
   const text = rows.map(r => r.join(''))
   check('no MISSION: row paints inside the centre pane (the pane opens on its border, then the berth card)', !text.some(t => t.includes('MISSION:')), '', 'the standing mission belongs only in the lanes rail MISSION box (missionSection in src/screen/cockpit-gauges/helm-lanes-model/sections.ts); remove the MISSION: row from the centre pane')
-  const label = text.findIndex(t => /^mission\b/.test(t))
+  const label = text.findIndex(t => /^goal\b/.test(t))
   check('the standing mission lives in the lanes rail (its MISSION box)', label >= 0, '', 'missionSection in src/screen/cockpit-gauges/helm-lanes-model/sections.ts returns null unless the session is solo and a mission is set; check the cockpit-mission scenario in scripts/ui/renderScenarios.ts still seeds one')
   const spilled: number[] = []
   rows.forEach((line, y) => {
