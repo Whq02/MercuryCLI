@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 import type { LeafScene } from '../lib/resumeLeafScenes.ts'
+import type { Attachment } from '../../src/engine/attachment-shapes/attachmentTypes.ts'
 import type { Message } from '../../src/engine/message-shapes/message.ts'
 import type { SessionListing } from '../../src/sessions/transcripts/transcriptEntries.ts'
 
@@ -28,7 +29,8 @@ state.setOriginalCwd(workdir)
 state.setCwdState(workdir)
 state.setProjectRoot(workdir)
 const { LEAF_SCENES, LEAF_UNFINISHED_SCENE, writeLeafScene } = await import('../lib/resumeLeafScenes.ts')
-const { fillSessionListing, flushSessionStorage, isLiteListing, listSessions, listingsOfSessionFile, recordTranscript } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { fillSessionListing, flushSessionStorage, isLiteListing, lastSession, listSessions, listingsOfSessionFile, recordTranscript } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { recordTurnEnd } = await import('../../src/sessions/transcripts/writer.ts')
 const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
 const { deserializeMessages, loadConversationForResume } = await import('../../src/sessions/resume/conversationRecovery.ts')
 const { flipToSession } = await import('../../src/engine/connector/sessionFlip.ts')
@@ -73,6 +75,13 @@ async function liteListingOf(scene: LeafScene): Promise<SessionListing | undefin
 }
 
 const RETAINS_ITS_CALLS: ReadonlySet<string> = new Set(['plain', 'tie', 'tie-behind', 'kept'])
+const BEHIND_THE_LAST_TURN: ReadonlyArray<{ what: string; attachment: Attachment; asks: boolean }> = [
+  { what: 'an attachment the model is never sent', attachment: { type: 'dead_thinking', dead: [{ messageId: 'msg_note', blockIndex: 0 }] }, asks: false },
+  { what: "a hook's notice", attachment: { type: 'hook', outcome: 'notice', event: 'turn.end', name: 'listing-proof', words: 'listing proof: the hook said so' }, asks: false },
+  { what: 'a changed-file notice', attachment: { type: 'edited_text_file', filename: 'fixture.txt', snippet: '1\tchanged' }, asks: true },
+  { what: 'an instructions delta', attachment: { type: 'mcp_instructions_delta', addedNames: ['fixture'], addedBlocks: ['## fixture\nlisting proof'], removedNames: [] }, asks: true },
+  { what: 'a prompt typed while the turn ran', attachment: { type: 'queued_command', prompt: 'listing proof: typed while the turn ran' }, asks: true },
+]
 
 try {
   for (const name of [...LEAF_SCENES.filter(scene => scene !== 'large'), LEAF_UNFINISHED_SCENE] as const) {
@@ -113,28 +122,6 @@ try {
       `${kind ?? 'no resume'} ${j(shapeOf(resumed?.messages ?? [], scene))}`,
     )
 
-    if (name === 'plain') {
-      section(`${name}: rows that are neither prompt nor reply are written after the last reply`)
-      const quiet = createAttachmentMessage({ type: 'dead_thinking', dead: [{ messageId: 'msg_note', blockIndex: 0 }] })
-      await recordTranscript([quiet])
-      await flushSessionStorage()
-      _resetTranscriptReaderForTesting()
-      const noted = await fillSessionListing(lite)
-      const notedById = await loadConversationForResume(scene.sid, undefined)
-      const notedByListing = await loadConversationForResume(lite, undefined)
-      check(`${name}: the reply stays the listing's end and the row written after it is the listing's last row`, noted.leafUuid === scene.final && noted.messages.at(-1)?.uuid === quiet.uuid, j(shapeOf(noted.messages, scene)))
-      check(`${name}: a resume through the listing hands on the rows a resume by id hands on, and neither is read as interrupted`, notedByListing?.turnInterruptionState.kind === 'none' && notedById?.turnInterruptionState.kind === 'none' && j((notedByListing?.messages ?? []).map(row => row.uuid)) === j((notedById?.messages ?? []).map(row => row.uuid)), `${notedByListing?.turnInterruptionState.kind} ${j(shapeOf(notedByListing?.messages ?? [], scene))} · by id ${notedById?.turnInterruptionState.kind} ${j(shapeOf(notedById?.messages ?? [], scene))}`)
-
-      const queued = createAttachmentMessage({ type: 'queued_command', prompt: 'listing proof: typed while the turn ran' })
-      await recordTranscript([queued])
-      await flushSessionStorage()
-      _resetTranscriptReaderForTesting()
-      const askedById = await loadConversationForResume(scene.sid, undefined)
-      const askedByListing = await loadConversationForResume(lite, undefined)
-      const asked = j(shapeOf(askedByListing?.messages ?? [], scene))
-      check(`${name}: a row that asks for a reply, written after the last reply, is in the resume through the listing and the turn reads as interrupted, as by id`, (askedByListing?.messages ?? []).some(row => row.uuid === queued.uuid) && askedByListing?.turnInterruptionState.kind === 'interrupted_prompt' && askedById?.turnInterruptionState.kind === 'interrupted_prompt' && asked === j(shapeOf(askedById?.messages ?? [], scene)), `${askedByListing?.turnInterruptionState.kind} ${asked} · by id ${askedById?.turnInterruptionState.kind} ${j(shapeOf(askedById?.messages ?? [], scene))}`)
-    }
-
     if (name === 'fold') {
       section(`${name}: the connector flip and the branch list`)
       state.switchSession(asSessionId(randomUUID()))
@@ -148,6 +135,39 @@ try {
       const ends = branches.map(branch => branch.leafUuid)
       check(`${name}: control: the list of every branch still names both ends, the reply and the late result`, ends.includes(scene.final) && scene.reports.every(id => ends.includes(id)), j(branches.map(branch => shapeOf(branch.messages.filter(row => row.uuid === branch.leafUuid), scene)[0] ?? branch.leafUuid)))
     }
+  }
+
+  for (const { what, attachment, asks } of BEHIND_THE_LAST_TURN) {
+    section(`a finished session, then ${what} written behind its last reply`)
+    const scene = await writeLeafScene('plain')
+    await recordTurnEnd('listing-proof-turn', 'completed')
+    await flushSessionStorage()
+    const lite = await liteListingOf(scene)
+    if (lite === undefined || !isLiteListing(lite)) {
+      check(`${what}: the session is listed lite`, false, `listSessions() gave ${lite === undefined ? 'no row' : 'a filled row'} for ${scene.sid}`)
+      continue
+    }
+    const before = await fillSessionListing(lite)
+    const drawnBefore = deserializeMessages(before.messages).map(row => row.uuid)
+    const row = createAttachmentMessage(attachment)
+    await recordTranscript([row])
+    await flushSessionStorage()
+    _resetTranscriptReaderForTesting()
+    const filled = await fillSessionListing(lite)
+    const byId = await lastSession(scene.sid)
+    check(`${what}: the rows through the listing are the rows by id, row for row, the row among them`, filled.messages.some(each => each.uuid === row.uuid) && j(filled.messages.map(each => each.uuid)) === j((byId?.messages ?? []).map(each => each.uuid)), `${j(shapeOf(filled.messages, scene))} · by id ${j(shapeOf(byId?.messages ?? [], scene))}`)
+    const viaListing = (await loadConversationForResume(lite, undefined))?.turnInterruptionState.kind
+    const viaId = (await loadConversationForResume(scene.sid, undefined))?.turnInterruptionState.kind
+    const reading = asks ? 'interrupted_prompt' : 'none'
+    check(asks ? `${what}: the model would be sent it, so the session reads as interrupted through the listing, as it reads by id` : `${what}: continued through the listing the session reads as finished, as by id`, viaListing === reading && viaId === reading, `through the listing ${viaListing}, by id ${viaId}`)
+    check(`${what}: the listing's end, first prompt and count are what they were before the row`, filled.leafUuid === scene.final && filled.firstPrompt === before.firstPrompt && filled.messageCount === before.messageCount, `${shapeOf(filled.messages.filter(each => each.uuid === filled.leafUuid), scene)[0] ?? filled.leafUuid} ${j(filled.firstPrompt)} ${filled.messageCount} · before ${j(before.firstPrompt)} ${before.messageCount}`)
+    const drawn = deserializeMessages(filled.messages)
+    const behind = drawn.slice(drawnBefore.length)
+    check(
+      asks ? `${what}: the preview draws the rows it drew before, then the row, then the two rows every interrupted resume gets` : `${what}: the preview draws the rows it drew before, then the row`,
+      j(drawn.slice(0, drawnBefore.length).map(each => each.uuid)) === j(drawnBefore) && behind[0]?.uuid === row.uuid && (asks ? behind.length === 3 && behind[1]?.type === 'user' && behind[1].isMeta === true && behind[2]?.type === 'assistant' : behind.length === 1),
+      j(shapeOf(drawn, scene)),
+    )
   }
 } finally {
   removeScratch(scratch)
