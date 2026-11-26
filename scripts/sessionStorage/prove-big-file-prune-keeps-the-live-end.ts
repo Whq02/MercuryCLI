@@ -38,6 +38,10 @@ let checks = 0
 let failures = 0
 const HINT =
   'selectBranchIds in src/sessions/transcripts/branchSelection.ts must take the end from the election of src/sessions/transcripts/conversationEnd.ts and keep every row that election and its screen read: the spine, the late result a spine row was written under, and every row whose parents never reach the spine'
+const FACT_HINT =
+  'writtenFact in src/sessions/transcripts/recordFacts.ts must answer the fact of the decoded row (pointOf in src/sessions/transcripts/conversationEnd.ts) or decline the line, so that the row is decoded'
+const KEPT_HINT =
+  'selectBranchIds in src/sessions/transcripts/branchSelection.ts must prune nothing when the fold line the election stands behind keeps rows: in the file those rows hang beside the line, and only the loader moves them'
 function check(label: string, ok: boolean, detail = '', hint = HINT): void {
   checks++
   if (!ok) failures++
@@ -108,7 +112,7 @@ function factsAgree(label: string, file: string): void {
     if (!same) differing.push(id)
     position++
   }
-  check(`${label}: every record's fact read from its bytes is the fact of its decoded row`, position > 0 && differing.length === 0, j({ rows: position, differing: differing.length }))
+  check(`${label}: every record's fact read from its bytes is the fact of its decoded row`, position > 0 && differing.length === 0, j({ rows: position, differing: differing.length }), FACT_HINT)
 }
 async function acrossThePrune(label: string, file: string): Promise<{ whole: Loaded; planned: Loaded; full: Ends; pruned: Ends }> {
   const whole = await read(file, true)
@@ -309,7 +313,43 @@ try {
     check('reordered link fields: the same rows are kept, the reply among them and the abandoned prompt not', canonical.length > 0 && j(canonical) === j(kept(reordered)) && canonical.includes(tied.scene.final) && !canonical.includes(tied.dead), j({ canonical: canonical.length, reordered: kept(reordered).length }))
   }
 
-  section('§9 a snapshot left by the build before this one (schema 8), holding only what its prune kept, is not served')
+  section('§9 a fold that keeps rows, its kept head the file\'s first row, then a 6 MB branch that was left behind: the seal wrote that head with its parent behind its annotations')
+  {
+    const scene = await writeLeafScene('kept')
+    const dead = prompt(`abandoned paste ${'x'.repeat(6 * MIB)}`)
+    const deadReply = reply('the reply of the branch left behind')
+    hang(scene, dead, scene.final)
+    hang(scene, deadReply, dead.uuid)
+    const kept = prompt('the prompt written after the rewind to the first reply')
+    const keptReply = reply('the last reply')
+    hang(scene, kept, scene.final)
+    hang(scene, keptReply, kept.uuid)
+    const raw = readFileSync(scene.file)
+    const relinked = raw
+      .toString('latin1')
+      .split('\n')
+      .filter(line => line.includes(',"annotations":{') && line.lastIndexOf(',"parentId":"') > line.lastIndexOf(',"annotations":{'))
+    check('a kept fold: the scene holds the row this section is about, the kept prompt with its parent written last', relinked.length === 1 && indexLine(Buffer.from(relinked[0]!, 'latin1'), 0).id === scene.prompt, j({ lines: relinked.length }), 'writeLeafScene(\'kept\') in scripts/lib/resumeLeafScenes.ts must keep the file\'s first row behind its fold, so that the seal relinks it')
+    factsAgree('a kept fold', scene.file)
+    const handed = pruneRecordBranchesBeforeParse(raw)
+    const left = decodeTranscriptBuffer<{ uuid?: string }>(handed).entries.flatMap(entry => (typeof entry.uuid === 'string' ? [entry.uuid] : []))
+    check(
+      'a kept fold: the planner called on the file itself cuts nothing, so the kept prompt and its calls are still there',
+      raw.length > SKIP_BEFORE_FOLD_BOUNDARY_THRESHOLD && handed === raw && [scene.prompt, ...scene.calls].every(id => left.includes(id)),
+      j({ bytes: [raw.length, handed.length], kept: [scene.prompt, ...scene.calls].map(id => left.includes(id)), dead: left.includes(dead.uuid) }),
+      KEPT_HINT,
+    )
+    const full = endsOf(await read(scene.file, true))
+    const planned = endsOf(await read(scene.file, false))
+    check(
+      'a kept fold: the default read elects the end, the resume rows and the screen rows of the whole read, the kept prompt before the last reply',
+      full.primary === keptReply.uuid && j(full) === j(planned) && planned.rows.includes(scene.prompt) && planned.rows.indexOf(scene.prompt) < planned.rows.indexOf(keptReply.uuid) && !planned.rows.includes(dead.uuid),
+      j({ end: planned.primary === keptReply.uuid, rows: [full.rows.length, planned.rows.length], screen: [full.screen.length, planned.screen.length], kept: planned.rows.includes(scene.prompt) }),
+      KEPT_HINT,
+    )
+  }
+
+  section('§10 a snapshot left by the build before this one (schema 8), holding only what its prune kept, is not served')
   {
     process.env.MERCURY_RESUME_SNAPSHOT = '1'
     const scene = await writeLeafScene('large')

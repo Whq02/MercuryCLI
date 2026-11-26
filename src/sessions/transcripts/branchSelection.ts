@@ -52,7 +52,8 @@ export function selectBranchIds(lines: readonly IndexedLine[], read: (r: Indexed
   }
   const points = [...rows.values()].filter(fact => !fact.sidechain).map(fact => ({ ...fact.point, parent: over(fact.point.parent) as UUID | null }))
   const elected = choose(points)
-  if (elected === undefined) return null
+  const fence = elected?.fence === undefined ? undefined : rows.get(elected.fence)?.point
+  if (elected === undefined || fence?.kept !== undefined) return null
   const relinks: ReadonlyMap<string, string> = elected.relinks
   const scope = new Set<string>(points.map(point => point.id))
   const above = (id: string): string | null => relinks.get(id) ?? over(rows.get(id)!.point.parent)
@@ -120,7 +121,7 @@ export function selectBranchIds(lines: readonly IndexedLine[], read: (r: Indexed
     else if (at === null || !kept.has(at)) stranded.add(top)
     for (const step of line) hangsFrom.set(step, top)
   }
-  const fenceAt = elected.fence === undefined ? Infinity : rows.get(elected.fence)!.point.position
+  const fenceAt = fence === undefined ? Infinity : fence.position
   const revived = new Set<string>()
   const stands = (id: string): boolean => {
     const top = hangsFrom.get(id)
