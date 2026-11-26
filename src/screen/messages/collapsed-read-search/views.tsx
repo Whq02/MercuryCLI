@@ -116,7 +116,7 @@ export function verboseGroupView({ message, tools, lookups, verbose, shellId, se
     )
   }
   return (
-    <Box flexDirection="column" backgroundColor={selectedBg}>
+    <Box flexDirection="column" paddingLeft={2} backgroundColor={selectedBg}>
       <Text>
         <TranscriptNameplate />
         <Text dimColor>Expanded group ({flat.length} {plural(flat.length, 'call')})</Text>
