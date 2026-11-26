@@ -34,8 +34,7 @@ const { AppStateProvider, getDefaultAppState } = await import('../../src/screen/
 const { crewFactsStamp } = await import('../../src/screen/app-state/crewLedger.ts')
 const crew = await import('../../src/engine/connector/crewFacts.ts')
 const { CrewView } = await import('../../src/screen/widgets/faces/CrewView.tsx')
-const { CrewmateCard } = await import('../../src/screen/fullscreen-layout/CrewmateCard.tsx')
-const { crewmateInView, useViewedCrewmate } = await import('../../src/screen/tasks/useCrewmateView.ts')
+const { crewmateInView } = await import('../../src/screen/tasks/useCrewmateView.ts')
 const { HelmLanesRail } = await import('../../src/screen/fullscreen-layout/HelmLanesRail.tsx')
 const { BackgroundTasksDialog, boardCrewmateRowsOf, RosterWorkDetail } = await import('../../src/screen/tasks/BackgroundTasksDialog.tsx')
 const { CrewmateDetailDialog } = await import('../../src/screen/tasks/CrewmateDetailDialog.tsx')
@@ -141,31 +140,6 @@ try {
         flat.includes('landed') &&
         flat.includes(tokensSummary) &&
         flat.includes('12s') &&
-        !flat.includes('42s') &&
-        !flat.includes('0 tool uses'),
-      flat.slice(0, 350),
-    )
-  }
-
-  section('§2 CrewmateCard (src/screen/fullscreen-layout/CrewmateCard.tsx)')
-  {
-    function ViewedCard(): React.ReactNode {
-      const viewed = useViewedCrewmate()
-      if (viewed === null) return null
-      return React.createElement(CrewmateCard, { crewmate: viewed, width: 120 })
-    }
-    const frame = await paint(
-      React.createElement(ViewedCard),
-      120,
-      { ...ledgerState, viewingCrewmateTaskId: 'bg1' },
-    )
-    const flat = frame.replace(/\s+/g, ' ')
-    check(
-      'CrewmateCard reads landed in 12s, tokens and model from crewLedger and never 0 tool uses or a growing clock',
-      flat.includes('bg-scout') &&
-        flat.includes(MODEL_ID) &&
-        flat.includes('landed in 12s') &&
-        flat.includes(tokensLabel) &&
         !flat.includes('42s') &&
         !flat.includes('0 tool uses'),
       flat.slice(0, 350),

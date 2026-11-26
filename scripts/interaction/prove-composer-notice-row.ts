@@ -431,7 +431,7 @@ globalThis.fetch = (input, init) => {
     const at = `${size.cols}x${size.rows}`
     const wide = size.cols >= 100
     const expectFor = (): RegExp | { idle: string } =>
-      wide ? /for commands \+ files/ : { idle: compactSummary(size.cols) }
+      wide ? /\? for shortcuts · .+ commands \+ files/ : { idle: compactSummary(size.cols) }
     console.log(`\n  ── ${at}`)
 
     for (const road of ROADS) {

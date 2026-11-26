@@ -4,7 +4,7 @@ import { boardSelectionClassOf, closeChordHintOf, closeChordRungOf } from '../co
 import { useOpenEventGate } from '../../widgets/useOpenEventGate.js'
 import { boardModalOwner } from '../boardModalOwner.js'
 import { getPendingChordMirror, subscribePendingChordMirror } from '../../keys/pendingChordMirror.js'
-import { controlNoteOf } from '../contracts.js'
+import { controlNoteOf, sessionDraftQueues } from '../contracts.js'
 import { PARK_REFUSED_NOW_LEAD } from '../../concourse-model/concourseSnapshot.js'
 import { useLiveTile, useWorkChip } from '../liveTiles.js'
 import { GLYPH } from '../../theme/glyphs.js'
@@ -64,7 +64,7 @@ export function useConcourseRowLine({ callbacks, controlNotes, boardArmed, board
     if (boardArmed === sel.sessionId) {
       return {
         glyph: GLYPH.handoff,
-        words: `${liveDraft.text.trim().length > 0 ? 'armed — ↵ sends the draft · → enters' : 'armed — ↵ again enters'}${liveDraft.text.trim().length === 0 && liveComposerGate(sel).ok && broadcastFaceOf(markedRows.length) === null ? ' · tab to message' : ''} · esc disarms`,
+        words: `${liveDraft.text.trim().length > 0 ? `armed — ↵ ${sessionDraftQueues(sel) ? 'queues' : 'sends'} the draft · → enters` : 'armed — ↵ again enters'}${liveDraft.text.trim().length === 0 && liveComposerGate(sel).ok && broadcastFaceOf(markedRows.length) === null ? ' · tab to message' : ''} · esc disarms`,
         tone: 'info',
       }
     }

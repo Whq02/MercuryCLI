@@ -13,6 +13,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 
 const EXEMPT: Record<string, [number, string]> = {
   'src/platform/editor/externalEditor.ts': [2, 'interactive — the $EDITOR session runs on the user\'s terminal (stdio inherit); killing it under them loses their edit'],
+  'src/screen/boot-face/logins/devinCliAction.ts': [1, 'interactive — devin auth login, status or logout runs on the user\'s terminal (stdio inherit) and the user ends it; a bound would kill a sign-in while its browser page is open'],
   'src/platform/node-runtime/win32Console.ts': [1, 'bounded through chcpSpawnShape\'s built options (timeout: 5_000 rides the options variable the extractor cannot see through)'],
   'src/platform/substrate/directSplash.ts': [1, 'interactive (stdio inherit — the launch splash asset IS the screen until the operator chooses; a bound would end the enter screen mid-choice)'],
   'src/integrations/extensions/bundled/content.generated.ts': [4, "the media engine's two remote bundles carry cross-spawn's own spawnSync definition and call (the MCP SDK's stdio client transport pulls the module in); the engine spawns asynchronously and its sources carry no sync spawn, so nothing reaches these four"],

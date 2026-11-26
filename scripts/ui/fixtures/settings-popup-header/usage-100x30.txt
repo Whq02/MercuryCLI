@@ -1,17 +1,17 @@
-  lanes             ╭──────────────────────────────────────────────────────────────────────────────╮
-workbench           │                                                                              │
-  no prompts yet    │ ╭──────────────────────────────────────────────────────────────────────────╮ │
-                    │ │ Mercury · usage                                                          │ │
-next                │ │ API usage session on · 0 subscriptions signed in                         │ │
-  /health           │ │                                                                          │ │
-                    │ │ Anthropic usage                                                          │ │
-files · orchard     │ │ API key · …-key                                                          │ │
-  ↵ browse          │ │ credits: not reported by the provider                                    │ │
+workbench           ╭──────────────────────────────────────────────────────────────────────────────╮
+  no prompts yet    │                                                                              │
+                    │ ╭──────────────────────────────────────────────────────────────────────────╮ │
+next                │ │ Mercury · usage                                                          │ │
+  /health           │ │ API usage session on · 0 subscriptions signed in                         │ │
                     │ │                                                                          │ │
-vitals              │ │ Subscription                                                             │ │
-  spend —           │ │ none — /logins anthropic connects a subscription account · n/a           │ │
-  ctx — · —         │ │                                                                          │ │
-  health — run…     │ │ API key                                                                  │ │
+files · orchard     │ │ Anthropic usage                                                          │ │
+  ↵ browse          │ │ API key · …-key                                                          │ │
+                    │ │ credits: not reported by the provider                                    │ │
+vitals              │ │                                                                          │ │
+  spend —           │ │ Subscription                                                             │ │
+  ctx — · —         │ │ none — /logins anthropic connects a subscription account · n/a           │ │
+  health — run…     │ │                                                                          │ │
+                    │ │ API key                                                                  │ │
                     │ │ Anthropic API key (ANTHROPIC_API_KEY)                                    │ │
                     │ │ no usage endpoint is read for an API key on this lane — the provider     │ │
                     │ │ console is the view                                                      │ │

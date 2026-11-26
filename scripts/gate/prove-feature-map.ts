@@ -10,7 +10,7 @@ import { ModuleCache, calleeName, declarationOf, importOf, lineOf, returnedExpre
 const ROOT = fileURLToPath(new URL('../..', import.meta.url))
 const TABLE = 'scripts/gate/feature-map.tsv'
 const HEADER = 'kind\tfeature\tproof\thow'
-const NONE_FLOOR = 74
+const NONE_FLOOR = 73
 const DOOR = 'src/platform/substrate/featureReached.ts'
 const kinds = ['command', 'screen', 'tool', 'verb'] as const
 const cache = new ModuleCache(ROOT)

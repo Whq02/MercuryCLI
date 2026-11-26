@@ -262,7 +262,7 @@ New Session that has not received your first message is excluded from that
 timer: without limit by default, or for the
 `MERCURY_SESSION_NEWBORN_GRACE_MINUTES` you set, and the first message ends
 the grace period either way. A session started this way and never messaged that the daemon finds
-stopped at its next reconcile is released instead of being marked NEEDS YOU,
+stopped at its next reconcile is released instead of being marked `needs you`,
 because there is nothing to resume.
 
 ## A session names itself
@@ -302,8 +302,8 @@ tool from its first request; the crewmates-allowed grant stays unchanged.
 With it off, a background session's launch refusal names the three ways to allow it.
 A hop updates focus immediately. `/runs`
 and the board's work chip show the focused session's own work
-and never another's. A shell's row on the board, or in the side rail's RUNS
-lane, opens its card: the whole command, the directory it runs in, the time it
+and never another's. A shell's row on the board, or in the side rail's `runs`
+panel, opens its card: the whole command, the directory it runs in, the time it
 has run, its exit code once it has ended, and the last lines of its output,
 read from the output file the session's runner writes, under a
 count of the lines shown against the lines it has written. On a short window
@@ -420,7 +420,7 @@ the session's runner hosts is still running): `"crewmate thought for
 28m"`.
 The timer counts the crewmates running now; when the last of them finishes
 or is stopped the row reads `ready` again on the next beat, and the finished
-rows keep their own elapsed time in the CREW box, `/crewmates` and `/runs`. At its
+rows keep their own elapsed time in the `crew` panel, `/crewmates` and `/runs`. At its
 right end, before the way back, the row names the folder and the branch the
 session works on (`mercury ⌥ main`; the folder alone where there is no
 branch). When the row is too narrow for everything, the state words
@@ -548,9 +548,9 @@ title (among the live rows when running, or at the top of `parked` when stopped)
 and pressing `Enter` opens it; focusing a session of the current
 project returns the carried row to its own project board. Two things on the board
 are machine-wide: the status row's seats fraction counts every running
-session on the machine, and the NEEDS YOU block lists every open question
-across all projects so no question goes unseen; pressing `Enter` on a NEEDS
-YOU row switches the view to its project and opens the chat.
+session on the machine, and the `needs you` block lists every open question
+across all projects so no question goes unseen; pressing `Enter` on a `needs
+you` row switches the view to its project and opens the chat.
 
 The board is two panes. On the left is the live view of the chosen session:
 its header line (`"<title> · <project> · <model> · <effort>"` with `"↵ enter
@@ -615,7 +615,7 @@ in place. On a list too narrow for that column a row carries the cell only
 when it needs you: the head of a crash reason, a waiting ask or a refused
 park stands where its project and last-used cells were, and the live line
 stays off there. When a runner crashes, its row
-shows NEEDS YOU with the exit code and the last error or stderr line;
+shows `needs you` with the exit code and the last error or stderr line;
 the row stays across reconciles until you act on the session or release the row.
 The daemon's log records the same line for every crash. `ctrl+x ctrl+x` stops the selected
 session (the row stays, marked stopped with the next step), the chord
@@ -649,8 +649,8 @@ found in the project folder from before is read once and moved on its
 first touch; the folder keeps its copy, and the health check's Project estate row
 names it with the one `git rm --cached` line that untracks it.
 
-The left rail carries a FILES box named for the focused session's
-folder; switching into a session of another project moves the box and its tree
+The left rail carries a `files` panel named for the focused session's
+folder; switching into a session of another project moves the panel and its tree
 with it. Pressing `Enter` or clicking it opens the folder's tree as a menu over
 the chat: `→` unfolds a folder and `←` folds it, `/` filters the rows by
 name, `Enter` on a file inserts `@` and its path at the composer's cursor and closes
@@ -674,7 +674,7 @@ terminal capability replies to finish so escape codes never leak into your
 shell or editor. Clicking outside closes any popup over the chat that `Esc` closes,
 stepping back one level without selecting text, opening a
 link or pressing anything in the chat beneath it.
-The `view.files` setting set to false takes the FILES box off the rail.
+The `view.files` setting set to false takes the `files` panel off the rail.
 
 A session can work in a worktree of its repository instead of the checkout
 itself: `--worktree [name]` at launch cuts one (with `--multiplex`, inside a tmux

@@ -65,7 +65,7 @@ type ComposerSubmitInput = {
 function footerSelectionVisible(state: AppState): boolean {
   if (state.footerSelection === null) return false
   if (state.footerSelection === 'tasks') {
-    return Object.values(state.tasks).some(isManageableTask) || state.viewingCrewmateTaskId !== undefined
+    return Object.values(state.tasks).some(isManageableTask)
   }
   if (state.footerSelection === 'bagel') {
     return state.bagelActive === true

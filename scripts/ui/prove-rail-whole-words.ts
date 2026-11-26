@@ -59,7 +59,7 @@ console.log('§4 the law across every budget: whole words, the ellipsis, no dang
   const names = [
     USAGE_ROW,
     HEALTH_ROW,
-    '/mission — set a mission',
+    '/goal — set a goal',
     'ctx 12% · 200k',
     'fold win-drives 57fa9c3913 (the proof-portability reds of a Windows build)',
     'reef-survey',

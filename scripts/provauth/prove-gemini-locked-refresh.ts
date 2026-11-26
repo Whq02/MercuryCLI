@@ -164,6 +164,23 @@ try {
     check('the next ordinary call answers the new token, sends nothing, and lands it in the store', ordinary?.accessToken === renewed?.accessToken && server.grants.length === before + 1 && file().tokens?.accessToken === renewed?.accessToken, JSON.stringify({ answered: ordinary?.accessToken, stored: file().tokens?.accessToken, grants: server.grants.length - before }))
   }
 
+  console.log('── a sign-out while the accepted answer is out stays a sign-out, for each sign-in ──')
+  for (const signIn of [
+    { name: 'the bring-your-own sign-in', refresh: () => accounts.currentGeminiTokens(), signOut: () => accounts.disconnectGeminiOauth(), gone: () => file().tokens === undefined },
+    { name: 'the plan sign-in', refresh: () => accounts.currentGeminiPlanTokens(), signOut: () => accounts.disconnectGeminiPlan(), gone: () => file().plan === undefined },
+  ]) {
+    seed()
+    before = server.grants.length
+    const answerNow = server.hold()
+    const leftBehind = signIn.refresh()
+    await until('the grant is at the server', () => server.grants.length === before + 1)
+    signIn.signOut()
+    const signedOutBytes = readFileSync(authPath, 'utf8')
+    answerNow()
+    const afterSignOut = await leftBehind
+    check(`${signIn.name}: the call answers no tokens and the store is byte for byte what the sign-out left`, afterSignOut === undefined && signIn.gone() && readFileSync(authPath, 'utf8') === signedOutBytes, JSON.stringify({ answered: afterSignOut?.accessToken ?? null, store: file() }))
+  }
+
   console.log('── a dead grant keeps the row: /accounts shows the sign-in as expired, like the other roads ──')
   seed()
   server.revoked.add(PLAN_REFRESH)

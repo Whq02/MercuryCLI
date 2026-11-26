@@ -54,6 +54,10 @@ export interface ConcourseRowV1 {
     | { kind: 'pick-project'; more: number }
 }
 
+export function sessionDraftQueues(row: Pick<ConcourseRowV1, 'state'> | undefined): boolean {
+  return row?.state === 'working'
+}
+
 export function concourseWaitCopy(reason?: string, byTitle?: string): string {
   switch (reason) {
     case 'repo-held':

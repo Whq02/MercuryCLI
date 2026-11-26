@@ -1,19 +1,19 @@
-  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-workbench               │                                                                                              │
+workbench               ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
   no prompts yet        │                                                                                              │
-                        │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-next                    │ │ Mercury · model · 0 of 24 match                                                          │ │
-  /health               │ │ / gpt 6 luna                                                                             │ │
-  /memory               │ │                                                                                          │ │
-  /mission              │ │                                                                                          │ │
-                        │ │ context —                                                                                │ │
-files · project         │ │ effort  low [medium] high xhigh max · ctrl+e changes it                                  │ │
-  ↵ browse              │ │ 'gpt 6 luna' names no listed model (nearest: Opus 5 · GLM-5.3 · GLM-5.2); pick a row     │ │
-                        │ │ below                                                                                    │ │
-vitals                  │ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │
-  spend —               │ │ pgup/pgdn page                                                                           │ │
-  ctx — · —             │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
-  health — run /health  │                                                                                              │
+                        │                                                                                              │
+next                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+  /health               │ │ Mercury · model · 0 of 24 match                                                          │ │
+  /memory               │ │ / gpt 6 luna                                                                             │ │
+  /goal                 │ │                                                                                          │ │
+                        │ │                                                                                          │ │
+files · project         │ │ context —                                                                                │ │
+  ↵ browse              │ │ effort  low [medium] high xhigh max · ctrl+e changes it                                  │ │
+                        │ │ 'gpt 6 luna' names no listed model (nearest: Opus 5 · GLM-5.3 · GLM-5.2); pick a row     │ │
+vitals                  │ │ below                                                                                    │ │
+  spend —               │ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │
+  ctx — · —             │ │ pgup/pgdn page                                                                           │ │
+  health — run /health  │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
+                        │                                                                                              │
                         │ transcript row 42 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 43 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 44 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │

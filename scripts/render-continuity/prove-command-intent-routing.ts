@@ -120,11 +120,8 @@ t.section('§2 unknown / literal / guidance laws')
 
 t.section('§3 journey: agent view routes commands locally, guidance to the agent')
 {
-  const ESC = String.fromCharCode(27)
-  const sgrClick = (col: number, row: number): string =>
-    `${ESC}[<0;${col};${row}M${ESC}[<0;${col};${row}m`
   const CHILD_RAIL_ROW = 'poise probe · runni…'
-  const CARD_KEYS = 'x x stop · p pause'
+  const VIEW_ADDRESS = 'viewing poise probe'
 
   const turns: ScriptedTurn[] = [
     {
@@ -155,10 +152,10 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
     turns,
     sends: [
       '7400:spawn the probe\\r',
-      `after:${CHILD_RAIL_ROW}:1000:${sgrClick(10, 4)}`,
-      `after:${CARD_KEYS}:2000:${sgrClick(10, 3)}`,
-      `after:${CARD_KEYS}:4600:/frobnicate\\r`,
-      'after:/frobnicate:2400:/vim\\r',
+      { awaitText: CHILD_RAIL_ROW, afterPrevMs: 1000, settleMs: 0, targetText: CHILD_RAIL_ROW },
+      { awaitText: VIEW_ADDRESS, afterPrevMs: 2000, settleMs: 0, targetText: '✶ Mercury Lead' },
+      { awaitText: CHILD_RAIL_ROW, awaitAbsent: VIEW_ADDRESS, afterPrevMs: 2600, settleMs: 0, text: '/frobnicate\r' },
+      { awaitText: 'Unknown command: /frobnicate', afterPrevMs: 2400, settleMs: 0, text: '/vim\r' },
     ],
     seconds: 40,
     cols: 120,
@@ -217,11 +214,11 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
             `@${f.atMs} rail=${JSON.stringify(f.rows.slice(1, 8).map(r => r.slice(0, 24).trim()).filter(Boolean).join(' | '))}` +
             ` composer=${JSON.stringify(composerOf(f).slice(0, 32))}` +
             `${has(f, 'Mercury — surfaces') ? ' MGR' : ''}` +
-            `${has(f, /❯ message poise probe/) ? ' VIEW' : ''}`,
+            `${has(f, /viewing poise probe ·/) ? ' VIEW' : ''}`,
         )
         .join(' ↵ ')
     const crewRow = (f: Fr): boolean => f.rows.some(r => r.includes(CHILD_RAIL_ROW))
-    const inView = (f: Fr): boolean => has(f, /❯ message poise probe/)
+    const inView = (f: Fr): boolean => has(f, /viewing poise probe ·/)
     const iCrew = idxOf(0, crewRow)
     t.check(
       `the hosted agent lists in the CREW lane (the runner's roster over the connector) — its row reads "${CHILD_RAIL_ROW}", the .34 rail keeping the name whole and cutting the verb (137a2c1214)`,

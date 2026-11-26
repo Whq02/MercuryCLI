@@ -6,8 +6,11 @@ export type ShellType = (typeof SHELL_TYPES)[number]
 
 export type FrameHandOver = { args: string[]; file?: { path: string; text: string }; startIn?: string }
 
+export type ClosingPlace = { at: number; after: '&&' | '||' | ';' }
+
 export type BuildExecCommandOptions = {
   id: number | string
+  closing?: ClosingPlace
 }
 
 export type ShellProvider = {
@@ -21,6 +24,7 @@ export type ShellProvider = {
   ) => Promise<{
     commandString: string
     cwdFilePath: string
+    closingMarks?: { reached: string; endedOnOne: string }
     pipelineStatusPath?: string
     jobsPath?: string
     handOver?: (env: NodeJS.ProcessEnv, cwd?: string) => FrameHandOver

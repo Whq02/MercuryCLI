@@ -1,19 +1,19 @@
-  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-workbench               │                                                                                              │
-  no prompts yet        │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-                        │ │ Mercury · config                                                                         │ │
-next                    │ │ project · 84 settings · 2 set by you                                                     │ │
-  /health               │ │                                                                                          │ │
-  /memory               │ │ / think                                                                                  │ │
-  /mission              │ │                                                                                          │ │
-                        │ │ › Thinking                          n/a — Opus 5.5 keeps thinking on                     │ │
-files · project         │ │   This model thinks on every request; the setting cannot turn it off — /effort is the    │ │
-  ↵ browse              │ │ lever.                                                                                   │ │
+workbench               ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
+  no prompts yet        │                                                                                              │
+                        │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+next                    │ │ Mercury · config                                                                         │ │
+  /health               │ │ project · 84 settings · 2 set by you                                                     │ │
+  /memory               │ │                                                                                          │ │
+  /goal                 │ │ / think                                                                                  │ │
                         │ │                                                                                          │ │
+files · project         │ │ › Thinking                          n/a — Opus 5.5 keeps thinking on                     │ │
+  ↵ browse              │ │   This model thinks on every request; the setting cannot turn it off — /effort is the    │ │
+                        │ │ lever.                                                                                   │ │
 vitals                  │ │                                                                                          │ │
   spend —               │ │                                                                                          │ │
   ctx — · —             │ │                                                                                          │ │
   health — run /health  │ │                                                                                          │ │
+                        │ │                                                                                          │ │
                         │ │                                                                                          │ │
                         │ │                                                                                          │ │
                         │ │                                                                                          │ │

@@ -32,6 +32,7 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
 for (const key of ['MERCURY_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'NODE_ENV']) delete process.env[key]
 
 const React = await import('react')
+const { REFOCUS_CLICK_WINDOW_MS } = await import('../../src/screen/renderer/elements/App.tsx')
 const { default: ScreenInstance } = await import('../../src/screen/renderer/screenInstance.tsx')
 const { Text } = await import('../../src/screen/themedRenderer.ts')
 const { App } = await import('../../src/boot/App.tsx')
@@ -266,7 +267,7 @@ async function pressTimes(scene: Scene, data: string, times: number): Promise<vo
 const viewing = (): string | undefined => (storeRef?.getState() as { viewingCrewmateTaskId?: string } | undefined)?.viewingCrewmateTaskId
 const mainChat = (): string | undefined => (storeRef?.getState() as { mainChatTaskId?: string } | undefined)?.mainChatTaskId
 const bandTop = (lines: string[]): string => lines.find(line => /✶ Mercury|◉ |★ /.test(line)) ?? ''
-const cardShown = (lines: string[]): boolean => lines.some(line => line.includes('◉ builder two')) && lines.some(line => line.includes('esc back to Mercury Lead'))
+const cardShown = (lines: string[]): boolean => bandTop(lines).includes('viewing builder two') && !lines.some(line => line.includes('esc back to Mercury Lead'))
 
 for (const [cols, rows, zen] of [[64, 20, false], [80, 24, false], [100, 30, true], [177, 49, false]] as Array<[number, number, boolean]>) {
   const label = `${cols}x${rows}${zen ? ' zen' : ''}`
@@ -278,10 +279,26 @@ for (const [cols, rows, zen] of [[64, 20, false], [80, 24, false], [100, 30, tru
   check(`${label}: ↓ walks the cursor onto builder two`, scene.lines().some(line => /▸ . builder two/.test(line)), scene.lines().filter(line => line.includes('builder two')).join(' | '))
   scene.push(ENTER)
   check(`${label}: ↵ enters the crewmate's view (the second row, builder two)`, await until(() => viewing() === 'agent-2' && !isCrewViewOpen()), `viewing ${viewing()} · open ${isCrewViewOpen()}`)
-  check(`${label}: the band shows the crewmate's card with its way back`, await until(() => cardShown(scene.lines())), scene.lines().filter(l => l.trim() !== '').slice(0, 4).join(' | '))
+  check(`${label}: the common band identifies the ended crewmate without an Escape legend`, await until(() => cols >= 100 && rows >= 26 && !zen ? scene.lines().some(line => /› ◉ builder two/.test(line)) && scene.lines().some(line => line.includes('activity specimen')) : cardShown(scene.lines())), scene.lines().filter(l => l.trim() !== '').slice(0, 4).join(' | '))
   scene.push(ESC)
   check(`${label}: esc leaves the view`, await until(() => viewing() === undefined), `viewing ${viewing()}`)
   check(`${label}: the band is the session's own again`, await until(() => bandTop(scene.lines()).includes('✶ Mercury') && !cardShown(scene.lines())), bandTop(scene.lines()))
+  if (cols === 80 && rows === 24) {
+    scene.push('\x1b[I')
+    await sleep(REFOCUS_CLICK_WINDOW_MS + 50)
+    for (const [id, name] of [['agent-1', 'scout one'], ['agent-2', 'builder two']] as const) {
+      openCrewView()
+      await until(() => scene.lines().some(line => line.includes('▸') && line.includes('scout one')))
+      if (id === 'agent-2') { scene.push(DOWN); await until(() => scene.lines().some(line => line.includes('▸') && line.includes(name))) }
+      scene.push(ENTER)
+      await until(() => viewing() === id && bandTop(scene.lines()).includes(`viewing ${name}`))
+      const y = scene.lines().findIndex(line => line.includes(`viewing ${name}`))
+      const x = scene.lines()[y]?.indexOf(`viewing ${name}`) ?? -1
+      const before = stops.length
+      if (x >= 0) scene.push(`\x1b[<0;${x + 1};${y + 1}M\x1b[<0;${x + 1};${y + 1}m`)
+      check(`one compact click on viewing ${name} returns without stopping`, x >= 0 && await until(() => viewing() === undefined, 3500) && stops.length === before, `x=${x} y=${y} viewing=${viewing()}`)
+    }
+  }
   await scene.close()
 }
 
@@ -320,7 +337,7 @@ section('§3 80x16: the list has no row to paint, says what it cannot paint, ↵
   check('80x16: the popup says what it cannot paint rather than nothing', scene.lines().some(line => line.includes('2 crewmates cannot paint at this height — ↵ opens scout one')), scene.lines().filter(l => l.trim() !== '').join(' | '))
   scene.push(ENTER)
   check('80x16: ↵ enters the first row\'s view', await until(() => viewing() === 'agent-1' && !isCrewViewOpen()), `viewing ${viewing()} · open ${isCrewViewOpen()}`)
-  check('80x16: the one-line band names the crewmate and the way back', await until(() => scene.lines().some(line => line.includes('◉ scout one') && line.includes('esc'))), scene.lines().filter(l => l.trim() !== '').slice(0, 3).join(' | '))
+  check('80x16: the one-line band identifies the viewed seat without a key legend', await until(() => bandTop(scene.lines()).includes('viewing scout one') && !bandTop(scene.lines()).includes('esc')), scene.lines().filter(l => l.trim() !== '').slice(0, 3).join(' | '))
   await scene.close()
 }
 
@@ -345,13 +362,13 @@ for (const [cols, rows, zen] of [[80, 24, false], [100, 30, true]] as Array<[num
   check(`${label}: ↓ walks the cursor onto the running crewmate (scout one)`, await walkTo('scout one'), scene.lines().filter(line => line.includes('scout one')).join(' | '))
   scene.push(ENTER)
   check(`${label}: ↵ on the running crewmate enters its view and closes the activity screen (no facts card)`, await until(() => viewing() === 'agent-1' && scene.focus() === 'composer' && !scene.lines().some(line => line.includes('Mercury — activity')), 5000) && !cardUp('scout one'), `viewing ${viewing()} · focus ${scene.focus()} · card ${cardUp('scout one')} · ${scene.lines().filter(l => l.trim() !== '').slice(0, 3).join(' | ')}`)
-  check(`${label}: the band shows the crewmate's card with its keys`, await until(() => scene.lines().some(line => line.includes('◉ scout one')) && scene.lines().some(line => line.includes('esc interrupts')), 5000), scene.lines().filter(l => l.trim() !== '').slice(0, 3).join(' | '))
+  check(`${label}: the common band identifies the live seat and the footer gives the true interrupt`, await until(() => bandTop(scene.lines()).includes('viewing scout one') && scene.lines().some(line => line.includes('esc interrupts')), 5000), scene.lines().filter(l => l.trim() !== '').slice(0, 3).join(' | '))
   const stopsBefore = stops.length
   check(`${label}: the activity screen opens again over the view`, await openActivity(), `focus ${scene.focus()}`)
   check(`${label}: ↓ walks the cursor onto the lead's row, which heads the crewmates and names the way back`, await walkTo('Mercury Lead') && (() => {
     const lines = scene.lines()
     const head = lines.findIndex(line => line.includes('Crewmates ('))
-    const leadAt = lines.findIndex((line, i) => i > head && /❯ ✶ Mercury Lead · the lead's own chat · ↵ goes back/.test(line))
+    const leadAt = lines.findIndex((line, i) => i > head && /❯ ✶ Mercury Lead · the lead's own chat/.test(line))
     const scoutAt = lines.findIndex((line, i) => i > head && line.includes('scout one'))
     return head >= 0 && leadAt > head && (scoutAt < 0 || leadAt < scoutAt)
   })(), scene.lines().filter(l => l.includes('Crewmates') || l.includes('Mercury Lead') || l.includes('scout one')).join(' | '))
@@ -361,7 +378,7 @@ for (const [cols, rows, zen] of [[80, 24, false], [100, 30, true]] as Array<[num
   check(`${label}: ↓ walks the cursor onto the finished crewmate (builder two)`, await walkTo('builder two'), scene.lines().filter(line => line.includes('builder two')).join(' | '))
   scene.push(ENTER)
   check(`${label}: ↵ on the finished crewmate enters its view`, await until(() => viewing() === 'agent-2' && scene.focus() === 'composer', 5000) && !cardUp('builder two'), `viewing ${viewing()} · focus ${scene.focus()} · card ${cardUp('builder two')}`)
-  check(`${label}: the band names builder two with the way back`, await until(() => cardShown(scene.lines()), 5000), scene.lines().filter(l => l.trim() !== '').slice(0, 3).join(' | '))
+  check(`${label}: the common band names builder two as the viewed seat`, await until(() => cardShown(scene.lines()), 5000), scene.lines().filter(l => l.trim() !== '').slice(0, 3).join(' | '))
   openCrewView()
   await until(() => isCrewViewOpen() && scene.lines().some(line => line.includes('builder two')))
   for (let step = 0; step < 4 && !scene.lines().some(line => /▸ . builder two/.test(line)); step++) { scene.push(DOWN); await sleep(200) }

@@ -4,7 +4,7 @@ import { useMercuryTokens } from '../../widgets/useMercuryTokens.js'
 import { AnimatedCritterArt } from '../../widgets/AnimatedCritterArt.js'
 import { critterDefForKey } from '../../cockpit/critterData.js'
 import { useSessionAccent } from '../../widgets/sessionAccent.js'
-import { type ControlNoteState, controlNoteOf, concourseWaitCopy } from '../contracts.js'
+import { type ControlNoteState, controlNoteOf, concourseWaitCopy, sessionDraftQueues } from '../contracts.js'
 import { clampCaret, draftWindow, type LineDraft } from '../lineDraft.js'
 import { OLDER_CHATS_ROW_PREFIX } from '../../concourse-model/concourseSnapshot.js'
 import { SessionMirror } from '../SessionMirror.js'
@@ -129,7 +129,7 @@ export function useConcourseFaces({ snapshot, controlNotes, reducedStage, boardS
       ? reducedStage
         ? '↵ enter session · tab panes'
         : '↵↵ enter session · tab panes'
-      : selectedRow?.state === 'working'
+      : sessionDraftQueues(selectedRow)
         ? composerSendKeysHint(true)
         : undefined
   const contextLine =
