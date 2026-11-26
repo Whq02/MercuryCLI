@@ -846,48 +846,52 @@ try {
     type SessionAskV1 = import('../../src/engine/connector/types.ts').SessionAskV1
     let nativeAsks: SessionAskV1[] = []
     const nativeListeners = new Set<() => void>()
-    const nativeSettled: string[] = []
+    const nativeAnswered: string[] = []
     const emitNative = (): void => { for (const l of nativeListeners) l() }
+    const settleNative = (id: string): void => { nativeAsks = nativeAsks.filter(a => a.id !== id); emitNative() }
+    const answerNative = (id: string, answer: 'allow' | 'deny'): void => { nativeAnswered.push(`${answer} ${id}`); settleNative(id) }
+    const nativeAsk = (id: string, command: string): SessionAskV1 => ({
+      id,
+      toolName: 'Bash',
+      askedAt: Date.now(),
+      confirm: {
+        assistantMessage: createAssistantMessage({ content: [{ type: 'tool_use', id: `toolu_${id}`, name: 'Bash', input: { command } }] }),
+        tool: getAllBaseTools().find(tool => tool.name === 'Bash')!,
+        description: `Run ${command}`,
+        input: { command },
+        toolUseContext: {
+          options: { commands: [], debug: false, verbose: false, engineModel: 'claude-sonnet-4-6', tools: getAllBaseTools(), mcpClients: [], isNonInteractiveSession: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
+          startTurn: () => { throw new Error('unused') },
+          abortController: new AbortController(),
+          readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
+          getAppState: () => getDefaultAppState(),
+          setAppState: () => {},
+          messages: [],
+          setResponseLength: () => {},
+          updateFileHistoryState: () => {},
+        },
+        toolUseID: `toolu_${id}`,
+        permissionResult: { behavior: 'ask', message: 'Bash asks to run' },
+        permissionPromptStartTimeMs: Date.now(),
+        onUserInteraction: () => {},
+        onAbort: () => {},
+        onAllow: () => answerNative(id, 'allow'),
+        onReject: () => answerNative(id, 'deny'),
+        recheckPermission: async () => {},
+      },
+    })
     const baseConn: EngineConnectorV1 = new NoSessionConnector()
     setFocusedSessionConnector(
       Object.assign(Object.create(Object.getPrototypeOf(baseConn)), baseConn, {
         asks: (): readonly SessionAskV1[] => nativeAsks,
         subscribeAsks: (l: () => void): (() => void) => { nativeListeners.add(l); return () => nativeListeners.delete(l) },
-        settleAsk: (id: string): void => { nativeSettled.push(id); nativeAsks = nativeAsks.filter(a => a.id !== id); emitNative() },
+        settleAsk: settleNative,
       }),
     )
+    const repliesTo = (log: string, askId: number): StubEntry[] => readStubLog(log).filter(e => e.dir === 'in' && e.msg?.id === askId && e.msg?.method === undefined)
     const mixedHost = await mountCardHost(makePermissionContext('default', []))
     try {
-      nativeAsks = [{
-        id: 'native-1',
-        toolName: 'Bash',
-        askedAt: Date.now(),
-        confirm: {
-          assistantMessage: createAssistantMessage({ content: [{ type: 'tool_use', id: 'toolu_m1', name: 'Bash', input: { command: 'echo native-first' } }] }),
-          tool: getAllBaseTools().find(tool => tool.name === 'Bash')!,
-          description: 'Run native echo',
-          input: { command: 'echo native-first' },
-          toolUseContext: {
-            options: { commands: [], debug: false, verbose: false, engineModel: 'claude-sonnet-4-6', tools: getAllBaseTools(), mcpClients: [], isNonInteractiveSession: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
-            startTurn: () => { throw new Error('unused') },
-            abortController: new AbortController(),
-            readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
-            getAppState: () => getDefaultAppState(),
-            setAppState: () => {},
-            messages: [],
-            setResponseLength: () => {},
-            updateFileHistoryState: () => {},
-          },
-          toolUseID: 'toolu_m1',
-          permissionResult: { behavior: 'ask', message: 'Bash asks to run' },
-          permissionPromptStartTimeMs: Date.now(),
-          onUserInteraction: () => {},
-          onAbort: () => {},
-          onAllow: () => {},
-          onReject: () => {},
-          recheckPermission: async () => {},
-        },
-      }]
+      nativeAsks = [nativeAsk('native-1', 'echo native-first')]
       emitNative()
       await waitUntil(() => mixedHost.screen().includes('echo native-first'), 4000)
       const mLog = nextLog('mixed-ext')
@@ -900,15 +904,83 @@ try {
       await settle(150)
       t.check('mixed queue holds native head (1/2) while external ask waits behind it', mixedHost.screen().includes('echo native-first') && mixedHost.screen().includes('1/2'))
       mixedHost.view.push(KEY.enter)
-      await waitUntil(() => nativeSettled.includes('native-1'), 4000)
+      await waitUntil(() => nativeAnswered.includes('allow native-1'), 4000)
       const extUp = await waitUntil(() => mixedHost.screen().includes('Approve step'), 4000)
-      t.check('settling native head advances cleanly to external ask (2/2)', extUp && mixedHost.screen().includes('2/2'))
+      t.check(
+        'allowing the native head, which leaves the list at its answer, keeps the external ask waiting unanswered and paints its card',
+        extUp && bridge.listExternalSeatAsks().length === 1 && permOutcomeOf(readStubLog(mLog)) === undefined && mSettled.length === 0,
+        `card=${extUp} waiting=${bridge.listExternalSeatAsks().length} reply=${JSON.stringify(permOutcomeOf(readStubLog(mLog)))} settled=${mSettled.length}`,
+      )
       await settle(150)
       mixedHost.view.push(KEY.enter)
       await waitUntil(() => mSettled.length === 1, 4000)
-      t.check('answering queued external ask settles end_turn and drains queue', mSettled[0]?.stopReason === 'end_turn' && bridge.listExternalSeatAsks().length === 0)
+      t.check(
+        'answering the external card reaches its own agent, settles end_turn and drains the queue',
+        mSettled[0]?.stopReason === 'end_turn' && bridge.listExternalSeatAsks().length === 0 && JSON.stringify(permOutcomeOf(readStubLog(mLog))) === JSON.stringify({ outcome: { outcome: 'selected', optionId: 'allow-once' } }),
+        `stop=${mSettled[0]?.stopReason} reply=${JSON.stringify(permOutcomeOf(readStubLog(mLog)))}`,
+      )
+      nativeAsks = [nativeAsk('native-2', 'echo native-after')]
+      emitNative()
+      await waitUntil(() => mixedHost.screen().includes('echo native-after'), 4000)
+      await settle(150)
+      mixedHost.view.push(KEY.enter)
+      await waitUntil(() => nativeAnswered.includes('allow native-2'), 4000)
+      t.check(
+        'a native ask, an external ask and a native ask answered in that order each reach their own asker once',
+        JSON.stringify(nativeAnswered) === JSON.stringify(['allow native-1', 'allow native-2']) && mSettled.length === 1 && repliesTo(mLog, 101).length === 1,
+        `${JSON.stringify(nativeAnswered)} externalReplies=${repliesTo(mLog, 101).length}`,
+      )
       uM()
       await bridge.detachExternalSeat(mSeat.seatId)
+
+      nativeAsks = [nativeAsk('native-3', 'echo native-denied')]
+      emitNative()
+      await waitUntil(() => mixedHost.screen().includes('echo native-denied'), 4000)
+      const dLogA = nextLog('deny-oc')
+      setStubEnv({ log: dLogA, scenario: 'concurrent-ask', agentName: 'opencode', askId: 42 })
+      const dSeatA = await bridge.attachExternalSeat(acpSeatTransport('opencode', 'OpenCode', { command: ['opencode', 'acp'], cwd: seatCwd, getPermissionContext: mixedHost.getPermissionContext }), { dir })
+      const dLogB = nextLog('deny-devin')
+      setStubEnv({ log: dLogB, scenario: 'concurrent-ask', agentName: 'devin', askId: 42 })
+      const dSeatB = await bridge.attachExternalSeat(acpSeatTransport('devin', 'Devin', { command: ['devin', 'acp'], cwd: seatCwd, getPermissionContext: mixedHost.getPermissionContext }), { dir })
+      const dA: TurnSettlement[] = []
+      const dB: TurnSettlement[] = []
+      const uDA = bridge.onSeatTurnSettled(dSeatA.seatId, s => dA.push(s))
+      const uDB = bridge.onSeatTurnSettled(dSeatB.seatId, s => dB.push(s))
+      await dispatch.dispatchToAgent({ clientMessageId: 'deny-a-1', requestedAddress: { agentId: dSeatA.agentId }, requestedDisposition: 'start-turn', instruction: 'A', attachments: [] }, { dir })
+      await waitUntil(() => bridge.listExternalSeatAsks().length === 1, 5000)
+      await dispatch.dispatchToAgent({ clientMessageId: 'deny-b-1', requestedAddress: { agentId: dSeatB.agentId }, requestedDisposition: 'start-turn', instruction: 'B', attachments: [] }, { dir })
+      await waitUntil(() => bridge.listExternalSeatAsks().length === 2, 5000)
+      await settle(150)
+      t.check('two seats ask behind a native head (1/3)', mixedHost.screen().includes('echo native-denied') && mixedHost.screen().includes('1/3'))
+      mixedHost.view.push(KEY.esc)
+      await waitUntil(() => nativeAnswered.includes('deny native-3'), 4000)
+      const firstUp = await waitUntil(() => mixedHost.screen().includes('Concurrent ask from opencode'), 4000)
+      t.check(
+        "denying the native head removes neither seat's ask and answers neither",
+        firstUp && bridge.listExternalSeatAsks().length === 2 && dA.length === 0 && dB.length === 0 && repliesTo(dLogA, 42).length === 0 && repliesTo(dLogB, 42).length === 0,
+        `answered=${JSON.stringify(nativeAnswered)} card=${firstUp} waiting=${bridge.listExternalSeatAsks().length} settled=${dA.length}+${dB.length} replies=${repliesTo(dLogA, 42).length}+${repliesTo(dLogB, 42).length}`,
+      )
+      await settle(150)
+      mixedHost.view.push(KEY.enter)
+      await waitUntil(() => dA.length === 1, 5000)
+      const secondUp = await waitUntil(() => mixedHost.screen().includes('Concurrent ask from devin'), 5000)
+      await settle(150)
+      mixedHost.view.push(KEY.down)
+      await settle(80)
+      mixedHost.view.push(KEY.enter)
+      await waitUntil(() => dB.length === 1, 5000)
+      t.check(
+        'the two seats are then answered in the order they asked, each reply to its own child',
+        secondUp &&
+          JSON.stringify(repliesTo(dLogA, 42).map(e => e.msg?.result)) === JSON.stringify([{ outcome: { outcome: 'selected', optionId: 'allow-opencode' } }]) &&
+          JSON.stringify(repliesTo(dLogB, 42).map(e => e.msg?.result)) === JSON.stringify([{ outcome: { outcome: 'selected', optionId: 'reject-devin' } }]) &&
+          bridge.listExternalSeatAsks().length === 0,
+        `A=${JSON.stringify(repliesTo(dLogA, 42).map(e => e.msg?.result))} B=${JSON.stringify(repliesTo(dLogB, 42).map(e => e.msg?.result))} waiting=${bridge.listExternalSeatAsks().length}`,
+      )
+      uDA()
+      uDB()
+      await bridge.detachExternalSeat(dSeatA.seatId)
+      await bridge.detachExternalSeat(dSeatB.seatId)
     } finally {
       mixedHost.unmount()
       _resetFocusedSessionConnectorForTesting()

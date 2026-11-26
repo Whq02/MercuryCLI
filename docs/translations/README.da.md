@@ -212,7 +212,7 @@ Når du lukker alle chats, vender du tilbage til startskærmen. Brug `--chat` fo
 
 Åbn sessionslisten med `/concourse` eller `Shift+→` fra startskærmen. Den viser først det aktuelle projekts kørende sessioner, efterfulgt af gemte chats, der ikke kører, nyeste først.
 
-Hver kørende session har en NOW-celle, der viser dens aktuelle aktivitet. Vælg en række og tryk `Enter` for at vende tilbage til chatten, mens de andre sessioner fortsætter med at køre. En session, der er gået ned, bliver på sessionslisten som NEEDS YOU med årsagen, indtil du frigiver den.
+Hver kørende session har en NOW-celle, der viser dens aktuelle aktivitet. Vælg en række og tryk `Enter` for at vende tilbage til chatten, mens de andre sessioner fortsætter med at køre. En session, der er gået ned, bliver på sessionslisten som needs you med årsagen, indtil du frigiver den.
 
 [docs/SESSIONS.md](../SESSIONS.md) dækker sessionernes livscyklus.
 

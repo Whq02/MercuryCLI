@@ -212,7 +212,7 @@ Al cerrar todos los chats vuelve a la pantalla de inicio. Use `--chat` para tene
 
 Abra la lista de sesiones con `/concourse` o con `Shift+→` desde la pantalla de inicio. Muestra primero las sesiones en ejecución del proyecto actual, seguidas de los chats guardados que no están en ejecución, del más reciente al más antiguo.
 
-Cada sesión en ejecución tiene una celda NOW con su actividad actual. Seleccione una fila y pulse `Enter` para volver al chat mientras las demás sesiones siguen en ejecución. Una sesión que falló se queda en la lista de sesiones como NEEDS YOU, con el motivo, hasta que la libere.
+Cada sesión en ejecución tiene una celda NOW con su actividad actual. Seleccione una fila y pulse `Enter` para volver al chat mientras las demás sesiones siguen en ejecución. Una sesión que falló se queda en la lista de sesiones como needs you, con el motivo, hasta que la libere.
 
 [docs/SESSIONS.md](../SESSIONS.md) trata el ciclo de vida de las sesiones.
 
