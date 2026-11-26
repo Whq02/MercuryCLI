@@ -5,6 +5,7 @@ prove-answer-rechecks-waiting-asks.ts
 prove-apollo-plans.ts
 prove-bash-card-names-run-folder.ts
 prove-bash-deny-rules-every-spelling.ts
+prove-bash-drive-write-deny.ts
 prove-boot-add-dirs.ts
 prove-bypass-posture-needs-launch-flag.ts
 prove-card-editor-key.ts
