@@ -81,7 +81,7 @@ export async function sequenceRoad({ run, input, context, owner, signal, toolUse
     }
     if (step.action === 'screenshot') {
       const front = await driver.frontmostApplication()
-      if (front.ok && isTerminalApplication(front.value) && !step.pixels && !(step.full ?? input.full) && step.display === undefined && (step.region ?? input.region) === undefined) {
+      if (front.ok && isTerminalApplication(front.value) && !(step.pixels ?? input.pixels) && !(step.full ?? input.full) && step.display === undefined && (step.region ?? input.region) === undefined) {
         for (let at = 0; at < lines.length; at++) if (shotLines.has(lines[at]!)) lines[at] = SCREENSHOT_SUPERSEDED
         lines.push(await readTerminalText(driver, front.value, signal))
         run.contentShown = true
