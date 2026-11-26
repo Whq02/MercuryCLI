@@ -22,7 +22,7 @@ import { RECOVERED_NOTE, isDriverTimeout, relayNamedFailure } from './failures.j
 import { type LiveSession, deepTextOf, failedNavigationWords, pageWhere, preview, targetSurface } from './page.js'
 import { downloadWords } from './downloads.js'
 import { errorPageSettled, markAct, settleAfterAct } from './settle.js'
-import { actOriginGate, selectorMissWords } from './targets.js'
+import { MISS_LOOK_MS, actOriginGate, selectorMissWords } from './targets.js'
 import type { OpDone, OpRun } from './ops.js'
 import type { OwnerKey } from '../../../engine/run-owner/ownerKey.js'
 import type { Input } from './schema.js'
@@ -154,19 +154,19 @@ function pageHoldsText(needle: string, rendered: boolean): boolean {
 }
 
 async function textElsewhere(owner: OwnerKey, s: LiveSession, needle: string, frame: Input['frame']): Promise<string> {
-  if (frame === undefined) {
-    const children = s.page.frames().filter(f => f.parentFrame() !== null)
-    const held = await Promise.all(
+  const children = frame === undefined ? s.page.frames().filter(f => f.parentFrame() !== null) : []
+  const [held, unrendered] = await Promise.all([
+    Promise.all(
       children.map(child =>
         sessionAttached(s) && !originApproved(owner, originOf(child.url()))
           ? false
-          : withDeadline(child.evaluate(pageHoldsText, needle, true).catch(passedOverAs(false)), 1000, () => false, { unref: true }),
+          : withDeadline(child.evaluate(pageHoldsText, needle, true).catch(passedOverAs(false)), MISS_LOOK_MS, () => false, { unref: true }),
       ),
-    )
-    const at = held.indexOf(true)
-    if (at !== -1) return `; child frame ${at + 1} (${children[at]!.url().split('?')[0]}) holds it (set frame to wait there)`
-  }
-  const unrendered = await targetSurface(s, frame).evaluate(pageHoldsText, needle, false).catch(passedOverAs(false))
+    ),
+    withDeadline(targetSurface(s, frame).evaluate(pageHoldsText, needle, false).catch(passedOverAs(false)), MISS_LOOK_MS, () => false, { unref: true }),
+  ])
+  const at = held.indexOf(true)
+  if (at !== -1) return `; child frame ${at + 1} (${children[at]!.url().split('?')[0]}) holds it (set frame to wait there)`
   return unrendered ? '; the page holds it in content that is not rendered (extract with a selector reads hidden content)' : ''
 }
 

@@ -69,12 +69,14 @@ export function actDeadline(input: Input): number {
   return Math.min(Math.max(input.timeoutMs ?? WAIT_DEFAULT_MS, 250), WAIT_CAP_MS)
 }
 
+export const MISS_LOOK_MS = 1000
+
 async function framedOnly(s: LiveSession, selector: string): Promise<string | null> {
   try {
     const children = s.page.frames().filter(f => f.parentFrame() !== null)
     if (children.length === 0) return null
-    if ((await s.page.$(selector)) !== null) return null
-    const held = await Promise.all(children.map(frame => withDeadline(frame.$(selector).catch(passedOverAs(null)), 1000, () => null, { unref: true })))
+    if (await withDeadline(s.page.$(selector).then(found => found !== null), MISS_LOOK_MS, () => true, { unref: true })) return null
+    const held = await Promise.all(children.map(frame => withDeadline(frame.$(selector).catch(passedOverAs(null)), MISS_LOOK_MS, () => null, { unref: true })))
     const holder = children[held.findIndex(handle => handle !== null)]
     return holder === undefined ? null : (holder.url().split('?')[0] ?? holder.url())
   } catch (error) {
@@ -95,10 +97,14 @@ export async function selectorMissWords(
   watched: 'visible' | 'attached',
   absentNote = '',
 ): Promise<string> {
-  const attached = watched === 'visible' ? await targetSurface(s, frame).$(selector).catch(passedOverAs(null)) : null
-  if (attached) return `${selector} is present but never became visible within the ${deadline}ms deadline (hidden or zero-sized — acts need a visible target; waitFor state:"attached" can read its arrival)`
-  const framed = frame === undefined ? await framedOnly(s, selector) : null
-  return framed !== null ? framedTargetWords(selector, framed) : `no element for selector ${selector} within the ${deadline}ms deadline${absentNote}${framesDiagnosis(s)}`
+  const [attached, framed] = await Promise.all([
+    watched === 'visible' ? withDeadline(targetSurface(s, frame).$(selector).then(found => found !== null, passedOverAs(false)), MISS_LOOK_MS, () => null, { unref: true }) : false,
+    frame === undefined ? framedOnly(s, selector) : null,
+  ])
+  if (attached === true) return `${selector} is present but never became visible within the ${deadline}ms deadline (hidden or zero-sized — acts need a visible target; waitFor state:"attached" can read its arrival)`
+  if (framed !== null) return framedTargetWords(selector, framed)
+  if (attached === null) return `${selector} did not become visible within the ${deadline}ms deadline, and the page did not answer within ${MISS_LOOK_MS}ms when asked whether it is there (its script may be busy)`
+  return `no element for selector ${selector} within the ${deadline}ms deadline${absentNote}${framesDiagnosis(s)}`
 }
 
 export async function resolveActTarget(

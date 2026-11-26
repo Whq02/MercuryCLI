@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import type http from 'node:http'
-import { check, finish, requireBrowser, run, section, serve } from './harness.ts'
+import { check, finish, pageOf, requireBrowser, run, section, serve } from './harness.ts'
 
 await requireBrowser()
 
@@ -66,6 +66,34 @@ section('S3 a navigation that never comes: how long, and where the tab stayed')
 {
   const stayed = await run({ op: 'waitFor', timeoutMs: 600 })
   check('the answer says no navigation came and names the page that stayed', stayed.outcome === 'failed' && stayed.result === `waitFor navigation failed: no navigation within the 600ms deadline; the tab stayed at ${HERE}`, `${stayed.result} — change: ${WAIT}`)
+}
+
+section('S4 a page whose script is held when the wait runs out: the answer comes within the deadline and one bounded look, not when the page lets go')
+{
+  const HELD_MS = 4000
+  const BOUND = 'selectorMissWords and framedOnly in src/tools/browser/ops/targets.ts and textElsewhere in src/tools/browser/ops/navigateOps.ts must put each look after the deadline under MISS_LOOK_MS; a look that does not come back is no hint, never a longer wait'
+  const answers = (): Promise<number> => pageOf().evaluate(() => 1)
+  const hold = (): Promise<void> =>
+    pageOf().evaluate((ms: number) => {
+      setTimeout(() => {
+        const until = performance.now() + ms
+        while (performance.now() < until) continue
+      }, 250)
+    }, HELD_MS)
+  for (const [label, input] of [
+    ['a text', { op: 'waitFor', text: 'never here', timeoutMs: 600 }],
+    ['a selector, visible', { op: 'waitFor', selector: '#nowhere', timeoutMs: 600 }],
+    ['a selector, hidden', { op: 'waitFor', selector: '#expand', state: 'hidden', timeoutMs: 600 }],
+  ] as Array<[string, { op: string } & Record<string, unknown>]>) {
+    await answers()
+    await hold()
+    const miss = await run(input)
+    console.log(`    ${label}: answered after ${miss.ms}ms — ${miss.result}`)
+    check(`${label}: the wait answers within its 600 ms and one 1,000 ms look, the page held for ${HELD_MS} ms`, miss.outcome === 'failed' && miss.ms < 2600 && !/Waiting for selector|the event never arrived/.test(miss.result), `${miss.ms}ms ${miss.result} — change: ${BOUND}`)
+  }
+  await answers()
+  const after = await run({ op: 'waitFor', selector: '#expand', timeoutMs: 2000 })
+  check('control: the page answers again once its script lets go', after.outcome === 'succeeded', after.result)
 }
 
 await finish('prove-browser-wait-misses')
