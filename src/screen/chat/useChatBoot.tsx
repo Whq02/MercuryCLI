@@ -149,8 +149,9 @@ export function useChatBootStart({
   }, []);
 
   useClaim(() => {
-    const disarm = scheduleQuietUpdateNotice(text =>
-      addNotification({ key: UPDATE_NOTICE_KEY, text, priority: 'high', color: 'warning', timeoutMs: Infinity }),
+    const disarm = scheduleQuietUpdateNotice(
+      text => addNotification({ key: UPDATE_NOTICE_KEY, text, priority: 'high', color: 'warning', timeoutMs: Infinity }),
+      { onDismiss: () => removeNotification(UPDATE_NOTICE_KEY) },
     );
     return disarm;
   }, []);
