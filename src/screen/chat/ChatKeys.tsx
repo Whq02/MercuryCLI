@@ -52,6 +52,7 @@ export function ChatKeys({
   viewStreamMode,
   seatLive,
   onSubmit,
+  paintScreenCommandReceipt,
   commands,
   scrollRef,
   modalScrollRef,
@@ -88,6 +89,7 @@ export function ChatKeys({
   viewStreamMode: SpinnerMode;
   seatLive: SessionLiveV1;
   onSubmit: React.ComponentProps<typeof CommandKeybindingHandlers>['onSubmit'];
+  paintScreenCommandReceipt: React.ComponentProps<typeof CommandKeybindingHandlers>['paintScreenCommandReceipt'];
   commands: React.ComponentProps<typeof CommandKeybindingHandlers>['commands'];
   scrollRef: React.RefObject<ScrollBoxHandle | null>;
   modalScrollRef: React.RefObject<ScrollBoxHandle | null>;
@@ -134,6 +136,7 @@ export function ChatKeys({
   const commandHandler = (
     <CommandKeybindingHandlers
       onSubmit={onSubmit}
+      paintScreenCommandReceipt={paintScreenCommandReceipt}
       commands={commands}
       isActive={!dialogOwnsKeys}
     />

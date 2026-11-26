@@ -75,18 +75,20 @@ export function resolveUnknownSlashName(input: string, commands: Command[]): str
 }
 
 export function unknownCommandLine(name: string, commands: Command[]): string {
-  const registered = findCommand(name, [...builtinCommands()])
+  const registered = name === '' ? undefined : findCommand(name, [...builtinCommands()])
   if (registered !== undefined) return unavailableCommandLine(registered)
   let near: string | undefined
-  try {
-    const byNameAlone = commands
-      .filter(command => command.type !== 'prompt' && command.isHidden !== true)
-      .map(command => ({ ...command, description: '' }) as Command)
-    const top = generateCommandSuggestions(`/${name}`, byNameAlone)[0]
-    const meta = top?.metadata as Command | undefined
-    if (meta !== undefined && typeof meta === 'object' && typeof meta.type === 'string') near = getCommandName(meta)
-  } catch (error) {
-    passedOver(error)
+  if (name !== '') {
+    try {
+      const byNameAlone = commands
+        .filter(command => command.type !== 'prompt' && command.isHidden !== true)
+        .map(command => ({ ...command, description: '' }) as Command)
+      const top = generateCommandSuggestions(`/${name}`, byNameAlone)[0]
+      const meta = top?.metadata as Command | undefined
+      if (meta !== undefined && typeof meta === 'object' && typeof meta.type === 'string') near = getCommandName(meta)
+    } catch (error) {
+      passedOver(error)
+    }
   }
   return `Unknown command: /${name}${near !== undefined && near !== name ? ` — closest: /${near}` : ''} · /help lists commands`
 }
