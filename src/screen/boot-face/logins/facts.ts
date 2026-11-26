@@ -5,9 +5,9 @@ import type { ProviderFamilyPresence } from '../../../models/roads/providerUsage
 import { providerDisplayName } from '../../../models/roads/routeLaw.js';
 import { mostRecentSignInFamily } from '../../../models/catalogue/computedDefault.js';
 import { wrapPlain } from '../BootHealthScreen.js';
-import { loginFamilyFocusFor, loginFamilyNameOf, loginFamilyRows, type LoginFamilyRow } from '../../../models/sign-in/flow-cards/loginFamilyRows.js';
+import { DEVIN_EXTERNAL_AGENT_LABEL, DEVIN_EXTERNAL_AGENT_VALUE, loginFamilyFocusFor, loginFamilyNameOf, loginFamilyRows, type LoginFamilyRow } from '../../../models/sign-in/flow-cards/loginFamilyRows.js';
+import { DEVIN_CLI_ACTION_SUMMARY, DEVIN_CLI_ACTION_TITLE, DEVIN_CLI_CHIP, devinCliDetailLines } from './devinCliAction.js';
 import { keysOf } from '../../../platform/primitives/entriesOf.js'
-
 export const DETAIL_W = 38;
 
 const UNAVAILABLE_REASON_WORDS: ReadonlyArray<readonly [string, string]> = [
@@ -169,6 +169,44 @@ export function loginsSortedArms(facts: LoginsScreenFactsV1): LoginsArmV1[] {
   ];
 }
 
+export type LoginsRosterRowV1 =
+  | { kind: 'provider'; arm: LoginsArmV1 }
+  | { kind: 'external-agent'; id: 'devin'; label: string; value: typeof DEVIN_EXTERNAL_AGENT_VALUE };
+
+export function loginsRosterRows(facts: LoginsScreenFactsV1): LoginsRosterRowV1[] {
+  return [
+    ...loginsSortedArms(facts).map(arm => ({ kind: 'provider' as const, arm })),
+    { kind: 'external-agent', id: 'devin', label: DEVIN_EXTERNAL_AGENT_LABEL, value: DEVIN_EXTERNAL_AGENT_VALUE },
+  ];
+}
+
+export function loginsRosterRowValue(row: LoginsRosterRowV1): LoginFamilyRow['value'] {
+  return row.kind === 'provider' ? row.arm.row.value : row.value;
+}
+
+export function loginsRosterRowLabel(row: LoginsRosterRowV1): string {
+  return row.kind === 'provider' ? row.arm.row.label : row.label;
+}
+
+export function loginsRosterEntryOf(row: LoginsRosterRowV1, facts: LoginsScreenFactsV1): LoginsEntry {
+  if (row.kind === 'provider') return loginsEntryOf(row.arm, facts);
+  return {
+    label: row.label,
+    detailLabel: DEVIN_CLI_ACTION_TITLE,
+    group: 'external agents',
+    groupTitle: 'external agents',
+    summary: DEVIN_CLI_ACTION_SUMMARY,
+    valueLabel: DEVIN_CLI_CHIP,
+    valueIsDefault: true,
+    pinnedVal: null,
+    detail: null,
+  };
+}
+
+export function loginsRosterDetailLines(row: LoginsRosterRowV1, facts: LoginsScreenFactsV1): string[] {
+  if (row.kind === 'provider') return loginsDetailLines(row.arm, facts);
+  return devinCliDetailLines();
+}
 export type LoginsEntry = {
   label: string;
   detailLabel?: string;

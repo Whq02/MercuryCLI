@@ -3,9 +3,19 @@ import { moonshotStoredRegion } from '../../../models/roads/moonshot/moonshotAcc
 import { activateGeminiSource } from '../../../models/roads/gemini/geminiLogin.js';
 import { GEMINI_API_KEY_PAGE, geminiGuideOpeningStep, liveGeminiConnectFacts, geminiConnectRowAction } from '../../../models/sign-in/gemini-connect/geminiConnectGuide.js';
 import { openBrowser } from '../../../platform/host-os/browser.js';
-import type { LoginsArmV1 } from './facts.js';
+import type { LoginsArmV1, LoginsRosterRowV1 } from './facts.js';
 import type { LoginsPickId } from './pickLines.js';
 import type { LoginsFlowContext } from './context.js';
+
+export function openRosterFlowOf(ctx: LoginsFlowContext, row: LoginsRosterRowV1): void {
+  if (row.kind === 'external-agent') {
+    ctx.setDraft('');
+    ctx.setNotice(null);
+    ctx.openPick('devin-cli');
+    return;
+  }
+  openFlowOf(ctx, row.arm);
+}
 
 export function openFlowOf(ctx: LoginsFlowContext, arm: LoginsArmV1): void {
   const { xaiApiReceipt, mistralApiReceipt, setFlow, setNotice, setDraft, openPick } = ctx;
@@ -80,7 +90,7 @@ export function openFlowOf(ctx: LoginsFlowContext, arm: LoginsArmV1): void {
 }
 
 export function resolvePickOf(ctx: LoginsFlowContext, pick: LoginsPickId, value: string): void {
-  const { setFlow, setDraft, startDeviceRun, openGuideStep, startHandlesRun, model, openPick } = ctx;
+  const { setFlow, setDraft, startDeviceRun, openGuideStep, startHandlesRun, startDevinCliRun, model, openPick } = ctx;
   setDraft('');
   switch (pick) {
     case 'anthropic':
@@ -171,6 +181,15 @@ export function resolvePickOf(ctx: LoginsFlowContext, pick: LoginsPickId, value:
         return;
       }
       openGuideStep(1, 'walk');
+      return;
+    case 'devin-cli':
+      if (value === 'login') startDevinCliRun('login');
+      else if (value === 'status') startDevinCliRun('status');
+      else if (value === 'logout') openPick('devin-cli-logout-confirm', 0);
+      return;
+    case 'devin-cli-logout-confirm':
+      if (value === 'confirm') startDevinCliRun('logout');
+      else openPick('devin-cli', 2);
       return;
   }
 }
