@@ -388,7 +388,7 @@ for (const [cols, rows, screenCols, screenRows] of SIZES) {
     if (cardShown) {
       check(`[${size}] L11 the card stands without the retired notepad or the retired SEAT box`, !/TABULA/.test(gp) && !/SEAT ·/.test(gp))
     }
-    const ge = band(text(capture('L11-rail-empty', cols, rows, { transcript: 'none', sends: [then('New Session', ENTER)], readyText: 'type a prompt', total: 110 })))
+    const ge = band(text(capture('L11-rail-empty', cols, rows, { transcript: 'none', sends: [then('New Session', ENTER)], readyText: 'Type a prompt', total: 110 })))
     const emptyShown = /workbench/.test(ge) && /no prompts yet/.test(ge)
     const emptyPointer = /more: [^\n]*\/workbench/.test(ge)
     if (berth) {
