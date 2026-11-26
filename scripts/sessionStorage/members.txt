@@ -45,3 +45,5 @@ prove-history-record-pieces.ts
 prove-compaction-history-parts.ts
 prove-parallel-result-under-quiet-row-resume.ts
 prove-fold-keeps-parallel-tool-results.ts
+prove-conversation-end.ts
+prove-screen-shows-the-live-end.ts

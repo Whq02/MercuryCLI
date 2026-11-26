@@ -18,6 +18,7 @@ import type { FileHistorySnapshot } from './fileHistory.js'
 import { extractTag } from '../../engine/message-shapes/text.js'
 import { stripTerminalControls } from '../../platform/text/strings.js'
 import { transcriptRows } from './rowGraph.js'
+import { electConversationEnd } from './conversationEnd.js'
 import { isBuiltInCommandName } from './builtInCommands.js'
 import { transcriptProjector } from './transcriptProjector.js'
 const OPEN_LOWERCASE_TAG_RE = /^\s*<[a-z][\w-]*[\s>]/
@@ -127,7 +128,7 @@ export function buildConversationChain(
 export function buildScreenConversation(
   messages: Map<UUID, TranscriptMessage>,
 ): TranscriptMessage[] {
-  return transcriptRows(messages).screenConversation()
+  return electConversationEnd(messages)?.screenRows ?? []
 }
 
 export function checkResumeConsistency(chain: Message[]): void {
