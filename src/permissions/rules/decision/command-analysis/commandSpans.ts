@@ -102,9 +102,37 @@ export function closingStatement(command: string): ClosingStatement | undefined 
 }
 
 const NAMES_WHAT_THE_SHELL_RUNS = /\bBASH_COMMAND\b|\bPS4\b|\bBASH_XTRACEFD\b/
-const A_TRAP = /^(?:(?:builtin|command)\s+)?trap(?:\s|$)/
-const SETS_OPTIONS = /^(?:(?:builtin|command)\s+)?(?:set|shopt)\s/
-const TURNS_VERBOSE_ON = /\s-[A-Za-z]*v|\bverbose\b/
+const RUNS_BESIDE_THE_FRAME = /\b(?:trap|enable)\b/
+const MAY_TURN_VERBOSE_ON = /\b(?:set|shopt)\b[^;&|\n]*(?:\s-[A-Za-z]*v|\bverbose\b|\$)/
+const A_PLAIN_COMMAND_WORD = /^[\w./+~@:-]+$/
+const HOLDS_AN_EXPANSION = /[$`]/
+const RUNS_ITS_WORDS = /^(?:eval|set|shopt|builtin|command|time|source|\.)$/
+
+function whatTheShellMayRun(root: Node): string | null {
+  const commands: Node[] = []
+  const said: Node[] = []
+  const own = new Set<string>()
+  const visit = (node: Node): void => {
+    if (node.type === 'command') commands.push(node)
+    else if (node.type === 'comment') said.push(node)
+    else {
+      if (node.type === 'function_definition') own.add(node.children.find(child => child.type === 'word')?.text ?? '')
+      for (const child of node.children) visit(child)
+    }
+  }
+  visit(root)
+  if (own.has('builtin')) return null
+  const kept = root.text.split('')
+  for (const node of said) kept.fill(' ', node.startIndex - root.startIndex, node.endIndex - root.startIndex)
+  for (const node of commands) {
+    const name = node.children.find(child => child.type === 'command_name')
+    if (name === undefined) continue
+    const runsItsWords = RUNS_ITS_WORDS.test(name.text)
+    if (!A_PLAIN_COMMAND_WORD.test(name.text) || name.text === 'alias' || (runsItsWords && HOLDS_AN_EXPANSION.test(node.text))) return root.text
+    if (!runsItsWords && !own.has(name.text)) kept.fill(' ', name.endIndex - root.startIndex, node.endIndex - root.startIndex)
+  }
+  return kept.join('')
+}
 
 function readsTheLastStatus(node: Node, from: number): boolean {
   if (node.type === 'special_variable_name') return node.text === '?' && node.startIndex >= from
@@ -115,10 +143,8 @@ export function watchesItsShell(command: string, closing: ClosingStatement): boo
   const root = preparedCommandRoot(command)
   const at = root === null ? null : placeIn(command, root)
   if (root === null || at === null || NAMES_WHAT_THE_SHELL_RUNS.test(command)) return true
-  const commands = commandSpans(root)
-  if (/debug/i.test(command) && commands.some(span => A_TRAP.test(span.text))) return true
-  if (commands.some(span => SETS_OPTIONS.test(span.text) && TURNS_VERBOSE_ON.test(span.text))) return true
-  return readsTheLastStatus(root, closing.at - at + root.startIndex)
+  const run = whatTheShellMayRun(root)
+  return run === null || RUNS_BESIDE_THE_FRAME.test(run) || MAY_TURN_VERBOSE_ON.test(run) || readsTheLastStatus(root, closing.at - at + root.startIndex)
 }
 
 const NOT_WORDS: ReadonlySet<string> = new Set(['variable_assignment', 'file_redirect', 'herestring_redirect'])
