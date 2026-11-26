@@ -147,6 +147,7 @@ export async function refreshXaiTokens(io?: XaiOauthIo, force = false): Promise<
   const answer = await refreshGrokSignIn({
     path: xaiAuthPathForDisplay(),
     exchangeDeadlineMs: EXCHANGE_DEADLINE_MS,
+    refreshLockFile: 'stale-by-holder',
     force,
     read: xaiStoredTokens,
     write: writeXaiTokens,

@@ -371,6 +371,7 @@ export async function currentSubscriptionTokens(opts?: {
   const answer = await refreshSubscription({
     path: authFilePath(),
     exchangeDeadlineMs: LOGIN_EXCHANGE_TIMEOUT_MS,
+    refreshLockFile: 'stale-by-age',
     force: opts?.force === true,
     ...(opts?.signal ? { signal: opts.signal } : {}),
     read: () => readAuthFile()?.tokens,

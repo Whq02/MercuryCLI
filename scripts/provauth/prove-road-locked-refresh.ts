@@ -34,6 +34,7 @@ type Road = {
   store: string
   seed: (refreshToken: string, expiresInMs?: number) => void
   refresh: () => Promise<Pair | undefined>
+  signOut: () => void
   resolve: () => Promise<string | undefined>
   grantPath: string
   clientId: string
@@ -48,6 +49,7 @@ const roads: Road[] = [
     store: kimi.moonshotAuthPathForDisplay(),
     seed: (refreshToken, expiresInMs = 30_000) => kimi.writeMoonshotTokens({ accessToken: SEEDED_ACCESS, refreshToken, accessTokenExpiresAtMs: Date.now() + expiresInMs }, 'global'),
     refresh: () => kimi.refreshMoonshotTokens(),
+    signOut: () => kimi.disconnectMoonshotOauth(),
     resolve: () => kimi.resolveMoonshotDispatchCredential().then(credential => credential?.apiKey),
     grantPath: '/api/oauth/token',
     clientId: kimi.KIMI_OAUTH_CLIENT_ID,
@@ -60,6 +62,7 @@ const roads: Road[] = [
     store: huggingface.huggingfaceAuthPathForDisplay(),
     seed: (refreshToken, expiresInMs = 30_000) => huggingface.writeHuggingfaceTokens({ accessToken: SEEDED_ACCESS, refreshToken, accessTokenExpiresAtMs: Date.now() + expiresInMs, clientId: 'fixture-client' }, { username: 'fixture-user', observedAtMs: Date.now() }),
     refresh: () => huggingface.refreshHuggingfaceTokens(),
+    signOut: () => huggingface.disconnectHuggingfaceOauth(),
     resolve: () => huggingface.resolveHuggingfaceDispatchCredential().then(credential => credential?.apiKey),
     grantPath: '/oauth/token',
     clientId: 'fixture-client',
@@ -72,6 +75,7 @@ const roads: Road[] = [
     store: xai.xaiAuthPathForDisplay(),
     seed: (refreshToken, expiresInMs = 30_000) => xai.writeXaiTokens({ accessToken: SEEDED_ACCESS, refreshToken, expiresAtMs: Date.now() + expiresInMs }),
     refresh: () => xai.refreshXaiTokens(undefined, true).catch(() => undefined),
+    signOut: () => xai.clearStoredXaiSubscription(),
     resolve: () => xaiAccounts.resolveXaiCredential().then(credential => credential?.key),
     grantPath: '/oauth2/token',
     clientId: 'b1a00492-073a-47ea-816f-4c329264a828',
@@ -166,6 +170,19 @@ try {
     check('a refused refresh answers nothing and keeps the row, its refresh token blank', refused === undefined && row()?.refreshToken === '' && row()?.accessToken === SEEDED_ACCESS, JSON.stringify(row() ?? null))
     const again = await road.refresh()
     check('the refused token was sent once: the next call sends nothing', again === undefined && server.grants.length === beforeRefused + 1 && server.live === standing, sent())
+
+    console.log(`── ${road.name}: a sign-out while the accepted answer is out stays a sign-out ──`)
+    server.live = 'rt-of-a-sign-in-being-left'
+    road.seed('rt-of-a-sign-in-being-left')
+    const beforeSignOut = server.grants.length
+    const answerNow = server.hold()
+    const leftBehind = road.refresh()
+    await until('the grant is at the server', () => server.grants.length === beforeSignOut + 1)
+    road.signOut()
+    const signedOut = readFileSync(store, 'utf8')
+    answerNow()
+    const afterSignOut = await leftBehind
+    check('the call answers no pair and the store is byte for byte what the sign-out left, no pair in it', afterSignOut === undefined && row() === undefined && readFileSync(store, 'utf8') === signedOut, JSON.stringify({ answered: afterSignOut?.refreshToken ?? null, row: row() ?? null }))
 
     console.log(`── ${road.name}: a new pair the store would not take is the one the next resolve answers, and is never rotated again ──`)
     if (process.platform === 'win32' || process.getuid?.() === 0) {
