@@ -66,6 +66,7 @@ prove-rail-mission-birth.ts
 prove-ran-counts-what-ran.ts
 prove-render-canary.ts
 prove-runs-board-name.ts
+prove-saturn-empty-board-drive.ts
 prove-seats-doors-drive.ts
 prove-seats-drive.ts
 prove-select-scroll-drive.ts
