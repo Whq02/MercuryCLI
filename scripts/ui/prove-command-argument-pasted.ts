@@ -31,7 +31,7 @@ mock.module('node:child_process', () => ({
 const COLS = 120
 const ROWS = 40
 const PLACEHOLDER = 'Type a prompt'
-const LANDING_NOTICE = 'the session is landing — /mission sends when it lands'
+const LANDING_NOTICE = 'the session is landing — /goal sends when it lands'
 
 let checks = 0
 let failures = 0
@@ -77,7 +77,7 @@ const commands = (await getCommands(PROJECT)).map(command => {
     },
   }
 }) as Awaited<ReturnType<typeof getCommands>>
-const mission = commands.find(command => command.name === 'mission')
+const mission = commands.find(command => command.name === 'goal')
 const general = commands.find(command => command.name === 'general')
 
 type Handed = { text: string; pastes: number; metaFrom: string | undefined }
@@ -90,7 +90,7 @@ const recording = Object.assign(new NoSessionConnector(), {
     await settle(text.includes('slow to be taken') ? 1200 : 20)
     handed.push({ text, pastes: Object.keys(opts?.pastedContents ?? {}).length, metaFrom: opts?.metaFrom?.command })
     const at = new Date().toISOString()
-    if (text.startsWith('/mission ')) roster = { rows: [], mission: [], missionCard: { goal: text.slice('/mission '.length), state: 'armed', nextStep: null, iterations: 0, setAt: at, updatedAt: at } }
+    if (text.startsWith('/goal ')) roster = { rows: [], mission: [], missionCard: { goal: text.slice('/goal '.length), state: 'armed', nextStep: null, iterations: 0, setAt: at, updatedAt: at } }
     return { state: 'accepted' as const }
   },
   workRoster: () => roster,
@@ -139,37 +139,37 @@ await waitFor(() => composerRow(m).includes(PLACEHOLDER), 8000)
 await settle(300)
 
 section(`§0 the commands on this screen at ${COLS}x${ROWS}`)
-check('/mission is the interactive command, a dialog the screen runs', mission?.type === 'local-jsx' && commandSeat(mission) === 'screen', `the mission command must stay a local-jsx command whose commandSeat in src/commands/catalogue/commands.ts is screen, type ${mission?.type}`)
+check('/goal is the interactive command, a dialog the screen runs', mission?.type === 'local-jsx' && commandSeat(mission) === 'screen', `the goal command must stay a local-jsx command whose commandSeat in src/commands/catalogue/commands.ts is screen, type ${mission?.type}`)
 check('/general is a command the screen runs with its argument', general?.type === 'local' && commandSeat(general) === 'screen', `the general command must stay a local command whose commandSeat in src/commands/catalogue/commands.ts is screen, type ${general?.type}`)
 
-section('§1 a landed session: /mission with a typed goal, then with a pasted one')
+section('§1 a landed session: /goal with a typed goal, then with a pasted one')
 {
   const before = handed.length
-  m.push('/mission a typed goal, no paste in it')
-  await waitFor(() => pending.text() === '/mission a typed goal, no paste in it', 3000)
+  m.push('/goal a typed goal, no paste in it')
+  await waitFor(() => pending.text() === '/goal a typed goal, no paste in it', 3000)
   await settle(300)
   m.push(KEY.enter)
   await waitFor(() => handed.length > before, 4000)
-  check('a typed goal reaches the session as typed, sent by the mission command', whole(handed[before], '/mission', 'a typed goal, no paste in it') && handed[before]!.metaFrom === 'mission', 'a typed /mission goal must reach the session connector unchanged with metaFrom mission: ' + says(handed[before]))
+  check('a typed goal reaches the session as typed, sent by the goal command', whole(handed[before], '/goal', 'a typed goal, no paste in it') && handed[before]!.metaFrom === 'goal', 'a typed /goal goal must reach the session connector unchanged with metaFrom goal: ' + says(handed[before]))
   await emptyComposer(m)
 }
 for (const [label, text] of [['one line of 800 characters', body('Alder')], ['five lines', body('Birch', 5)]] as const) {
   const before = handed.length
-  const line = await typeThenPaste(m, '/mission ', text)
+  const line = await typeThenPaste(m, '/goal ', text)
   m.push(KEY.enter)
   await waitFor(() => handed.length > before, 4000)
-  check(`a pasted goal, ${label}: the composer showed its placeholder and the session is handed the whole goal`, /^\/mission \[Pasted text #\d+( \+\d+ lines)?\]$/.test(line) && whole(handed[before], '/mission', text), `a pasted /mission goal must show a Pasted text placeholder in the composer and be handed to the session expanded to the whole text; composer ${JSON.stringify(line)}; ${says(handed[before])}`)
-  const set = await waitFor(() => m.screen().includes(`Mission set: ${text.slice(0, 30)}`), 3000)
-  check(`${label}: the command's own receipt names the goal it set, not a placeholder`, set && !m.screen().includes('Mission set: [Pasted text'), 'the /mission receipt must name the expanded goal, not the Pasted text placeholder: ' + m.lines().filter(row => row.includes('Mission')).join(' | '))
+  check(`a pasted goal, ${label}: the composer showed its placeholder and the session is handed the whole goal`, /^\/goal \[Pasted text #\d+( \+\d+ lines)?\]$/.test(line) && whole(handed[before], '/goal', text), `a pasted /goal goal must show a Pasted text placeholder in the composer and be handed to the session expanded to the whole text; composer ${JSON.stringify(line)}; ${says(handed[before])}`)
+  const set = await waitFor(() => m.screen().includes(`Goal set: ${text.slice(0, 30)}`), 3000)
+  check(`${label}: the command's own receipt names the goal it set, not a placeholder`, set && !m.screen().includes('Goal set: [Pasted text'), 'the /goal receipt must name the expanded goal, not the Pasted text placeholder: ' + m.lines().filter(row => row.includes('Goal')).join(' | '))
   await emptyComposer(m)
 }
 {
   const before = handed.length
   const text = body('Cedar')
-  const line = await typeThenPaste(m, '/mission first ', text, ' and last')
+  const line = await typeThenPaste(m, '/goal first ', text, ' and last')
   m.push(KEY.enter)
   await waitFor(() => handed.length > before, 4000)
-  check('typed words around the paste keep their places', line.startsWith('/mission first [Pasted text #') && whole(handed[before], '/mission', `first ${text} and last`), `words typed before and after a paste must stay in place around the expanded paste; composer ${JSON.stringify(line)}; ${says(handed[before])}`)
+  check('typed words around the paste keep their places', line.startsWith('/goal first [Pasted text #') && whole(handed[before], '/goal', `first ${text} and last`), `words typed before and after a paste must stay in place around the expanded paste; composer ${JSON.stringify(line)}; ${says(handed[before])}`)
   await emptyComposer(m)
 }
 
@@ -181,34 +181,34 @@ section('§2 the same line sent while the session lands')
   await settle(200)
   const before = handed.length
   const text = body('Dogwood')
-  await typeThenPaste(m, '/mission ', text)
+  await typeThenPaste(m, '/goal ', text)
   m.push(KEY.enter)
   const armed = await waitFor(() => m.screen().includes(LANDING_NOTICE) && pending.text() === '', 3000)
-  check('the line is taken and waits for the landing', armed && handed.length === before, `a /mission line sent while the session lands must be taken (landing notice shown, composer emptied) and held, not handed yet; armed ${armed}; handed ${handed.length - before}`)
+  check('the line is taken and waits for the landing', armed && handed.length === before, `a /goal line sent while the session lands must be taken (landing notice shown, composer emptied) and held, not handed yet; armed ${armed}; handed ${handed.length - before}`)
   await settle(300)
   slot.setFocusedSessionConnector(recording)
   land()
   await landing
   await waitFor(() => handed.length > before, 5000)
-  check('when the session lands it is handed the whole goal', whole(handed[before], '/mission', text), 'the line held during landing must be handed to the session with the whole expanded goal once it lands: ' + says(handed[before]))
+  check('when the session lands it is handed the whole goal', whole(handed[before], '/goal', text), 'the line held during landing must be handed to the session with the whole expanded goal once it lands: ' + says(handed[before]))
   await emptyComposer(m)
 }
 
 section('§3 a command queued behind another that has not settled')
 {
   const before = handed.length
-  m.push('/mission a first goal, slow to be taken')
-  await waitFor(() => pending.text() === '/mission a first goal, slow to be taken', 3000)
+  m.push('/goal a first goal, slow to be taken')
+  await waitFor(() => pending.text() === '/goal a first goal, slow to be taken', 3000)
   await settle(300)
   m.push(KEY.enter)
   await waitFor(() => pending.text() === '', 3000)
   const text = body('Elm')
-  await typeThenPaste(m, '/mission ', text)
+  await typeThenPaste(m, '/goal ', text)
   m.push(KEY.enter)
-  const queued = await waitFor(() => m.screen().includes('/mission queued'), 3000)
-  check('the second command is queued behind the first', queued && handed.length === before, `a second command sent before the first settles must show /mission queued and not be handed yet; queued ${queued}; handed ${handed.length - before}`)
+  const queued = await waitFor(() => m.screen().includes('/goal queued'), 3000)
+  check('the second command is queued behind the first', queued && handed.length === before, `a second command sent before the first settles must show /goal queued and not be handed yet; queued ${queued}; handed ${handed.length - before}`)
   await waitFor(() => handed.length > before + 1, 8000)
-  check('the first is handed as typed, and the queued one with its whole goal', whole(handed[before], '/mission', 'a first goal, slow to be taken') && whole(handed[before + 1], '/mission', text), `the queued command must be handed after the first, with its whole expanded goal; ${says(handed[before])}; ${says(handed[before + 1])}`)
+  check('the first is handed as typed, and the queued one with its whole goal', whole(handed[before], '/goal', 'a first goal, slow to be taken') && whole(handed[before + 1], '/goal', text), `the queued command must be handed after the first, with its whole expanded goal; ${says(handed[before])}; ${says(handed[before + 1])}`)
   await emptyComposer(m)
 }
 

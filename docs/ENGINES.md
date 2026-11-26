@@ -819,7 +819,7 @@ default effort and a crewmate runs at the session's dial. The one exception is t
 helper you choose yourself: `Helper model` in `/config`
 (off by default; [TENSORFOLD.md](TENSORFOLD.md#the-helper-model-setting))
 routes the session's titles and summaries, model-answered hooks, the
-needs-you judge and the mission judge to a local 2B or 4B model (or the
+needs-you judge and the goal judge to a local 2B or 4B model (or the
 session's own local model) on every road, and
 `Helper model for compaction`, when on, folds session compaction on the helper
 as that page describes. The helper starts when a session opens with the setting
@@ -1758,7 +1758,7 @@ credential already connected through `/logins`. `/jev off` and `/jev or off`
 turn JEV off. The card's Road row shows the selected road, and the JEV
 switches in `/config` and the home screen's Boot Menu preserve that choice. A sign-in
 never switches JEV on, and a missing key never falls through to the other
-road. When JEV is on with a key, the standing `/goal` (`/mission`) Stop check
+road. When JEV is on with a key, the standing `/goal` Stop check
 also uses JEV to judge whether the goal's end state is `met`, `open`,
 `ambiguous` or `unattainable` from the turn's evidence
 ([SESSIONS.md](SESSIONS.md)).

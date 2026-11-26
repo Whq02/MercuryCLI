@@ -230,13 +230,13 @@ const ARM_TURN = 'mission arm turn one'
 const ARM_SENDS = [
   { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
   { atTick: 90, minTick: 20, awaitText: '? for shortcuts', data: `${ARM_TURN}\r` },
-  { atTick: 150, minTick: 30, awaitText: 'esc interrupts', awaitSettleTicks: 2, data: `/mission ${GOAL}\r` },
+  { atTick: 150, minTick: 30, awaitText: 'esc interrupts', awaitSettleTicks: 2, data: `/goal ${GOAL}\r` },
 ]
 
 function stageA(world: World, label: string): { armedSessionId: string | null } {
   section(`${label} — stage A: arm on a fresh boot; the armed card lands`)
-  const grid = drive(world, 'arm', [], ARM_SENDS, ['Mission set'], 200)
-  check('the arm confirmation painted', grid.includes('Mission set'), grid.slice(-400), 'the /mission command (src/commands/mission/mission-jsx.tsx) must finish with Mission set: <goal>; if the grid never left the boot face, read the [vshot arm] line above')
+  const grid = drive(world, 'arm', [], ARM_SENDS, ['Goal set'], 200)
+  check('the arm confirmation painted', grid.includes('Goal set'), grid.slice(-400), 'the /goal command (src/commands/mission/mission-jsx.tsx) must finish with Goal set: <goal>; if the grid never left the boot face, read the [vshot arm] line above')
   const cards = readCards(world)
   const armed = cards.filter(c => c.state === 'armed')
   check('exactly one ARMED card on disk', armed.length === 1, JSON.stringify(cards), 'setActiveMission in src/permissions/guards/mission.ts must write one card with state armed under projects/<cwd>/missions in the config home')
@@ -262,9 +262,9 @@ function stageB(world: World, label: string, argvTail: string[]): void {
     `resume-${argvTail[0]!.replace(/^--/, '')}`,
     argvTail,
     [
-      { requireAwait: true, minTick: 15, awaitText: STAGE_B_READY, awaitSettleTicks: 3, data: '/mission\r' },
+      { requireAwait: true, minTick: 15, awaitText: STAGE_B_READY, awaitSettleTicks: 3, data: '/goal\r' },
       { data: '', afterPrevTicks: 15, mark: 'after-mission' }],
-    ['Standing mission'],
+    ['Standing goal'],
     240,
   )
   const asked = markText(world, `resume-${argvTail[0]!.replace(/^--/, '')}`, 'after-mission')
@@ -276,13 +276,13 @@ function stageB(world: World, label: string, argvTail: string[]): void {
     after.slice(-300) || '(no debug lines)',
     'rearmMissionFromCard in src/permissions/guards/mission.ts must log [mission] re-armed from card when --continue or --resume boots into the session',
   )
-  check('/mission paints the standing mission', shown.includes('Standing mission'), asked.split('\n').filter(l => l.trim()).slice(-12).join('\n'), 'the /mission panel in src/commands/mission/mission-jsx.tsx must print the Standing mission title when a mission is armed; the stage B drive sends /mission once the status line reads ready')
+  check('/goal paints the standing goal', shown.includes('Standing goal'), asked.split('\n').filter(l => l.trim()).slice(-12).join('\n'), 'the /goal panel in src/commands/mission/mission-jsx.tsx must print the Standing goal title when a goal is armed; the stage B drive sends /goal once the status line reads ready')
   const panelRows = asked.split('\n')
-  const titleRow = panelRows.findIndex(l => l.includes('Standing mission'))
+  const titleRow = panelRows.findIndex(l => l.includes('Standing goal'))
   const stateRow = panelRows.findIndex((l, i) => i > titleRow && l.includes('re-armed on resume'))
   const goalRow = panelRows.findIndex((l, i) => i > stateRow && l.includes(GOAL))
-  check('the panel paints as rows: the title, then the state with the re-arm reason, then the goal whole', titleRow >= 0 && stateRow > titleRow && goalRow > stateRow, `title@${titleRow} state@${stateRow} goal@${goalRow} · ${panelRows.filter(l => /Standing mission|re-armed|clear" to drop/.test(l) || l.includes(GOAL)).map(l => l.trim()).join(' | ').slice(0, 300)}`, 'the panel in src/commands/mission/mission-jsx.tsx must print the title row, then the state row with the reason, then the whole goal, each on its own row')
-  check('the panel names the resume re-arm', shown.includes('re-armed on resume'), asked.split('\n').filter(l => /mission|Mission/.test(l)).join(' | ').slice(0, 400), 'rearmMissionFromCard in src/permissions/guards/mission.ts sets lastReason to re-armed on resume; the panel in src/commands/mission/mission-jsx.tsx must show it')
+  check('the panel paints as rows: the title, then the state with the re-arm reason, then the goal whole', titleRow >= 0 && stateRow > titleRow && goalRow > stateRow, `title@${titleRow} state@${stateRow} goal@${goalRow} · ${panelRows.filter(l => /Standing goal|re-armed|clear" to drop/.test(l) || l.includes(GOAL)).map(l => l.trim()).join(' | ').slice(0, 300)}`, 'the panel in src/commands/mission/mission-jsx.tsx must print the title row, then the state row with the reason, then the whole goal, each on its own row')
+  check('the panel names the resume re-arm', shown.includes('re-armed on resume'), asked.split('\n').filter(l => /goal|Goal/.test(l)).join(' | ').slice(0, 400), 'rearmMissionFromCard in src/permissions/guards/mission.ts sets lastReason to re-armed on resume; the panel in src/commands/mission/mission-jsx.tsx must show it')
   const cards = readCards(world)
   const armed = cards.filter(c => c.state === 'armed')
   check('exactly one ARMED card store-wide after the resume', armed.length === 1, JSON.stringify(cards), 'rearmMissionFromCard in src/permissions/guards/mission.ts must leave one armed card: reuse the card when the session id is the same, and mark the old one continued when the id splits')
@@ -442,8 +442,8 @@ function stageB(world: World, label: string, argvTail: string[]): void {
       [
         { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 90, minTick: 20, awaitText: '? for shortcuts', data: `${ARM4}\r` },
-        { atTick: 180, minTick: 30, awaitText: `reply to [[${ARM4}`, data: `/mission ${GOAL}\r` },
-        { atTick: 240, minTick: 40, awaitText: 'Mission set', data: `${AFTER4}\r` },
+        { atTick: 180, minTick: 30, awaitText: `reply to [[${ARM4}`, data: `/goal ${GOAL}\r` },
+        { atTick: 240, minTick: 40, awaitText: 'Goal set', data: `${AFTER4}\r` },
       ],
       [`reply to [[${AFTER4}`],
       360,

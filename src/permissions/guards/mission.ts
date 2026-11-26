@@ -356,12 +356,12 @@ function pauseMission(sessionId: string, mission: ActiveMission, why: string, me
 }
 
 function pausedNote(mission: ActiveMission, saveWarning: string | null = null): TurnNote {
-  const base = `mission paused — ${mission.paused?.why ?? 'waiting on you'} · your next message resumes it; /mission clear ends it`
+  const base = `goal paused — ${mission.paused?.why ?? 'waiting on you'} · your next message resumes it; /goal clear ends it`
   return { level: 'warning', text: saveWarning === null ? base : `${base} · ${saveWarning}` }
 }
 
 function idleNote(saveWarning: string | null = null): TurnNote {
-  const base = `mission paused after ${MISSION_IDLE_TURNS} turns without a tool call — your next message resumes it`
+  const base = `goal paused after ${MISSION_IDLE_TURNS} turns without a tool call — your next message resumes it`
   return { level: 'warning', text: saveWarning === null ? base : `${base} · ${saveWarning}` }
 }
 

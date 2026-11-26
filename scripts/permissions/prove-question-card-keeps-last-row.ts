@@ -127,7 +127,7 @@ section('a screen whose conversation pane has a border: the card joins the frame
 for (const [columns, rows] of [[120, 40], [178, 51]] as const) {
   const { view, rest } = await cardUp(columns, rows)
   try {
-    const side = rest[0]!.indexOf('╭')
+    const side = rest[0]!.startsWith('╭') ? rest[0]!.indexOf('╭', 1) : rest[0]!.indexOf('╭')
     const edgeAtRest = rest.findLastIndex(line => line[side] === '╰')
     const [up, down, back] = await frames(view, `${columns}x${rows}`)
     const paneRowOf = (frame: Read): boolean => frame.lines[frame.sentenceAt]?.[side] === '│'
