@@ -194,7 +194,7 @@ export function scanLastConversationActivityMsSync(filePath: string, nowMs: numb
 const lastUsedCache = new Map<string, { mtimeMs: number; size: number; lastUsedMs: number | null }>()
 const LAST_USED_CACHE_CAP = 2048
 
-export function readSessionLastUsedMsSync(filePath: string, fileSize?: number, nowMs: number = Date.now()): number | null {
+function readSessionLastUsedMsSync(filePath: string, fileSize?: number, nowMs: number = Date.now()): number | null {
   const fromTail = lastConversationActivityMs(readTranscriptTailSync(filePath, LITE_READ_BUF_SIZE), nowMs)
   if (fromTail !== null) return fromTail
   if ((fileSize !== undefined && fileSize > LITE_READ_BUF_SIZE) || historyHead(filePath).before > 0) {
