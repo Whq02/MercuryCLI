@@ -1,8 +1,6 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { ToolUseContext } from '../../kit/tool.js'
-import { errorMessage } from '../../../platform/errors/errors.js'
-import { imageResultBlock } from '../../browser/BrowserTool.js'
 import { imageDimensionsFromHeader } from '../../../platform/images/imageProcessorJs.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../../platform/images/imageResizer.js'
 import { getImageProcessor } from '../../../platform/images/imageProcessor.js'
@@ -32,7 +30,7 @@ import { COMPUTER_TOOL_NAME } from '../../../integrations/desktop/toolName.js'
 import type { AssistantMessage, Message } from '../../../engine/message-shapes/message.js'
 import { type ScreenMap, isPixelOutside, pointOfPixel, screenMapOfCapture, screenMapSizeWords } from '../screenMap.js'
 import { type CaptureRegion, regionRefusal, sameWindow, settledCapture, windowOnDisplay } from '../fastRoad.js'
-import { NO_SCREENSHOT, type Output, SCREENSHOT_GONE, SCREENSHOT_UNSEEN } from './schema.js'
+import { NO_SCREENSHOT, SCREENSHOT_GONE, SCREENSHOT_UNSEEN } from './schema.js'
 import { faultText } from './act.js'
 import { factsLine } from './words.js'
 
@@ -222,36 +220,4 @@ export function ruleVerdict(permissionContext: ToolPermissionContext | undefined
 
 export function denied(message: string, reason: string) {
   return { behavior: 'deny' as const, message, decisionReason: { type: 'other' as const, reason } }
-}
-
-export function computerResultBlock(output: Output, toolUseId: string) {
-  const list = output.images
-  if (!list || list.length <= 1) return imageResultBlock(output, toolUseId)
-  if (!modelReceivesImageBlocks(getEngineModel())) {
-    return {
-      tool_use_id: toolUseId,
-      type: 'tool_result' as const,
-      content: `${output.result}\n(images not inlined — this model takes no image input; open the files to view them)`,
-    }
-  }
-  const blocks: Array<{ type: 'text'; text: string } | { type: 'image'; source: { type: 'base64'; media_type: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'; data: string } }> = [
-    { type: 'text', text: output.result },
-  ]
-  const notes: string[] = []
-  for (const image of list) {
-    const filePath = image.inlinePath ?? image.imagePath
-    try {
-      const bytes = readFileSync(filePath)
-      const mediaType = (image.inlinePath ? (image.inlineMediaType ?? 'image/png') : 'image/png') as 'image/png'
-      blocks.push({ type: 'image', source: { type: 'base64', media_type: mediaType, data: bytes.toString('base64') } })
-    } catch (error) {
-      notes.push(`(image not inlined — could not read ${filePath} (${errorMessage(error)}))`)
-    }
-  }
-  if (notes.length > 0) blocks[0] = { type: 'text', text: `${output.result}\n${notes.join('\n')}` }
-  return {
-    tool_use_id: toolUseId,
-    type: 'tool_result' as const,
-    content: blocks,
-  }
 }

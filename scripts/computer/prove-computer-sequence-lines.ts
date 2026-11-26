@@ -10,7 +10,6 @@ import { createAssistantMessage } from '../../src/engine/messages/messages.ts'
 const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
 const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
 const session = await import('../../src/integrations/desktop/desktopSession.ts')
-const { SCREENSHOT_KEEP_RECENT } = await import('../../src/integrations/desktop/screenshotRetention.ts')
 const app = { identity: 'com.example.Editor', name: 'Editor', pid: 123, windowId: 'editor', title: 'Document', bounds: { x: 0, y: 0, width: 400, height: 300 } }
 const scene = join(scratchDir('sequence-lines'), 'scene.json')
 writeFileSync(scene, JSON.stringify({ displays: [{ index: 0, id: 'proof', originX: 0, originY: 0, width: 400, height: 300, scale: 2, primary: true }], frontmost: app, cursor: { x: 50, y: 50 }, lines: ['Editor proof'], tree: [{ role: 'AXButton', title: 'Save', frame: { x: 100, y: 80, width: 40, height: 20 } }] }))
@@ -57,7 +56,8 @@ section('D1(a): capture:false suppresses only the implicit final capture; explic
   check('capture:false with no screenshot steps still suppresses the implicit final capture', silent.outcome === 'succeeded' && silent.imagePath === undefined && imageBlocksOf(silent.block).length === 0 && captures() === silentBefore, silent.result)
   const bothBefore = captures()
   const both = await call({ action: 'sequence', steps: [{ action: 'screenshot', pixels: true, label: 'before-key' }, { action: 'key', key: 'Enter' }], capture: true })
-  check('capture:true keeps both the explicit step shot and the implicit final capture in order', both.outcome === 'succeeded' && imageBlocksOf(both.block).length === 2 && captures() === bothBefore + 2, `images=${imageBlocksOf(both.block).length} captures=${captures() - bothBefore}\n${both.result}`)
+  const bothSavedOnly = [...both.result.matchAll(/^screenshot saved at (.+?\.png) \(not returned in this answer/gm)].map(m => m[1]!)
+  check('capture:true takes both explicit and implicit shots, returns the final image, and accounts for the earlier saved shot', both.outcome === 'succeeded' && imageBlocksOf(both.block).length === 1 && captures() === bothBefore + 2 && bothSavedOnly.length === 1 && existsSync(bothSavedOnly[0]!) && both.result.includes('images: 1 of 2 returned'), `images=${imageBlocksOf(both.block).length} captures=${captures() - bothBefore}\n${both.result}`)
 }
 
 section('D1(b): known unsatisfiable unseen-screenshot coordinate sequences refuse before touching anything; legal steps still run')
@@ -74,12 +74,12 @@ section('D1(b): known unsatisfiable unseen-screenshot coordinate sequences refus
   const bareCapturesBefore = captures()
   const bareClicksBefore = clicks()
   const bareRefused = await call({ action: 'sequence', steps: [{ action: 'screenshot', scale: 0.5 }, { action: 'click', x: 50, y: 50 }], capture: false })
-  check('non-terminal bare screenshot followed by coordinate click refuses before step 1 with zero captures and zero clicks', bareRefused.outcome === 'failed' && bareRefused.result.includes('sequence 0/2 completed') && bareRefused.result.includes('taken in this same message') && captures() === bareCapturesBefore && clicks() === bareClicksBefore && JSON.stringify(session.screenOf(ownerOf(context))) === JSON.stringify(mapBefore), bareRefused.result)
+  check('step-1 non-terminal bare screenshot followed by coordinate click refuses before step 1 with zero captures and zero clicks', bareRefused.outcome === 'failed' && bareRefused.result.includes('sequence 0/2 completed') && bareRefused.result.includes('taken in this same message') && captures() === bareCapturesBefore && clicks() === bareClicksBefore && JSON.stringify(session.screenOf(ownerOf(context))) === JSON.stringify(mapBefore), bareRefused.result)
   const legal = await call({ action: 'sequence', steps: [{ action: 'screenshot', pixels: true }, { action: 'key', key: 'Enter' }, { action: 'click', target }, { action: 'find', target }], capture: false })
   check('key, named target and read remain legal after an explicit screenshot step', legal.outcome === 'succeeded' && legal.result.includes('sequence 4/4 completed') && imageBlocksOf(legal.block).length === 1, legal.result)
 }
 
-section('D1(c): multiple explicit screenshots travel in order within retention bounds and account honestly past the bound')
+section('D1(c): multiple explicit screenshots honestly account for earlier saved images and identify the returned coordinate image')
 {
   const three = await call({
     action: 'sequence',
@@ -93,26 +93,13 @@ section('D1(c): multiple explicit screenshots travel in order within retention b
     capture: false,
   })
   const threeBlocks = imageBlocksOf(three.block)
-  const threePaths = [...three.result.matchAll(/^screenshot: (.+?\.png) — display/gm)].map(m => m[1]!)
+  const returnedPaths = [...three.result.matchAll(/^screenshot: (.+?\.png) — display/gm)].map(m => m[1]!)
+  const savedOnlyPaths = [...three.result.matchAll(/^screenshot saved at (.+?\.png) \(not returned in this answer — only the last screenshot travels; use Read on that path to view it\)$/gm)].map(m => m[1]!)
   const frameChangedCount = (three.result.match(/frame changed:/g) ?? []).length
-  check('three explicit screenshots return all three images in order in the model-facing tool_result', three.outcome === 'succeeded' && three.result.includes('sequence 5/5 completed') && threePaths.length === 3 && new Set(threePaths).size === 3 && threeBlocks.length === 3 && threePaths.every(p => existsSync(p)), `paths=${threePaths.length} blocks=${threeBlocks.length}\n${three.result}`)
-  check('image block order matches the three step files and imagePath/screen point to the third', threeBlocks.length === 3 && threePaths.length === 3 && three.imagePath === threePaths[2] && threePaths.every((p, idx) => Buffer.from(threeBlocks[idx]!.source!.data!, 'base64').equals(readFileSync(existsSync(`${p}.inline`) ? `${p}.inline` : p))), `imagePath=${three.imagePath} paths=${JSON.stringify(threePaths)}`)
-  check('identical consecutive window shots do not emit bogus frame-changed warnings and accounting names the coordinate image', frameChangedCount === 0 && three.result.includes('images: 3 of 3 returned in order') && three.result.includes(threePaths[2]!), `frameChanged=${frameChangedCount}\n${three.result}`)
-
-  const four = await call({
-    action: 'sequence',
-    steps: [
-      { action: 'screenshot', pixels: true, label: 'cap-one' },
-      { action: 'screenshot', pixels: true, label: 'cap-two' },
-      { action: 'screenshot', pixels: true, label: 'cap-three' },
-      { action: 'screenshot', pixels: true, label: 'cap-four' },
-    ],
-    capture: false,
-  })
-  const fourBlocks = imageBlocksOf(four.block)
-  const keptPaths = [...four.result.matchAll(/^screenshot: (.+?\.png) — display/gm)].map(m => m[1]!)
-  const savedOnlyPaths = [...four.result.matchAll(/^screenshot saved at (.+?\.png) \(not returned in this answer/gm)].map(m => m[1]!)
-  check(`four explicit screenshots cap at SCREENSHOT_KEEP_RECENT (${SCREENSHOT_KEEP_RECENT}), keep the last three in order, and report the omitted first with its disk path and Read remedy`, four.outcome === 'succeeded' && fourBlocks.length === SCREENSHOT_KEEP_RECENT && keptPaths.length === SCREENSHOT_KEEP_RECENT && savedOnlyPaths.length === 1 && existsSync(savedOnlyPaths[0]!) && four.result.includes('use Read on that path') && four.result.includes(`images: ${SCREENSHOT_KEEP_RECENT} of 4 returned in order`) && four.imagePath === keptPaths.at(-1) && !four.result.includes('4 of 4 returned'), `blocks=${fourBlocks.length} kept=${keptPaths.length} savedOnly=${savedOnlyPaths.length}\n${four.result}`)
+  check('three explicit screenshots save all three distinct files, return only the last image block, and identify both earlier saved paths with Read guidance', three.outcome === 'succeeded' && three.result.includes('sequence 5/5 completed') && threeBlocks.length === 1 && returnedPaths.length === 1 && savedOnlyPaths.length === 2 && new Set([...savedOnlyPaths, ...returnedPaths]).size === 3 && [...savedOnlyPaths, ...returnedPaths].every(p => existsSync(p)), `returned=${returnedPaths.length} savedOnly=${savedOnlyPaths.length} blocks=${threeBlocks.length}\n${three.result}`)
+  const lastPath = returnedPaths[0]
+  check('the single returned image block matches the third shot and imagePath/screen point to it', lastPath !== undefined && three.imagePath === lastPath && threeBlocks.length === 1 && Buffer.from(threeBlocks[0]!.source!.data!, 'base64').equals(readFileSync(existsSync(`${lastPath}.inline`) ? `${lastPath}.inline` : lastPath)), `imagePath=${three.imagePath} last=${lastPath}`)
+  check('honest accounting reports 1 of 3 returned, names the coordinate image, and emits no bogus frame-changed warnings', frameChangedCount === 0 && three.result.includes('images: 1 of 3 returned (only the last screenshot travels; 2 earlier saved to disk — see paths above)') && lastPath !== undefined && three.result.includes(`coordinates now refer to ${lastPath}`) && !three.result.includes('3 of 3 returned'), `frameChanged=${frameChangedCount}\n${three.result}`)
 
   const mapBeforeFail = session.screenOf(ownerOf(context))
   const failedAfterTwo = await call({
@@ -125,7 +112,7 @@ section('D1(c): multiple explicit screenshots travel in order within retention b
     capture: false,
   })
   const notReturnedLines = failedAfterTwo.result.split('\n').filter(line => line.startsWith('screenshot taken by the step but not returned:'))
-  check('a failed sequence after two screenshots withholds all images, replaces both lines, and preserves the previous screen map', failedAfterTwo.outcome === 'failed' && failedAfterTwo.imagePath === undefined && imageBlocksOf(failedAfterTwo.block).length === 0 && notReturnedLines.length === 2 && !failedAfterTwo.result.includes('screenshot: ') && JSON.stringify(session.screenOf(ownerOf(context))) === JSON.stringify(mapBeforeFail), failedAfterTwo.result)
+  check('a failed sequence after two screenshots withholds all images, replaces both lines, and preserves the previous screen map', failedAfterTwo.outcome === 'failed' && failedAfterTwo.imagePath === undefined && imageBlocksOf(failedAfterTwo.block).length === 0 && notReturnedLines.length === 2 && !failedAfterTwo.result.includes('screenshot: ') && !failedAfterTwo.result.includes('images: 1 of') && JSON.stringify(session.screenOf(ownerOf(context))) === JSON.stringify(mapBeforeFail), failedAfterTwo.result)
 }
 
 section("the operator's interrupt met between two steps keeps the lines of the steps that ran")
@@ -163,7 +150,7 @@ if (process.platform === 'darwin') {
   mutable.activateApplication = async () => { front = terminal; return { ok: true, value: { ...terminal } } }
   const imageLines = (text: string) => text.split('\n').filter(line => /^screenshot: \/.*\.png — display/.test(line))
   const good = await call({ action: 'sequence', steps: [{ action: 'screenshot' }, { action: 'focusApp', focusApp: { name: 'Terminal' } }, { action: 'screenshot' }] })
-  check('a succeeded sequence attaches no image after the terminal text replaced it, and no line names a saved image', good.outcome === 'succeeded' && good.imagePath === undefined && imageBlocksOf(good.block).length === 0 && imageLines(good.result).length === 0, good.result)
+  check('a succeeded sequence attaches no image after the terminal text replaced it, and no line names a saved image', good.outcome === 'succeeded' && good.imagePath === undefined && imageBlocksOf(good.block).length === 0 && imageLines(good.result).length === 0 && !good.result.includes('images: 1 of'), good.result)
   const supersededAt = good.result.indexOf(SUPERSEDED)
   const terminalAt = good.result.indexOf('terminal text')
   check("the earlier image step's line says the terminal text superseded it, and the terminal text follows", good.result.split('\n').includes(SUPERSEDED) && supersededAt >= 0 && terminalAt >= 0 && supersededAt < terminalAt, good.result)

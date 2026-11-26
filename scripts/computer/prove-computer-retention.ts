@@ -196,31 +196,4 @@ section('§7 the projection pairs an unregistered result with the Computer tool_
   check('the caller keeps its unmodified image-bearing result', hasImage(clonedResult))
 }
 
-section('§8 multi-image sequence results stub, rehydrate and retire each image by its own path')
-{
-  const { writeFileSync } = await import('node:fs')
-  const dir = scratchDir('multi-retention')
-  const files = [1, 2, 3].map(n => {
-    const file = join(dir, `seq-${n}.png`)
-    writeFileSync(file, Buffer.from(PNG_B64, 'base64'))
-    return file
-  })
-  const multiId = 'toolu_multi_seq'
-  session.noteScreenshot(owner, multiId, files[2]!)
-  const multiResult = toolResultTurn({
-    type: 'tool_result',
-    tool_use_id: multiId,
-    content: [
-      { type: 'text', text: files.map(file => `screenshot: ${file} — display 1 (1600×1000 px of 1440×900 pt)`).join('\n') },
-      ...files.map(() => ({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: PNG_B64 } })),
-    ],
-  })
-  const projected = retention.projectForTranscript(multiResult)
-  const stubTexts = resultBlocks(projected).slice(1).map(part => String(part.text ?? ''))
-  check('projectForTranscript stubs all three images with their own paths in order', stubTexts.length === 3 && files.every((file, index) => stubTexts[index] === retention.screenshotStubText(file)), JSON.stringify(stubTexts))
-  const rehydrated = retention.rehydrateScreenshots([projected])
-  const rehydratedImages = resultBlocks(rehydrated[0]!).filter(part => part.type === 'image')
-  check('rehydrateScreenshots restores all three images from their stubs', rehydratedImages.length === 3 && session.screenshotPathForToolUse(multiId) === files[2], `images=${rehydratedImages.length}`)
-}
-
 finish('prove-computer-retention')

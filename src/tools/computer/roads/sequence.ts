@@ -10,25 +10,14 @@ import { takeScreenshot } from '../call/shot.js'
 import type { ScreenMap } from '../screenMap.js'
 import type { ComputerAnswer, RoadNeeds } from './needs.js'
 
-function maySwitchApp(action: Input['action']): boolean {
-  return action === 'focusApp' || action === 'click' || action === 'doubleClick' || action === 'rightClick' || action === 'drag' || action === 'file' || action === 'key' || action === 'hold'
-}
-
 async function preflightUnseenScreenshot(driver: RoadNeeds['driver'], input: Input, steps: Input[]): Promise<Input | null> {
-  const firstShot = steps.findIndex(step => step.action === 'screenshot')
-  if (firstShot === -1 || !steps.slice(firstShot + 1).some(usesScreenshotPixels)) return null
-  const front = process.platform === 'darwin' ? await driver.frontmostApplication() : null
-  let knownNonTerminal = process.platform !== 'darwin' || (front !== null && front.ok && !isTerminalApplication(front.value))
-  let knownShot = false
-  for (const step of steps) {
-    if (knownShot && usesScreenshotPixels(step)) return step
-    if (step.action === 'screenshot') {
-      if (definitelyTakesImage(step, input) || knownNonTerminal) knownShot = true
-    } else if (maySwitchApp(step.action)) {
-      knownNonTerminal = false
-    }
-  }
-  return null
+  const first = steps[0]
+  if (first?.action !== 'screenshot') return null
+  const bad = steps.slice(1).find(usesScreenshotPixels)
+  if (!bad) return null
+  if (definitelyTakesImage(first, input) || process.platform !== 'darwin') return bad
+  const front = await driver.frontmostApplication()
+  return front.ok && !isTerminalApplication(front.value) ? bad : null
 }
 
 export async function sequenceRoad({ run, input, context, owner, signal, toolUseId, sameMessage, driver, canUseTool, parentAssistantMessage, adoptShot, shotLines, finish, ComputerTool }: RoadNeeds, steps: Input[]): Promise<ComputerAnswer> {
@@ -96,7 +85,8 @@ export async function sequenceRoad({ run, input, context, owner, signal, toolUse
         for (let at = 0; at < lines.length; at++) if (shotLines.has(lines[at]!)) lines[at] = SCREENSHOT_SUPERSEDED
         lines.push(await readTerminalText(driver, front.value, signal))
         run.contentShown = true
-        run.shots = []
+        run.imagePath = run.inlinePath = run.inlineMediaType = undefined
+        run.screen = undefined
         lastShotScreen = screenOf(owner)
         completed++
         continue

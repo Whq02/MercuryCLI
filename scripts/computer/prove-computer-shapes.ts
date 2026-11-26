@@ -56,9 +56,9 @@ const clamped = await call({ action: 'tree', depth: 40, limit: 9000 })
 check('the native call receives capped budgets', limits?.depth === 32 && limits.count === 2000, JSON.stringify(limits))
 check('one note names both clamps', clamped.result.split('\n').filter(line => line.startsWith('clamped:')).join('\n') === 'clamped: depth 40 → 32; limit 9000 → 2000', clamped.result)
 const captured = await call({ action: 'sequence', steps: [{ action: 'screenshot', full: true, scale: 0.25 }, { action: 'key', key: 'Enter' }, { action: 'screenshot' }], settleMs: 0 })
-check('screenshot steps run in order with both result images', captured.outcome === 'succeeded' && captured.result.includes('3/3') && captured.imagePath !== undefined && (captured as { images?: unknown[] }).images?.length === 2, captured.result)
+check('screenshot steps run in order with one returned image and honest accounting for the earlier saved shot', captured.outcome === 'succeeded' && captured.result.includes('3/3') && captured.imagePath !== undefined && captured.result.includes('images: 1 of 2 returned'), captured.result)
 const explicitUnderNoFinal = await call({ action: 'sequence', steps: [{ action: 'screenshot' }, { action: 'key', key: 'Enter' }], capture: false })
-check('sequence capture:false suppresses only the final capture while explicit screenshot steps still capture', explicitUnderNoFinal.outcome === 'succeeded' && explicitUnderNoFinal.imagePath !== undefined && (explicitUnderNoFinal as { images?: unknown[] }).images === undefined, explicitUnderNoFinal.result)
+check('sequence capture:false suppresses only the final capture while explicit screenshot steps still capture', explicitUnderNoFinal.outcome === 'succeeded' && explicitUnderNoFinal.imagePath !== undefined && !explicitUnderNoFinal.result.includes('images: 1 of'), explicitUnderNoFinal.result)
 context = (await withScreenshot(ComputerTool as never, context, 'sequence-visible-frame')).context
 const clicksBefore = driver.acts.filter(act => act.act === 'click').length
 const capturesBefore = driver.acts.filter(act => act.act === 'capture').length

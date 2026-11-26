@@ -18,11 +18,9 @@ import {
   setScreen,
   turnKeyOf,
 } from '../../../integrations/desktop/desktopSession.js'
-import { SCREENSHOT_KEEP_RECENT } from '../../../integrations/desktop/screenshotRetention.js'
 import { renewDesktopClaim } from '../../../integrations/desktop/desktopClaim.js'
 import type { AssistantMessage } from '../../../engine/message-shapes/message.js'
 import { regionRefusal, sameWindow } from '../fastRoad.js'
-import type { ScreenMap } from '../screenMap.js'
 import { waitConditionPassed, waitConditionWords } from '../waitCondition.js'
 import {
   ACT_ACTIONS,
@@ -57,7 +55,7 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
   const signal = context.abortController?.signal ?? new AbortController().signal
   const toolUseId = context.toolUseId ?? toolUseIdOfParent(parentAssistantMessage) ?? ''
   const sameMessage: ReadonlySet<string> = new Set(toolUseIdsOfParent(parentAssistantMessage))
-  const run: CallRun = { outcome: 'no-change', shots: [], claimedForAct: false, contentShown: false }
+  const run: CallRun = { outcome: 'no-change', claimedForAct: false, contentShown: false }
   const posture = desktopPostureRefusal(context)
   if (posture !== null) {
     run.result = `policy denial: ${posture}`
@@ -73,17 +71,20 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
   const driver = resolution.driver
   const permissions = await driver.permissions()
   if (permissions.ok) rememberDesktopPermissions(permissions.value)
-  const takeShot = (wanted: number | undefined, label: string | undefined, settleMs = 0, observe?: DesktopBounds, compareMap?: ScreenMap | null): Promise<Shot> =>
-    takeScreenshot(owner, driver, context, toolUseId, wanted, label, signal, input.region, settleMs, observe, input.full, input.scale, true, sameMessage, compareMap)
+  const takeShot = (wanted: number | undefined, label: string | undefined, settleMs = 0, observe?: DesktopBounds): Promise<Shot> =>
+    takeScreenshot(owner, driver, context, toolUseId, wanted, label, signal, input.region, settleMs, observe, input.full, input.scale, true, sameMessage)
   const shotLines = new Set<string>()
+  const omittedShots: Array<{ line: string; imagePath: string }> = []
+  let activeShotLine: string | undefined
   const adoptShot = (shot: Extract<Shot, { ok: true }>): void => {
-    run.shots.push({
-      line: shot.line,
-      imagePath: shot.imagePath,
-      ...(shot.inlinePath !== undefined ? { inlinePath: shot.inlinePath } : {}),
-      ...(shot.inlineMediaType !== undefined ? { inlineMediaType: shot.inlineMediaType } : {}),
-      screen: shot.screen,
-    })
+    if (run.imagePath !== undefined && activeShotLine !== undefined) {
+      omittedShots.push({ line: activeShotLine, imagePath: run.imagePath })
+    }
+    run.imagePath = shot.imagePath
+    run.inlinePath = shot.inlinePath
+    run.inlineMediaType = shot.inlineMediaType
+    run.screen = shot.screen
+    activeShotLine = shot.line
     shotLines.add(shot.line)
   }
   const needs: RoadNeeds = { run, input, context, owner, signal, toolUseId, sameMessage, driver, canUseTool, parentAssistantMessage, takeShot, adoptShot, shotLines, finish, ComputerTool }
@@ -278,47 +279,39 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
   return finish()
 
   function finish() {
-    if (run.outcome === 'failed' && run.shots.length > 0) {
+    if (run.outcome === 'failed' && run.imagePath !== undefined) {
       run.result = run.result!.split('\n').map(line => (shotLines.has(line) ? SCREENSHOT_NOT_RETURNED : line)).join('\n')
-      run.shots = []
+      run.imagePath = run.inlinePath = run.inlineMediaType = undefined
+      run.screen = undefined
     }
-    const { outcome, shots, claimedForAct, contentShown } = run
-    let text = run.result!
-    const omitCount = Math.max(0, shots.length - SCREENSHOT_KEEP_RECENT)
-    const omitted = shots.slice(0, omitCount)
-    const kept = shots.slice(omitCount)
-    const last = kept.at(-1)
-    if (outcome === 'succeeded' && omitted.length > 0) {
-      const replaced = new Map(omitted.map(shot => [shot.line, `screenshot saved at ${shot.imagePath} (not returned in this answer — at most ${SCREENSHOT_KEEP_RECENT} images travel in one answer; use Read on that path to view it)`]))
-      text = text.split('\n').map(line => replaced.get(line) ?? line).join('\n')
+    const { outcome, imagePath, inlinePath, inlineMediaType, screen, claimedForAct, contentShown } = run
+    let result = run.result!
+    const keptOmitted: Array<{ line: string; imagePath: string }> = []
+    if (outcome === 'succeeded' && imagePath !== undefined && omittedShots.length > 0) {
+      const resultLines = result.split('\n')
+      const byLine = new Map(omittedShots.map(shot => [shot.line, shot]))
+      result = resultLines.map(line => {
+        const omitted = byLine.get(line)
+        if (!omitted) return line
+        keptOmitted.push(omitted)
+        return `screenshot saved at ${omitted.imagePath} (not returned in this answer — only the last screenshot travels; use Read on that path to view it)`
+      }).join('\n')
+      if (keptOmitted.length > 0) {
+        result += `\nimages: 1 of ${keptOmitted.length + 1} returned (only the last screenshot travels; ${keptOmitted.length} earlier saved to disk — see paths above); coordinates now refer to ${imagePath}`
+      }
     }
-    if (outcome === 'succeeded' && shots.length > 1 && last) {
-      text += `\nimages: ${kept.length} of ${shots.length} returned in order${omitted.length > 0 ? ` (limit ${SCREENSHOT_KEEP_RECENT}; ${omitted.length} earlier saved to disk only — see paths above)` : ''}; coordinates now refer to the last screenshot (${last.imagePath})`
-    }
-    const imagePath = last?.imagePath
-    const inlinePath = last?.inlinePath
-    const inlineMediaType = last?.inlineMediaType
-    const screen = last?.screen
-    const images = kept.length > 1
-      ? kept.map(shot => ({
-          imagePath: shot.imagePath,
-          ...(shot.inlinePath !== undefined ? { inlinePath: shot.inlinePath } : {}),
-          ...(shot.inlineMediaType !== undefined ? { inlineMediaType: shot.inlineMediaType } : {}),
-        }))
-      : undefined
     if (imagePath && screen) setScreen(owner, screen)
     if (claimedForAct && !signal.aborted) renewDesktopClaim()
     const clamps = ([['depth', TREE_DEPTH_CAP], ['limit', TREE_LIMIT_CAP]] as const).filter(([field, cap]) => (input[field] ?? 0) > cap).map(([field, cap]) => `${field} ${input[field]} → ${cap}`)
-    const finalText = text + (clamps.length && outcome === 'succeeded' ? `\nclamped: ${clamps.join('; ')}` : '')
+    const text = result + (clamps.length && outcome === 'succeeded' ? `\nclamped: ${clamps.join('; ')}` : '')
     const noted = imagePath !== undefined || contentShown || (outcome === 'succeeded' && carriesScreenContent(input, false))
     const output: Output = {
       action: input.action,
-      result: noted ? `${WEB_CONTENT_NOTICE}\n${finalText}` : finalText,
+      result: noted ? `${WEB_CONTENT_NOTICE}\n${text}` : text,
       outcome,
       ...(imagePath !== undefined && { imagePath }),
       ...(inlinePath !== undefined && { inlinePath }),
       ...(inlineMediaType !== undefined && { inlineMediaType }),
-      ...(images !== undefined && { images }),
       ...(screen !== undefined && { screen }),
     }
     return {
@@ -326,8 +319,8 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
       effect: {
         outcome,
         operation: `computer.${input.action}`,
-        changedPaths: shots.map(shot => shot.imagePath),
-        evidence: finalText.split('\n')[0]?.slice(0, 160) ?? '',
+        changedPaths: imagePath ? [...keptOmitted.map(shot => shot.imagePath), imagePath] : [],
+        evidence: text.split('\n')[0]?.slice(0, 160) ?? '',
         startedAt,
         completedAt: Date.now(),
       },

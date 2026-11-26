@@ -163,41 +163,6 @@ section('§c the chat-completions codec carries the image in a user message afte
   check('the tool row precedes the user row directly', toolRow >= 0 && rows[toolRow + 1] === next)
 }
 
-section('§c2 multi-image sequence tool_result travels in order across Anthropic, Responses and chat-completions')
-{
-  const shot2 = join(scratch, 'shot2.png')
-  const shot3 = join(scratch, 'shot3.png')
-  const png2 = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 3, 0, 0, 0, 2, 8, 6, 0, 0, 0])
-  const png3 = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 4, 0, 0, 0, 2, 8, 6, 0, 0, 0])
-  writeFileSync(shot2, png2)
-  writeFileSync(shot3, png3)
-  const multiText = [
-    `screenshot: ${shot} — display 1 (2×2 px of 1×1 pt)`,
-    `screenshot: ${shot2} — display 1 (3×2 px of 1×1 pt)`,
-    `screenshot: ${shot3} — display 1 (4×2 px of 1×1 pt)`,
-  ].join('\n')
-  const block = ComputerTool.mapToolResultToToolResultBlockParam(
-    { action: 'sequence', result: multiText, outcome: 'succeeded', imagePath: shot3, images: [{ imagePath: shot }, { imagePath: shot2 }, { imagePath: shot3 }] },
-    'toolu_multi',
-  )
-  const contentParts = Array.isArray(block.content) ? block.content : []
-  const imgParts = contentParts.filter((part): part is Extract<typeof part, { type: 'image' }> => part.type === 'image')
-  const widths = imgParts.map(part => (part.source.type === 'base64' ? pngDimensions(Buffer.from(part.source.data, 'base64'))?.width : undefined))
-  check('Anthropic block carries text followed by all three images in order', contentParts[0]?.type === 'text' && imgParts.length === 3 && JSON.stringify(widths) === '[2,3,4]', JSON.stringify(widths))
-  const rows = [
-    { role: 'assistant' as const, content: [{ type: 'tool_use' as const, id: 'call_multi', name: 'Computer', input: { action: 'sequence' } }] },
-    { role: 'user' as const, content: [{ ...block, tool_use_id: 'call_multi' }] },
-  ]
-  const responsesReq = buildOpenaiResponsesRequest({ model: 'gpt-5', instructions: 'x', messages: rows, tools: [], imagesSupported: true })
-  const responsesOut = (responsesReq.input as Array<Record<string, unknown>>).find(i => i.type === 'function_call_output') as { output?: Array<{ type?: string }> } | undefined
-  const responseImages = (responsesOut?.output ?? []).filter(part => part.type === 'input_image')
-  check('Responses bridge carries all three images in order', responseImages.length === 3, JSON.stringify(responseImages.length))
-  const zaiRows = mapMessagesToZai(undefined, rows) as Array<{ role?: string; content?: unknown }>
-  const zaiUser = zaiRows.find(row => row.role === 'user')
-  const zaiImages = Array.isArray(zaiUser?.content) ? (zaiUser.content as Array<{ type?: string }>).filter(part => part.type === 'image_url') : []
-  check('chat-completions codec carries all three images in order', zaiImages.length === 3, JSON.stringify(zaiImages.length))
-}
-
 section('§d the route matrix of modelReceivesImageBlocks')
 {
   const matrix: Array<[string, string, boolean | null]> = [

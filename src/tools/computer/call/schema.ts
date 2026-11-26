@@ -178,12 +178,6 @@ export const modelInputSchema = lazySchema(() => {
   })
 })
 
-interface OutputImage {
-  imagePath: string
-  inlinePath?: string
-  inlineMediaType?: string
-}
-
 export type Output = {
   action: Input['action']
   result: string
@@ -191,7 +185,6 @@ export type Output = {
   imagePath?: string
   inlinePath?: string
   inlineMediaType?: string
-  images?: OutputImage[]
   screen?: ScreenMap
 }
 
