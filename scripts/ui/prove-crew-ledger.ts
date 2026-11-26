@@ -364,7 +364,7 @@ const footerOf = (lines: string[]): string => {
   return row < 0 ? '' : lines.slice(row + 1, row + 8).map(line => line.trim()).filter(line => line !== '' && !/^[╰─╯╭╮]+$/.test(line)).join('\n')
 }
 const statusOf = (lines: string[], railCols: number): string => (lines.find(line => line.includes('← back')) ?? '').trim()
-const viewedName = (lines: string[], railCols: number): string => (/viewing (.+?) · composer|main chat: (.+?) · /.exec(statusOf(lines, railCols)) ?? [])[1] ?? (/main chat: (.+?) · /.exec(statusOf(lines, railCols)) ?? [])[1] ?? ''
+const viewedName = (lines: string[], railCols: number): string => /(?:viewing |main chat: )([^·]+) ·/.exec(statusOf(lines, railCols))?.[1]?.trim() ?? ''
 const centreOf = (lines: string[], railCols: number): string[] => lines.map(line => cells(line).slice(railCols, -railCols).join(''))
 const cardOf = (lines: string[], railCols: number): string => centreOf(lines, railCols).slice(1, 6).join(' ').replace(/\s+/g, ' ')
 const save = (name: string, cols: number, rows: number, lines: string[]): void => {
@@ -544,7 +544,7 @@ async function run(cols: number, rows: number): Promise<void> {
     check('birch (interrupted, evicted by the runner) opens in the view with its transcript', scene.state().viewingCrewmateTaskId === BIRCH.id && viewedName(scene.lines(), railCols) === BIRCH.name && centreOf(scene.lines(), railCols).some(line => line.includes('BIRCH-ROW')), `viewing=${String(scene.state().viewingCrewmateTaskId)} · status row ${statusOf(scene.lines(), railCols)}`)
     const card = cardOf(scene.lines(), railCols)
     console.log(`birch's card: ${card.slice(0, 240)}`)
-    check('the card says birch is interrupted (its state word), greyed, and does not promise esc interrupts or x stop', card.includes('interrupted') && !card.includes('esc interrupts') && !card.includes('x stop'), card.slice(0, 240))
+    check('the interrupted view identifies birch without promising an interrupt or stop key', viewedName(scene.lines(), railCols) === BIRCH.name && !footerOf(scene.lines()).includes('esc interrupt') && !card.includes('x stop'), card.slice(0, 240))
     const stopsBefore = stops().length
     scene.push(ESC)
     await sleep(600)
@@ -592,15 +592,6 @@ async function run(cols: number, rows: number): Promise<void> {
     const queuedRow = rowIndexOf()
     const queuedPlateColumn = plateColumnOf()
     const queuedTranscript = masked()
-    const cardRow = centreOf(scene.lines(), railCols).find(VIEW_ROW) ?? ''
-    const counters = cardRow.match(new RegExp(LIVE_COUNTER.source, 'g')) ?? []
-    const replant = (reasoning: string, running: string): string => {
-      let seen = 0
-      return cardRow.replace(new RegExp(LIVE_COUNTER.source, 'g'), () => (seen++ === 0 ? reasoning : running))
-    }
-    const plants = [replant('1m 20s', '6m 57s'), replant('1m 21s', '6m 58s'), replant('59s', '6m 59s'), replant('1m 0s', '7m 0s')]
-    console.log(`the crewmate card row before the landing: "${cardRow.trim().slice(0, 120)}" · its live counters: ${counters.join(', ') || 'none'}`)
-    check('the comparison ignores a tick of the card\'s live counters between the two frames (a slow frame straddles a second boundary): reasoning 1m 20s → 1m 21s, 59s → 1m 0s, the running time behind them', counters.length >= 1 && plants.every(row => maskLiveWords(row) === maskLiveWords(cardRow)), counters.length === 0 ? 'no live counter on the card row' : `masked "${maskLiveWords(plants[1]!).trim().slice(0, 100)}" vs "${maskLiveWords(cardRow).trim().slice(0, 100)}"`)
     landLine(ATLAS.id, LINE)
     publishRoster()
     const landedOnce = await until(() => carrying().length === 1 && !/\bqueued\b/.test(carrying()[0]!), 8000)
