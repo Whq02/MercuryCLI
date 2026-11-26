@@ -212,7 +212,7 @@ Chiudendo tutte le chat torni alla schermata iniziale. Usa `--chat` per avere so
 
 Apri l'elenco delle sessioni con `/concourse` oppure con `Shift+→` dalla schermata iniziale. Mostra prima le sessioni in esecuzione del progetto corrente, seguite dalle chat salvate non in esecuzione, dalla più recente alla più vecchia.
 
-Ogni sessione in esecuzione ha una cella NOW che mostra la sua attività corrente. Seleziona una riga e premi `Enter` per tornare alla chat mentre le altre sessioni continuano a girare. Una sessione andata in crash resta nell'elenco come NEEDS YOU, con il motivo, finché non la rilasci.
+Ogni sessione in esecuzione ha una cella NOW che mostra la sua attività corrente. Seleziona una riga e premi `Enter` per tornare alla chat mentre le altre sessioni continuano a girare. Una sessione andata in crash resta nell'elenco come needs you, con il motivo, finché non la rilasci.
 
 [docs/SESSIONS.md](../SESSIONS.md) descrive il ciclo di vita delle sessioni.
 

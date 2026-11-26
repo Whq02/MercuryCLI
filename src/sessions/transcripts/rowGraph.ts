@@ -13,6 +13,40 @@ const stampOf = (row: TranscriptMessage): number => {
   return Number.isNaN(at) ? -1 : at
 }
 
+export const sideNote = (row: { type: string; subtype?: string } | null | undefined): boolean => row?.type === 'system' && row.subtype !== 'local_command' && row.subtype?.endsWith('_boundary') !== true
+
+export function keptLine<Id>(listed: readonly Id[], parentOf: (id: Id) => Id | null | undefined, notesUnder: (id: Id) => Iterable<Id>): Id[] {
+  const named = new Set(listed)
+  const under = new Map<Id, Id[]>()
+  const seen = new Set<Id>()
+  let loose: Id[] = []
+  let whole = false
+  for (let id: Id | null | undefined = listed.at(-1); !whole && id !== undefined && id !== null && !seen.has(id); id = parentOf(id)) {
+    seen.add(id)
+    if (!named.has(id)) { loose.unshift(id); continue }
+    under.set(id, loose)
+    loose = []
+    whole = id === listed[0]
+  }
+  if (!whole) under.clear()
+  const reached = new Set<Id>()
+  for (const row of listed.slice(0, -1)) {
+    const group = under.get(row) ?? []
+    const line = new Set(group)
+    const open = [row]
+    for (const from of open) {
+      for (const note of notesUnder(from)) {
+        if (named.has(note) || reached.has(note)) continue
+        reached.add(note)
+        open.push(note)
+        if (!line.has(note)) group.push(note)
+      }
+    }
+    under.set(row, group)
+  }
+  return listed.flatMap(row => [row, ...(under.get(row) ?? [])])
+}
+
 class TranscriptRows {
   private positions = new Map<UUID, number>()
   private ordinal = 0
@@ -149,8 +183,12 @@ class TranscriptRows {
     if (segment.keptUuids !== undefined) {
       const ids = segment.keptUuids
       if (!Array.isArray(ids) || ids[0] !== segment.headUuid || ids.at(-1) !== segment.tailUuid || !ids.every(id => this.has(id))) return null
-      const kept = new Set(ids)
-      return kept.size === ids.length && !kept.has(segment.anchorUuid) ? kept : null
+      const folds = this.boundariesOldestFirst()
+      const fold = folds.findIndex(row => row.compactMetadata?.preservedSegment === segment)
+      const floor = fold < 1 ? -1 : this.positionOf(folds[fold - 1]!.uuid), end = fold < 0 ? Infinity : this.positionOf(folds[fold]!.uuid)
+      const line = keptLine(ids, id => this.get(id)?.parentUuid, id => [...this.children.get(id) ?? []].filter(note => this.positionOf(note) > floor && this.positionOf(note) < end && sideNote(this.get(note))))
+      const kept = new Set(line)
+      return kept.size === line.length && !kept.has(segment.anchorUuid) ? kept : null
     }
     const kept = new Set<UUID>()
     let cursor = this.get(segment.tailUuid)
@@ -164,7 +202,7 @@ class TranscriptRows {
 
   private relinkSegment(segment: Segment, kept: Set<UUID>): void {
     let parentUuid = segment.anchorUuid
-    for (const id of segment.keptUuids ?? [segment.headUuid]) {
+    for (const id of segment.keptUuids === undefined ? [segment.headUuid] : kept) {
       const row = this.get(id)!
       if (row.parentUuid !== parentUuid) this.set(id, { ...row, parentUuid })
       parentUuid = id
