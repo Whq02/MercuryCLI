@@ -21,6 +21,7 @@ prove-browser-emulation-card.ts
 prove-browser-emulation-consent.ts
 prove-browser-emulation.ts
 prove-browser-error-remedies.ts
+prove-browser-extract-shadow.ts
 prove-browser-first-navigation.ts
 prove-browser-first-request-order.ts
 prove-browser-first-requests.ts
