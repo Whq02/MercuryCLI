@@ -21,6 +21,71 @@ if (scenario !== null) {
   const { Onboarding } = await import('../../src/boot/first-run/Onboarding.js')
   const { loginFamilyRows } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.ts')
   const h = React.createElement
+  if (scenario === 'still-critter') {
+    delete process.env.NO_COLOR
+    process.env.FORCE_COLOR = '3'
+    const { CritterArt } = await import('../../src/screen/widgets/CritterArt.js')
+    const { critterDefForKey } = await import('../../src/screen/cockpit/critterData.js')
+    const snapshotBox = (mounted: Awaited<ReturnType<typeof mountOffscreen>>, topRow: number, leftCol: number): string =>
+      [0, 1, 2]
+        .map(dr => {
+          const line = mounted.lines()[topRow + dr] ?? ''
+          return Array.from({ length: 14 }, (_, dc) => {
+            const ch = line[leftCol + dc] ?? ' '
+            const s = mounted.styleAt(leftCol + dc, topRow + dr)
+            return `${ch}[${s?.fg ?? ''}/${s?.bg ?? ''}]`
+          }).join('')
+        })
+        .join('\n')
+    const stillMount = await mountOffscreen(h(CritterArt as never, { def: critterDefForKey('jellyfish') } as never), 20, 6)
+    await settle(150)
+    const stillBox = [0, 1, 2]
+      .map(dr => {
+        const line = stillMount.lines()[dr] ?? ''
+        return Array.from({ length: 11 }, (_, dc) => {
+          const ch = line[dc] ?? ' '
+          const s = stillMount.styleAt(dc, dr)
+          return `${ch}[${s?.fg ?? 'default'}/${s?.bg ?? 'default'}]`
+        }).join('')
+      })
+      .join('\n')
+    stillMount.unmount()
+
+    const element = h(AppStateProvider as never, {} as never, h(KeybindingSetup as never, {} as never, h(Onboarding as never, { onDone: () => {} } as never)))
+    const mounted = await mountOffscreen(element, 120, 40)
+    await waitFor(() => mounted.screen().includes('Choose your theme'), 15_000)
+    await settle(350)
+    const idx = mounted.lines().findIndex(l => l.includes('Choose your theme'))
+    const critterCol = (mounted.lines()[idx - 1] ?? '').indexOf('│') + 2
+    const samples: string[] = []
+    let firstStillSlice = ''
+    for (let t = 0; t < 8; t++) {
+      await settle(350)
+      samples.push(snapshotBox(mounted, idx - 1, critterCol - 1))
+      if (t === 0) {
+        firstStillSlice = [0, 1, 2]
+          .map(dr => {
+            const line = mounted.lines()[idx - 1 + dr] ?? ''
+            return Array.from({ length: 11 }, (_, dc) => {
+              const ch = line[critterCol + dc] ?? ' '
+              const s = mounted.styleAt(critterCol + dc, idx - 1 + dr)
+              return `${ch}[${s?.fg ?? 'default'}/${s?.bg ?? 'default'}]`
+            }).join('')
+          })
+          .join('\n')
+      }
+    }
+    mounted.unmount()
+
+    const shortMount = await mountOffscreen(element, 120, 28)
+    await waitFor(() => shortMount.screen().includes('Choose your theme'), 15_000)
+    await settle(250)
+    const shortScreen = shortMount.screen()
+    const rows28HasCritter = shortScreen.includes('●') || shortScreen.includes('▄▄▄▄▄▄▄▄▄')
+    shortMount.unmount()
+    process.stdout.write(JSON.stringify({ stillCritter: { distinct: new Set(samples).size, matchesStill: firstStillSlice === stillBox, rows28HasCritter } }))
+    process.exit(0)
+  }
   const element = h(AppStateProvider as never, {} as never, h(KeybindingSetup as never, {} as never, h(Onboarding as never, { onDone: () => {} } as never)))
   const mounted = await mountOffscreen(element, 120, 40)
   const until = async (needle: string): Promise<boolean> => waitFor(() => mounted.screen().includes(needle), 15_000)
@@ -93,12 +158,18 @@ const run = (tag: string, extraEnv: Record<string, string>): Record<string, stri
     TERM_PROGRAM: 'Apple_Terminal',
     ...extraEnv,
   }
+  if (tag === 'still-critter') {
+    for (const k of ['MERCURY_REDUCED_MOTION', 'MERCURY_CRITTER_IDLE', 'MERCURY_CRITTER_GAZE', 'MERCURY_CRITTER_SLEEP', 'MERCURY_LIVE_GLYPHS', 'NO_COLOR']) delete env[k]
+    env.MERCURY_CRITTER = 'jellyfish'
+    env.FORCE_COLOR = '3'
+  }
   for (const key of Object.keys(env)) {
     if (/^(ANTHROPIC_AUTH_TOKEN|ANTHROPIC_API_KEY|MERCURY_OAUTH_TOKEN|MERCURY_API_KEY_FILE_DESCRIPTOR|OPENAI_API_KEY|ZAI_API_KEY|OPENROUTER_API_KEY|GOOGLE_API_KEY|GEMINI_API_KEY|MOONSHOT_API_KEY|DEEPSEEK_API_KEY|HF_TOKEN|XAI_API_KEY|MODEL_API_KEY|MERCURY_COMPAT_BASE_URL|CURSOR_TRACE_ID|VSCODE_GIT_ASKPASS_MAIN|__CFBundleIdentifier|VisualStudioVersion|TERMINAL_EMULATOR)$/.test(key) && !(key in extraEnv)) delete env[key]
   }
   const r = spawnSync(process.execPath, ['run', SELF, '--scenario', tag], { encoding: 'utf8', env, timeout: 120_000 })
   rmSync(home, { recursive: true, force: true })
-  const start = r.stdout.indexOf('{"theme"')
+  const needle = tag === 'still-critter' ? '{"stillCritter"' : '{"theme"'
+  const start = r.stdout.indexOf(needle)
   const end = r.stdout.lastIndexOf('}')
   try {
     return JSON.parse(r.stdout.slice(start, end + 1)) as Record<string, string>
@@ -135,6 +206,15 @@ console.log('§2 a home whose environment carries a provider key: the walk has n
   check(`after the theme the walk lands on Guardrails, not the sign-in station (guardrails · 2/${stations - 1})`, after.includes('Guardrails') && after.includes(`guardrails · 2/${stations - 1}`), after.split('\n').slice(0, 3).join(' / '))
   check('the rail has no "sign in" step', !after.includes('sign in'), after.split('\n').slice(0, 3).join(' / '))
   check('the "sign in later" row with its caveat never painted', !after.includes('Sign in later'))
+}
+
+console.log('§3 the theme-step critter is painted still (no animation across ticks) and omitted below 29 rows')
+{
+  const result = run('still-critter', {}) as unknown as { stillCritter?: { distinct: number; matchesStill: boolean; rows28HasCritter: boolean }; error?: string }
+  const sc = result.stillCritter
+  check('across 8 animation ticks the jellyfish critter cells stay identical', sc !== undefined && sc.distinct === 1, JSON.stringify(result))
+  check('the painted critter cells match the still CritterArt render cell for cell', sc !== undefined && sc.matchesStill === true, JSON.stringify(result))
+  check('at 28 rows (below 29) no critter paints on the theme step', sc !== undefined && sc.rows28HasCritter === false, JSON.stringify(result))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
