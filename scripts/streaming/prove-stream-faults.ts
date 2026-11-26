@@ -77,7 +77,11 @@ await scene(
   },
   fin => {
     check('F3: the recovery turn painted', fin.includes('recovered after the tool error.'), 'the turn after the failed Read tool call never painted its text; the loop must continue after a tool error')
-    check('F3: errored work wears ▲ (never the denial ✕)', fin.includes('▲') || !fin.includes('✕'), 'a tool error is drawn with the denial mark ✕ and no ▲; errored tool rows must wear ▲')
+    check(
+      'F3: errored work wears ✕ in the row lead (never ▲)',
+      /│ ✕ (?:\d\d:\d\d:\d\d )?\[Mercury\] Read/.test(fin) && !fin.includes('▲'),
+      'an errored tool row must wear ✕ in the row lead before the nameplate (not ▲)',
+    )
   },
 )
 
