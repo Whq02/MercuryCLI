@@ -194,8 +194,12 @@ export function olderChatsCensus(
       if (fact.husk || fact.title === null) continue
       total += 1
       if (entryCap > 0) {
+        const ageMs =
+          opts.sessions !== undefined
+            ? c.ageMs
+            : Math.max(0, nowMs - (fact.lastUsedMs ?? Math.floor(c.mtimeMs)))
         ranked.push({
-          entry: { sessionId: c.sessionId, transcriptPath: c.file, ageMs: c.ageMs, title: fact.title },
+          entry: { sessionId: c.sessionId, transcriptPath: c.file, ageMs, title: fact.title },
           mtimeMs: c.mtimeMs,
           lastUsedMs: fact.lastUsedMs,
         })

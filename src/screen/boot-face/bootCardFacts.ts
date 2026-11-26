@@ -298,7 +298,7 @@ export function parkedSessionsOf(
     if (!isSessionFile(f) || f === skip) continue
     try {
       const st = statSync(join(home, f))
-      if (st.size > 0 && st.mtimeMs >= since) candidates.push({ file: join(home, f), mtime: st.mtimeMs, size: st.size })
+      if (st.size > 0 && st.mtimeMs + RECENCY_CLOCK_SLACK_MS >= since) candidates.push({ file: join(home, f), mtime: st.mtimeMs, size: st.size })
     } catch (error) {
       passedOver(error)
     }
@@ -306,6 +306,8 @@ export function parkedSessionsOf(
   candidates.sort((a, b) => b.mtime - a.mtime)
   const ranked: Array<{ sessionId: string; transcriptPath: string; mtimeMs: number; lastUsedMs: number | null }> = []
   const scanLimit = Math.min(candidates.length, cap + RESTAMP_SCAN_GUARD)
+  const nowMs = opts.nowMs ?? Date.now()
+  let husks = 0
   for (let i = 0; i < scanLimit && ranked.length < cap + RESTAMP_BURST_CAP; i++) {
     const c = candidates[i]!
     if (ranked.length >= cap) {
@@ -313,18 +315,27 @@ export function parkedSessionsOf(
       const kth = ranked[cap - 1]!.lastUsedMs
       if (kth !== null && c.mtime + RECENCY_CLOCK_SLACK_MS < kth) break
     }
-    if (ranked.length === 0 && i >= cap + HUSK_WALK) break
+    if (ranked.length === 0 && husks >= cap + HUSK_WALK) break
     const check = readHuskCheck(c.file, c.size)
-    if (check.husk) continue
+    if (check.husk) {
+      husks++
+      continue
+    }
+    const lastUsedMs = readSessionLastUsedMsCachedSync(c.file, c.mtime, c.size, check.fullText)
+    if ((lastUsedMs ?? Math.floor(c.mtime)) < since) continue
     ranked.push({
       sessionId: sessionIdOf(c.file),
       transcriptPath: c.file,
       mtimeMs: c.mtime,
-      lastUsedMs: readSessionLastUsedMsCachedSync(c.file, c.mtime, c.size, check.fullText),
+      lastUsedMs,
     })
   }
   ranked.sort(compareSessionRecency)
-  return ranked.slice(0, cap).map(c => ({ sessionId: c.sessionId, transcriptPath: c.transcriptPath, ageMs: Date.now() - c.mtimeMs }))
+  return ranked.slice(0, cap).map(c => ({
+    sessionId: c.sessionId,
+    transcriptPath: c.transcriptPath,
+    ageMs: Math.max(0, nowMs - (c.lastUsedMs ?? Math.floor(c.mtimeMs))),
+  }))
 }
 
 export const BOOT_SCAN_DIR_CAP = 128

@@ -58,7 +58,7 @@ const { lastConversationActivityMs, readSessionLastUsedMsCachedSync } = await im
 const { listProjectSessions, listRepoSessions, listSessions, sessionAtIndex, invalidateSessionListingMemo } = await import('../../src/sessions/transcripts/sessionListings.ts')
 const { readListedSessions } = await import('../../src/sessions/transcripts/listedSessions.ts')
 const { resumableNewestFirst, projectSessionPickerRows } = await import('../../src/screen/widgets/faces/sessionPickerModel.ts')
-const { scanBootCardFacts, parkedSessionsOf, projectIdentity } = await import('../../src/screen/boot-face/bootCardFacts.ts')
+const { scanBootCardFacts, parkedSessionsOf, projectIdentity, PARKED_WEEK_MS } = await import('../../src/screen/boot-face/bootCardFacts.ts')
 const { olderChatsCensus, buildConcourseSnapshot } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
 const { nodeTranscriptReaderIo, setTranscriptReaderIoForTesting } = await import('../../src/sessions/transcripts/transcriptReader.ts')
 const { flipToSession } = await import('../../src/engine/connector/sessionFlip.ts')
@@ -653,10 +653,39 @@ try {
 
     const cliLines: string[] = []
     await sessionsListCli({ limit: 6 }, { out: (l: string) => cliLines.push(l), err: (l: string) => cliLines.push(l), interactive: false, ask: async () => false })
+    check('§4 mercury sessions CLI header names last used instead of modified', cliLines[0]?.includes('(id · last used · size · title):') === true, cliLines[0] ?? '')
     const rowStamps = cliLines
       .filter(l => /^00000000-d490/.test(l))
       .map(l => Date.parse(l.split(/\s+/)[1] ?? ''))
     check('§4 mercury sessions CLI prints ISO timestamps in descending order matching its sort order', rowStamps.length >= 2 && rowStamps[0]! > rowStamps[1]!, rowStamps.map(t => new Date(t).toISOString()).slice(0, 2).join(' vs '))
+
+    const burstParked = parkedSessionsOf(P_BURST)
+    check('§4 Session Manager parkedSessionsOf ageMs reflects last use (real <1m, restamped dead ~10m)', burstParked.length >= 2 && burstParked[0]!.ageMs < burstParked[1]!.ageMs && burstParked[1]!.ageMs >= 500_000, `row0=${Math.round(burstParked[0]?.ageMs ?? -1)} row1=${Math.round(burstParked[1]?.ageMs ?? -1)}`)
+
+    const burstOlder = olderChatsCensus(P_BURST, new Set(), Date.now(), { entryCap: 6 })
+    check('§4 Session Manager olderChatsCensus ageMs reflects last use (real <1m, restamped dead ~10m)', burstOlder.entries.length >= 2 && burstOlder.entries[0]!.ageMs < burstOlder.entries[1]!.ageMs && burstOlder.entries[1]!.ageMs >= 500_000, `row0=${Math.round(burstOlder.entries[0]?.ageMs ?? -1)} row1=${Math.round(burstOlder.entries[1]?.ageMs ?? -1)}`)
+
+    const sidAncientRestamped = sid('209')
+    const fAncient = join(burstDir, `${sidAncientRestamped}.jsonl`)
+    const tenDaysAgo = Date.now() - 10 * 24 * 60 * 60_000
+    writeFileSync(
+      fAncient,
+      encodeSeedTranscript(
+        [
+          makeRow(sidAncientRestamped, tenDaysAgo, { cwd: P_BURST, type: 'user', message: { role: 'user', content: 'ancient prompt restamped today' } }),
+          makeRow(sidAncientRestamped, tenDaysAgo + 1_000, {
+            cwd: P_BURST,
+            type: 'assistant',
+            message: { id: 'm_anc', type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'ancient reply' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+          }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidAncientRestamped,
+      ),
+    )
+    const todayRestamp = new Date(Date.now() - 500)
+    utimesSync(fAncient, todayRestamp, todayRestamp)
+    const weekParked = parkedSessionsOf(P_BURST, { withinMs: PARKED_WEEK_MS })
+    check('§4 Session Manager 7-day parkedSessionsOf filter excludes a 10-day-old session restamped today', !weekParked.some(s => s.sessionId === sidAncientRestamped) && weekParked[0]?.sessionId === sidBurstReal, weekParked.map(s => s.sessionId.slice(-3)).join(','))
 
     const deadOnlyDir = join(SCRATCH, 'proj-dead-only')
     mkdirSync(deadOnlyDir, { recursive: true })

@@ -118,7 +118,7 @@ export async function sessionsListCli(options: { all?: boolean; limit?: number }
     io.out(options.all === true ? `No saved sessions under ${getProjectsDir()}.` : `No saved sessions for this project (${getProjectDir(getOriginalCwd())}); ${cli} sessions list --all reads every project.`)
     return 0
   }
-  io.out(`${logs.length} saved session${logs.length === 1 ? '' : 's'}${options.all === true ? ' across every project' : ' for this project'}, newest first (id · modified · size · title):`)
+  io.out(`${logs.length} saved session${logs.length === 1 ? '' : 's'}${options.all === true ? ' across every project' : ' for this project'}, newest first (id · last used · size · title):`)
   for (const log of logs) {
     const id = log.sessionId ?? (log.fullPath ?? '').split(/[\\/]/).pop()?.replace(/\.jsonl$/, '') ?? '?'
     const title = (listedSessionName(log) ?? '').replace(/\s+/g, ' ').trim()
