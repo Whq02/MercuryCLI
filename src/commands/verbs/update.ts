@@ -1,4 +1,5 @@
 import { readCurrentVersionState, reconcileManagedShims, resolveLayoutRoots, type LayoutRoots } from 'src/platform/update-channel/installLayout.js'
+import { reconcileManagedCommands } from 'src/platform/profiles/profiles.js'
 import { commandOnPath, commandOnPathWarning, npmWrapperOnPath } from 'src/platform/update-channel/installPath.js'
 import {
   askYesNo,
@@ -347,7 +348,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
   if (ghWarning && !options.json) console.error(ghWarning)
   const installCurrent = result.state === 'updated' || (result.state === 'no-update' && result.check.state === 'current')
   if (installCurrent) {
-    reconcileManagedShims(roots)
+    reconcileManagedCommands(roots)
   }
   const daemon = installCurrent ? await moveDaemonAfterUpdate() : null
   const daemonLine = daemon === null ? '' : `\n${daemon.line}`

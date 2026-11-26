@@ -13,6 +13,7 @@ export type PickerRow = {
   action?: boolean
   searchableAction?: boolean
   gated?: boolean
+  pending?: boolean
   choice?: string
   expand?: CatalogueDoorFacet
   rest?: boolean
@@ -70,7 +71,7 @@ export function isModelRow(row: PickerRow): boolean {
 }
 
 export function isLiveRow(row: PickerRow): boolean {
-  return isModelRow(row) && row.gated !== true
+  return isModelRow(row) && row.gated !== true && row.pending !== true
 }
 
 export function liveCount(rows: readonly PickerRow[]): number {

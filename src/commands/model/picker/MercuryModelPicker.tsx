@@ -251,6 +251,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
   })()
   const [cursor, setI] = useState(landing)
   const [lineSnapshot, setLineSnapshot] = useState({ listed, lines })
+  const [ctxNotice, setCtxNotice] = useState<string | null>(null)
   let i = Math.min(cursor, Math.max(0, totalLines - 1))
   if (!isCursorStop(lines[i])) i = nextStop(lines, i, 1) !== i ? nextStop(lines, i, 1) : nextStop(lines, i, -1)
   if (lineSnapshot.lines !== lines) {
@@ -263,6 +264,8 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
         if (first >= 0) i = first
       } else if (moved >= 0) i = moved
       if (i !== cursor) setI(i)
+      const after = lines[i]
+      if (ctxNotice !== null && prior?.kind === 'row' && prior.row.pending === true && (after?.kind !== 'row' || after.row.pending !== true)) setCtxNotice(null)
     }
     setLineSnapshot({ listed, lines })
   }
@@ -293,7 +296,6 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
   const focusedSupports1m = focusedModel !== undefined && focusedOptionSupports1m(focusedModel.id)
   const [context1m, setContext1m] = useState(ctxStateOf(focusedModel?.id))
   const { focusedGptWindow, focusedGptToggle } = focusedGptFacts(focusedModel)
-  const [ctxNotice, setCtxNotice] = useState<string | null>(null)
   const [windowTyping, setWindowTyping] = useState<string | null>(null)
   const [, setWindowStamp] = useState(0)
   const focusedTf = focusedModel?.tensorfold
@@ -356,6 +358,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
   const footer = modelPickerFooter(
     {
       gated: !!focusedModel?.gated,
+      ...(focusedModel?.pending ? { pending: true } : {}),
       ...(focusedModel?.enableFlag !== undefined ? { enableFlag: focusedModel.enableFlag } : {}),
       ...(focusedHeading !== undefined ? { heading: { fold: focusedHeading.fold === 'folded' ? 'folded' : 'open' } } : {}),
       ...(focusedLine?.kind === 'more' ? { more: true } : {}),

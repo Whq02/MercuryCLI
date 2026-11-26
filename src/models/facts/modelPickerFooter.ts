@@ -12,6 +12,7 @@ const MODEL_PICKER_SUPPORT_WORDS = 'c copies the support line'
 export function modelPickerFooter(
   opts: {
     gated: boolean
+    pending?: boolean
     enableFlag?: string
     heading?: ModelPickerFooterHeading
     more?: boolean
@@ -44,7 +45,7 @@ export function modelPickerFooter(
       ]
     : [
         { text: 'type to search', show: opts.filterFocus === true, drop: 0 },
-        { text: action, show: true, drop: 1 },
+        { text: action, show: opts.pending !== true, drop: 1 },
         { text: MODEL_PICKER_CONTEXT_WORDS, show: opts.filterFocus !== true && opts.more !== true, drop: 3 },
         { text: '→ ← fold', show: opts.filterFocus !== true, drop: 2 },
         { text: 'tab to search', show: opts.filterFocus !== true, drop: 4 },
