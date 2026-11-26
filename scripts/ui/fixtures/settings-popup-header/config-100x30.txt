@@ -16,15 +16,15 @@ vitals              │ │   Session concourse                 on              
                     │ │   Account identity                  shown                                │ │
                     │ │   Zen mode — rails hidden           off                                  │ │
                     │ │   Motion                            auto · off                           │ │
-                    │ │   DuckDuckGo page scraping          on                                 ↓ │ │
-                    │ │ ↓ 73 more                                                                │ │
+                    │ │   DuckDuckGo page scraping          on                                   │ │
+                    │ │   JEV                               off · official                     ↓ │ │
+                    │ │ ↓ 72 more                                                                │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc closes │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │
                     │                                                                              │
                     ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                 │
+│❯ Type a prompt, or / for commands                                                                │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

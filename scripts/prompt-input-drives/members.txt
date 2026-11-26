@@ -10,3 +10,4 @@ prove-paste-quick-enter-drive.ts
 prove-typed-word-plain-ink.ts
 prove-optp-effort-notice.ts
 prove-optp-saved-default.ts
+prove-newline-hint-apple-terminal-drive.ts

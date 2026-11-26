@@ -14,6 +14,7 @@ vitals                  │ │ ↑↓ select · type to search · ↵ switch ·
   spend —               │ │ pgup/pgdn page                                                                           │ │
   ctx — · —             │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
   health — run /health  │                                                                                              │
+                        │ transcript row 42 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 43 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 44 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 45 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
@@ -34,7 +35,6 @@ vitals                  │ │ ↑↓ select · type to search · ↵ switch ·
                         │ transcript row 60 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │
+│❯ Type a prompt, or / for commands                                                                                    │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

@@ -1,19 +1,20 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-workbench               │ transcript row 48 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
-  no prompts yet        │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
-                        │                                                                                              │
-next                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-  /health               │ │ ▖▟▆▙▗ Mercury · usage                                                                    │ │
-  /memory               │ │ API usage session on · 0 subscriptions signed in                                         │ │
-  /mission              │ │                                                                                          │ │
-                        │ │ Anthropic usage                                                                          │ │
-files · orchard         │ │ API key · …-key                                                                          │ │
-  ↵ browse              │ │ credits: not reported by the provider                                                    │ │
+workbench               │ transcript row 47 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+  no prompts yet        │ transcript row 48 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+                        │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+next                    │                                                                                              │
+  /health               │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+  /memory               │ │ ▖▟▆▙▗ Mercury · usage                                                                    │ │
+  /mission              │ │ API usage session on · 0 subscriptions signed in                                         │ │
                         │ │                                                                                          │ │
-vitals                  │ │ Subscription                                                                             │ │
-  spend —               │ │ none — /logins anthropic connects a subscription account · n/a                           │ │
-  ctx — · —             │ │                                                                                          │ │
-  health — run /health  │ │ API key                                                                                  │ │
+files · orchard         │ │ Anthropic usage                                                                          │ │
+  ↵ browse              │ │ API key · …-key                                                                          │ │
+                        │ │ credits: not reported by the provider                                                    │ │
+vitals                  │ │                                                                                          │ │
+  spend —               │ │ Subscription                                                                             │ │
+  ctx — · —             │ │ none — /logins anthropic connects a subscription account · n/a                           │ │
+  health — run /health  │ │                                                                                          │ │
+                        │ │ API key                                                                                  │ │
                         │ │ Anthropic API key (ANTHROPIC_API_KEY)                                                    │ │
                         │ │ no usage endpoint is read for an API key on this lane — the provider console is the view │ │
                         │ │                                                                                          │ │
@@ -34,7 +35,6 @@ vitals                  │ │ Subscription                                    
                         │                                                                                              │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │
+│❯ Type a prompt, or / for commands                                                                                    │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

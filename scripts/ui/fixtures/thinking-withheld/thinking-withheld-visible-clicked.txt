@@ -6,11 +6,11 @@ next                    ││  ▀▄▄▄▀▄▄▄▀                     
   /health               │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
   /memory               │                                                                                                                  │
   /mission              │                                                                                                                  │
-                        │ 23:22:10 [sam] ❯ private reasoning                                                                               │
+                        │ 00:31:56 [sam] ❯ private reasoning                                                                               │
 files · project         │                                                                                                                  │
-  ↵ browse              │ 23:22:10 [Mercury] Private reasoning answer.                                                                     │
+  ↵ browse              │ 00:31:56 [Mercury] Private reasoning answer.                                                                     │
                         │                                                                                                                  │
-vitals                  │ 23:22:19 [sam] ❯ visible reasoning                                                                               │
+vitals                  │ 00:32:05 [sam] ❯ visible reasoning                                                                               │
   spend $0.00           │                                                                                                                  │
   ctx 0% · 1000k        │ ● Preserved thinking: 2 thinking blocks written by Opus 4.8 stay out of the requests to Opus 5.5 (the            │
   health — run /health  │ conversation switched models); the model re-plans without them.                                                  │
@@ -19,7 +19,8 @@ vitals                  │ 23:22:19 [sam] ❯ visible reasoning                
                         │   Visible reasoning body.                                                                                        │
                         │                                                                                                                  │
                         │                                                                                                                  │
-                        │ 23:22:19 [Mercury] Visible reasoning answer.                                                                     │
+                        │ 00:32:05 [Mercury] Visible reasoning answer.                                                                     │
+                        │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
@@ -46,5 +47,4 @@ vitals                  │ 23:22:19 [sam] ❯ visible reasoning                
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │❯                                                                                                                                         │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line · shift + ← boot face
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

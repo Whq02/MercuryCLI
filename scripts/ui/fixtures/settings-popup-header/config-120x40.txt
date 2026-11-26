@@ -26,15 +26,15 @@ vitals                  │ │   Tips                              on          
                         │ │   Thinking                          n/a — Opus 5.5 keeps thinking on                     │ │
                         │ │   Usage notice to the model         off                                                  │ │
                         │ │   Tool output                       compact                                              │ │
-                        │ │   Terminal progress bar             on                                                 ↓ │ │
-                        │ │ ↓ 63 more                                                                                │ │
+                        │ │   Terminal progress bar             on                                                   │ │
+                        │ │   Turn duration                     on                                                 ↓ │ │
+                        │ │ ↓ 62 more                                                                                │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc closes                 │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
                         │                                                                                              │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │
+│❯ Type a prompt, or / for commands                                                                                    │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

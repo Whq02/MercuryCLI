@@ -47,11 +47,8 @@ export function useComposerPlaceholder({
   }
   if (onboardingHint) return onboardingHint
   if (submitCount < 2) {
-    if (compact) {
-      return 'Type a prompt, or start a slash command'
-    }
-    if (cockpitActive) {
-      return 'Type a prompt, start a slash command, or Tab to focus the rails'
+    if (compact || cockpitActive) {
+      return 'Type a prompt, or / for commands'
     }
   }
   if (submitCount === 0 && promptSuggestionEnabled) {

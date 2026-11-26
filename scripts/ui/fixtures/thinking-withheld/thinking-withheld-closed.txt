@@ -6,9 +6,9 @@ next                    ││  ▀▄▄▄▀▄▄▄▀                     
   /health               │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
   /memory               │                                                                                                                  │
   /mission              │                                                                                                                  │
-                        │ 23:22:10 [sam] ❯ private reasoning                                                                               │
+                        │ 00:31:56 [sam] ❯ private reasoning                                                                               │
 files · project         │                                                                                                                  │
-  ↵ browse              │ 23:22:10 [Mercury] Private reasoning answer.                                                                     │
+  ↵ browse              │ 00:31:56 [Mercury] Private reasoning answer.                                                                     │
                         │                                                                                                                  │
 vitals                  │                                                                                                                  │
   spend $0.00           │                                                                                                                  │
@@ -41,10 +41,10 @@ vitals                  │                                                     
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
+                        │                                                                                                                  │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
  ready · Opus 5.5 · high                                                                                                   project  ⇧← back
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                                         │
+│❯ Type a prompt, or / for commands                                                                                                        │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line · shift + ← boot face
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

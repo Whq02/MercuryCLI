@@ -1,20 +1,11 @@
-import React, { useMemo, useSyncExternalStore } from 'react'
-import { Box, Text } from '../themedRenderer.js'
-import {
-  extendedKeysSupportedNow,
-  subscribeExtendedKeysSupport,
-} from '../renderer/terminal-session/capabilities.js'
+import React, { useMemo } from 'react'
+import { Box } from '../themedRenderer.js'
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js'
 import type { MCPServerConnection } from '../../integrations/mcp-shapes/mcpServerRecords.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import type { InputMode } from './input-core/textInput.js'
 import type { VerificationStatus } from '../../models/sign-in/credentials/useApiKeyVerification.js'
 import { useSetPromptOverlay } from '../overlays/promptOverlay.js'
-import {
-  presentStripStops,
-  stripKeyMapHintOf,
-  subscribeSurfaceRoute,
-} from '../routes/surfaceRoute.js'
 import { isFullscreenEnvEnabled } from '../fullscreen-layout/fullscreen.js'
 import { MercuryMissionIndicator } from './MercuryMissionIndicator.js'
 import { Notifications } from './Notifications.js'
@@ -25,15 +16,6 @@ import {
   type SuggestionItem,
   type SuggestionType,
 } from './ComposerFooterSuggestions.js'
-import { getNewlineInstructions } from './composerConfig.js'
-import { useEscapeOwned } from '../keys/useEscapeOwned.js'
-import { crewmateComposerHint } from '../cockpit/crewmateWords.js'
-import { targetWords, useComposerCrewmate, useViewedCrewmate, viewedWords } from '../tasks/useCrewmateView.js'
-
-export function footerStripHint(hint: string): string {
-  return hint.replace(/^(?:⇧|shift\+)←/, 'shift + ←')
-}
-
 const NARROW_COLUMNS = 80
 
 export function ComposerFooter({
@@ -86,22 +68,8 @@ export function ComposerFooter({
   maxRows?: number
   suggestionRows?: number
 }): React.ReactNode {
-  useSyncExternalStore(
-    subscribeExtendedKeysSupport,
-    extendedKeysSupportedNow,
-    extendedKeysSupportedNow,
-  )
-  const stripHint = useSyncExternalStore(
-    subscribeSurfaceRoute,
-    () => stripKeyMapHintOf('repl', presentStripStops()),
-    () => '',
-  )
   const fullscreen = isFullscreenEnvEnabled()
   const { columns } = useTerminalSize()
-  const escapeOwned = useEscapeOwned()
-  const composerCrewmate = useComposerCrewmate()
-  const viewedCrewmate = useViewedCrewmate()
-
   const hasSuggestions = suggestions.length > 0
   const overlayData = useMemo(
     () =>
@@ -166,10 +134,6 @@ export function ComposerFooter({
   }
 
   const narrow = columns < NARROW_COLUMNS
-  const crewmateHint =
-    composerCrewmate !== null
-      ? crewmateComposerHint(targetWords(composerCrewmate), viewedWords(viewedCrewmate), escapeOwned)
-      : null
 
   return (
     <Box
@@ -180,13 +144,6 @@ export function ComposerFooter({
     >
       <Box flexDirection="column" flexShrink={1} minWidth={0}>
         {leftSide}
-        {!exitPending && !isPasting ? (
-          <Text dimColor wrap="truncate-end">
-            {getNewlineInstructions()}
-            {crewmateHint !== null ? ` · ${crewmateHint}` : ''}
-            {fullscreen && crewmateHint === null && stripHint !== '' ? ` · ${footerStripHint(stripHint)}` : ''}
-          </Text>
-        ) : null}
       </Box>
       <Box
         flexDirection="column"

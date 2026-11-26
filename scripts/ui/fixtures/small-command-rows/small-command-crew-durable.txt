@@ -6,9 +6,9 @@ next                    ││  ▀▄▄▄▀▄▄▄▀                     
   /health               │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
   /memory               │                                                                                                                  │
   /mission              │                                                                                                                  │
-                        │ 23:21:41 [sam] ❯ start                                                                                           │
+                        │ 00:31:28 [sam] ❯ start                                                                                           │
 files · project         │                                                                                                                  │
-  ↵ browse              │ 23:21:41 [Mercury] Command rows ready.                                                                           │
+  ↵ browse              │ 00:31:28 [Mercury] Command rows ready.                                                                           │
                         │                                                                                                                  │
 vitals                  │ ❯ /crewmates off                                                                                                 │
   spend $0.00           │   └ crewmates off for this session                                                                               │
@@ -44,7 +44,7 @@ vitals                  │ ❯ /crewmates off                                  
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
  ready · Opus 5.5 · high                                                                                                   project  ⇧← back
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                                         │
+│❯ Type a prompt, or / for commands                                                                                                        │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 Help closed
-shift + ↵ for a new line · shift + ← concourse
+backslash (\) + ↵ for a new line

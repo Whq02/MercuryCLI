@@ -38,13 +38,13 @@ vitals                  │  │                                                
                         │  │                                                                                                            │  │
                         │  │                                                                                                            │  │
                         │  │                                                                                                            │  │
+                        │  │                                                                                                            │  │
                         │  │ ↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc or click outside closes                  │  │
                         │  ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯  │
                         │                                                                                                                  │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
  ready · Opus 5.5 · high                                                                                                   project  ⇧← back
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                                         │
+│❯ Type a prompt, or / for commands                                                                                                        │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line · shift + ← concourse
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails
