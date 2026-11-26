@@ -23,7 +23,6 @@ const app = { identity: 'com.example.Editor', name: 'Editor', pid: 123, title, w
 driver.frontmostApplication = async () => ({ ok: true, value: { ...app, title } })
 driver.accessibilityTree = async (_app, _limits, signal) => {
   if (acted) afterReads++
-  if (acted && mode === 'late' && afterReads >= 2) focus = 'Second'
   if (acted && mode === 'slow') return new Promise(resolve => {
     const fallback = setTimeout(() => resolve({ ok: false, error: { kind: 'defect', note: 'the read deadline never arrived' } }), 1000)
     const abort = () => { clearTimeout(fallback); cancelled = true; resolve({ ok: false, error: { kind: 'aborted', note: 'fixture read cancelled' } }) }
@@ -41,6 +40,7 @@ driver.keyTap = async (...args) => {
   afterReads = 0
   if (mode === 'title') title = title === 'Document' ? 'New Bot - Grok' : 'Automations - Grok'
   if (mode === 'focus') setTimeout(() => { focus = 'Second' }, 60)
+  if (mode === 'late') setTimeout(() => { focus = 'Second' }, 15)
   if (mode === 'value') inputValue = 'new text'
   return answer
 }
@@ -94,8 +94,8 @@ reset('title')
 const waited = await call({ action: 'sequence', steps: [{ action: 'key', key: 'Tab' }, { action: 'wait', durationMs: 0 }], capture: false, settleMs: 0 })
 check('a sequence ending in a wait keeps the change its key made: one state line, changed, with the window as it stands after the wait', waited.outcome === 'succeeded' && (waited.result.match(/now:/g)?.length ?? 0) === 1 && waited.result.includes('changed · now: window "New Bot - Grok"') && !/\bunchanged · now/.test(waited.result), waited.result)
 reset('late')
-const moved = await call({ action: 'sequence', steps: [{ action: 'key', key: 'Tab' }, { action: 'wait', durationMs: 0 }], capture: false, settleMs: 0 })
-check("the line is read after the trailing wait: a focus that moved after the key's own read is named, and the sequence reads changed", moved.outcome === 'succeeded' && afterReads === 2 && (moved.result.match(/now:/g)?.length ?? 0) === 1 && moved.result.includes('changed · now: window "Document" · focus AXTextField "Second"'), `${moved.result}; reads ${afterReads}`)
+const moved = await call({ action: 'sequence', steps: [{ action: 'key', key: 'Tab' }, { action: 'wait', durationMs: 40 }], capture: false, settleMs: 0 })
+check('the line is read once after the trailing wait: a focus that moved during the wait is named, and the sequence reads changed', moved.outcome === 'succeeded' && afterReads === 1 && (moved.result.match(/now:/g)?.length ?? 0) === 1 && moved.result.includes('changed · now: window "Document" · focus AXTextField "Second"'), `${moved.result}; reads ${afterReads}`)
 reset('same')
 const captured = await call({ action: 'key', key: 'Tab', capture: true, settleMs: 100 })
 check('capture keeps the image but removes old settle prose', captured.outcome === 'succeeded' && !!captured.imagePath && captured.result.includes('unchanged · now:') && !/settle cap reached|screen stable|target region stable|window stable/.test(captured.result), captured.result)

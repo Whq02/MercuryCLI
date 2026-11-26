@@ -1,5 +1,6 @@
 prove-browser-allowance.ts
 prove-browser-approval-words.ts
+prove-browser-attach-card.ts
 prove-browser-attach-coord-cross-origin-frame.ts
 prove-browser-attach-covered.ts
 prove-browser-attach-cross-origin-frame-url.ts

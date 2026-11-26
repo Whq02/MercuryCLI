@@ -239,28 +239,7 @@ class TranscriptRows {
 
   decorate(spine: TranscriptMessage[], seen: Set<UUID>): TranscriptMessage[] { return decorateOf.call(this, spine, seen) }
 
-  notesUnder(id: UUID, seen: Set<UUID>): TranscriptMessage[] {
-    const notes = this.systemNotesUnder(id, seen)
-    notes.push(...this.hookRowsHangingOff(id, seen))
-    const pending = [...this.ordered(this.children.get(id) ?? [])]
-    while (pending.length > 0) {
-      const row = pending.shift()!
-      if (row.type !== 'attachment') continue
-      notes.push(...this.systemNotesUnder(row.uuid, seen))
-      pending.push(...this.ordered(this.children.get(row.uuid) ?? []))
-    }
-    return notes
-  }
-
-  private systemNotesUnder(id: UUID, seen: Set<UUID>): TranscriptMessage[] {
-    const notes: TranscriptMessage[] = []
-    for (const note of this.ordered(this.children.get(id) ?? [])) {
-      if (note.type !== 'system' || seen.has(note.uuid) || note.subtype === 'compact_boundary' || note.subtype === 'microcompact_boundary') continue
-      seen.add(note.uuid)
-      notes.push(note, ...this.notesUnder(note.uuid, seen))
-    }
-    return notes
-  }
+  notesUnder(id: UUID, seen: Set<UUID>): TranscriptMessage[] { return notesUnderOf.call(this, id, seen) }
 
   chain(leaf: TranscriptMessage): TranscriptMessage[] {
     const seen = new Set<UUID>()
@@ -281,22 +260,119 @@ class TranscriptRows {
   strandedAfter(boundary: BoundaryRow, seen: Set<UUID>): TranscriptMessage[] { return strandedAfterOf.call(this, boundary, seen) }
 
   screenConversation(): TranscriptMessage[] { return screenConversationOf.call(this) }
+}
 
-  private hookRowsHangingOff(id: UUID, seen: Set<UUID>): TranscriptMessage[] {
-    const hooks: TranscriptMessage[] = []
-    const pending = [...this.ordered(this.children.get(id) ?? [])]
-    while (pending.length > 0) {
-      const row = pending.shift()!
-      if (row.type !== 'attachment' || seen.has(row.uuid)) continue
-      const attachment = (row as { attachment?: unknown }).attachment as { type?: unknown; callId?: unknown } | undefined
-      if (typeof attachment === 'object' && attachment !== null && attachment.type === 'hook' && typeof attachment.callId === 'string') {
-        seen.add(row.uuid)
-        hooks.push(row)
+type NoteFrame =
+  | { kind: 'sys'; list: TranscriptMessage[]; at: number }
+  | { kind: 'afterSys'; attachments: TranscriptMessage[] }
+  | { kind: 'attBfs'; queue: TranscriptMessage[]; at: number }
+
+function notesUnderOf(this: TranscriptRows, rootId: UUID, seen: Set<UUID>): TranscriptMessage[] {
+  const byPos = (a: TranscriptMessage, b: TranscriptMessage): number => this.positionOf(a.uuid) - this.positionOf(b.uuid)
+  const splitChildren = (id: UUID): { systems: TranscriptMessage[]; attachments: TranscriptMessage[] } => {
+    const ids = this.children.get(id)
+    const systems: TranscriptMessage[] = []
+    const attachments: TranscriptMessage[] = []
+    if (!ids) return { systems, attachments }
+    let prevSys = -1
+    let sysUnsorted = false
+    let prevAtt = -1
+    let attUnsorted = false
+    for (const childId of ids) {
+      const row = this.get(childId)
+      if (!row) continue
+      if (row.type === 'system') {
+        if (seen.has(row.uuid) || row.subtype === 'compact_boundary' || row.subtype === 'microcompact_boundary') continue
+        const pos = this.positionOf(childId)
+        if (pos < prevSys) sysUnsorted = true
+        prevSys = pos
+        systems.push(row)
+      } else if (row.type === 'attachment') {
+        const pos = this.positionOf(childId)
+        if (pos < prevAtt) attUnsorted = true
+        prevAtt = pos
+        attachments.push(row)
       }
-      pending.push(...this.ordered(this.children.get(row.uuid) ?? []))
     }
-    return hooks
+    if (sysUnsorted) systems.sort(byPos)
+    if (attUnsorted) attachments.sort(byPos)
+    return { systems, attachments }
   }
+  const pushAttachmentChildren = (id: UUID, out: TranscriptMessage[]): void => {
+    const ids = this.children.get(id)
+    if (!ids) return
+    const start = out.length
+    let prev = -1
+    let unsorted = false
+    for (const childId of ids) {
+      const row = this.get(childId)
+      if (!row || row.type !== 'attachment') continue
+      const pos = this.positionOf(childId)
+      if (pos < prev) unsorted = true
+      prev = pos
+      out.push(row)
+    }
+    if (unsorted) {
+      const slice = out.splice(start)
+      slice.sort(byPos)
+      for (const row of slice) out.push(row)
+    }
+  }
+
+  const notes: TranscriptMessage[] = []
+  const stack: NoteFrame[] = []
+  const enter = (id: UUID): void => {
+    const { systems, attachments } = splitChildren(id)
+    if (attachments.length > 0) stack.push({ kind: 'afterSys', attachments })
+    if (systems.length > 0) stack.push({ kind: 'sys', list: systems, at: 0 })
+  }
+  enter(rootId)
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1]!
+    if (frame.kind === 'sys') {
+      let descended = false
+      while (frame.at < frame.list.length) {
+        const note = frame.list[frame.at++]!
+        if (seen.has(note.uuid)) continue
+        seen.add(note.uuid)
+        notes.push(note)
+        if (frame.at >= frame.list.length) stack.pop()
+        enter(note.uuid)
+        descended = true
+        break
+      }
+      if (!descended) stack.pop()
+    } else if (frame.kind === 'afterSys') {
+      stack.pop()
+      const hookQueue = frame.attachments.slice()
+      for (let i = 0; i < hookQueue.length; i++) {
+        const row = hookQueue[i]!
+        if (seen.has(row.uuid)) continue
+        const attachment = (row as { attachment?: unknown }).attachment as { type?: unknown; callId?: unknown } | undefined
+        if (typeof attachment === 'object' && attachment !== null && attachment.type === 'hook' && typeof attachment.callId === 'string') {
+          seen.add(row.uuid)
+          notes.push(row)
+        }
+        pushAttachmentChildren(row.uuid, hookQueue)
+      }
+      stack.push({ kind: 'attBfs', queue: frame.attachments, at: 0 })
+    } else {
+      let descended = false
+      while (frame.at < frame.queue.length) {
+        const att = frame.queue[frame.at++]!
+        const { systems, attachments } = splitChildren(att.uuid)
+        for (const childAtt of attachments) frame.queue.push(childAtt)
+        if (systems.length > 0) {
+          if (frame.at >= frame.queue.length) stack.pop()
+          stack.push({ kind: 'sys', list: systems, at: 0 })
+          descended = true
+          break
+        }
+      }
+      if (!descended) stack.pop()
+    }
+  }
+  return notes
 }
 
 function removeSnippedOf(this: TranscriptRows): void {

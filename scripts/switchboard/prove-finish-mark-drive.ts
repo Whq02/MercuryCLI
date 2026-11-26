@@ -63,6 +63,7 @@ seedFirstRun(TEMPLATE, [CWD, OTHER])
   const sessionId = '00000000-dddd-4000-8000-000000000001'
   const file = workerTranscriptPath({ sessionId, workspaceId: OTHER })
   mkdirSync(dirname(file), { recursive: true })
+  const at = new Date(Date.now() - 60 * 60_000)
   const row = (extra: Record<string, unknown>): Record<string, unknown> => ({
     isSidechain: false,
     entrypoint: 'cli',
@@ -72,7 +73,7 @@ seedFirstRun(TEMPLATE, [CWD, OTHER])
     gitBranch: 'main',
     parentUuid: null,
     uuid: `00000000-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, '0')}`,
-    timestamp: new Date().toISOString(),
+    timestamp: at.toISOString(),
     ...extra,
   })
   writeFileSync(
@@ -85,7 +86,6 @@ seedFirstRun(TEMPLATE, [CWD, OTHER])
       sessionId,
     ),
   )
-  const at = new Date(Date.now() - 60 * 60_000)
   utimesSync(file, at, at)
 }
 

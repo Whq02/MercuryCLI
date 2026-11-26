@@ -42,5 +42,6 @@ export interface RoadNeeds {
   adoptShot: (shot: Extract<Shot, { ok: true }>) => void
   shotLines: Set<string>
   finish: () => ComputerAnswer
+  runStep: (step: Input) => Promise<ComputerAnswer>
   ComputerTool: ComputerDoor
 }

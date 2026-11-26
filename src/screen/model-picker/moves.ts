@@ -128,8 +128,8 @@ export function pickerActs({ setTfWindows, setTfConfirm, setTfTyping, onSelect, 
       return
     }
     if (!onSelect) return
-    if (m.gated) {
-      if (m.gatedReason) setCtxNotice(`${m.gatedReason} — not selectable`)
+    if (m.gated || m.pending) {
+      if (m.gatedReason) setCtxNotice(m.pending ? m.gatedReason : `${m.gatedReason} — not selectable`)
       return
     }
     const p = m.id

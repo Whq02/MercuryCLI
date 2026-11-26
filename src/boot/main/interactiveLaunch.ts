@@ -42,7 +42,8 @@ import type { AppState } from '../../screen/app-state/AppStateStore.js'
 import type { Props as ChatProps } from '../../screen/chat/Chat.js'
 import type { UUID } from 'node:crypto'
 import type { ScopedMcpServerConfig } from '../../integrations/mcp-shapes/mcpServerRecords.js'
-import { reconcileManagedShims, resolveLayoutRoots } from '../../platform/update-channel/installLayout.js'
+import { resolveLayoutRoots } from '../../platform/update-channel/installLayout.js'
+import { reconcileManagedCommands } from '../../platform/profiles/profiles.js'
 import type { Root } from '../../screen/themedRenderer.js'
 import { UUID_REGEX } from '../../platform/primitives/uuid.js'
 import { typedString, writeErr, type RootOptions } from './cli.js'
@@ -246,7 +247,7 @@ function registerBootBackgroundNodes(args: { sessionTitle: string | undefined })
     await ensureExtensionsLoaded().catch(passedOver)
   })
   registerBackgroundNode('shim-reconcile', async () => {
-    reconcileManagedShims(resolveLayoutRoots())
+    reconcileManagedCommands(resolveLayoutRoots())
   })
   registerBackgroundNode('deferred-prefetches', () => {
     startDeferredPrefetches()

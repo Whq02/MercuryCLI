@@ -1,3 +1,4 @@
+import { sleep } from '../../../platform/async/sleep.js'
 import {
   type DesktopJudgedApp,
   approveApp,
@@ -23,7 +24,7 @@ import { factsLine, interruptedAfterActText, interruptedText } from '../call/wor
 import type { Shot } from '../call/shot.js'
 import type { ComputerAnswer, RoadNeeds } from './needs.js'
 
-export async function actRoad({ run, input, context, owner, signal, toolUseId, driver, canUseTool, parentAssistantMessage, takeShot, adoptShot, finish, ComputerTool }: RoadNeeds, plan: ActPlan, challengeAnswered: boolean, checked: ReturnType<typeof consumeCheckedAct>, judged: DesktopJudgedApp | null, viaGrant: boolean): Promise<ComputerAnswer> {
+export async function actRoad({ run, input, context, owner, signal, toolUseId, driver, canUseTool, parentAssistantMessage, takeShot, adoptShot, finish, ComputerTool }: RoadNeeds, plan: ActPlan, challengeAnswered: boolean, checked: ReturnType<typeof consumeCheckedAct>, judged: DesktopJudgedApp | null, viaGrant: boolean, inSequence = false): Promise<ComputerAnswer> {
   let front = await driver.frontmostApplication()
   if (!front.ok) {
     run.result = faultText(input.action, front.error)
@@ -125,6 +126,17 @@ export async function actRoad({ run, input, context, owner, signal, toolUseId, d
   run.outcome = 'succeeded'
   if (input.label) act.words += ` · ${input.label}`
   const settleMs = clamp(input.settleMs ?? SETTLE_DEFAULT_MS, 0, SETTLE_CAP_MS)
+  if (inSequence && !input.verify && input.capture !== true) {
+    if (settleMs > 0) await sleep(settleMs, signal)
+    if (signal.aborted) {
+      await driver.releaseAll()
+      run.result = interruptedAfterActText(input.action)
+      run.outcome = 'failed'
+      return finish()
+    }
+    run.result = `${act.words} · ${await factsLine(driver, screenOf(owner))}`
+    return finish()
+  }
   const deadline = Date.now() + settleMs
   let shot: Shot | undefined
   if (input.capture === true) {
