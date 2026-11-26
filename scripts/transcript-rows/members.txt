@@ -25,3 +25,4 @@ prove-turn-opening-text-row.ts
 prove-wait-row-estimate.ts
 prove-writing-indicator.ts
 prove-tally-row-after-notice.ts
+prove-tool-row-nameplate-steady.ts
