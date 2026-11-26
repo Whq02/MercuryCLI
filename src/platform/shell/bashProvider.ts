@@ -96,7 +96,8 @@ export async function createBashShellProvider(
       const cwdFile = cwdFileName(opts.id)
       const cwdFileNative = join(tmpdir(), cwdFile)
       const cwdFileInShell = isWindows ? windowsPathToPosixPath(cwdFileNative) : cwdFileNative
-      const closing = isWindows || record.origin === 'engine' ? undefined : opts.closing
+      const startsWithoutLogin = (): boolean => usableSnapshot !== undefined || loginRunFailed(record.path)
+      const closing = (isWindows && !startsWithoutLogin()) || record.origin === 'engine' ? undefined : opts.closing
       const closingMarks = closing === undefined ? undefined : { reached: `${cwdFileInShell}-closing`, endedOnOne: `${cwdFileInShell}-closing-1` }
       const preparedCommand = rewriteWindowsNullRedirect(
         closing === undefined || closingMarks === undefined
@@ -163,7 +164,7 @@ export async function createBashShellProvider(
               const targetInShell = windowsPathToPosixPath(cwd)
               handedFrame = `cd -- ${quote([targetInShell])} || exit; unset OLDPWD CDPATH 2>/dev/null || :; dirs -c 2>/dev/null || :; ${commandString}`
             }
-            const noLoginFiles = usableSnapshot !== undefined || loginRunFailed(record.path)
+            const noLoginFiles = startsWithoutLogin()
             if (msysArgvCarries(handedFrame, env)) {
               return {
                 args: msysSpawnArgs(handedFrame, noLoginFiles),
