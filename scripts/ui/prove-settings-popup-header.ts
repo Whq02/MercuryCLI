@@ -124,7 +124,7 @@ const surfaces = [
   { view: 'logins', open: () => logins.call(() => {}, context) },
 ]
 const cell = (lines: string[], x: number, y: number): string => Array.from(lines[y] ?? '')[x] ?? ' '
-const header = /^\s*(?:❯ )?lanes\b.*╭/
+const header = /^workbench\b.*╭/
 for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
   for (const surface of surfaces) {
     initializeSurfaceRoute(ROOT_CHAT_ROUTE)

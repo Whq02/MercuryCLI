@@ -30,11 +30,11 @@
    │   Blender dev lanes                              default (off) │     turning slowly; the status line says
    │   Aseprite dev lanes                             default (off) │   … (the trail continues — taller terminal)
    │   Cap failover posture                         default (offer) │
-   │   Session Concourse at boot                      default (off) │   Saved      r0 · default
+   │   Session Concourse at boot                      default (off) │   Saved      default
    │   Seats                             6 · this machine's reading │   Harness    helm
    │                                                                │
    │ PERFORMANCE                                                    │   Mercury    Opus 5
    │ ❯ Motion                                           auto · full │   Critter    Octopus
    ╰────────────────────────────────────────────────────────────────╯   Dir        orchard-src
     changes reach new sessions
-                          ↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts · esc back
+                                 ↑↓ move · ↵ change · ⌫ default · a receipts · esc back

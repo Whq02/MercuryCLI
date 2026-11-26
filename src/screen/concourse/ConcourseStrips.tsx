@@ -13,7 +13,9 @@ import { getTheme } from '../theme/theme.js';
 import { effectiveSeatCeiling } from '../../daemon/concourse-workers/concourseWorkers.js';
 import { controlNoteOf, type ConcourseSnapshotV1 } from './contracts.js';
 import { caretLens, draftLines, draftWindow, type LineDraft } from './lineDraft.js';
-
+export function composerSendKeysHint(working = false): string {
+  return `↵ ${working ? 'queue' : 'send'} · ${getShortNewlineInstructions().startsWith('shift') ? '⇧↵' : '⌃j'} newline · tab panes`
+}
 
 export function ConcourseComposer({
   width,
@@ -187,7 +189,7 @@ export function ConcourseComposer({
           <Box flexGrow={1} overflow="hidden">
             <Text color={t.textMuted} wrap="truncate-end">
               {}
-              {focused ? keyHintLabel(keysHint ?? `↵ send · ${getShortNewlineInstructions().startsWith('shift') ? '⇧↵' : '⌃j'} newline · tab panes`) : 'tab or click to type'}
+              {focused ? keyHintLabel(keysHint ?? composerSendKeysHint()) : ''}
             </Text>
           </Box>
         )}

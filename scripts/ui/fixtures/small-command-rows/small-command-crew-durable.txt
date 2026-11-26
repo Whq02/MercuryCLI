@@ -5,9 +5,9 @@ workbench               │   ▄▄▄▄▄▄▄▄▄                       
 next                    │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
   /health               │                                                                                                                  │
   /memory               │                                                                                                                  │
-  /mission              │ 01:11:28 [sam] ❯ start                                                                                           │
+  /mission              │ 12:27:34 [sam] ❯ start                                                                                           │
                         │                                                                                                                  │
-files · project         │ 01:11:28 [Mercury] Command rows ready.                                                                           │
+files · project         │ 12:27:34 [Mercury] Command rows ready.                                                                           │
   ↵ browse              │                                                                                                                  │
                         │ ❯ /crewmates off                                                                                                 │
 vitals                  │   └ crewmates off for this session                                                                               │
@@ -41,10 +41,10 @@ vitals                  │   └ crewmates off for this session                
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
+                        │                                                                                                                  │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
  ready · Opus 5.5 · high                                                                                                   project  ⇧← back
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │❯ Type a prompt, or / for commands                                                                                                        │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 Help closed
-backslash (\) + ↵ for a new line

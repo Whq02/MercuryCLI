@@ -310,7 +310,7 @@ async function mount(cols: number, rows: number): Promise<Scene> {
   const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(cols, rows) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Harness)))
-  const painted = await until(() => ink.lastFrameText() !== '' && stripAnsi(ink.lastFrameText()).includes('crew ·'))
+  const painted = await until(() => ink.lastFrameText() !== '' && /crew \d+/.test(stripAnsi(ink.lastFrameText())))
   check(`the cockpit painted with the crew lane at ${cols}x${rows}`, painted, stripAnsi(ink.lastFrameText()).slice(0, 300))
   await sleep(400)
   stdin.push(FOCUS_IN)
@@ -330,7 +330,7 @@ async function mount(cols: number, rows: number): Promise<Scene> {
 
 const cells = (line: string): string[] => Array.from(line)
 function railColsOf(lines: string[]): number {
-  const header = lines.find(line => line.includes('crew ·')) ?? ''
+  const header = lines.find(line => /crew \d+/.test(line)) ?? ''
   const chars = cells(header)
   for (let x = 1; x < chars.length; x++) if (chars[x] === '│') return x + 1
   return 32
@@ -342,12 +342,12 @@ const railRowText = (lines: string[], needle: string, railCols: number): string 
   return row < 0 ? '(no row)' : railText(lines[row]!, railCols).replace(/[│]/g, '').trim()
 }
 function crewBox(lines: string[], railCols: number): { header: string; rows: string[] } | null {
-  const headerRow = railRow(lines, 'crew ·', railCols)
+  const headerRow = lines.findIndex(line => /crew \d+/.test(railText(line, railCols)))
   if (headerRow < 0) return null
   const rows: string[] = []
   for (let y = headerRow + 1; y < lines.length; y++) {
     const text = railText(lines[y]!, railCols)
-    if (/[╰╭]/.test(text) || /^│\s*[▤◐◆◉✶◇○◌·]?\s*(work|runs|workbench|files|saturn|recent|mission|next)\b/.test(text.replace(/[│]/g, '│'))) break
+    if (/[╰╭]/.test(text) || /^│\s*[▤◐◆◉✶◇○◌·]?\s*(work|runs|workbench|files|saturn|recent|goal|next)\b/.test(text.replace(/[│]/g, '│'))) break
     const bare = text.replace(/[│]/g, '').trim()
     if (bare === '') break
     rows.push(bare)
@@ -438,7 +438,7 @@ async function run(cols: number, rows: number): Promise<void> {
     check('the CREW box stands and Mercury Lead is its first row', b !== null && (b.rows[0] ?? '').includes(LEAD_ROW), describeBox())
     check('the three running crewmates are listed', b !== null && ['atlas', 'birch', 'cedar'].every(name => b.rows.some(row => NAMES.test(row) && row.includes(name))), describeBox())
     check('the crewmate that already landed (delta) is listed with its state word: landed', b !== null && b.rows.some(row => row.includes('delta') && row.includes('landed')), describeBox())
-    check('the box counts every crewmate the session has had (4 agents)', b !== null && b.header.includes('4 crewmates'), describeBox())
+    check('the box counts every crewmate the session has had (4 agents)', b !== null && b.header.includes('crew 4') && !b.header.includes('crewmate'), describeBox())
   }
 
   section(`§1b ${tag('esc on a landed crewmate the runner still lists goes back to Mercury Lead')}`)
@@ -449,9 +449,6 @@ async function run(cols: number, rows: number): Promise<void> {
     await sleep(400)
     save('01b-delta-viewed', cols, rows, scene.lines())
     check('delta (landed, still on the roster) is viewed with its transcript', scene.state().viewingCrewmateTaskId === DELTA.id && viewedName(scene.lines(), railCols) === DELTA.name, `viewing=${String(scene.state().viewingCrewmateTaskId)} · status row ${statusOf(scene.lines(), railCols)}`)
-    const landedFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
-    console.log(`the footer on the landed crewmate: ${landedFooter.slice(0, 200)}`)
-    check('the footer says what ↵ does to a landed hosted crewmate — ↵ resumes delta with your line — never "↵ sends to delta"', /↵ resumes delta with your line/.test(landedFooter) && !/↵ sends to delta/.test(landedFooter), landedFooter.slice(0, 240))
     const RESUME_LINE = 'delta, one more folder'
     resumeReceipt = { outcome: 'applied' }
     await typeWords(scene, RESUME_LINE)
@@ -548,9 +545,6 @@ async function run(cols: number, rows: number): Promise<void> {
     const card = cardOf(scene.lines(), railCols)
     console.log(`birch's card: ${card.slice(0, 240)}`)
     check('the card says birch is interrupted (its state word), greyed, and does not promise esc interrupts or x stop', card.includes('interrupted') && !card.includes('esc interrupts') && !card.includes('x stop'), card.slice(0, 240))
-    const footer = footerOf(scene.lines()).replace(/\s+/g, ' ')
-    console.log(`the footer: ${footer.slice(0, 240)}`)
-    check('the footer says esc goes back to Mercury Lead, never esc interrupts birch', /esc[^·]*back[^·]*Mercury Lead/.test(footer) && !/esc interrupts? birch/.test(footer), footer.slice(0, 240))
     const stopsBefore = stops().length
     scene.push(ESC)
     await sleep(600)
@@ -564,8 +558,6 @@ async function run(cols: number, rows: number): Promise<void> {
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('ATLAS-ROW')), 6000)
     await sleep(300)
     check('one click on atlas (running) opens it in the view', atlasRow >= 0 && scene.state().viewingCrewmateTaskId === ATLAS.id, `row ${atlasRow} · viewing=${String(scene.state().viewingCrewmateTaskId)}`)
-    const runningFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
-    check('on the running crewmate the footer still says esc interrupts atlas', /esc interrupts? atlas/.test(runningFooter), runningFooter.slice(0, 240))
     const stopsBeforeAtlas = stops().length
     scene.push(ESC)
     await sleep(600)
@@ -708,9 +700,6 @@ async function run(cols: number, rows: number): Promise<void> {
     await until(() => scene.state().viewingCrewmateTaskId === LOCAL_ID, 4000)
     await sleep(400)
     save('07-local-landed-viewed', cols, rows, scene.lines())
-    const localFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
-    console.log(`the footer on the landed local crewmate: ${localFooter.slice(0, 200)} · composer row "${composerText(scene.lines()).slice(0, 80)}" · status row "${statusOf(scene.lines(), railCols).slice(0, 80)}"`)
-    check('the footer on a landed LOCAL crewmate says ↵ is refused and names the resume door — never "↵ sends to local"', /↵ refused — r in \/crewmates resumes local/.test(localFooter) && !/↵ sends to local/.test(localFooter) && /esc back to Mercury Lead/.test(localFooter), localFooter.slice(0, 240))
     await clickRail(scene, LEAD_ROW, railCols)
     await until(() => scene.state().viewingCrewmateTaskId === undefined, 4000)
     await sleep(900)

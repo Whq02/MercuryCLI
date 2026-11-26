@@ -223,6 +223,15 @@ export function typesKeys(input: Input, plan: ActPlan): boolean {
   return input.action === 'type' || input.action === 'hold' || input.action === 'fill' || input.action === 'file' || (input.action === 'key' && !(plan.chord !== null && isAppSwitchChord(plan.chord)))
 }
 
+export function usesScreenshotPixels(step: Input): boolean {
+  return (step.x !== undefined && step.y !== undefined) || (step.toX !== undefined && step.toY !== undefined) || step.region !== undefined
+}
+
+export function definitelyTakesImage(step: Input, sequence: Input): boolean {
+  if (step.action !== 'screenshot') return false
+  return (step.pixels ?? sequence.pixels) === true || (step.full ?? sequence.full) === true || step.display !== undefined || (step.region ?? sequence.region) !== undefined
+}
+
 export const NO_SCREENSHOT = 'no screenshot yet — coordinates are pixels of the last screenshot; take one first'
 export const SCREENSHOT_GONE =
   'the last screenshot is no longer in the conversation — coordinates are pixels of a screenshot you can see; take a new one first'
@@ -258,7 +267,8 @@ function fieldRefusal(input: Input): string | null {
   const allowed = ACTION_FIELDS[input.action]
   for (const [field, value] of Object.entries(input)) {
     if (field === 'action' || field === 'captcha' || value === undefined) continue
-    if (ACT_ACTIONS.has(input.action) && input.capture === true && ['scale', 'full', 'display'].includes(field)) continue
+    if (ACT_ACTIONS.has(input.action) && input.capture === true && ['scale', 'full', 'display', 'pixels'].includes(field)) continue
+    if (field === 'pixels' && ((input.action === 'focusApp' && input.capture === true) || (input.action === 'sequence' && input.capture !== false))) continue
     if (!allowed.includes(field)) return `${input.action} does not take ${field}`
   }
   return null
@@ -297,6 +307,7 @@ export function tableRefusal(input: Input): string | null {
   }
   if (action === 'sequence') {
     if (!input.steps?.length) return 'sequence requires nonempty steps'
+    let sawDefiniteShot = false
     for (const [index, step] of input.steps.entries()) {
       const parsed = inputSchema().safeParse(step)
       if (!parsed.success || (!ACT_ACTIONS.has(parsed.data.action) && !['tree', 'find', 'fields', 'wait', 'screenshot', 'read', 'focusApp'].includes(parsed.data.action))) return `sequence step ${index + 1} must be an act, tree, find, fields, wait, screenshot, read or focusApp; no nested sequence`
@@ -304,6 +315,8 @@ export function tableRefusal(input: Input): string | null {
       if (parsed.data.action === 'wait' && parsed.data.label !== undefined) return `sequence step ${index + 1}: a wait step captures nothing — put the label on the sequence`
       const refusal = tableRefusal(parsed.data)
       if (refusal !== null) return `sequence step ${index + 1}: ${refusal}`
+      if (sawDefiniteShot && usesScreenshotPixels(parsed.data)) return `sequence step ${index + 1}: ${parsed.data.action} refused: ${SCREENSHOT_UNSEEN}`
+      if (definitelyTakesImage(parsed.data, input)) sawDefiniteShot = true
     }
   }
   if (POINT_ACTIONS.has(action) && input.target === undefined && input.ref === undefined && !(isNumber(input.x) && isNumber(input.y))) {

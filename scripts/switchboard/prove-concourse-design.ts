@@ -49,7 +49,7 @@ function liveRecord(runnerId: string, sessionId: string, workspaceId: string): C
     pid: process.pid,
   } as ConcourseWorkerRecordV1
 }
-function baseRow(cwd: string, sessionId: string, extra: Record<string, unknown>): Record<string, unknown> {
+function baseRow(cwd: string, sessionId: string, extra: Record<string, unknown>, atMs: number = NOW): Record<string, unknown> {
   return {
     isSidechain: false,
     entrypoint: 'cli',
@@ -59,29 +59,30 @@ function baseRow(cwd: string, sessionId: string, extra: Record<string, unknown>)
     gitBranch: 'main',
     parentUuid: null,
     uuid: `00000000-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, '0')}`,
-    timestamp: new Date(NOW).toISOString(),
+    timestamp: new Date(atMs).toISOString(),
     ...extra,
   }
 }
-function reply(cwd: string, sessionId: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
+function reply(cwd: string, sessionId: string, extra: Record<string, unknown> = {}, atMs: number = NOW): Record<string, unknown> {
   return baseRow(cwd, sessionId, {
     type: 'assistant',
     message: { id: `msg_${sessionId.slice(-4)}`, type: 'message', role: 'assistant', model: 'claude-opus-5', content: [{ type: 'text', text: 'a reply.' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
     ...extra,
-  })
+  }, atMs)
 }
 function seedChat(project: string, sessionId: string, words: string, ageMs: number, opts: { husk?: boolean } = {}): string {
   const file = workerTranscriptPath({ sessionId, workspaceId: project })
   mkdirSync(project, { recursive: true })
   mkdirSync(dirname(file), { recursive: true })
+  const atMs = NOW - ageMs
   const rows =
     opts.husk === true
-      ? [reply(project, sessionId, { error: 'authentication_failed' })]
+      ? [reply(project, sessionId, { error: 'authentication_failed' }, atMs)]
       : words.length > 0
-        ? [baseRow(project, sessionId, { type: 'user', message: { role: 'user', content: words } }), reply(project, sessionId)]
-        : [reply(project, sessionId)]
+        ? [baseRow(project, sessionId, { type: 'user', message: { role: 'user', content: words } }, atMs), reply(project, sessionId, {}, atMs)]
+        : [reply(project, sessionId, {}, atMs)]
   writeFileSync(file, encodeSeedTranscript(rows as never, sessionId))
-  const at = new Date(NOW - ageMs)
+  const at = new Date(atMs)
   utimesSync(file, at, at)
   return file
 }
@@ -180,8 +181,10 @@ console.log('§6 — the lock: an open ask ⇒ the live composer refuses with "n
   check('POISON (words queued behind an ask): an open ask LOCKS the box with the exact line', locked.ok === false && locked.line === 'needs you · ↵↵ to answer')
   const byState = liveComposerGateOf(row({ state: 'needs-you' }), false)
   check('the needs-you state locks too (both truths — the row state and the obligation)', byState.ok === false && byState.line === 'needs you · ↵↵ to answer')
-  const settled = liveComposerGateOf(row({}), false)
-  check('settle ⇒ unlocked on the derived beat, the placeholder naming the target', settled.ok === true && settled.placeholder === 'message the parser session · queued for its next turn')
+  const working = liveComposerGateOf(row({ state: 'working' }), false)
+  check('working ⇒ unlocked on the derived beat, the placeholder naming the target', working.ok === true && working.placeholder === 'message the parser session')
+  const idle = liveComposerGateOf(row({ state: 'ready-to-review' }), false)
+  check('idle ⇒ unlocked on the derived beat, the placeholder naming the target', idle.ok === true && idle.placeholder === 'message the parser session')
   check('every non-target class refuses in type (no silent dead box)', [
     liveComposerGateOf(undefined, false),
     liveComposerGateOf(row({ state: 'parked' }), false),

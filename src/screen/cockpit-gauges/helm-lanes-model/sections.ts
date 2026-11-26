@@ -142,8 +142,7 @@ export function crewSection({ input, tok, accent, keptIds, crewEntries, crewShow
     })
   }
   if (crewMore > 0) rows.push({ kind: 'more', key: 'crew:more', n: crewMore, row: { kind: 'command', command: '/crewmates', label: 'crew:more' } })
-  const crewWord = crewEntries.length === 1 ? 'crewmate' : 'crewmates'
-  return { key: 'crew', glyph: GLYPH.fisheye, label: 'crew', count: `${crewEntries.length} ${crewWord}`, open: '/crewmates', rows }
+  return { key: 'crew', glyph: GLYPH.fisheye, label: `crew ${crewEntries.length}`, open: '/crewmates', rows }
 }
 
 export function workSection({ work }: SectionFacts): LanesSectionSpec | null {
@@ -205,8 +204,8 @@ export function missionSection({ tok, solo, mission }: SectionFacts): LanesSecti
   return {
     key: 'mission',
     glyph: GLYPH.mission,
-    label: 'mission',
-    open: '/mission',
+    label: 'goal',
+    open: '/goal',
     rows: [
       {
         kind: 'rail',
@@ -215,7 +214,7 @@ export function missionSection({ tok, solo, mission }: SectionFacts): LanesSecti
         glyphColor: tok.success,
         name: mission,
         nameColor: tok.textPrimary,
-        row: { kind: 'command', command: '/mission', label: 'mission' },
+        row: { kind: 'command', command: '/goal', label: 'goal' },
       },
     ],
   }
@@ -234,7 +233,7 @@ export function workbenchSection({ workbenchRows }: SectionFacts): LanesSectionS
 export function nextSection({ tok, solo, mission, hintCap }: SectionFacts): LanesSectionSpec | null {
   if (!solo) return null
   const hints: string[] = ['/health', '/memory']
-  if (mission === null) hints.push('/mission')
+  if (mission === null) hints.push('/goal')
   const rows: LanesRowSpec[] = hints.slice(0, hintCap).map(command => ({
     kind: 'rail',
     key: `hint:${command}`,

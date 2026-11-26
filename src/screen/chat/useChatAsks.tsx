@@ -2,11 +2,17 @@ import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useClaim, useLayoutPublish } from '../effects/effects.js';
 import { CardQueuedWords } from '../../permissions/cards/CardQueuedWords.js';
 import { PermissionQueueContext, permissionQueueStatus } from '../../permissions/cards/PermissionQueueContext.js';
-import { PermissionRequest, type ToolUseConfirm } from '../../permissions/cards/PermissionRequest.js';
+import { ExternalSeatPermissionRequest, PermissionRequest, type ToolUseConfirm } from '../../permissions/cards/PermissionRequest.js';
+import type { ExternalSeatPermissionAsk } from '../../permissions/cards/externalSeatAsk.js';
 import type { useNotifications } from '../notifications/notifications.js';
 import { Box } from '../themedRenderer.js';
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../../engine/connector/focusedConnector.js';
 import type { SessionAskV1 } from '../../engine/connector/types.js';
+import {
+  listExternalSeatAsks,
+  settleExternalSeatAsk,
+  subscribeExternalSeatAsks,
+} from '../../crew/crewmates/seatBridge.js';
 import { useAppState } from '../app-state/AppState.js';
 import type { AppState } from '../app-state/AppStateStore.js';
 import type { ToolPermissionContext } from '../../tools/kit/tool.js';
@@ -48,18 +54,34 @@ export function useChatAsks({
   const localStoreRef = useRef<ChatScreenStore | null>(null);
   const consentStore = chatStore ?? (localStoreRef.current ??= createChatScreenStore());
   const sessionAsks = useSyncExternalStore(subscribeFocusedAsks, getFocusedAsks, getFocusedAsks);
+  const externalSeatAsks = useSyncExternalStore(subscribeExternalSeatAsks, listExternalSeatAsks, listExternalSeatAsks);
   const toolUseConfirmQueue = useMemo(() => sessionAsks.map(ask => ask.confirm), [sessionAsks]);
-  const toolUseIds = useMemo(() => toolUseConfirmQueue.map(confirm => confirm.toolUseID), [toolUseConfirmQueue]);
+  const toolUseIds = useMemo(
+    () => [...toolUseConfirmQueue.map(confirm => confirm.toolUseID), ...externalSeatAsks.map(ask => ask.askId)],
+    [toolUseConfirmQueue, externalSeatAsks],
+  );
   const readResolvedConsentCount = (): number => selectResolvedConsentCount(consentStore.getState(), toolUseIds);
   const resolvedConsentCount = useSyncExternalStore(consentStore.subscribe, readResolvedConsentCount, readResolvedConsentCount);
-  const resolveHeadPermission = useCallback(() => {
+  const resolveHeadPermission = useCallback((settledExternalAskId?: string) => {
     const focused = getFocusedSessionConnector();
     const asks = focused.asks();
-    recordChatConsentResolved(consentStore, asks.map(ask => ask.confirm.toolUseID));
+    const external = listExternalSeatAsks();
+    recordChatConsentResolved(consentStore, [
+      ...asks.map(ask => ask.confirm.toolUseID),
+      ...external.map(ask => ask.askId),
+    ]);
+    if (settledExternalAskId !== undefined) {
+      settleExternalSeatAsk(settledExternalAskId);
+      return;
+    }
     const head = asks[0];
-    if (head !== undefined) focused.settleAsk(head.id);
+    if (head !== undefined) {
+      focused.settleAsk(head.id);
+      return;
+    }
+    const externalHead = external[0];
+    if (externalHead !== undefined) settleExternalSeatAsk(externalHead.askId);
   }, [consentStore]);
-
   const adoptRunnerMode = useCallback(() => {
     const held = getFocusedSessionConnector().permissionMode();
     if (held === null) return;
@@ -131,7 +153,7 @@ export function useChatAsks({
     },
     [elicitationQueue, setAppState],
   );
-  return { sessionAsks, toolUseConfirmQueue, resolvedConsentCount, resolveHeadPermission, setToolPermissionContext, elicitationQueue, respondToElicitation, dismissElicitationWaiting };
+  return { sessionAsks, externalSeatAsks, toolUseConfirmQueue, resolvedConsentCount, resolveHeadPermission, setToolPermissionContext, elicitationQueue, respondToElicitation, dismissElicitationWaiting };
 }
 
 const noopSubscribe = (): (() => void) => () => {};
@@ -140,6 +162,7 @@ export function useChatAsksCard({
   focusedInputDialog,
   repinToBottom,
   toolUseConfirmQueue,
+  externalSeatAsks,
   resolvedConsentCount,
   chatStore,
   resolveHeadPermission,
@@ -149,13 +172,18 @@ export function useChatAsksCard({
   focusedInputDialog: FocusedInputDialog | undefined;
   repinToBottom: () => void;
   toolUseConfirmQueue: ToolUseConfirm[];
+  externalSeatAsks?: readonly ExternalSeatPermissionAsk[];
   resolvedConsentCount?: number;
   chatStore?: ChatScreenStore;
-  resolveHeadPermission: () => void;
+  resolveHeadPermission: (settledExternalAskId?: string) => void;
   chatSurfaceCovered: boolean;
   verbose: boolean;
 }) {
-  const toolUseIds = useMemo(() => toolUseConfirmQueue.map(confirm => confirm.toolUseID), [toolUseConfirmQueue]);
+  const externalList = externalSeatAsks ?? [];
+  const toolUseIds = useMemo(
+    () => [...toolUseConfirmQueue.map(confirm => confirm.toolUseID), ...externalList.map(ask => ask.askId)],
+    [toolUseConfirmQueue, externalList],
+  );
   const subscribeConsent = chatStore ? chatStore.subscribe : noopSubscribe;
   const readConsentCount = (): number =>
     chatStore ? selectResolvedConsentCount(chatStore.getState(), toolUseIds) : (resolvedConsentCount ?? 0);
@@ -166,20 +194,31 @@ export function useChatAsksCard({
     if (now !== previousPermissionFocusRef.current) repinToBottom();
     previousPermissionFocusRef.current = now;
   }, [focusedInputDialog, repinToBottom]);
+  const totalQueueLength = toolUseConfirmQueue.length + externalList.length;
+  const nativeHead = toolUseConfirmQueue[0];
+  const externalHead = nativeHead === undefined ? externalList[0] : undefined;
   const permissionOverlay =
-    focusedInputDialog === 'tool-permission' && toolUseConfirmQueue[0] && !chatSurfaceCovered ? (
-      <PermissionQueueContext.Provider value={permissionQueueStatus(effectiveResolvedConsentCount, toolUseConfirmQueue.length)}>
+    focusedInputDialog === 'tool-permission' && (nativeHead !== undefined || externalHead !== undefined) && !chatSurfaceCovered ? (
+      <PermissionQueueContext.Provider value={permissionQueueStatus(effectiveResolvedConsentCount, totalQueueLength)}>
         <Box flexDirection="column">
-          <PermissionRequest
-            key={toolUseConfirmQueue[0].toolUseID}
-            toolUseConfirm={toolUseConfirmQueue[0]}
-            toolUseContext={toolUseConfirmQueue[0].toolUseContext}
-            onDone={resolveHeadPermission}
-            onReject={() => {
-              resolveHeadPermission();
-            }}
-            verbose={verbose}
-          />
+          {nativeHead !== undefined ? (
+            <PermissionRequest
+              key={nativeHead.toolUseID}
+              toolUseConfirm={nativeHead}
+              toolUseContext={nativeHead.toolUseContext}
+              onDone={() => resolveHeadPermission()}
+              onReject={() => {
+                resolveHeadPermission();
+              }}
+              verbose={verbose}
+            />
+          ) : externalHead !== undefined ? (
+            <ExternalSeatPermissionRequest
+              key={externalHead.askId}
+              ask={externalHead}
+              onDone={() => resolveHeadPermission(externalHead.askId)}
+            />
+          ) : null}
           <CardQueuedWords />
         </Box>
       </PermissionQueueContext.Provider>

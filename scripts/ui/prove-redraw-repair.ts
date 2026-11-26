@@ -34,9 +34,9 @@ const run = (sends: Array<{ atTick: number; data: string }>, out: string) => {
 try {
   const base = run([], `/tmp/redraw-base-${process.pid}.json`)
   const healed = run([{ atTick: 20, data: String.fromCharCode(12) }], `/tmp/redraw-healed-${process.pid}.json`)
-  t('baseline transcript paints (the pane border + turns)', base.rows >= 8 && /\blanes\b[^\n]*╭/.test(base.text) && base.text.includes('first task') && base.text.includes('second task'), `rows=${base.rows} — the resume-2turn scenario did not paint the pane border, 'lanes' label or both turns before any key: run vshot.py with this scenario and look at the screen`)
+  t('baseline transcript paints (the pane border + turns)', base.rows >= 8 && /^(?:╭─+╮|recent[^╭]*)╭/m.test(base.text) && base.text.includes('first task') && base.text.includes('second task'), `rows=${base.rows} — the resume-2turn scenario did not paint the pane border, 'recent' label or both turns before any key: run vshot.py with this scenario and look at the screen`)
   t('ctrl+l keeps row parity', Math.abs(healed.rows - base.rows) <= 1, `healed=${healed.rows} base=${base.rows} — ctrl+l (form feed, bound to app:redraw in src/screen/keys/defaultBindings.ts and handled in src/screen/chat/useGlobalKeybindings.tsx via repaintAltScreen) must repaint the same rows`)
-  for (const [name, marker] of [['lanes label', 'lanes'], ['first task', 'first task'], ['second task', 'second task'], ['the way back', '← back']] as const) {
+  for (const [name, marker] of [['recent header', 'recent'], ['first task', 'first task'], ['second task', 'second task'], ['the way back', '← back']] as const) {
     t(`ctrl+l keeps '${name}'`, healed.text.includes(marker) === base.text.includes(marker), `'${marker}' differs after ctrl+l: the app:redraw handler in src/screen/chat/useGlobalKeybindings.tsx (repaintAltScreen) must repaint it exactly as before`)
   }
 } finally {

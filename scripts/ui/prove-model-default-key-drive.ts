@@ -211,9 +211,9 @@ if (!existsSync(BIN)) {
 
 const boardSends: Send[] = [
   { atTick: 999, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: SHIFT_RIGHT },
-  { requireAwait: true, awaitText: '+ new session · n', awaitStableTicks: 3, data: TAB },
+  { requireAwait: true, awaitText: '+ new · n', awaitStableTicks: 3, data: TAB },
   { requireAwait: true, awaitText: DOOR_FROM_LIVE_BOX, awaitStableTicks: 3, mark: 'live', data: TAB },
-  { requireAwait: true, awaitText: '+ new session · n', awaitStableTicks: 3, mark: 'board', data: 'm' },
+  { requireAwait: true, awaitText: '+ new · n', awaitStableTicks: 3, mark: 'board', data: 'm' },
 ]
 
 if (CASE === undefined) {
@@ -414,7 +414,7 @@ section('§8 the board with sessions keeps the new-session line as its first row
   const LINE = 'n starts a blank session in this project'
   const home = seededHome('board-with-sessions')
   const birth: Send[] = [
-    { requireAwait: true, awaitText: '+ new session · n', awaitStableTicks: 3, data: 'n' },
+    { requireAwait: true, awaitText: '+ new · n', awaitStableTicks: 3, data: 'n' },
     { requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: SHIFT_LEFT },
   ]
   const c = capture('board-with-sessions', home, [], [
@@ -465,7 +465,7 @@ if (CASE === undefined || CASE === 'session-effort') {
     const home = seededHome(`session-effort-${cols}`, { engine: { effort: 'high' } })
     const c = capture(`session-effort-${cols}`, home, [], [
       { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 3, data: SHIFT_RIGHT },
-      { requireAwait: true, awaitText: '+ new session · n', awaitSettleTicks: 3, data: 'n' },
+      { requireAwait: true, awaitText: '+ new · n', awaitSettleTicks: 3, data: 'n' },
         { requireAwait: true, awaitText: '← back', awaitSettleTicks: 4, data: `${ESC}[1;2D` },
       { requireAwait: true, awaitText: 'status & title', awaitSettleTicks: 4, data: 'e' },
       { requireAwait: true, awaitText: "sets this session's effort", awaitSettleTicks: 3, mark: 'effort-door', data: '\r' },

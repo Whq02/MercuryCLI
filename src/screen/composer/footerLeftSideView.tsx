@@ -8,7 +8,7 @@ import type { useMercuryTokens } from '../widgets/useMercuryTokens.js'
 import { PrBadge } from './PrBadge.js'
 import { BackgroundTaskStatus } from '../tasks/BackgroundTaskStatus.js'
 import { NoticeWords } from './Notifications.js'
-import { getShortNewlineInstructions } from './composerConfig.js'
+
 export function footerClusterOf({
   tokens,
   columns,
@@ -113,9 +113,7 @@ export function footerClusterOf({
             {columns >= 50 ? (
               <>
                 ? for shortcuts <Text color={tokens.textMuted}>· </Text>
-                {paletteChord} commands + files <Text color={tokens.textMuted}>· </Text>
-                {getShortNewlineInstructions()} <Text color={tokens.textMuted}>· </Text>
-                tab rails
+                {paletteChord} commands + files
               </>
             ) : (
               '? for shortcuts'

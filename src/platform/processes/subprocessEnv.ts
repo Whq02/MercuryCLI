@@ -188,6 +188,11 @@ function scrub(clone: NodeJS.ProcessEnv, scrubForCI: boolean, isolateCredentials
   }
 }
 
+export function devinCliChildEnv(platform: string = process.platform): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...subprocessEnv({ stripProviderCredentials: true, platform }) }
+  deleteNames(env, ['WINDSURF_API_KEY'], platform)
+  return env
+}
 const SHELL_KEEPS_TO_ITSELF =
   /^(?:_|SHLVL|PWD|OLDPWD|CDPATH|SHELLOPTS|BASHOPTS|BASHPID|PS[0-4]|PSVAR|PROMPT[2-4]?|PROMPT_COMMAND|PROMPT_DIRTRIM|PROMPT_EOL_MARK|RPROMPT2?|RPS[12]|SPROMPT|HIST\w*|SAVEHIST|(?:BASH|ZSH)(?:_\w*)?)$/
 

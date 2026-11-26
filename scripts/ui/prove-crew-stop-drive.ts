@@ -151,7 +151,7 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
     { data: '\x1b', atTick: 999, awaitText: 'stopped', requireAwait: true, minTick: 1, awaitSettleTicks: 3, mark: 'crew-after' },
     ...(name === 'card'
       ? [
-          { data: '\x1b', atTick: 999, awaitText: `↵ resumes ${target} with your line`, awaitPattern: `\\A(?![\\s\\S]*Crewmates)`, requireAwait: true, minTick: 1, awaitSettleTicks: 2, mark: 'stopped-view' },
+          { data: '\x1b', atTick: 999, awaitText: `message ${target}`, awaitPattern: `\\A(?=[\\s\\S]*stopped)(?![\\s\\S]*Crewmates)`, requireAwait: true, minTick: 1, awaitSettleTicks: 2, mark: 'stopped-view' },
         ]
       : []),
     { data: openView, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
@@ -183,7 +183,6 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
     const stoppedView = marks['stopped-view'] ?? ''
     const stoppedFlat = flat(stoppedView)
     check(`${tag}: after the stop and the pop-up's close the view stays on the stopped crewmate — its card reads stopped, the composer still addresses it`, !stoppedView.includes('Crewmates') && stoppedFlat.includes(`◉ ${target}`) && stoppedFlat.includes('stopped') && stoppedFlat.includes(`message ${target}`), stoppedFlat.slice(0, 300))
-    check(`${tag}: the footer says what the keys do on a stopped crewmate — ↵ resumes it with your line, esc goes back to Mercury Lead — never ↵ sends to / esc interrupts`, stoppedFlat.includes(`↵ resumes ${target} with your line`) && stoppedFlat.includes('esc back to Mercury Lead') && !stoppedFlat.includes(`↵ sends to ${target}`) && !stoppedFlat.includes(`esc interrupts ${target}`), `${stoppedFlat.slice(-400)} — the footer clause comes from crewmateSendClause in src/screen/cockpit/crewmateWords.ts`)
     const stoppedRail = stoppedView.split('\n').find(line => new RegExp(`[◉◐·] ${target.slice(0, 8)}[^\\n]*· stopped`).test(line))
     check(`${tag}: the stopped crewmate keeps its CREW row, reading stopped, while it is viewed`, stoppedRail !== undefined, stoppedView.split('\n').filter(line => line.includes(target.slice(0, 8))).map(flat).join(' | ').slice(0, 200) || '(no row)')
   }

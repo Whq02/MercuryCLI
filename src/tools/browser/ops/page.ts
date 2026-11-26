@@ -153,21 +153,50 @@ export function serializeAxTree(node: SerializedAXNode | null): string {
 export function deepTextOf(root: Element): string {
   const own = (root as HTMLElement).innerText ?? ''
   const parts: string[] = []
-  const walk = (scope: Element | ShadowRoot): void => {
-    for (const el of Array.from(scope.querySelectorAll('*'))) {
-      const shadow = (el as Element).shadowRoot
-      if (!shadow) continue
-      const text = Array.from(shadow.children)
-        .map(c => (c as HTMLElement).innerText ?? '')
-        .join('\n')
-        .trim()
-      const tag = `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''}`
-      if (text !== '') parts.push(`[shadow root of ${tag}]\n${text}`)
-      walk(shadow)
+  const seen = new Set<ShadowRoot>()
+  const rendered = (node: Node, ownerEl: Element): boolean => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if ((node.textContent ?? '').trim() === '' || getComputedStyle(ownerEl).visibility !== 'visible') return false
+      const range = document.createRange()
+      range.selectNodeContents(node)
+      return range.getClientRects().length > 0
     }
+    if (node.nodeType !== Node.ELEMENT_NODE) return false
+    const el = node as Element
+    if (el.getClientRects().length > 0) return true
+    return getComputedStyle(el).display === 'contents' && Array.from(el.childNodes).some(child => rendered(child, el))
+  }
+  const visitHost = (el: Element, scopeRange: Range): void => {
+    const shadow = el.shadowRoot
+    if (!(shadow instanceof ShadowRoot) || seen.has(shadow)) return
+    const nodes = Array.from(shadow.childNodes).filter(n => n.nodeType === Node.ELEMENT_NODE || n.nodeType === Node.TEXT_NODE)
+    if (nodes.length === 0 || nodes.some(n => scopeRange.isPointInRange(n, 0))) return
+    seen.add(shadow)
+    const text = nodes
+      .map(n =>
+        !rendered(n, el)
+          ? ''
+          : n.nodeType === Node.TEXT_NODE
+            ? (n.textContent ?? '').trim()
+            : ((n as HTMLElement).innerText ?? ''),
+      )
+      .filter(chunk => chunk.trim() !== '')
+      .join('\n')
+      .trim()
+    const tag = `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''}`
+    if (text !== '') parts.push(`[shadow root of ${tag}]\n${text}`)
+    walk(shadow)
+  }
+  const walk = (scope: Element | ShadowRoot): void => {
+    const scopeRange = document.createRange()
+    scopeRange.selectNodeContents(scope)
+    if (scope instanceof Element) visitHost(scope, scopeRange)
+    for (const el of Array.from(scope.querySelectorAll('*'))) visitHost(el, scopeRange)
   }
   walk(root)
-  return parts.length === 0 ? own : `${own.trim()}\n${parts.join('\n')}`
+  if (parts.length === 0) return own
+  const head = own.trim()
+  return head === '' ? parts.join('\n') : `${head}\n${parts.join('\n')}`
 }
 
 export function capExtract(header: string, body: string, offset = 0): string {

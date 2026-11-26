@@ -158,6 +158,7 @@ try {
       execFileSync('git', ['-c', 'user.email=drive@fixture', '-c', 'user.name=drive', 'commit', '-q', '--allow-empty', '-m', 'ground'], { cwd })
       spawnDaemonWithHome(configDir)
       const oldChat = '00000000-dddd-4000-8000-000000000001'
+      const hourAgo = new Date(Date.now() - 60 * 60_000)
       const oldRow = (extra: Record<string, unknown>): Record<string, unknown> => ({
         isSidechain: false,
         entrypoint: 'cli',
@@ -167,7 +168,7 @@ try {
         gitBranch: 'main',
         parentUuid: null,
         uuid: `00000000-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, '0')}`,
-        timestamp: new Date().toISOString(),
+        timestamp: hourAgo.toISOString(),
         ...extra,
       })
       const oldFile = join(paths.getProjectDir(work), `${oldChat}.jsonl`)
@@ -182,7 +183,6 @@ try {
           oldChat,
         ),
       )
-      const hourAgo = new Date(Date.now() - 60 * 60_000)
       utimesSync(oldFile, hourAgo, hourAgo)
       check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
       const b = (await daemonControlRpc({

@@ -35,10 +35,6 @@ export function crewmateLive(crewmate: Pick<CrewmateInView, 'facts'> | null): bo
   return crewmate === null || crewmate.facts === null || crewmate.facts.running
 }
 
-export function viewedWords(crewmate: CrewmateInView | null): { name: string; live: boolean } | null {
-  return crewmate === null ? null : { name: crewmate.name, live: crewmateLive(crewmate) }
-}
-
 export function targetWords(crewmate: CrewmateInView): { name: string; pinned: boolean; live: boolean; local: boolean } {
   return { name: crewmate.name, pinned: crewmate.pinned, live: crewmateLive(crewmate), local: crewmate.local !== undefined }
 }

@@ -104,6 +104,7 @@ function seedHopWorld(name: string): { home: string; cwdA: string; cwdB: string 
   const sessionId = '00000000-dddd-4000-8000-000000000002'
   const file = join(home, 'projects', projectSlug(cwdB), `${sessionId}.jsonl`)
   mkdirSync(dirname(file), { recursive: true })
+  const at = new Date(Date.now() - 60 * 60_000)
   const row = (extra: Record<string, unknown>): Record<string, unknown> => ({
     isSidechain: false,
     entrypoint: 'cli',
@@ -113,7 +114,7 @@ function seedHopWorld(name: string): { home: string; cwdA: string; cwdB: string 
     gitBranch: 'main',
     parentUuid: null,
     uuid: `00000000-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, '0')}`,
-    timestamp: new Date().toISOString(),
+    timestamp: at.toISOString(),
     ...extra,
   })
   writeFileSync(
@@ -126,7 +127,6 @@ function seedHopWorld(name: string): { home: string; cwdA: string; cwdB: string 
       sessionId,
     ),
   )
-  const at = new Date(Date.now() - 60 * 60_000)
   utimesSync(file, at, at)
   return { home, cwdA, cwdB }
 }
@@ -224,7 +224,7 @@ const railRoad = (): Array<Record<string, unknown>> => [
   gated('\x1b[B', '❯ no prompts yet', { awaitSettleTicks: 4 }),
   gated('\x1b[B', '❯ /health', { awaitSettleTicks: 2 }),
   gated('\x1b[B', '❯ /memory', { awaitSettleTicks: 2 }),
-  gated('\x1b[B', '❯ /mission', { awaitSettleTicks: 2 }),
+  gated('\x1b[B', '❯ /goal', { awaitSettleTicks: 2 }),
   gated('\r', '❯ ↵ browse', { awaitSettleTicks: 2, mark: 'files-row' }),
 ]
 const cfgFor = (cols: number, rows: number, cwd: string, sends: Array<Record<string, unknown>>): Record<string, unknown> => ({
@@ -278,7 +278,7 @@ if (worlds.has('plain') || worlds.has('off')) {
     gated('\x1b', TITLE, { awaitSettleTicks: 4, mark: 'command' }),
     after('', 6, { mark: 'esc-closed' }),
     after(CLICK, 2, { targetText: 'files · fixture-cwd' }),
-    gated(CLICK, TITLE, { awaitSettleTicks: 4, mark: 'click-open', targetText: 'lanes' }),
+    gated(CLICK, TITLE, { awaitSettleTicks: 4, mark: 'click-open', targetText: '❯ workbench' }),
     after('', 6, { mark: 'click-closed' }),
     after('/model', 2),
     after('\r', 3),
@@ -294,7 +294,7 @@ if (worlds.has('plain') || worlds.has('off')) {
   tally.check('P1 every send became due', cap.receipts === cap.sends && cap.status === 0, `${cap.receipts}/${cap.sends} · status ${cap.status} · end ${cap.endReason} · ${cap.stderr.slice(-300)}`)
   const land = railRows(m.land)
   const boxAt = land.findIndex(r => r === FILES_BOX[1])
-  tally.check('P2 the FILES box paints its four rows exactly, under the NEXT box', boxAt > 1 && [land[boxAt - 1], land[boxAt], land[boxAt + 1], land[boxAt + 2]].join('\n') === FILES_BOX.join('\n') && (land[boxAt - 2] ?? '').startsWith('╰') && (land[boxAt - 3] ?? '').includes('/mission'), land.slice(Math.max(0, boxAt - 3), boxAt + 3).join(' | '))
+  tally.check('P2 the FILES box paints its four rows exactly, under the NEXT box', boxAt > 1 && [land[boxAt - 1], land[boxAt], land[boxAt + 1], land[boxAt + 2]].join('\n') === FILES_BOX.join('\n') && (land[boxAt - 2] ?? '').startsWith('╰') && (land[boxAt - 3] ?? '').includes('/goal'), land.slice(Math.max(0, boxAt - 3), boxAt + 3).join(' | '))
   tally.check('P3 the rail row under the cursor reads the caret on the FILES row', railRows(m['files-row']).includes('│ ❯ ↵ browse                 │'), railRows(m['files-row']).filter(r => r.includes('browse')).join(' | '))
   const menu = menuRegion(m.menu)
   tally.check('P4 the menu opens over the chat at rows 5..20, columns 54..123, seventy wide', menu !== null && menu.top === 5 && menu.left === 54 && menu.right === 123 && menu.rows.length === 16, menu === null ? 'no menu' : `top ${menu.top} left ${menu.left} right ${menu.right} rows ${menu.rows.length}`)

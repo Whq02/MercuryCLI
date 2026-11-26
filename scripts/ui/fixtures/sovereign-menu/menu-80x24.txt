@@ -1,5 +1,5 @@
 
-  (>_) MERCURY · boot menu
+  MERCURY · boot menu
 
 
   trust combo
@@ -20,4 +20,4 @@
   ↓ 10 more
 
   no permission question is asked — not for files, commands, or computer use;…
-  ↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts · esc back
+  ↑↓ move · ↵ change · ⌫ default · a receipts · esc back

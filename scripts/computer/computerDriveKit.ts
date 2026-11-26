@@ -7,7 +7,7 @@ import { describeCapturePreflight, preflightCaptureDriver } from '../lib/capture
 import { resolveExecutionProfile } from '../lib/executionProfile.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
-
+import { pinRecorderTerminal } from '../lib/proofHome.ts'
 export const ROOT = resolve(import.meta.dir, '..', '..')
 const distArg = process.argv.indexOf('--dist')
 export const DIST = distArg < 0 ? join(ROOT, 'dist', 'mercury.mjs') : resolve(process.argv[distArg + 1]!)
@@ -178,6 +178,7 @@ export function childEnv(leg: Leg, extra: Record<string, string | undefined> = {
   for (const key of ['ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'ZAI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'MERCURY_DESKTOP_PACK_DIR', 'MERCURY_COMPUTER_USE', 'MERCURY_COMPUTER_ACCESS', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_CONCOURSE', 'MERCURY_CONCOURSE_FIXTURE', 'NODE_ENV', 'CI']) {
     delete env[key]
   }
+  pinRecorderTerminal(env)
   for (const [key, value] of Object.entries(extra)) {
     if (value === undefined) delete env[key]
     else env[key] = value

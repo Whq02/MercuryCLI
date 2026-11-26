@@ -10,7 +10,7 @@ import { InteractiveRow } from '../widgets/InteractiveRow.js'
 import { useAppState } from '../app-state/AppState.js'
 import { useSessionCrew } from '../tasks/useCrewLedger.js'
 import { useFocusedWorkRoster } from '../tasks/useFocusedWork.js'
-import type { SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
+import { compareSessionListings, type SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
 import { saturnWakeGlanceOf, type SaturnWakeGlanceV1 } from '../../daemon/saturn/saturn.js'
 import { boardHomedSessionIds } from '../../daemon/concourse-workers/concourseWorkers.js'
 import { readSessionRowsSnapshot, subscribeConcourseDelta } from '../../daemon/concourse-workers/store.js'
@@ -26,7 +26,7 @@ import { useNowTick } from '../widgets/components.js'
 import { useProviderUsageOnShow } from '../model-picker/useProviderUsageOnShow.js'
 import { useFocusedWorkspaceCwd } from '../focused-session/useFocusedWorkspaceCwd.js'
 import { GLYPH, displayWidth, truncateToWidth } from '../theme/glyphs.js'
-import { ValueGlow, CURSOR_NUDGE_MS, AttentionPulse, WorkingGlyph } from '../widgets/LiveGlyphs.js'
+import { AttentionPulse, WorkingGlyph } from '../widgets/LiveGlyphs.js'
 import { RailPanel } from '../widgets/RailPanel.js'
 import { useCockpitActivity } from '../cockpit/cockpitActivity.js'
 import { subscribeUiClock } from '../cockpit/uiClock.js'
@@ -320,7 +320,7 @@ function useRecentSessions(solo: boolean): SessionListing[] | null {
           .filter(l => !boardHomed.has(sessionIdOfListing(l) ?? ''))
           .filter(l => isProjectSession(l, getProjectRoot() || ''))
           .filter(l => !isSessionCleared(sessionIdOfListing(l)))
-        resumable.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime())
+        resumable.sort(compareSessionListings)
         if (!signal.aborted) {
           const rows = resumable.slice(0, 3)
           lastKnownRecent.set(recentScopeKey, rows)
@@ -532,21 +532,6 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
 
   return (
     <Box flexDirection="column" width={width}>
-      <Box width={width} height={1} flexShrink={0}>
-        <Text wrap="truncate-end">
-          <ValueGlow value={focused} color={focused ? accent : tok.textMuted} ms={CURSOR_NUDGE_MS}>
-            {focused ? <Text bold>{`${GLYPH.prompt} `}</Text> : '  '}
-          </ValueGlow>
-          {!focused ? (
-            <Text color={tok.textMuted}>{'lanes'}</Text>
-          ) : (
-            <>
-              <Text color={accent} bold>{'lanes'}</Text>
-              <Text color={tok.textMuted}>{' · ↑↓ ↵ tab esc'}</Text>
-            </>
-          )}
-        </Text>
-      </Box>
       {model.sections.map(paintSection)}
       {model.pointer !== null ? (
         model.boxed ? (

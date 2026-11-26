@@ -65,6 +65,7 @@ export function annotateBoundaryWithPreservedSegment(
       headUuid: head.uuid,
       anchorUuid,
       tailUuid: tail.uuid,
+      keptUuids: [...new Set(messagesToKeep.map(row => row.uuid))],
     }
   }
   return boundary

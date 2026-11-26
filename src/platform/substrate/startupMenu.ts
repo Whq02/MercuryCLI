@@ -107,9 +107,9 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     warnWhenOn: 'nothing asks or stops you — every action runs as you',
     summary: 'no permission question is asked — not for files, commands, or computer use; you take the wheel',
     detail: {
-      controls: "Interactive boots start in sovereign mode (as if --sovereign was passed) with no permission prompts for files, commands, or computer use. Saving this row is standing consent; the launch confirmation dialog, root notice, settings deny rules, and computer-use terminal/focus guards still apply. Headless runs (run) and daemon workers do not inherit it. The computer ask card's last option also turns this row on and saves it here.",
-      on: ["interactive boots start in sovereign mode (the crimson banner): no permission question is asked, computer use included", "the launch consent dialog still confirms once", "headless runs and daemon workers are unaffected"],
-      off: ["every permission question is asked — files, commands, and the first act of the session for computer use; the CLI flag still works when passed by hand"],
+      controls: 'Standing consent for interactive boots: skips file, command, and computer use prompts. Launch confirmation, root notice, deny rules, and computer-use guards still apply; headless runs and daemon workers ignore it.',
+      on: ['crimson banner; computer use included'],
+      off: ['prompts asked; --sovereign still works'],
     },
   },
   {

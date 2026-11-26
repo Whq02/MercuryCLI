@@ -137,24 +137,24 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
   const { conversationId, setConversationId } = useChatConversation(focusedConnector);
   const { toolPermissionContext, agentDefinitions, verbose, spinnerTip, commands, mergedTools, commandsRef, apiKeyVerification } = useChatTools({ initialCommands, initialTools });
   const { crashResumeStaged, setCrashResumeStaged, crashNoticeLatchedRef } = useChatCrashResume();
-  const { toolUseConfirmQueue, resolvedConsentCount, resolveHeadPermission, setToolPermissionContext, elicitationQueue, respondToElicitation, dismissElicitationWaiting } = useChatAsks({ setAppState, addNotification, chatStore });
+  const { externalSeatAsks, toolUseConfirmQueue, resolvedConsentCount, resolveHeadPermission, setToolPermissionContext, elicitationQueue, respondToElicitation, dismissElicitationWaiting } = useChatAsks({ setAppState, addNotification, chatStore });
   const { toolJSX, setToolJSX, isExiting, showExitFlow, setShowExitFlow, exitCommandJsx, showCostThreshold, setShowCostThreshold, showBashesDialog, setShowBashesDialog, handleExit } = useChatDialogs({ store, addNotification });
   const { showRewindPicker, setShowRewindPicker, openRewindPicker, rewindPickerPreselect, setRewindPickerPreselect } = useChatRewindPicker();
   const { scrollRef, scrollRestoreRef, modalScrollRef, lastUserScrollAtRef, repinToBottom, noteUserScroll } = useChatScrollPin();
   const { isComposerActive, setInputValue, setInputMode, setPastedContents, authWallHold, insertTextRef, vimMode, setVimMode, isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen } = useChatDraft({ messages, fullscreen, repinToBottom, lastUserScrollAtRef });
 
+  const pendingPermissionCardCount = toolUseConfirmQueue.length + externalSeatAsks.length;
   const focusedInputDialog = selectFocusedInputDialog({
     exiting: isExiting || showExitFlow,
     showRewindPicker,
     isComposerActive,
     toolJSX,
-    toolUseConfirmCount: toolUseConfirmQueue.length,
+    toolUseConfirmCount: pendingPermissionCardCount,
     elicitationCount: elicitationQueue.length,
     showCostThreshold,
     hasCrashResume: crashResumeStaged !== null,
   });
-  const dialogsHiddenWhileTyping = isComposerActive && !isExiting && !showRewindPicker && (toolUseConfirmQueue.length > 0 || showCostThreshold);
-
+  const dialogsHiddenWhileTyping = isComposerActive && !isExiting && !showRewindPicker && (pendingPermissionCardCount > 0 || showCostThreshold);
   const { dialogSlotRef, dialogPaints, localJsx, compactDetailUp, dialogOwnsKeys } = useChatDialogPaints({ toolJSX, compactFocus, compactWork, fullscreen, chatSurfaceCovered, focusedInputDialog });
   const { unseen, captureScrollForFlip, setFlipGeneration, unseenDivider, newMessageCount, onScroll, onPillClick } = useChatScroll({ messages, fullscreen, scrollRef, scrollRestoreRef, noteUserScroll });
   useChatScrollFollow({ messages, repinToBottom });
@@ -174,7 +174,7 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
 
   const { onSubmit, onCancel, landing, armedMessage } = useChatSubmit({ addNotification, removeNotification, setAppState, setInputValue, setInputMode, setPastedContents, authWallHold, repinToBottom, setToolJSX, toolJSX, getToolUseContext, paintScreenCommandReceipt, setSubmitCount, lastCompletedAt, commandsRef, isLoadingRef, dialogInFlightRef, armedHandedBackRef, queuedDialogCommandsRef, getFocusedSeatLive });
 
-  const { permissionOverlay } = useChatAsksCard({ focusedInputDialog, repinToBottom, toolUseConfirmQueue, resolvedConsentCount, chatStore, resolveHeadPermission, chatSurfaceCovered, verbose });
+  const { permissionOverlay } = useChatAsksCard({ focusedInputDialog, repinToBottom, toolUseConfirmQueue, externalSeatAsks, resolvedConsentCount, chatStore, resolveHeadPermission, chatSurfaceCovered, verbose });
   const { centredModalUp, toolJSXRef, centredModal, bottomImmediateJsx, inlineToolJsx, focusedBottomDialog } = useChatDialogsView({ toolJSX, dialogSlotRef, localJsx, compactDetailUp, setShowCostThreshold, messages, fullscreen, compactWork, getToolUseContext, focusedEffectiveModel, chatSurfaceCovered, focusedInputDialog, elicitationQueue, respondToElicitation, dismissElicitationWaiting, crashResumeStaged, setCrashResumeStaged, addNotification, removeNotification, store });
   const { paintedMessages, entryLoadingLine, displayedMessages } = useChatSession({ focusedConnector, messages, compactWork, unseen, repinToBottom, setConversationId, setToolJSX, toolJSXRef, localJsx, landing, armedMessage, chatSurfaceCovered, inVirtualTranscript, transcriptMessages });
   const { messageActionsDisabled, messageCursorActive, messageNavRef, messageActions, rewindPicker } = useChatRewindPickerView({ addNotification, setInputValue, setInputMode, setShowRewindPicker, rewindPickerPreselect, setRewindPickerPreselect, focusedInputDialog, chatSurfaceCovered, messages, onCancel, focusedEffectiveModel, handleEnterTranscript, setScreen, setShowAllInTranscript, isLoadingRef, resume });

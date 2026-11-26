@@ -610,15 +610,24 @@ export function readTranscriptTailSync(path: string, bytes: number): string {
   }
 }
 
-export function scanTranscriptLinesBackward(path: string, visit: (line: string) => boolean | void): void {
+export function scanTranscriptLinesBackward(
+  path: string,
+  visit: (line: string) => boolean | void,
+  opts?: { maxBytes?: number },
+): void {
   const st = io.statSync(path)
   if (st === null || st.size === 0) return
-  const walk = (path: string, start: number, end: number): boolean => {
-    for (const bytes of transcriptLinesInReverse(path, start, end)) {
+  let remaining = opts?.maxBytes
+  const walk = (partPath: string, start: number, end: number): boolean => {
+    if (remaining !== undefined && remaining <= 0) return true
+    const cap = remaining
+    const readSpan = cap !== undefined ? Math.min(end - start, cap) : end - start
+    for (const bytes of transcriptLinesInReverse(partPath, start, end, undefined, cap)) {
       const line = bytes.toString('utf8').replace(/\n$/, '')
       if (line && visit(line) === true) return true
     }
-    return false
+    if (remaining !== undefined) remaining -= readSpan
+    return remaining !== undefined && remaining <= 0
   }
   const head = historyHead(path)
   if (walk(path, 0, st.size)) return

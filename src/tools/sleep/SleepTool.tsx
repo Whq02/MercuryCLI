@@ -7,7 +7,7 @@ import type { AppState } from '../../screen/app-state/AppState.js'
 import { lazySchema } from '../../platform/primitives/lazySchema.js'
 import { jsonStringify } from '../../platform/logs/slowOperations.js'
 import { clampWait } from '../kit/waitCeiling.js'
-import { DESCRIPTION, SLEEP_TOOL_NAME, SLEEP_TOOL_PROMPT } from './prompt.js'
+import { DESCRIPTION, SLEEP_TOOL_NAME, SLEEP_TOOL_PROMPT, WORKER_MAX_SLEEP_SECONDS, WORKER_SLEEP_LIMIT_NOTE } from './prompt.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { pollUntil } from '../../platform/async/deadline.js'
 import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
@@ -107,7 +107,10 @@ export const SleepTool = buildTool({
     return DESCRIPTION
   },
   async prompt() {
-    return SLEEP_TOOL_PROMPT
+    const { flagEnv } = await import('../../platform/substrate/flagRegistry.js')
+    return flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
+      ? `${SLEEP_TOOL_PROMPT}${WORKER_SLEEP_LIMIT_NOTE}`
+      : SLEEP_TOOL_PROMPT
   },
   getActivityDescription(input) {
     const wait = paintedWait(input?.seconds)
@@ -136,9 +139,11 @@ export const SleepTool = buildTool({
   async call({ seconds }, { abortController, getAppState, agentId }) {
     const { flagEnv } = await import('../../platform/substrate/flagRegistry.js')
     const { NEW_INPUT_REASON, watchForNewInput } = await import('./newInputWatch.js')
-    if (flagEnv('MERCURY_CONCOURSE_WORKER') === '1' && seconds > 300) {
+    if (flagEnv('MERCURY_CONCOURSE_WORKER') === '1' && seconds > WORKER_MAX_SLEEP_SECONDS) {
       throw new Error(
-        'refused: this background session must not hold its turn open — ending the turn IS idling here; the switchboard wakes it on the next delivery. Use waits under 300s only for real short backoffs.',
+        agentId === undefined
+          ? 'refused: this background session must not hold its turn open — ending the turn IS idling here; the switchboard wakes it on the next delivery. Use waits under 300s only for real short backoffs.'
+          : `refused: Sleep waits in this worker environment are capped at ${WORKER_MAX_SLEEP_SECONDS}s; use waits of ${WORKER_MAX_SLEEP_SECONDS}s or less (tracked background commands still wake Sleep early when they finish).`,
       )
     }
     const wait = clampWait('seconds', seconds, MIN_SLEEP_SECONDS, MAX_SLEEP_SECONDS, 's')

@@ -287,7 +287,7 @@ async function mount(size?: Size): Promise<Scene> {
   const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(size) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Harness)))
-  const painted = await until(() => ink.lastFrameText() !== '' && stripAnsi(ink.lastFrameText()).includes('crew ·'))
+  const painted = await until(() => ink.lastFrameText() !== '' && /crew \d+/.test(stripAnsi(ink.lastFrameText())))
   check(`the cockpit painted with the crew lane${size === undefined ? '' : ` at ${size.columns}x${size.rows}`}`, painted, `${stripAnsi(ink.lastFrameText()).slice(0, 300)} — the cockpit never painted a CREW lane; look at src/screen/fullscreen-layout/HelmLanesRail.tsx and the harness mount`)
   await sleep(400)
   return {
@@ -361,7 +361,8 @@ async function crewHeightRows(view: Scene, size: Size, mark: string): Promise<vo
   const window = windowOf(lines, CREW_TITLE)
   const budget = bootBudget(size)
   const composer = composerRow(lines)
-  const viewLeft = cells(lines[0] ?? '').indexOf('╭')
+  const firstRow = cells(lines[0] ?? '')
+  const viewLeft = firstRow[0] === '╭' ? firstRow.indexOf('╭', 1) : firstRow.indexOf('╭')
   const viewBottom = lines.findIndex((line, row) => row > 0 && cells(line)[viewLeft] === '╰')
   const viewRows = window === null ? 0 : viewBottom - window.top
   const viewBudget = Math.min(budget, viewRows - 1)
@@ -379,7 +380,7 @@ const scene = await mount()
 section(`§1 screen 1 at ${COLS}x${ROWS}: Mercury Lead, the default`)
 let frame = scene.lines()
 save('screen-1-lead', frame)
-const crewHeader = railRow(frame, 'crew ·')
+const crewHeader = railRow(frame, 'crew 15')
 const leadRow = crewHeader >= 0 ? railText(frame[crewHeader + 1] ?? '').trim() : ''
 console.log(`the CREW lane's first row: "${leadRow}"`)
 check(`the lead's CREW row is first and reads "${LEAD_ROW}"`, crewHeader >= 0 && leadRow.includes(LEAD_ROW), `the row reads "${leadRow}"`)
@@ -427,8 +428,6 @@ check('the crewmate\'s transcript takes over the centre (its rows paint, the lea
 check('the crewmate\'s rows wear its own nameplate, the operator\'s lines the [you → Lane atlas] plate', atlasRows.every(line => line.includes('[Lane atlas]')) && centreRows.some(line => line.includes('[you → Lane atlas]')), centreRows.filter(line => /\[(Lane atlas|you →)/.test(line)).map(line => line.trim().slice(0, 60)).join(' | '))
 const composer2 = composerRow(frame)
 check('the composer stays on screen under the view', composer2 > 0, 'no composer row — the view must leave the prompt input painted')
-const footer2 = frame.slice(composer2, composer2 + 6).join('\n')
-check('the footer says ↵ sends to the crewmate · esc interrupts it (once)', /sends to Lane atlas/.test(footer2) && /esc interrupts Lane atlas/.test(footer2) && !/Mercury Lead in the rail goes back/.test(footer2), footer2.replace(/\s+/g, ' ').slice(0, 300))
 check('the click dispatched no command (no /tasks board opened)', scene.submits.length === 0, `submits=${JSON.stringify(scene.submits)}`)
 if (viewedAfterClick === undefined) {
   scene.push(press(8, pickerRow) + release(8, pickerRow))
@@ -488,7 +487,7 @@ if (crewWindow !== null) {
   check('the transcript still paints beside the window (the cockpit is dimmed, not blanked)', frame.some(line => line.includes(TRANSCRIPT_NEEDLE)), 'no transcript row on the frame')
 }
 check('the composer stays on screen around the pop-up', composerRow(frame) > 0, 'no composer row')
-check('the lanes rail stays on screen beside the pop-up', railRow(frame, 'crew ·') >= 0, 'no CREW lane')
+check('the lanes rail stays on screen beside the pop-up', railRow(frame, 'crew 15') >= 0, 'no CREW lane')
 
 section('§4 screen 4: m on a crewmate makes it the main chat')
 for (let step = 0; step < 5; step++) {
@@ -517,8 +516,6 @@ check('the card says THE MAIN CHAT in the crewmate\'s row', card4.includes('THE 
 const composer4 = composerRow(frame)
 const composerText = composer4 >= 0 ? frame[composer4]!.trim() : ''
 check('the composer placeholder reads "message Lane fjord"', composerText.includes('message Lane fjord'), `the composer row reads "${composerText.slice(0, 80)}"`)
-const footer4 = frame.slice(composer4, composer4 + 6).join('\n')
-check('the footer says ↵ sends to the crewmate · m on Mercury Lead returns the main chat', /sends to Lane fjord/.test(footer4) && /m on Mercury Lead returns the main chat/.test(footer4), footer4.replace(/\s+/g, ' ').slice(0, 300))
 check('a crewmate with no transcript on disk says so in the centre, never a blank', frame.some(line => centre(line).includes('no transcript yet')), frame.slice(6, 12).map(centre).join(' | ').slice(0, 200))
 if (frame.some(line => line.includes(CREW_TITLE))) {
   scene.push(ESC)

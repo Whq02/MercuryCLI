@@ -1,4 +1,5 @@
 import { readCurrentVersionState, reconcileManagedShims, resolveLayoutRoots, type LayoutRoots } from 'src/platform/update-channel/installLayout.js'
+import { reconcileManagedCommands } from 'src/platform/profiles/profiles.js'
 import { commandOnPath, commandOnPathWarning, npmWrapperOnPath } from 'src/platform/update-channel/installPath.js'
 import {
   askYesNo,
@@ -71,9 +72,9 @@ export async function moveDaemonAfterInstallerUpgrade(to: string): Promise<{ sta
   try {
     const { deployedRuntime } = await import('../../daemon/control/handover.js')
     if (deployedRuntime() !== null) return await moveDaemonAfterUpdate()
-    const { handshakeDaemon, liveNoun, finishVerb } = await import('../../daemon/control/handshake.js')
+    const { absentDaemonMoveLine, handshakeDaemon, liveNoun, finishVerb } = await import('../../daemon/control/handshake.js')
     const first = await handshakeDaemon()
-    if (first.state === 'absent') return { state: 'absent', line: `background daemon: none running — the next session starts one on v${to}` }
+    if (first.state === 'absent') return { state: 'absent', line: absentDaemonMoveLine(`v${to}`) }
     const d = first.daemon
     if (first.state === 'starting' || d === null) {
       return { state: 'unknown', line: `background daemon: still starting — \`mercury daemon restart\` moves it to v${to} once it answers` }
@@ -347,7 +348,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
   if (ghWarning && !options.json) console.error(ghWarning)
   const installCurrent = result.state === 'updated' || (result.state === 'no-update' && result.check.state === 'current')
   if (installCurrent) {
-    reconcileManagedShims(roots)
+    reconcileManagedCommands(roots)
   }
   const daemon = installCurrent ? await moveDaemonAfterUpdate() : null
   const daemonLine = daemon === null ? '' : `\n${daemon.line}`

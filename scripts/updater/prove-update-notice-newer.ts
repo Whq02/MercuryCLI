@@ -183,6 +183,19 @@ section('§5 the two switches: MERCURY_UPDATE_NOTICE=0 and MERCURY_DISABLE_NONES
   else process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = saved.traffic
 }
 
+section('§6 SUBMIT 495: running, available and installed versions are distinct (updates and rollback)')
+{
+  const { updateVersionStillAvailable } = await import('../../src/platform/update-channel/quietUpdateNotice.ts')
+  check('1.1.0 running, 1.1.1 available, 1.1.0 installed => still available', updateVersionStillAvailable('1.1.1', '1.1.0', '1.1.0') === true)
+  check('1.1.0 running, 1.1.1 available, 1.1.1 installed => NOT available', updateVersionStillAvailable('1.1.1', '1.1.0', '1.1.1') === false)
+  check('1.1.0 running, 1.1.1 available, 1.1.2 installed => NOT available', updateVersionStillAvailable('1.1.1', '1.1.0', '1.1.2') === false)
+  check('1.1.0 running, 1.1.2 available, 1.1.1 installed (incl. after rollback 1.1.2 -> 1.1.1) => still available', updateVersionStillAvailable('1.1.2', '1.1.0', '1.1.1') === true)
+  check('decideQuietCheck skips cached 1.1.1 when installed is 1.1.1', decideQuietCheck(cached('1.1.1', '1.1.0'), NOW, '1.1.0', UPDATE_NOTICE_DAILY_MS, '1.1.1').action === 'skip')
+  check('decideQuietCheck notifies cached 1.1.2 when installed is 1.1.1', decideQuietCheck(cached('1.1.2', '1.1.0'), NOW, '1.1.0', UPDATE_NOTICE_DAILY_MS, '1.1.1').action === 'notify-from-cache')
+  check('decideFaceNotice skips cached 1.1.1 when installed is 1.1.1', decideFaceNotice(cached('1.1.1', '1.1.0'), '1.1.0', '1.1.1') === null)
+  check('decideFaceNotice keeps cached 1.1.2 when installed is 1.1.1', decideFaceNotice(cached('1.1.2', '1.1.0'), '1.1.0', '1.1.1') === '1.1.2')
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

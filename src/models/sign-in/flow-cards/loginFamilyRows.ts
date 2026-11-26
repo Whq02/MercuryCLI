@@ -28,10 +28,16 @@ export type LoginFamilyValue =
   | 'qwen'
 
 export const TENSORFOLD_FAMILY_VALUE = 'tensorfold'
+export const DEVIN_EXTERNAL_AGENT_VALUE = 'external/devin'
+export const DEVIN_EXTERNAL_AGENT_LABEL = 'Devin CLI (external agent) — own CLI sign-in'
 
 export interface LoginFamilyRow {
   label: string
-  value: LoginFamilyValue | `compat/${string}` | typeof TENSORFOLD_FAMILY_VALUE
+  value: LoginFamilyValue | `compat/${string}` | typeof TENSORFOLD_FAMILY_VALUE | typeof DEVIN_EXTERNAL_AGENT_VALUE
+}
+
+export function devinExternalAgentRow(): LoginFamilyRow {
+  return { label: DEVIN_EXTERNAL_AGENT_LABEL, value: DEVIN_EXTERNAL_AGENT_VALUE }
 }
 
 export type TensorFoldOffer =
@@ -59,7 +65,7 @@ export function tensorFoldFamilyRow(offer: TensorFoldOffer): LoginFamilyRow {
 export const META_LOGIN_FAMILY_LABEL = `Meta — ${META_SIGN_IN_ROADS}`
 export const ANTHROPIC_FAMILY_ROW_LABEL = 'Anthropic — Claude subscription or Console sign-in / API key'
 
-export function loginFamilyRows({ engineLegs, tensorfold }: { engineLegs: boolean; tensorfold?: TensorFoldOffer | null }): LoginFamilyRow[] {
+export function loginFamilyRows({ engineLegs, tensorfold, externalAgents }: { engineLegs: boolean; tensorfold?: TensorFoldOffer | null; externalAgents?: boolean }): LoginFamilyRow[] {
   const offered = tensorfold === undefined || tensorfold === null ? undefined : tensorFoldFamilyRow(tensorfold)
   return [
     ...(offered !== undefined && tensorfold?.kind !== 'host' ? [offered] : []),
@@ -99,6 +105,7 @@ export function loginFamilyRows({ engineLegs, tensorfold }: { engineLegs: boolea
           ...configuredCompatEndpoints().filter(endpoint => endpoint.named).map(endpoint => ({ label: `${endpoint.label} (${endpoint.name}) — ${cachedCompatCatalogue(endpoint)?.error || compatEndpointPodTerminated(endpoint) ? 'server is not answering · retry or remove in /model' : 'endpoint API key'}`, value: `compat/${endpoint.name}` as const })),
         ]
       : []),
+    ...(externalAgents === true ? [devinExternalAgentRow()] : []),
   ]
 }
 

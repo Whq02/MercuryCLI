@@ -9,6 +9,7 @@ import {
   type CaptureTiming, type JobsRun,
 } from '../lib/captureJobs.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { pinRecorderTerminal } from '../lib/proofHome.ts'
 import { HELM_HOME_MIN_COLS } from '../../src/screen/fullscreen-layout/helmGeometry.ts'
 import { DEFAULT_CRITTER_KEY } from '../../src/screen/cockpit/critterData.ts'
 
@@ -181,18 +182,17 @@ function captureSpec(
       const res = spawnSync(baselineDriverPython(), [join(import.meta.dir, 'vshot.py'), cfgPath], {
         encoding: 'utf-8',
         timeout: settleWallMs(SETTLE_LAW, vshotBudgetScale()),
-        env: {
+        env: pinRecorderTerminal({
           ...process.env,
           MERCURY_CONFIG_DIR: home,
           ANTHROPIC_API_KEY: FIXTURE_API_KEY,
           ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
           MERCURY_AWAY_SUMMARY: '0',
           MERCURY_THEME_PIN: spec.theme,
-          TERM_PROGRAM: 'kitty',
           MERCURY_CRITTER: DEFAULT_CRITTER_KEY,
           MERCURY_LOCAL_PROBE_TARGETS: 'none',
           ...colorModeEnv(spec.colorMode),
-        },
+        }),
       })
       receipt = readReceipt()
       if (res.status !== 0) return { status: res.status, stderr: res.stderr, stdout: res.stdout }

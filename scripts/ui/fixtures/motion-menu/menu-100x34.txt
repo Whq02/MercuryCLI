@@ -1,6 +1,6 @@
 
 
-  (>_) MERCURY · boot menu
+  MERCURY · boot menu
 
   trust combo
     Content-rule wards              default (on)
@@ -28,4 +28,4 @@
   ❯ Motion                          auto · full
 
   how much idle motion the cockpit runs — auto follows the machine (full until painting falls beh…
-  ↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts · esc back
+  ↑↓ move · ↵ change · ⌫ default · a receipts · esc back

@@ -49,6 +49,12 @@ import { WebFetchPermissionRequest } from './web-fetch/WebFetchPermissionRequest
 import { BrowserPermissionRequest } from './browser/BrowserPermissionRequest.js'
 import { ComputerPermissionRequest } from './computer/ComputerPermissionRequest.js'
 import { COMPUTER_TOOL_NAME } from '../../integrations/desktop/toolName.js'
+import { Box, Text } from '../../screen/themedRenderer.js'
+import { truncateToLines } from '../../platform/text/strings.js'
+import { ConsentBodyText } from './ConsentBodyText.js'
+import { PermissionDialog } from './PermissionDialog.js'
+import { PermissionPrompt, type PermissionPromptOption } from './PermissionPrompt.js'
+import type { ExternalSeatPermissionAsk } from './externalSeatAsk.js'
 
 import type { ToolUseContext } from '../../tools/kit/tool.js'
 
@@ -88,32 +94,89 @@ export type PermissionRequestProps<Input = Record<string, unknown>> = {
 }
 
 
+function usePermissionCardShell(onInterrupt: () => void, armSeed: boolean): void {
+  useKeybinding('app:interrupt', onInterrupt, { context: 'Confirmation' })
+  useClaim(() => armPermissionFocus(), [])
+  const ink = useContext(ScreenInstanceContext)
+  useClaim(() => ink?.registerArrowKeyOwner(() => true), [ink])
+  useKeysHeldUntilFirstPaint()
+  useClaim(() => (armSeed ? armComposerSeed() : undefined), [armSeed])
+}
+
+export function ExternalSeatPermissionRequest({
+  ask,
+  onDone,
+}: {
+  ask: ExternalSeatPermissionAsk
+  onDone: () => void
+}): React.ReactNode {
+  const handleCancel = (): void => {
+    onDone()
+    ask.onCancel()
+  }
+
+  usePermissionCardShell(handleCancel, false)
+  const kindTag = (kind: ExternalSeatPermissionAsk['options'][number]['kind']): string => {
+    switch (kind) {
+      case 'allow_once':
+        return '[allow once]'
+      case 'allow_always':
+        return '[allow always]'
+      case 'reject_once':
+        return '[deny once]'
+      case 'reject_always':
+        return '[deny always]'
+    }
+  }
+
+  const options: PermissionPromptOption<string>[] = ask.options.map(opt => ({
+    value: opt.optionId,
+    label: `${kindTag(opt.kind)} ${opt.name}`,
+  }))
+  const handleSelect = (optionId: string): void => {
+    onDone()
+    ask.onSelect(optionId)
+  }
+
+  const headerLine = ask.toolKind ? `${ask.toolKind}: ${ask.title}` : ask.title
+
+  return (
+    <PermissionDialog
+      title={`${ask.displayName} permission`}
+      crewmate={`△ ${ask.displayName} (${ask.adapterKind})`}
+    >
+      <Box flexDirection="column">
+        <ConsentBodyText text={headerLine} />
+        {ask.targets.length > 0 ? (
+          <ConsentBodyText text={ask.targets.join('\n')} />
+        ) : null}
+        {ask.detail ? (
+          <Text dimColor>{truncateToLines(ask.detail, 3)}</Text>
+        ) : null}
+        <Text dimColor>
+          {`${ask.displayName} runs its own tools outside Mercury's tool runner.`}
+        </Text>
+        <PermissionPrompt
+          options={options}
+          onSelect={handleSelect}
+          onCancel={handleCancel}
+        />
+      </Box>
+    </PermissionDialog>
+  )
+}
+
 export function PermissionRequest(props: PermissionRequestProps): React.ReactNode {
   const { toolUseConfirm, onDone, onReject } = props
 
-  useKeybinding(
-    'app:interrupt',
+  usePermissionCardShell(
     () => {
       onDone()
       onReject()
       toolUseConfirm.onReject()
     },
-    { context: 'Confirmation' },
+    toolUseConfirm.tool !== AskUserQuestionTool,
   )
-
-  useClaim(() => armPermissionFocus(), [])
-
-  const ink = useContext(ScreenInstanceContext)
-  useClaim(() => ink?.registerArrowKeyOwner(() => true), [ink])
-
-  useKeysHeldUntilFirstPaint()
-
-  const isQuestionCard = toolUseConfirm.tool === AskUserQuestionTool
-  useClaim(() => {
-    if (isQuestionCard) return undefined
-    return armComposerSeed()
-  }, [isQuestionCard])
-
   const tool = toolUseConfirm.tool
   const key = toolUseConfirm.toolUseID
   const mediaKind = mediaGenerationKind(tool)

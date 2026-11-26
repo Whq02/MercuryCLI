@@ -3,8 +3,6 @@ import { Box, Text } from '../../screen/themedRenderer.js'
 import { CrewmateProgressLine } from './CrewmateProgressLine.js'
 import { ConfigurableShortcutHint } from '../../screen/keys/ConfigurableShortcutHint.js'
 import { CtrlOToExpand, NestedRowsProvider } from '../../screen/messages/CtrlOToExpand.js'
-import { Byline } from '../../screen/theme/Byline.js'
-import { KeyboardShortcutHint } from '../../screen/theme/KeyboardShortcutHint.js'
 import { Message as MessageComponent } from '../../screen/messages/Message.js'
 import { MessageResponse } from '../kit/MessageResponse.js'
 import { FallbackToolUseErrorMessage } from '../kit/FallbackToolUseErrorMessage.js'
@@ -398,11 +396,8 @@ export function renderToolResultMessage(
         <MessageResponse height={1}>
           <Text>Crewmate launched in the background</Text>
         </MessageResponse>
-        {!options.isTranscriptMode ? (
-          <Byline>
-            <KeyboardShortcutHint shortcut="↓" action="manage" />
-            {prompt !== undefined ? <ExpandHint /> : null}
-          </Byline>
+        {!options.isTranscriptMode && prompt !== undefined ? (
+          <ExpandHint />
         ) : null}
         {options.isTranscriptMode && prompt !== undefined ? (
           <MessageResponse>
@@ -826,12 +821,7 @@ export function renderGroupedCrewmateToolUse(
           })}
         />
         {allResolved && allBackground ? (
-          <>
-            <Text bold>{entries.length} background crewmates launched </Text>
-            <Text dimColor>
-              <KeyboardShortcutHint shortcut="↓" action="manage" parens />
-            </Text>
-          </>
+          <Text bold>{entries.length} background crewmates launched</Text>
         ) : (
           <Text>
             <Text bold>{headerText}</Text>

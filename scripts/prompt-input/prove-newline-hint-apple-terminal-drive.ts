@@ -33,10 +33,10 @@ function check(label: string, cond: boolean, detail = '', fixHint = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fixHint ? ` — ${fixHint}` : ''}`)
 }
 
-const HINT_FIX = 'getNewlineInstructions and getShortNewlineInstructions in src/screen/composer/composerConfig.ts must name a chord Apple Terminal sends apart from ↵; it sends shift + ↵ as the same CR byte, and it is not among EXTENDED_KEYS_TERMINALS in src/screen/renderer/terminal-session/capabilities.ts'
+const HINT_FIX = 'getNewlineInstructions in src/screen/composer/composerConfig.ts (shown in ComposerHelpMenu.tsx) must name a chord Apple Terminal sends apart from ↵; it sends shift + ↵ as the same CR byte, and it is not among EXTENDED_KEYS_TERMINALS in src/screen/renderer/terminal-session/capabilities.ts'
 const DRIVE_FIX = 'the drive through scripts/ui/vshot.py did not reach every step: rebuild dist/mercury.mjs with bun run build.ts and read the frames printed below'
 const ADMITTED = 'Type a prompt'
-const NEW_LINE = ' new line'
+const NEW_LINE = ' for a new line'
 const FIRST = 'line one'
 const SECOND = 'line two'
 const REPLY = 'FIXTURE-REPLY'
@@ -126,9 +126,8 @@ async function drive(label: string, terminal: Record<string, string>, sends: unk
 const hintRow = (rows: string[]): string => rows.findLast(line => line.includes(NEW_LINE)) ?? ''
 const chordOf = (rows: string[]): string => {
   const row = hintRow(rows)
-  const seg = row.split(' · ').find(part => part.includes(NEW_LINE)) ?? ''
-  if (seg.includes(' for a new line')) return seg.slice(0, seg.indexOf(' for a new line')).trim()
-  return seg.includes(NEW_LINE) ? seg.slice(0, seg.indexOf(NEW_LINE)).trim() : ''
+  const cell = row.split(/\s{2,}/).find(part => part.includes(NEW_LINE)) ?? ''
+  return cell.includes(NEW_LINE) ? cell.slice(0, cell.indexOf(NEW_LINE)).trim() : ''
 }
 
 function composerLines(rows: string[]): string[] {
@@ -157,16 +156,18 @@ console.log(`  bundle: ${BIN}`)
 try {
   const rest = await drive('apple-rest', APPLE_TERMINAL, [
     BOOT,
-    { ...gate, awaitText: ADMITTED, data: '', mark: 'rest' },
+    { ...gate, awaitText: ADMITTED, data: '?' },
+    { ...gate, awaitText: NEW_LINE, data: '', mark: 'help' },
+    { ...gate, awaitText: NEW_LINE, data: '\x1b' },
     { ...gate, awaitText: ADMITTED, data: FIRST },
     { ...gate, awaitText: `❯ ${FIRST}`, data: '\r' },
     { ...gate, awaitText: REPLY, data: '', mark: 'sent' },
   ], REPLY)
-  const restRows = rest.marks.get('rest') ?? []
-  const chord = chordOf(restRows)
-  check('Apple Terminal: the drive reached the composer at rest and the turn after CR', rest.code === 0 && rest.marks.has('rest') && rest.marks.has('sent'), `vshot exit ${rest.code}${rest.code === 0 ? '' : ` ${rest.stderr}`}`, DRIVE_FIX)
-  check('Apple Terminal: the footer names a chord for a new line', chord !== '', JSON.stringify(hintRow(restRows)), HINT_FIX)
-  check('Apple Terminal: the footer does not promise shift+↵ or shift + ↵, which Apple Terminal sends as the same CR as ↵', chord !== 'shift+↵' && chord !== 'shift + ↵', `the footer reads "${hintRow(restRows)}"`, HINT_FIX)
+  const helpRows = rest.marks.get('help') ?? []
+  const chord = chordOf(helpRows)
+  check('Apple Terminal: the drive reached the ? panel and the turn after CR', rest.code === 0 && rest.marks.has('help') && rest.marks.has('sent'), `vshot exit ${rest.code}${rest.code === 0 ? '' : ` ${rest.stderr}`}`, DRIVE_FIX)
+  check('Apple Terminal: the ? panel names a chord for a new line', chord !== '', JSON.stringify(hintRow(helpRows)), HINT_FIX)
+  check('Apple Terminal: the ? panel does not promise shift+↵ or shift + ↵, which Apple Terminal sends as the same CR as ↵', chord !== 'shift+↵' && chord !== 'shift + ↵', `the ? panel reads "${hintRow(helpRows)}"`, HINT_FIX)
   check('Apple Terminal: CR alone, the byte Apple Terminal sends for shift + ↵ as for ↵, sends the prompt', carries(rest.sent, FIRST), `${rest.sent.length} model request(s) after "${FIRST}" and CR; "${FIRST}" went out: ${carries(rest.sent, FIRST)}`, 'the composer must send its draft on a bare CR; read handleEnter in src/screen/composer/text-input/useTextInput.ts')
   const bytes = APPLE_TERMINAL_SENDS.get(chord)
   check(`Apple Terminal: this proof knows the bytes Apple Terminal sends for "${chord}"`, bytes !== undefined, `known: ${[...APPLE_TERMINAL_SENDS.keys()].join(' · ')}`, 'add the chord and the bytes Apple Terminal sends for it to APPLE_TERMINAL_SENDS in this proof')
@@ -175,25 +176,26 @@ try {
       BOOT,
       { ...gate, awaitText: ADMITTED, data: FIRST },
       ...bytes.map((data, i) => ({ ...gate, awaitText: `❯ ${FIRST}${bytes.slice(0, i).join('')}`, data })),
-      { ...gate, awaitText: NEW_LINE, awaitStableTicks: 3, data: SECOND },
+      { ...gate, awaitText: `❯ ${FIRST}`, awaitAbsent: `${FIRST}\\`, awaitStableTicks: 3, data: SECOND },
       { ...gate, awaitText: SECOND, data: '', mark: 'followed' },
     ], SECOND)
     const followedRows = followed.marks.get('followed') ?? []
     const lines = composerLines(followedRows)
-    check('Apple Terminal: the drive that follows the footer reached its last step', followed.code === 0 && followed.marks.has('followed'), `vshot exit ${followed.code}${followed.code === 0 ? '' : ` ${followed.stderr}`}`, DRIVE_FIX)
+    check('Apple Terminal: the drive that follows the ? panel reached its last step', followed.code === 0 && followed.marks.has('followed'), `vshot exit ${followed.code}${followed.code === 0 ? '' : ` ${followed.stderr}`}`, DRIVE_FIX)
     check(`Apple Terminal: "${chord}" as Apple Terminal sends it (${spelled(bytes)}) leaves "${FIRST}" and "${SECOND}" as two lines in the composer`, lines.length === 2 && lines[0] === `❯ ${FIRST}` && lines[1]?.trim() === SECOND, `the composer holds ${JSON.stringify(lines)}`, HINT_FIX)
     check(`Apple Terminal: "${chord}" as Apple Terminal sends it sends nothing to the model`, !carries(followed.sent, FIRST), `${followed.sent.length} model request(s); "${FIRST}" went out: ${carries(followed.sent, FIRST)}`, HINT_FIX)
-    if (failures > 0) show('Apple Terminal, after following the footer', followedRows)
+    if (failures > 0) show('Apple Terminal, after following the ? panel', followedRows)
   }
-  if (failures > 0) show('Apple Terminal, at rest', restRows)
+  if (failures > 0) show('Apple Terminal, ? panel', helpRows)
   const other = await drive('iterm-rest', ITERM, [
     BOOT,
-    { ...gate, awaitText: ADMITTED, data: '', mark: 'rest' },
-  ], ADMITTED)
-  const otherRows = other.marks.get('rest') ?? []
-  check('iTerm.app: the drive reached the composer at rest', other.code === 0 && other.marks.has('rest'), `vshot exit ${other.code}${other.code === 0 ? '' : ` ${other.stderr}`}`, DRIVE_FIX)
-  check('iTerm.app, a terminal with extended keys: the idle footer reads "shift+↵ new line"', chordOf(otherRows) === 'shift+↵', JSON.stringify(hintRow(otherRows)), 'iTerm.app is among EXTENDED_KEYS_TERMINALS in src/screen/renderer/terminal-session/capabilities.ts and delivers shift + ↵; getShortNewlineInstructions in src/screen/composer/composerConfig.ts must keep naming shift+↵ there')
-  if (chordOf(otherRows) !== 'shift+↵') show('iTerm.app, at rest', otherRows)
+    { ...gate, awaitText: ADMITTED, data: '?' },
+    { ...gate, awaitText: NEW_LINE, data: '', mark: 'help' },
+  ], NEW_LINE)
+  const otherRows = other.marks.get('help') ?? []
+  check('iTerm.app: the drive reached the ? panel', other.code === 0 && other.marks.has('help'), `vshot exit ${other.code}${other.code === 0 ? '' : ` ${other.stderr}`}`, DRIVE_FIX)
+  check('iTerm.app, a terminal with extended keys: the ? panel names "shift + ↵"', chordOf(otherRows) === 'shift + ↵', JSON.stringify(hintRow(otherRows)), 'iTerm.app is among EXTENDED_KEYS_TERMINALS in src/screen/renderer/terminal-session/capabilities.ts and delivers shift + ↵; getNewlineInstructions in src/screen/composer/composerConfig.ts must keep naming shift + ↵ there')
+  if (chordOf(otherRows) !== 'shift + ↵') show('iTerm.app, ? panel', otherRows)
 } finally {
   await api.close()
   rmSync(scratch, { recursive: true, force: true })

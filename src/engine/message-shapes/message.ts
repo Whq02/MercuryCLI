@@ -84,6 +84,7 @@ export type FoldMetadata = {
     headUuid: UUID
     anchorUuid: UUID
     tailUuid: UUID
+    keptUuids?: UUID[]
   }
   preCompactDiscoveredTools?: string[]
   work?: {

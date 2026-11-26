@@ -11,7 +11,7 @@ import { useTerminalSize } from '../../screen/fullscreen-layout/useTerminalSize.
 import { useLoad, useTimer } from '../../screen/effects/effects.js'
 import type { ResumeEntrypoint } from '../catalogue/commands.js'
 import type { LocalJSXCommandCall, LocalJSXCommandContext, LocalJSXCommandOnDone } from '../catalogue/command.js'
-import type { SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
+import { compareSessionListings, type SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
 import { getOriginalCwd } from '../../boot/process-state/processState.js'
 import { conversationIdHere } from '../../engine/connector/focusedConnector.js'
 import { getWorktreePathsPortable } from '../../platform/git/worktree/worktreePathsPortable.js'
@@ -201,9 +201,7 @@ function SessionsByArgument({
         if (uuid !== null) {
           const matches = logs.filter(log => sessionIdOfListing(log) === uuid)
           if (matches.length > 0) {
-            const mostRecent = [...matches].sort(
-              (a, b) => (b.modified?.getTime?.() ?? 0) - (a.modified?.getTime?.() ?? 0),
-            )[0]!
+            const mostRecent = [...matches].sort(compareSessionListings)[0]!
             const full = isLiteListing(mostRecent) ? await fillSessionListing(mostRecent) : mostRecent
             await performResume(context, onDone, uuid, full, 'slash_command_session_id')
             return
