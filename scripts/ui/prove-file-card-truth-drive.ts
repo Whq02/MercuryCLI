@@ -125,7 +125,7 @@ SCENES.push({
     { kind: 'text', text: 'Done.' },
   ],
   mustShow: ['MERCURY.md', `+- ${RULE}`],
-  mustNotShow: ['⦿ Tool use', 'Record a durable project convention the user stated'],
+  mustNotShow: ['Tool use', 'Record a durable project convention the user stated'],
   disk: cwd => existsSync(join(cwd, 'MERCURY.md')) && readFileSync(join(cwd, 'MERCURY.md'), 'utf8').endsWith(`\n- ${RULE}\n`),
 })
 
@@ -140,7 +140,7 @@ SCENES.push({
     { kind: 'text', text: 'Done.' },
   ],
   mustShow: ['MERCURY.md', `+- ${RULE}`, `- ${FIRST_RULE}`],
-  mustNotShow: ['⦿ Tool use', `-- ${FIRST_RULE}`, '-# MERCURY.md'],
+  mustNotShow: ['Tool use', `-- ${FIRST_RULE}`, '-# MERCURY.md'],
   noRowLike: /│\s+\d+\s-/,
   disk: cwd => readFileSync(join(cwd, 'MERCURY.md'), 'utf8') === `# MERCURY.md\nStanding orders for the Mercury harness in this repository.\n\n- ${FIRST_RULE}\n- ${RULE}\n`,
 })
@@ -188,7 +188,7 @@ SCENES.push({
     ]
   },
   mustShow: ['Git commit', `Commit: ${COMMIT_SUBJECT}`, 'calc.py, NOTES.md', 'The calculator and the notes, nothing else.', 'Stays uncommitted: report.py'],
-  mustNotShow: ['⦿ Tool use', 'Typed local Git work graph', `Git(apply ${'gp-'}`],
+  mustNotShow: ['Tool use', 'Typed local Git work graph', `Git(apply ${'gp-'}`],
   disk: cwd => {
     const sh = (args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', env: GIT_ENV })
     const committed = sh(['show', '--name-only', '--format=', 'HEAD']).split('\n').filter(Boolean).sort()
@@ -214,8 +214,8 @@ const ROW_SCENES: RowScene[] = [
 ]
 
 const rowsHaving = (rows: string[], needle: string): boolean => rows.some(r => r.includes(needle))
-const cardRows = (rows: string[]): string[] => {
-  const start = rows.findIndex(r => r.includes('⦿ '))
+const cardRows = (rows: string[], title: string): string[] => {
+  const start = rows.findIndex(r => r.includes(`│  ${title}`))
   if (start === -1) return []
   const end = rows.findIndex((r, i) => i > start && /^\s*╰/.test(r))
   return rows.slice(start, end === -1 ? rows.length : end + 1)
@@ -247,7 +247,7 @@ for (const scene of SCENES) {
     const [card] = grabScreens(run, 100, 30, [yesAt - 800])
     const rows = card!.rows
     printFrame(`${scene.id} card at 100x30`, rows)
-    const body = cardRows(rows)
+    const body = cardRows(rows, scene.title)
     check(`${scene.id}: the card title is on the frame`, rowsHaving(body, scene.title), body.join(' | ').slice(0, 200))
     for (const needle of scene.mustShow) check(`${scene.id}: the card shows "${needle}"`, rowsHaving(body, needle), body.join('\n').slice(0, 600))
     for (const needle of scene.mustNotShow) check(`${scene.id}: the card does not show "${needle}"`, !rowsHaving(body, needle), body.join('\n').slice(0, 600))
