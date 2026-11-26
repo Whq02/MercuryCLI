@@ -370,7 +370,7 @@ if (worlds.has('off')) {
   const m = cap.marks
   tally.section('off · 178x51 · the setting off restores the rail as shipped')
   tally.check('O1 every send became due', cap.receipts === cap.sends && cap.status === 0, `${cap.receipts}/${cap.sends} · status ${cap.status} · end ${cap.endReason} · ${cap.stderr.slice(-300)}`)
-  tally.check('O2 no FILES box anywhere', !(m.land ?? '').includes('files ·'))
+  tally.check('O2 no FILES box anywhere', !railRows(m.land).some(r => r.includes('files ·')))
   const plainLand = railRows(frames.plain?.marks.land)
   const boxAt = plainLand.findIndex(r => r === FILES_BOX[1])
   const plainWithoutBox = boxAt > 0 ? plainLand.map((row, i) => (i >= boxAt - 1 && i <= boxAt + 2 ? '' : row)) : []
