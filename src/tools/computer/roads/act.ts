@@ -49,7 +49,6 @@ export async function actRoad({ run, input, context, owner, signal, toolUseId, d
     run.outcome = 'failed'
     return finish()
   }
-  const resolvesTarget = input.ref !== undefined || input.target !== undefined || input.toTarget !== undefined
   for (let pass = 0; ; pass++) {
     let atAct = await driver.frontmostApplication()
     const afterCard = pass > 0 && atAct.ok ? await frontAfterCard(driver, { app: live, asked: true }, atAct.value, signal) : null
@@ -69,7 +68,7 @@ export async function actRoad({ run, input, context, owner, signal, toolUseId, d
       return finish()
     }
     const targeting = await resolveActTargets(driver, input, front.value, plan, signal, owner, screenOf(owner))
-    const resolvedTerminal = targeting === null && resolvesTarget ? await ownTerminalRefusal(driver, input, front.value, plan) : null
+    const resolvedTerminal = targeting === null ? await ownTerminalRefusal(driver, input, front.value, plan) : null
     if (targeting !== null || resolvedTerminal !== null) {
       run.result = targeting ?? resolvedTerminal!
       run.outcome = 'failed'

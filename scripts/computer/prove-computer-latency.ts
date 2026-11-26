@@ -113,7 +113,7 @@ section('E1: sequence skips discarded per-step observation/report work while pre
     settleMs: 0,
   }
   const seq = await runTyped(seqInput)
-  check('5-step simple sequence succeeds without discarded per-step observations, displays or duplicate checks', seq.outcome === 'succeeded' && seq.result.includes('sequence 5/5 completed') && counts.tree === 7 && counts.displays === 0 && counts.own === 10 && counts.perms === 1 && counts.front <= 36, JSON.stringify(counts))
+  check('5-step simple sequence succeeds without discarded per-step observations, displays or duplicate checks', seq.outcome === 'succeeded' && seq.result.includes('sequence 5/5 completed') && counts.tree === 7 && counts.displays === 0 && counts.own === 15 && counts.perms === 1 && counts.front <= 36, JSON.stringify(counts))
 
   for (const k of Object.keys(counts) as Array<keyof typeof counts>) counts[k] = 0
   const verified = await runTyped({
@@ -156,8 +156,9 @@ section('E2: focusApp skips activation for a proven already-front no-op while pr
   const origActivate = driver.activateApplication
   const browser = { identity: 'com.example.Browser', name: 'Browser', pid: 456, title: 'Page', windowId: 'page', bounds: { x: 0, y: 0, width: 400, height: 300 } }
   const editor = { identity: 'com.example.Editor', name: 'Editor', pid: 789, title: 'Doc', windowId: 'doc', bounds: { x: 0, y: 0, width: 400, height: 300 } }
-  let frontApp = { ...browser }
-  let foundApp = { ...browser }
+  type DesktopApp = import('../../src/integrations/desktop/driver.ts').DesktopApplication
+  let frontApp: DesktopApp = { ...browser }
+  let foundApp: DesktopApp = { ...browser }
   let frontCalls = 0
   let activateCalls = 0
   driver.frontmostApplication = async () => { frontCalls++; return { ok: true, value: { ...frontApp } } }
