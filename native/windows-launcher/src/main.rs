@@ -100,7 +100,21 @@ fn cache_path(home: &Path) -> Option<PathBuf> {
     (text.encode_utf16().count() <= 200 || text.starts_with("\\\\?\\")).then_some(cache)
 }
 
-fn prepare_cache() {
+fn install_dry_run(args: &[OsString]) -> bool {
+    args.first().is_some_and(|a| a == OsStr::new("install"))
+        && args
+            .iter()
+            .skip(1)
+            .take_while(|a| *a != OsStr::new("--"))
+            .any(|a| *a == OsStr::new("--dry-run"))
+}
+
+fn prepare_cache(args: &[OsString]) {
+    if install_dry_run(args) {
+        env::remove_var("NODE_COMPILE_CACHE");
+        env::set_var("NODE_DISABLE_COMPILE_CACHE", "1");
+        return;
+    }
     if nonempty_env("NODE_COMPILE_CACHE").is_some()
         || nonempty_env("NODE_DISABLE_COMPILE_CACHE").is_some()
     {
@@ -153,7 +167,9 @@ fn launch() -> Result<i32, String> {
     let dir = exe.parent().ok_or("the launcher has no parent folder")?;
     #[cfg(windows)]
     console::prepare().map_err(|e| format!("could not listen for console events: {e}"))?;
+    let args = env::args_os().skip(1).collect::<Vec<_>>();
     let node = node_binary(dir).map_err(|_| node_missing())?;
+    prepare_cache(&args);
     let probe = Command::new(&node)
         .args(["-p", "process.versions.node"])
         .stdin(Stdio::null())
@@ -168,14 +184,12 @@ fn launch() -> Result<i32, String> {
     if !bundle.is_file() {
         return Err("mercury.mjs is missing beside this launcher".into());
     }
-    let args = env::args_os().skip(1).collect::<Vec<_>>();
     let interactive = io::stdin().is_terminal() && io::stdout().is_terminal();
     let take = takeover(&args, interactive);
     let verifier = dir.join("verify-artifact.mjs");
     if take && verifier.is_file() {
         let _ = child(&node, &verifier, &["--launcher".into()]).status();
     }
-    prepare_cache();
     let splash = dir.join("splash.mjs");
     if take
         && splash.is_file()
@@ -253,5 +267,46 @@ mod tests {
         assert!(cache_path(Path::new("short")).is_some());
         assert!(cache_path(Path::new(&"x".repeat(201))).is_none());
         assert!(cache_path(Path::new(&format!("\\\\?\\{}", "x".repeat(201)))).is_some());
+    }
+
+    #[test]
+    fn install_dry_run_policy() {
+        assert!(install_dry_run(&["install".into(), "--dry-run".into()]));
+        assert!(install_dry_run(&[
+            "install".into(),
+            "--dry-run".into(),
+            "--json".into(),
+        ]));
+        assert!(install_dry_run(&[
+            "install".into(),
+            "--json".into(),
+            "--dry-run".into(),
+        ]));
+        assert!(install_dry_run(&[
+            "install".into(),
+            "--dry-run".into(),
+            "--".into(),
+            "extra".into(),
+        ]));
+        assert!(!install_dry_run(&[]));
+        assert!(!install_dry_run(&["install".into()]));
+        assert!(!install_dry_run(&[
+            "install".into(),
+            "--".into(),
+            "--dry-run".into(),
+        ]));
+        assert!(!install_dry_run(&[
+            "install".into(),
+            "--json".into(),
+            "--".into(),
+            "--dry-run".into(),
+        ]));
+        assert!(!install_dry_run(&["install".into(), "--dry-run=1".into()]));
+        assert!(!install_dry_run(&[
+            "install the package with --dry-run".into(),
+        ]));
+        assert!(!install_dry_run(&["run".into(), "--dry-run".into()]));
+        assert!(!install_dry_run(&["--dry-run".into(), "install".into()]));
+        assert!(!install_dry_run(&["INSTALL".into(), "--dry-run".into()]));
     }
 }
