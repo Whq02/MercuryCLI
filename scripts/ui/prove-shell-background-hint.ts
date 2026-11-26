@@ -446,7 +446,7 @@ section('§2 the standalone tool row (the plain chrome) — the hint under a run
   const rowAt = rowLine(old, marker('old'))
   const hintAt = hintLines(old)[0] ?? -1
   check('the hint sits under the row, below the running line', hintAt > rowAt && hintAt - rowAt <= 3 && old.slice(rowAt + 1, hintAt).some(line => line.includes('running')), around(old, marker('old')))
-  check('the hint is one dim line indented under the row\'s response connector', (old[hintAt] ?? '').trimEnd() === `    ${HINT}`, JSON.stringify(old[hintAt] ?? ''))
+  check('the hint is one dim line indented under the row\'s response connector', (old[hintAt] ?? '').trimEnd() === `      ${HINT}`, JSON.stringify(old[hintAt] ?? ''))
   check('the elapsed tail still names the age beside the hint', /· 10[5-9]s/.test(old[rowAt] ?? ''), old[rowAt] ?? '')
   console.log(`  old row: ${around(old, marker('old'))}`)
 

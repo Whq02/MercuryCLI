@@ -151,14 +151,15 @@ export function collapsedGroupView({ selectedBg, active, anyErrored, anyDenied, 
   return (
     <Box flexDirection="column" backgroundColor={selectedBg}>
       <Box>
-        {}
+        <Box flexShrink={0}>
+          <ToolRowLead
+            state={toolRowStateOf({ resolved: !active, errored: anyErrored, denied: anyDenied })}
+          />
+        </Box>
         <Box flexShrink={0}>
           <TranscriptNameplate />
         </Box>
         <Text wrap="truncate-end">
-          <ToolRowLead
-            state={toolRowStateOf({ resolved: !active, errored: anyErrored, denied: anyDenied })}
-          />
           <Text color={active ? undefined : 'subtle'}>
             {sentence}
             {active ? '…' : ''}
@@ -167,27 +168,34 @@ export function collapsedGroupView({ selectedBg, active, anyErrored, anyDenied, 
           {tail}
         </Text>
       </Box>
-      {active && hint !== null ? (
-        <MessageResponse>
-          <Text dimColor wrap="wrap">
-            {hint}
-          </Text>
-        </MessageResponse>
-      ) : null}
-      {memberEntries
-        .filter(entry => lookups.deniedToolUseIDs.has(entry.id))
-        .map(entry => (
-          <MessageResponse key={entry.id}>
-            <Text dimColor wrap="wrap">
-              {denialLineOf(memberResultText(lookups, entry.id))}
-            </Text>
-          </MessageResponse>
-        ))}
-      {shellId !== null ? <RunningShellBackgroundHint id={shellId} /> : null}
-      {movedByOperator ? (
-        <MessageResponse height={1}>
-          <Text dimColor>{BACKGROUND_MOVED_WORDS}</Text>
-        </MessageResponse>
+      {(active && hint !== null) ||
+      memberEntries.some(entry => lookups.deniedToolUseIDs.has(entry.id)) ||
+      shellId !== null ||
+      movedByOperator ? (
+        <Box flexDirection="column" paddingLeft={2}>
+          {active && hint !== null ? (
+            <MessageResponse>
+              <Text dimColor wrap="wrap">
+                {hint}
+              </Text>
+            </MessageResponse>
+          ) : null}
+          {memberEntries
+            .filter(entry => lookups.deniedToolUseIDs.has(entry.id))
+            .map(entry => (
+              <MessageResponse key={entry.id}>
+                <Text dimColor wrap="wrap">
+                  {denialLineOf(memberResultText(lookups, entry.id))}
+                </Text>
+              </MessageResponse>
+            ))}
+          {shellId !== null ? <RunningShellBackgroundHint id={shellId} /> : null}
+          {movedByOperator ? (
+            <MessageResponse height={1}>
+              <Text dimColor>{BACKGROUND_MOVED_WORDS}</Text>
+            </MessageResponse>
+          ) : null}
+        </Box>
       ) : null}
     </Box>
   )
