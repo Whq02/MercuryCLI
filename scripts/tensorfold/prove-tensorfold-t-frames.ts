@@ -78,14 +78,19 @@ const cells = (run: Run, ...parts: string[]): boolean => flat(run).some(line => 
 const legend = (run: Run): string => flat(run).find(line => line.includes('↑↓ select') || line.includes('esc closes') || line.includes('esc back') || line.includes('esc keeps')) ?? ''
 const framedRow = (run: Run): string => {
   const lines = flat(run)
-  const top = lines.findIndex(line => line.startsWith('╭'))
-  return top < 0 ? '' : (lines[top + 1] ?? '')
+  return lines.find(line => /^❯ (?!↓ \d+ more|[A-Z ]+ ·)/.test(line)) ?? ''
 }
 const card = (run: Run): string[] => {
   const lines = flat(run)
-  const top = lines.findIndex(line => line.startsWith('╭'))
-  const bottom = lines.findIndex((line, at) => at > top && line.startsWith('╰'))
-  return top < 0 || bottom < 0 ? [] : lines.slice(top + 2, bottom)
+  const top = lines.findIndex(line => /^❯ (?!↓ \d+ more|[A-Z ]+ ·)/.test(line))
+  if (top < 0) return []
+  const out: string[] = []
+  for (let k = top + 1; k < lines.length; k++) {
+    const l = lines[k] ?? ''
+    if (!l.startsWith('  ') || /^  (?:↓ |↑ )/.test(l)) break
+    out.push(l.trim())
+  }
+  return out
 }
 
 async function landOn(run: Run, words: string): Promise<boolean> {
@@ -244,7 +249,7 @@ const EXPECT: Record<string, Expect> = {
   ],
   't12-pulling': run => [
     ['the 27B: pulling 30% · 128k ctx', cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'pulling 30%', '128k ctx'), framedRow(run)],
-    ['pull      ██████░░░…  then serves at 128k and switches', flat(run).some(l => /^pull\s+█+░+\s+then serves at 128k and switches$/.test(l)), card(run).join(' / ')],
+    ['pull      ██████░░░…  then serves at 128k and switches', flat(run).some(l => /^\s*pull\s+█+░+\s+then serves at 128k and switches$/.test(l)), card(run).join(' / ')],
     ['the footer: pulling Qwen3.8 27B · 6.1 GB of 19.9 GB · 41 MB/s · about 6 min', has(run, 'pulling Qwen3.8 27B · 6.1 GB of 19.9 GB · 41 MB/s · about 6 min')],
     ['the legend: s stops, the download resumes next time · esc closes, it keeps pulling', legend(run).includes('s stops, the download resumes next time · esc closes, it keeps pulling'), legend(run)],
   ],

@@ -397,8 +397,8 @@ async function focusHeading(run: Pick<Run, 'm'>, words: string): Promise<boolean
 async function frameRow(run: Pick<Run, 'm'>, id: string): Promise<boolean> {
   const framed = (): boolean => {
     const lines = run.m.lines()
-    const top = lines.findIndex(line => /│\s*╭/.test(line))
-    return top >= 0 && (lines[top + 1] ?? '').includes(id)
+    const hit = lines.find(line => /│ ❯ (?!↓ \d+ more|[A-Z ]+ ·)/.test(line))
+    return hit !== undefined && hit.includes(id)
   }
   for (let step = 0; step < 30 && !framed(); step++) await press(run, [KEY.down])
   return framed()
@@ -859,10 +859,10 @@ console.log('\n§5 the review rows: an announced Mac pairs with its code (findin
     }
     await frameRow(mounted, 'local/qwen3.8-27b')
     await press(mounted, [KEY.enter])
-    await waitFor(() => flat(mounted).some(line => line.startsWith('refused')), 6000)
+    await waitFor(() => flat(mounted).some(line => line.trim().startsWith('refused')), 6000)
     await settle(300)
     const lines = flat(mounted)
-    const card = lines.filter(line => /^(refused|window)\s/.test(line) || line.includes('local/qwen3.8-27b'))
+    const card = lines.filter(line => /^(refused|window)\s/.test(line.trim()) || line.includes('local/qwen3.8-27b')).map(line => line.trim())
     mounted.m.unmount()
     await settle(80)
     process.env.MERCURY_LOCAL_PROBE_TARGETS = PROBING_OFF
@@ -882,8 +882,7 @@ console.log('\n§6 the more line is a stop (the owner, 2026-11-05): ↓ from the
   const MORE = '↓ 3 more · ↵ unfolds the rest'
   const framed = (run: Pick<Run, 'm'>): string => {
     const lines = run.m.lines()
-    const top = lines.findIndex(line => /│\s*╭/.test(line))
-    return top < 0 ? '' : (lines[top + 1] ?? '')
+    return lines.find(line => /│ ❯ (?!↓ \d+ more|[A-Z ]+ ·)/.test(line)) ?? ''
   }
   const cursorInk = (run: Pick<Run, 'm'>, words: string): string => {
     const lines = run.m.lines()

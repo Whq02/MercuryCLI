@@ -186,7 +186,7 @@ for (const [columns, rows] of SIZES) {
   check(`${columns}x${rows}: the unfocused no-alias row's tail cell reads "${expected}" (the cell budget, the row's own ellipsis)`, tailCell(unfocused) === expected, `"${tailCell(unfocused)}" · ${bare(unfocused)}`)
   check(`${columns}x${rows}: nothing crosses the border`, auditBox(`${columns}x${rows}`, board.lines(), columns).length === 0, auditBox(`${columns}x${rows}`, board.lines(), columns).join(' | '))
   for (let step = 0; step < 6 && !cursorLine(board.lines()).includes(PREVIEW_NEEDLE); step++) await board.key('down')
-  const focused = board.lines().find(line => line.includes('│ │ ') && line.includes(PREVIEW_NEEDLE)) ?? ''
+  const focused = board.lines().find(line => line.includes('│ ❯ ') && line.includes(PREVIEW_NEEDLE)) ?? ''
   check(`${columns}x${rows}: the focused no-alias row's tail cell reads the same "${expected}" — the focus box never changes the clip`, tailCell(focused) === expected && tailCell(focused) === tailCell(unfocused), `focused "${tailCell(focused)}" · unfocused "${tailCell(unfocused)}"`)
   check(`${columns}x${rows}: the tail never wraps onto a second line`, !board.lines().some(line => /^\s*│\s+(?:│\s+)?(?:alias|no alias|…)\s*│/.test(line)))
   board.close()
@@ -312,7 +312,7 @@ for (const [columns, rows] of SIZES) {
   check(`${columns}x${rows}: the glyph is the product's pending glyph and it leads the next clause after the picker's own separator, never standing between the two names`, line.includes(`· ${GLYPH.pending} next `) && !new RegExp(`[^·] ${GLYPH.pending} next `).test(line), line)
   const nextRow = board.lines().find(row => /\s{2}next\s{2}/.test(row)) ?? ''
   check(`${columns}x${rows}: the queued row still carries "next" in its calm state column`, nextRow.includes('claude-opus-5-5'), nextRow)
-  check(`${columns}x${rows}: no row carries a glyph — the rows stay calm`, !board.lines().some(row => /│ (?:│ | {2})(?:❯ )?[○●⦿□]/.test(row)))
+  check(`${columns}x${rows}: no row carries a glyph — the rows stay calm`, !board.lines().some(row => /│ (?:❯ | {2})(?:❯ )?[○●⦿□]/.test(row)))
   board.close()
 }
 
