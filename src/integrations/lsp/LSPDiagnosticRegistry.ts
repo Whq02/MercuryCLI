@@ -233,7 +233,7 @@ export function writesAwaitingReport(owner?: OwnerKey): string[] {
   const now = Date.now()
   const paths: string[] = []
   for (const [fileKey, entry] of awaitingWrites) {
-    if (now - entry.at > AWAITING_WRITE_MAX_AGE_MS) {
+    if (entry.pull !== 'due' && now - entry.at > AWAITING_WRITE_MAX_AGE_MS) {
       awaitingWrites.delete(fileKey)
       continue
     }

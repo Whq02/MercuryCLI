@@ -660,6 +660,32 @@ try {
 
     registry.resetAllLSPDiagnosticState()
     await manager.closeAllFiles()
+    const slow = writeFourFiles(pullDir, 'ts', 'oldSlow')
+    const slowCtx = makeContext()
+    await configureStub(slow.defs, { ...QUIET_STUB, releaseHalfOnSaveCount: 4 })
+    const slowPreview = await renameOp(pullDir, slowCtx, slow.defs, 'newSlow')
+    await renameOp(pullDir, slowCtx, slow.defs, 'newSlow', { apply: true, plan: slowPreview.plan })
+    await syncStub(slow.defs)
+    const slowStale = registry._pendingForTesting().filter(entry => entry.serverName === PULL_SERVER).flatMap(entry => entry.uris).length
+    const slowToolPulls = (await stubPulls(slow.defs)).pullCount
+    const clock = Date.now
+    Date.now = () => clock() + 63_000
+    let slowDrain: DiagAttachment[]
+    try {
+      slowDrain = asDiagAttachments(await getLSPDiagnosticAttachments(slowCtx))
+    } finally {
+      Date.now = clock
+    }
+    const slowAsked = (await stubPulls(slow.defs)).pullCount - slowToolPulls
+    if (totalDiagCount(slowDrain) > 0) staleAttachments += slowDrain.length
+    check(
+      'a command that runs for 63 s in the rename\'s own message does not void the ask: the attachment after it still asks the 4 files and tells no half-state',
+      slowStale === 3 && slowAsked === 4 && slowDrain.length === 0,
+      `stale files pending before the attachment: ${slowStale}; requests=${slowAsked} (writesAwaitingReport in src/integrations/lsp/LSPDiagnosticRegistry.ts must not age out a write whose pull is still due); told ${totalDiagCount(slowDrain)} in ${urisOf(slowDrain)}`,
+    )
+
+    registry.resetAllLSPDiagnosticState()
+    await manager.closeAllFiles()
     const mine = writeFourFiles(pullDir, 'ts', 'oldMine')
     const theirs = writeFourFiles(peerDir, 'ts', 'oldTheirs')
     const mineCtx = makeContext()
