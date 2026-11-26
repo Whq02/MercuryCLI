@@ -71,7 +71,11 @@ function compareListedSessions(a: SessionListing, b: SessionListing): number {
   )
 }
 
+const RECENCY_CLOCK_SLACK_MS = 1_000
+const RESTAMP_BURST_CAP = 32
+
 export async function readListedSessions(lite: SessionListing[], count: number): Promise<SessionListing[]> {
+  if (count <= 0) return []
   const listed: SessionListing[] = []
   let next = 0
   while (listed.length < count && next < lite.length) {
@@ -79,16 +83,17 @@ export async function readListedSessions(lite: SessionListing[], count: number):
     next = batch.nextIndex
     listed.push(...listedSessionsOf(batch.logs, ''))
   }
-  if (listed.length > 0 && next < lite.length) {
-    const boundaryMtime = lite[next - 1]!.modified.getTime()
-    let tied = 0
-    while (next + tied < lite.length && lite[next + tied]!.modified.getTime() === boundaryMtime) {
-      tied++
-    }
-    if (tied > 0) {
-      const batch = await enrichSessionListings(lite.slice(next, next + tied), 0, tied)
-      listed.push(...listedSessionsOf(batch.logs, ''))
-    }
+  let extra = 0
+  while (listed.length >= count && next < lite.length && extra < RESTAMP_BURST_CAP) {
+    listed.sort(compareListedSessions)
+    const boundary = listed[count - 1]!
+    const threshold = boundary.lastUsedAt ?? null
+    const candidateMtime = lite[next]!.modified.getTime()
+    if (threshold !== null && candidateMtime + RECENCY_CLOCK_SLACK_MS < threshold && candidateMtime !== boundary.modified.getTime()) break
+    const batch = await enrichSessionListings(lite, next, 1)
+    next = batch.nextIndex
+    extra++
+    listed.push(...listedSessionsOf(batch.logs, ''))
   }
   listed.sort(compareListedSessions)
   return listed.slice(0, count)

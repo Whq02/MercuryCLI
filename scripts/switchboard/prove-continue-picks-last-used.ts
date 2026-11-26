@@ -12,7 +12,8 @@ const P_CRASH = join(SCRATCH, 'proj-crash')
 const P_NOCRA = join(SCRATCH, 'proj-nocrash')
 const P_ADV = join(SCRATCH, 'proj-adv')
 const P_HUNDRED = join(SCRATCH, 'proj-hundred')
-for (const d of [HOME, DAEMON_DIR, P_CRASH, P_NOCRA, P_ADV, P_HUNDRED]) mkdirSync(d, { recursive: true })
+const P_BURST = join(SCRATCH, 'proj-burst')
+for (const d of [HOME, DAEMON_DIR, P_CRASH, P_NOCRA, P_ADV, P_HUNDRED, P_BURST]) mkdirSync(d, { recursive: true })
 for (const dir of [P_CRASH, P_NOCRA]) {
   execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: dir })
   execFileSync('git', ['-c', 'user.email=proof@invalid', '-c', 'user.name=proof', 'commit', '-q', '--allow-empty', '-m', 'init'], { cwd: dir })
@@ -59,7 +60,7 @@ const { resumableNewestFirst } = await import('../../src/screen/widgets/faces/se
 const { scanBootCardFacts, parkedSessionsOf, projectIdentity } = await import('../../src/screen/boot-face/bootCardFacts.ts')
 const { olderChatsCensus, buildConcourseSnapshot } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
 const { nodeTranscriptReaderIo, setTranscriptReaderIoForTesting } = await import('../../src/sessions/transcripts/transcriptReader.ts')
-seedFirstRun(HOME, [P_CRASH, P_NOCRA, P_ADV, P_HUNDRED])
+seedFirstRun(HOME, [P_CRASH, P_NOCRA, P_ADV, P_HUNDRED, P_BURST])
 
 const api = await startFixtureApi([
   { kind: 'text', text: 'ALPHA_REPLY', whenBody: 'alpha prompt' },
@@ -275,6 +276,8 @@ try {
     check('§2 mercury -c (sessionAtIndex(0)) picks B even when older window A closed last', idx0?.sessionId === sidB, `got ${idx0?.sessionId ?? 'null'}`)
     check('§2 Boot face Continue Last Session picks B even when older window A closed last', boot.cwdProject?.sessionId === sidB, `got ${boot.cwdProject?.sessionId ?? 'null'}`)
     check('§2 parkedSessionsOf puts B first even when older window A closed last', parked[0]?.sessionId === sidB, `got ${parked[0]?.sessionId ?? 'null'}`)
+    const limitOne = await readListedSessions(await listSessions(), 1)
+    check('§2 readListedSessions(lite, 1) picks B even when older A closed >1s after B', limitOne.length === 1 && limitOne[0]?.sessionId === sidB, `got ${limitOne[0]?.sessionId ?? 'null'}`)
   }
 
   console.log('\n§3 adversarial tail cases and bounded file reads on a large folder')
@@ -441,6 +444,53 @@ try {
     } finally {
       setTranscriptReaderIoForTesting(nodeTranscriptReaderIo)
     }
+
+    const burstDir = paths.getProjectDir(P_BURST)
+    mkdirSync(burstDir, { recursive: true })
+    const burstNow = Date.now() - 2_000
+    for (let i = 1; i <= 5; i++) {
+      const deadId = sid(`20${i}`)
+      const f = join(burstDir, `${deadId}.jsonl`)
+      writeFileSync(
+        f,
+        encodeSeedTranscript(
+          [
+            makeRow(deadId, burstNow - 600_000 - i * 1_000, { cwd: P_BURST, type: 'user', message: { role: 'user', content: `dead burst ${i}` } }),
+            makeRow(deadId, burstNow - 599_000 - i * 1_000, {
+              cwd: P_BURST,
+              type: 'assistant',
+              message: { id: `mb_${i}`, type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: `dead reply ${i}` }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+            }),
+          ] as Parameters<typeof encodeSeedTranscript>[0],
+          deadId,
+        ),
+      )
+      const restamp = new Date(burstNow + i * 20)
+      utimesSync(f, restamp, restamp)
+    }
+    const sidBurstReal = sid('206')
+    const fBurstReal = join(burstDir, `${sidBurstReal}.jsonl`)
+    writeFileSync(
+      fBurstReal,
+      encodeSeedTranscript(
+        [
+          makeRow(sidBurstReal, burstNow - 5_000, { cwd: P_BURST, type: 'user', message: { role: 'user', content: 'real 6th-mtime session' } }),
+          makeRow(sidBurstReal, burstNow - 4_000, {
+            cwd: P_BURST,
+            type: 'assistant',
+            message: { id: 'mb_real', type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'real reply 6' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+          }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidBurstReal,
+      ),
+    )
+    const realRestamp = new Date(burstNow)
+    utimesSync(fBurstReal, realRestamp, realRestamp)
+
+    setGround(P_BURST)
+    const burstIdx0 = await sessionAtIndex(0)
+    const burstBoot = scanBootCardFacts(P_BURST)
+    check('§3 6-session restamp burst (real session stands 6th by mtime): Boot face Continue Last Session picks real session and agrees with -c', burstIdx0?.sessionId === sidBurstReal && burstBoot.cwdProject?.sessionId === sidBurstReal, `cli=${burstIdx0?.sessionId?.slice(-3) ?? 'null'} boot=${burstBoot.cwdProject?.sessionId?.slice(-3) ?? 'null'}`)
   }
 } finally {
   clearTimeout(watchdog)

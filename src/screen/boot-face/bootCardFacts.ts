@@ -105,6 +105,8 @@ export function scanBootCardFacts(cwd: string = process.cwd(), excludeSessionId?
 
 const HUSK_WALK = 4
 const HUSK_MAX_BYTES = 64 * 1024
+const RECENCY_CLOCK_SLACK_MS = 1_000
+const RESTAMP_BURST_CAP = 32
 function readHuskCheck(file: string, size: number): { husk: boolean; fullText?: string } {
   if (size > HUSK_MAX_BYTES) return { husk: false }
   try {
@@ -194,13 +196,20 @@ function readStoreDirFacts(store: string, skip: string | null, opts: { rankByUse
     return { card, newest: picked }
   }
   const live: Array<{ file: string; mtime: number; lastUsedMs: number | null; sessionId: string }> = []
-  for (const c of candidates.slice(0, HUSK_WALK)) {
+  let bestLastUsedMs: number | null = null
+  const scanLimit = Math.min(candidates.length, RESTAMP_BURST_CAP)
+  for (let i = 0; i < scanLimit; i++) {
+    const c = candidates[i]!
+    if (live.length > 0 && bestLastUsedMs !== null && c.mtime + RECENCY_CLOCK_SLACK_MS < bestLastUsedMs) break
+    if (live.length === 0 && i >= HUSK_WALK) break
     const check = readHuskCheck(c.file, c.size)
     if (check.husk) continue
+    const lastUsedMs = readSessionLastUsedMsCachedSync(c.file, c.mtime, c.size, check.fullText)
+    if (lastUsedMs !== null && (bestLastUsedMs === null || lastUsedMs > bestLastUsedMs)) bestLastUsedMs = lastUsedMs
     live.push({
       file: c.file,
       mtime: c.mtime,
-      lastUsedMs: readSessionLastUsedMsCachedSync(c.file, c.mtime, c.size, check.fullText),
+      lastUsedMs,
       sessionId: sessionIdOf(c.file),
     })
   }
@@ -296,7 +305,15 @@ export function parkedSessionsOf(
   }
   candidates.sort((a, b) => b.mtime - a.mtime)
   const ranked: Array<{ sessionId: string; transcriptPath: string; mtimeMs: number; lastUsedMs: number | null }> = []
-  for (const c of candidates.slice(0, cap + HUSK_WALK)) {
+  const scanLimit = Math.min(candidates.length, cap + RESTAMP_BURST_CAP)
+  for (let i = 0; i < scanLimit; i++) {
+    const c = candidates[i]!
+    if (ranked.length >= cap) {
+      ranked.sort(compareSessionRecency)
+      const kth = ranked[cap - 1]!.lastUsedMs
+      if (kth !== null && c.mtime + RECENCY_CLOCK_SLACK_MS < kth) break
+    }
+    if (ranked.length === 0 && i >= cap + HUSK_WALK) break
     const check = readHuskCheck(c.file, c.size)
     if (check.husk) continue
     ranked.push({
