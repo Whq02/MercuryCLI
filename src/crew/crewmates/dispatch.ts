@@ -25,6 +25,7 @@ export type DispatchDisposition = (typeof DISPATCH_DISPOSITIONS)[number]
 
 export interface AgentAddressV1 {
   agentId: CrewAgentId
+  seatId?: string
   sessionId?: string
   conversationId?: string
 }
@@ -401,7 +402,25 @@ async function performDispatch(
     )
   }
 
-  const seat = seatOfAgent(agent.agentId)
+  const addressedSeatId = draft.requestedAddress.seatId
+  const seat = seatOfAgent(agent.agentId, addressedSeatId)
+  if (!seat && addressedSeatId !== undefined) {
+    return persistReceipt(
+      {
+        ...base,
+        state: 'not-delivered',
+        resolvedAgentId: agent.agentId,
+        instructionOutcome: 'rejected',
+        attachmentOutcomes: draft.attachments.map(a => ({
+          attachmentId: a.attachmentId,
+          outcome: 'rejected' as const,
+          reason: 'target unresolved',
+        })),
+        reason: `no attached seat '${addressedSeatId}' for '${agent.displayName}'`,
+      },
+      dir,
+    )
+  }
   if (seat) {
     if (retryingUnknown && !seat.declaresIdempotentDelivery) {
       return retryingUnknown

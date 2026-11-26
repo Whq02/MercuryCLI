@@ -505,7 +505,7 @@ export function attachedSeatOf(seatId: string): AttachedSeat | null {
   return live ? toView(live) : null
 }
 
-export function seatOfAgent(agentId: CrewAgentId): AttachedSeat | null {
+export function seatOfAgent(agentId: CrewAgentId, seatId?: string): AttachedSeat | null {
   const rank = (live: LiveSeat): number => {
     if (live.lifecycle !== 'connected') return 0
     const set = capabilitiesOf(live.seatId)
@@ -513,7 +513,7 @@ export function seatOfAgent(agentId: CrewAgentId): AttachedSeat | null {
   }
   let best: LiveSeat | null = null
   for (const live of seats.live.values()) {
-    if (live.agentId !== agentId) continue
+    if (live.agentId !== agentId || (seatId !== undefined && live.seatId !== seatId)) continue
     if (
       best === null ||
       rank(live) > rank(best) ||
