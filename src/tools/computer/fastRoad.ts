@@ -263,8 +263,8 @@ export interface DesktopObservation {
   tree?: DesktopTree
 }
 
-export async function readObservation(driver: DesktopDriver, signal: AbortSignal, verify = false, identity?: string): Promise<DesktopObservation> {
-  const front = await driver.frontmostApplication()
+export async function readObservation(driver: DesktopDriver, signal: AbortSignal, verify = false, identity?: string, knownFront?: DesktopApplication): Promise<DesktopObservation> {
+  const front = knownFront !== undefined ? { ok: true as const, value: knownFront } : await driver.frontmostApplication()
   if (!front.ok || signal.aborted) return {}
   if (identity !== undefined && front.value.identity !== identity) return { app: front.value }
   const tree = await driver.accessibilityTree(front.value, { depth: verify ? 32 : 3, count: verify ? 2000 : 200, scope: 'window', observation: !verify }, signal)
