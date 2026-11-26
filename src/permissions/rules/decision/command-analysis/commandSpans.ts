@@ -101,6 +101,26 @@ export function closingStatement(command: string): ClosingStatement | undefined 
   return { at: node.startIndex + at - root.startIndex, after, stage: stage.text }
 }
 
+const NAMES_WHAT_THE_SHELL_RUNS = /\bBASH_COMMAND\b|\bPS4\b|\bBASH_XTRACEFD\b/
+const A_TRAP = /^(?:(?:builtin|command)\s+)?trap(?:\s|$)/
+const SETS_OPTIONS = /^(?:(?:builtin|command)\s+)?(?:set|shopt)\s/
+const TURNS_VERBOSE_ON = /\s-[A-Za-z]*v|\bverbose\b/
+
+function readsTheLastStatus(node: Node, from: number): boolean {
+  if (node.type === 'special_variable_name') return node.text === '?' && node.startIndex >= from
+  return node.endIndex > from && node.children.some(child => readsTheLastStatus(child, from))
+}
+
+export function watchesItsShell(command: string, closing: ClosingStatement): boolean {
+  const root = preparedCommandRoot(command)
+  const at = root === null ? null : placeIn(command, root)
+  if (root === null || at === null || NAMES_WHAT_THE_SHELL_RUNS.test(command)) return true
+  const commands = commandSpans(root)
+  if (/debug/i.test(command) && commands.some(span => A_TRAP.test(span.text))) return true
+  if (commands.some(span => SETS_OPTIONS.test(span.text) && TURNS_VERBOSE_ON.test(span.text))) return true
+  return readsTheLastStatus(root, closing.at - at + root.startIndex)
+}
+
 const NOT_WORDS: ReadonlySet<string> = new Set(['variable_assignment', 'file_redirect', 'herestring_redirect'])
 const QUOTED_WORDS: ReadonlySet<string> = new Set(['raw_string', 'string'])
 

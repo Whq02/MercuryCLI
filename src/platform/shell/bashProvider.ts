@@ -53,14 +53,6 @@ function markFrameRead(cwdFileInShell: string): string {
 
 const RUNS_NOTHING = 'for __mercury_none in; do :; done'
 
-const SEES_THE_MARK = /\bDEBUG\b|\bBASH_XTRACEFD\b|\bPS4\b|\bverbose\b|\bset\b[^;&|\n]*\s-[A-Za-z]*v/
-const READS_THE_LAST_STATUS = /\$\{?\?/
-
-function closingToMark(command: string, closing: ClosingPlace | undefined): ClosingPlace | undefined {
-  if (closing === undefined || SEES_THE_MARK.test(command) || READS_THE_LAST_STATUS.test(command.slice(closing.at))) return undefined
-  return closing
-}
-
 function marksTheClosing(reachedPath: string, after: ClosingPlace['after']): string {
   const mark = `{ ${RUNS_NOTHING} 2>/dev/null >| ${quote([reachedPath])} || ${RUNS_NOTHING}; }`
   return after === '||' ? `! ${mark} || ` : `${mark} && `
@@ -104,7 +96,7 @@ export async function createBashShellProvider(
       const cwdFile = cwdFileName(opts.id)
       const cwdFileNative = join(tmpdir(), cwdFile)
       const cwdFileInShell = isWindows ? windowsPathToPosixPath(cwdFileNative) : cwdFileNative
-      const closing = isWindows || record.origin === 'engine' ? undefined : closingToMark(command, opts.closing)
+      const closing = isWindows || record.origin === 'engine' ? undefined : opts.closing
       const closingMarks = closing === undefined ? undefined : { reached: `${cwdFileInShell}-closing`, endedOnOne: `${cwdFileInShell}-closing-1` }
       const preparedCommand = rewriteWindowsNullRedirect(
         closing === undefined || closingMarks === undefined

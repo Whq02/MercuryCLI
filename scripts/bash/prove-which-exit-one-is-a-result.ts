@@ -230,6 +230,12 @@ if (process.platform === 'win32') {
     ['an EXIT trap that turns a matching grep into exit 1', `trap 'exit 1' EXIT; grep same ${LEFT}`, 'error'],
     ['the shell killed before the closing grep', `kill -TERM $$; grep missing ${LEFT}`, 'error'],
     ['a timeout before the closing grep', `sleep 5; grep missing ${LEFT}`, 'error', { timeout: 400 }],
+    ['--verbose is an everyday word: the profile function that exits before diff is still an error', `fixture_precheck --verbose; diff ${LEFT} ${EQUAL}`, 'error'],
+    ['--verbose on a command that fails before && grep', `false --verbose && grep missing ${LEFT}`, 'error'],
+    ['DEBUG as a value, then the shape of the field', `LOG_LEVEL=DEBUG; F=$(printf 'alpha\\n'); printf '%s\\n' "$F" | grep -c nomatch`, 'no matches found'],
+    ['DEBUG as the pattern searched for, after a profile function that exits', `fixture_precheck; grep DEBUG ${LEFT}`, 'error'],
+    ['DEBUG in a comment above false && grep', `# DEBUG\nfalse && grep missing ${LEFT}`, 'error'],
+    ['$? inside single quotes is text, not a read of the status', `false && grep -c 'cost: $?' ${LEFT}`, 'error'],
     ['builtin redefined by the script before a grep that exits 2', `builtin() { :; }; grep -e '[' ${LEFT}`, 'error'],
     ['IFS set to a digit before a grep of its own that exits 10', `IFS=0; grep() { return 10; }; grep missing ${LEFT}`, 'error'],
     ['a closing test that reads $? sees the status before it (the command is left unmarked)', '(exit 3); [ $? -eq 3 ]', 'ok'],
@@ -285,7 +291,20 @@ if (process.platform === 'win32') {
     ['the closing command reads standard input', 'grep same'],
     ['a backgrounded command before it', `sleep 0 & grep missing ${LEFT}`],
     ['an arithmetic error before it', `F=$((1/0)); diff ${LEFT} ${EQUAL}`],
+    ['--verbose as an everyday word', `true --verbose; grep missing ${LEFT}`],
+    ['DEBUG as a value', `LOG_LEVEL=DEBUG; grep missing ${LEFT}`],
+    ['DEBUG in a comment', `# DEBUG\ngrep missing ${LEFT}`],
+    ['$? inside single quotes', `grep -c 'cost: $?' ${LEFT}`],
+    ['verbose as a word outside set and shopt', `printf 'verbose\\n'; grep -e '[' ${LEFT}`],
     ['a DEBUG trap that counts commands', `trap 'echo "$BASH_COMMAND rc=$?" >> ${SIDE}' DEBUG; false; grep missing ${LEFT}`, 'unmarked'],
+    ['a debug trap in small letters', `trap 'echo "$BASH_COMMAND rc=$?" >> ${SIDE}' debug; false; grep missing ${LEFT}`, 'unmarked'],
+    ['a Debug trap before exit 2', `trap 'echo "$BASH_COMMAND" >> ${SIDE}' Debug; grep -e '[' ${LEFT}`, 'unmarked'],
+    ['trap -- with a quoted DEBUG', `trap -- 'echo "$BASH_COMMAND" >> ${SIDE}' "DEBUG"; grep -e '[' ${LEFT}`, 'unmarked'],
+    ['a DEBUG trap whose name is held in a variable', `t=DEBUG; trap 'echo "$BASH_COMMAND" >> ${SIDE}' "$t"; grep -e '[' ${LEFT}`, 'unmarked'],
+    ['an EXIT trap that reads $BASH_COMMAND', `trap 'echo "last: $BASH_COMMAND" >> ${SIDE}' EXIT; grep -e '[' ${LEFT}`, 'unmarked'],
+    ['$BASH_COMMAND named anywhere', `printf '%s\\n' "$BASH_COMMAND" >> ${SIDE}; grep missing ${LEFT}`, 'unmarked'],
+    ['shopt -so verbose', `shopt -so verbose\ngrep missing ${LEFT}`, 'unmarked'],
+    ['a closing command that reads $? inside double quotes', `(exit 3); grep -c "$?" ${LEFT}`, 'unmarked'],
     ['a DEBUG trap under functrace', `set -T; trap 'echo "$BASH_COMMAND" >> ${SIDE}; echo seen' DEBUG; true; grep missing ${LEFT}`, 'unmarked'],
     ['set -v', `set -v\ntrue\ngrep missing ${LEFT}`, 'unmarked'],
     ['set -o verbose', `set -o verbose\ngrep missing ${LEFT}`, 'unmarked'],
@@ -294,6 +313,7 @@ if (process.platform === 'win32') {
     ['a PS4 that runs a command at every traced line', `PS4='$(echo traced >> ${SIDE})+ '; set -x; grep -e '[' ${LEFT}`, 'unmarked'],
     ['a closing command that reads $?', '(exit 3); [ $? -eq 3 ]', 'unmarked'],
     ['a DEBUG trap installed by a sourced file reads $? as 0 at the closing command, and sees no other command', `. ${INSTALL}; false; grep missing ${LEFT}`, 'bound'],
+    ['a DEBUG trap whose name is put together from pieces does the same', `trap 'echo "rc=$?" >> ${SIDE}' DE"BUG"; false; grep missing ${LEFT}`, 'bound'],
   ]
   const served = await systemShellRecord()
   const shells = [...new Set([served.path, '/bin/bash'].filter(path => existsSync(path)).map(path => realpathSync(path)))]
@@ -316,10 +336,10 @@ if (process.platform === 'win32') {
         for (const file of [built.cwdFilePath, built.pipelineStatusPath, built.closingMarks?.reached, built.closingMarks?.endedOnOne]) if (file !== undefined) rmSync(file, { force: true })
         runs.push(JSON.stringify({ stdout: ran.stdout, stderr: ran.stderr, status: ran.status, signal: ran.signal, written }).replaceAll(id, 'ID'))
       }
-      const hint = `bash ${version}: ${JSON.stringify(command)}\n      without: ${runs[0]}\n      with:    ${runs[1]}\n      the marks are marksTheClosing and marksAnEndOnOne in src/platform/shell/bashProvider.ts; a script that can see them is left unmarked by closingToMark there`
+      const hint = `bash ${version}: ${JSON.stringify(command)}\n      without: ${runs[0]}\n      with:    ${runs[1]}\n      the marks are marksTheClosing and marksAnEndOnOne in src/platform/shell/bashProvider.ts; a script that can see them is left unmarked by closingTableCommand in src/tools/shell/commandSemantics.ts, which asks watchesItsShell in src/permissions/rules/decision/command-analysis/commandSpans.ts`
       if (kind === 'bound') {
-        const without = `false rc=0\\ngrep missing ${LEFT} rc=1\\n`
-        check(`bash ${version} · stated bound: ${label}`, marked && runs[0]!.includes(without) && runs[1] === runs[0]!.replace(without, `false rc=0\\ngrep missing ${LEFT} rc=0\\n`), hint)
+        const seen = runs[0]!.lastIndexOf('rc=1\\n')
+        check(`bash ${version} · stated bound: ${label}`, marked && seen !== -1 && runs[1] === `${runs[0]!.slice(0, seen)}rc=0\\n${runs[0]!.slice(seen + 6)}`, hint)
       } else if (kind === 'unmarked') {
         check(`bash ${version} · ${label}: the script can see a mark, so the frame carries none and runs the same`, !marked && runs[0] === runs[1], hint)
       } else {

@@ -1,4 +1,4 @@
-import { closingStatement, pinnedCommandAnalysis, preparedSecurityParse, type ClosingStatement } from '../../permissions/rules/decision/commandAnalysis.js'
+import { closingStatement, pinnedCommandAnalysis, preparedSecurityParse, watchesItsShell, type ClosingStatement } from '../../permissions/rules/decision/commandAnalysis.js'
 import { posixExitSignalsCount } from '../../platform/host-os/processes.js'
 
 type CommandSemantic = (exitCode: number) => { isError: boolean; message?: string }
@@ -100,7 +100,8 @@ function commandWord(stage: string): string {
 
 export function closingTableCommand(command: string): ClosingStatement | undefined {
   const closing = closingStatement(command)
-  return closing !== undefined && Object.hasOwn(COMMAND_SEMANTICS, commandWord(closing.stage)) ? closing : undefined
+  if (closing === undefined || !Object.hasOwn(COMMAND_SEMANTICS, commandWord(closing.stage))) return undefined
+  return watchesItsShell(command, closing) ? undefined : closing
 }
 
 export function interpretCommandResult(

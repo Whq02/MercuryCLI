@@ -113,7 +113,7 @@ export { oldFolderReturn, type OldFolderReturn } from './command-analysis/oldFol
 export { printedBy, scriptSentToProgram, stdinProgram } from './command-analysis/scripts.js'
 export { failShellReadingForTesting, readShellCommands, readShellCommandsFromText } from './command-analysis/total.js'
 export { wordsAsWritten } from './command-analysis/written.js'
-export { closingStatement, commandSpans, preparedCommandSpans, quotedArguments, type ClosingStatement, type CommandSpan } from './command-analysis/commandSpans.js'
+export { closingStatement, commandSpans, preparedCommandSpans, quotedArguments, watchesItsShell, type ClosingStatement, type CommandSpan } from './command-analysis/commandSpans.js'
 export { commandViews, placedPath } from './command-analysis/commandViews.js'
 export { commandSubstitutionTexts, commandViewTexts } from './command-analysis/shellViews.js'
 export { foldContinuations, readShellCommand, shellTextOutsideFileHeredocs } from './command-analysis/textReader.js'
