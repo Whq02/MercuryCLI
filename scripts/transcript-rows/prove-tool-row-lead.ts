@@ -19,7 +19,10 @@ const { CollapsedReadSearchContent } = await import('../../src/screen/messages/C
 const { UserCrewmateNotificationMessage } = await import('../../src/screen/messages/UserCrewmateNotificationMessage.js')
 const { MessageRow } = await import('../../src/screen/messages/MessageRow.js')
 const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.js')
+const { ReadTool } = await import('../../src/tools/read/ReadTool.js')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.js')
+const { createSystemMessage } = await import('../../src/engine/message-shapes/systemMessages.js')
+const { createAttachmentMessage } = await import('../../src/engine/attachment-shapes/attachmentMessage.js')
 const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.js')
 const { buildMessageLookups } = await import('../../src/engine/messages/lookups.js')
 const { MessageMetaProvider } = await import('../../src/screen/messages/TranscriptNameplate.js')
@@ -372,6 +375,50 @@ section('§4 grouped_tool_use (crewmate launch) through MessageRow: col-0 lead, 
   check('grouped launch (done) paints two-cell blank lead, col-2 nameplate and one space before the header', PLATE_RE.test(done.row) && done.row.startsWith('  ') && done.body === '3 background crewmates launched', JSON.stringify(done))
   check('grouped launch (denied) paints ✕ in column one in the failure tone, col-2 nameplate and one space before the header', PLATE_RE.test(denied.row) && denied.row.startsWith(`${GLYPH.fail} `) && denied.body === '3 background crewmates launched' && denied.lead?.fg === tokens.failure, JSON.stringify(denied))
   check('grouped launch headers align to the same tool-name column as every single tool row', done.row.indexOf('3 background') === wantCol && denied.row.indexOf('3 background') === wantCol, JSON.stringify({ doneCol: done.row.indexOf('3 background'), deniedCol: denied.row.indexOf('3 background'), wantCol }))
+}
+
+section('§5 call-tied hook attachments and informational system rows keep the 2-cell MessageRow pad')
+{
+  const id = 'toolu_hook_1'
+  const callRow = { ...createAssistantMessage({ content: [{ type: 'tool_use', id, name: 'Read', input: { file_path: '/scratch/a.ts' } }] }), timestamp: STAMP }
+  const blockAtt = { ...createAttachmentMessage({ type: 'hook', outcome: 'block', event: 'tool.before', name: 'guard', words: 'no edits here', callId: id }), timestamp: STAMP }
+  const resRow = { ...createUserMessage({ content: [{ type: 'tool_result', tool_use_id: id, content: 'hook guard blocked this call', is_error: true }] }), timestamp: STAMP }
+  const sysRow = { ...createSystemMessage('an informational row tied to the call', 'warning', id), timestamp: STAMP }
+  const noticeAtt = { ...createAttachmentMessage({ type: 'hook', outcome: 'notice', event: 'tool.after', name: 'guard', words: 'a notice with a call id', callId: id }), timestamp: STAMP }
+  const all = [callRow, blockAtt, resRow, sysRow, noticeAtt]
+  const normalized = normalizeMessages(all)
+  const lookups = buildMessageLookups(normalized, all)
+  const renderOne = async (m: (typeof normalized)[number]): Promise<string> => {
+    const node = React.createElement(
+      MessageMetaProvider,
+      { message: { type: m.type, timestamp: STAMP }, children: null },
+      React.createElement(MessageRow, {
+        message: m,
+        tools: [ReadTool],
+        lookups,
+        screen: 'prompt',
+        columns: 120,
+        verbose: false,
+        isUserContinuation: true,
+        hasContentAfter: false,
+        inProgressToolUseIDs: new Set<string>(),
+        streamingToolUseIDs: new Set<string>(),
+        canAnimate: false,
+        isLoading: false,
+        lastThinkingBlockId: null,
+        latestBashOutputUUID: null,
+      }),
+    )
+    const { text } = await renderRows(node)
+    return text.find(row => row.trim() !== '') ?? ''
+  }
+  const blockLine = await renderOne(normalized.find(m => m.type === 'attachment' && m.attachment.type === 'hook' && m.attachment.outcome === 'block')!)
+  const resultLine = await renderOne(normalized.find(m => m.type === 'user')!)
+  const systemLine = await renderOne(normalized.find(m => m.type === 'system')!)
+  const noticeLine = await renderOne(normalized.find(m => m.type === 'attachment' && m.attachment.type === 'hook' && m.attachment.outcome === 'notice')!)
+  check('call-tied hook block connector aligns at column 4 with tool_result', blockLine.indexOf('└') === 4 && resultLine.indexOf('└') === 4, JSON.stringify({ blockLine, resultLine }))
+  check('call-tied hook notice connector aligns at column 4 with tool_result', noticeLine.indexOf('└') === 4, JSON.stringify({ noticeLine }))
+  check('call-tied informational system row keeps its 2-cell left pad', systemLine.startsWith('  ') && !systemLine.startsWith('   '), JSON.stringify({ systemLine }))
 }
 
 console.log(failures === 0 ? '\n✅ TOOL ROW LEAD LAW HOLDS (bold name leads pending/done; ✕ leads error/denied; notices keep their dot)' : `\n❌ ${failures} TOOL ROW LEAD CHECK(S) FAILED`)
