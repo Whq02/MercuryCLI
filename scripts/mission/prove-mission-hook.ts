@@ -23,31 +23,31 @@ const meta = (text: string) =>
   ({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } }) as never
 
 console.log('============================================================')
-console.log(' /mission stop-hook — sentinel scoped to the current mission window')
+console.log(' /goal stop-hook — sentinel scoped to the current goal window')
 console.log('============================================================')
 
 section('current-turn completion is detected (normal single-mission flow)')
 check(
   'sentinel in the latest assistant turn ⇒ met',
-  sawMissionMetSentinel([user('/mission fix the bug'), asst('fixing…'), asst(`done\n${MISSION_MET_SENTINEL}`)]) === true,
+  sawMissionMetSentinel([user('/goal fix the bug'), asst('fixing…'), asst(`done\n${MISSION_MET_SENTINEL}`)]) === true,
 )
 check(
   'no sentinel yet ⇒ NOT met (hook blocks)',
-  sawMissionMetSentinel([user('/mission fix the bug'), asst('still working, not done')]) === false,
+  sawMissionMetSentinel([user('/goal fix the bug'), asst('still working, not done')]) === false,
 )
 check('empty transcript ⇒ NOT met', sawMissionMetSentinel([]) === false)
 
 section('THE FIX: a stale sentinel from a prior mission does NOT satisfy a new mission')
 const twoMissions = [
-  user('/mission fix the bug'),
+  user('/goal fix the bug'),
   asst(`fixed it\n${MISSION_MET_SENTINEL}`),
-  user('/mission write the docs'),
+  user('/goal write the docs'),
   asst('writing docs, not finished'),
 ]
-check('a 2nd /mission is NOT insta-satisfied by mission-1 stale sentinel (the bug)', sawMissionMetSentinel(twoMissions) === false)
+check('a 2nd /goal is NOT insta-satisfied by mission-1 stale sentinel (the bug)', sawMissionMetSentinel(twoMissions) === false)
 check(
   're-using the SAME condition is also not insta-satisfied',
-  sawMissionMetSentinel([user('/mission x'), asst(MISSION_MET_SENTINEL), user('/mission x'), asst('redoing x')]) === false,
+  sawMissionMetSentinel([user('/goal x'), asst(MISSION_MET_SENTINEL), user('/goal x'), asst('redoing x')]) === false,
 )
 check(
   'mission-2 genuine completion (its OWN sentinel, after its command) ⇒ met',
@@ -77,15 +77,15 @@ check(
 )
 check(
   'quoting the whole directive (embedded example sentinel) ⇒ NOT met',
-  sawMissionMetSentinel([user('/mission g'), asst(`the mission says:\n${buildMissionDirective('g')}`)]) === false,
+  sawMissionMetSentinel([user('/goal g'), asst(`the mission says:\n${buildMissionDirective('g')}`)]) === false,
 )
 check(
   'sentinel mid-message with trailing prose ⇒ NOT met',
-  sawMissionMetSentinel([user('/mission g'), asst(`${MISSION_MET_SENTINEL}\nstill more to do though`)]) === false,
+  sawMissionMetSentinel([user('/goal g'), asst(`${MISSION_MET_SENTINEL}\nstill more to do though`)]) === false,
 )
 check(
   'trailing blank lines after the final sentinel are tolerated',
-  sawMissionMetSentinel([user('/mission g'), asst(`done.\n${MISSION_MET_SENTINEL}\n\n`)]) === true,
+  sawMissionMetSentinel([user('/goal g'), asst(`done.\n${MISSION_MET_SENTINEL}\n\n`)]) === true,
 )
 check(
   'buildMissionDirective teaches the snapshot-goal rule',
