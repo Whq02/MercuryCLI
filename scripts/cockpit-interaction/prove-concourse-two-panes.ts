@@ -159,13 +159,13 @@ function boardLaws(tag: string, lines: string[], headerLine: RegExp): void {
   )
   const box = left.findIndex(l => l.includes('❯ message Audit billing receipts'))
   check(
-    `${tag}·4 the session's own message box sits at the foot of the left column (its prompt, then "tab or click to type")`,
-    box > left.length / 2 && (left[box + 1] ?? '').includes('tab or click to type'),
+    `${tag}·4 the session's own message box sits at the foot of the left column (its prompt, with no redundant unfocused typing hint)`,
+    box > left.length / 2 && !(left[box + 1] ?? '').includes('tab or click to type') && /╰─+╯/.test(left[box + 2] ?? ''),
     left.slice(-6).map(l => l.trimEnd()).join(' | '),
   )
   check(
-    `${tag}·5 the right column is the session list: SESSIONS with "+ new session · n" on its title row`,
-    /sessions\s+\+ new session · n/.test(right[1] ?? ''),
+    `${tag}·5 the right column is the session list: SESSIONS with "+ new · n" on its title row`,
+    /sessions\s+\+ new · n/.test(right[1] ?? ''),
     (right[1] ?? '').trim(),
   )
   const header = right.find(l => l.includes('status & title')) ?? ''

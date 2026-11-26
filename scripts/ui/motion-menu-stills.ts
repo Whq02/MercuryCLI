@@ -56,16 +56,16 @@ export function composeMotionMenu(cols: number, rows: number, setting: 'auto' | 
       valueIsDefault: true,
       pinnedVal: null,
       detail: row.detail ?? null,
-      detailExtra: ['this session  default (default)'],
+      detailExtra: [],
     }
   })
   const m = {
     entries,
     selIdx: entries.length - 1,
-    summary: { profile: 'r0 · default', harness: 'helm', integrity: 'enforce', integritySet: false },
+    summary: { profile: 'default', harness: 'helm', integrity: 'enforce', integritySet: false },
     environment: { model: 'Opus 5', critter: 'Octopus', critterHue: '#B07BE0', dirBase: 'orchard-src', dirTail: '' },
     statusRight: 'changes reach new sessions',
-    legend: '↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts · esc back',
+    legend: '↑↓ move · ↵ change · ⌫ default · a receipts · esc back',
   }
   const menu = core.composeBootMenu(cols, rows, m) as { lines: string[] }
   const { placed } = core.placeBlock(menu.lines, rows) as { placed: string[] }

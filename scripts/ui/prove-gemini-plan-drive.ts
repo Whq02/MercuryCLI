@@ -167,7 +167,7 @@ try {
     for (const k of ['ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_MODEL', 'NODE_ENV']) delete env[k]
     const sends: Send[] = [
       { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 3, data: SHIFT_RIGHT },
-      gate('+ new session · n', 'm'),
+      gate('+ new · n', 'm'),
       { ...gate('Gemini — sign in', click, 'picker'), targetText: 'Gemini — sign in' },
       gate('Gemini — sign in', '\r', 'selected'),
       witness(`❯ ${GEMINI_ROW}`, 'landed'),
@@ -180,7 +180,7 @@ try {
       witness(`GEMINI · Google sign-in · ${EMAIL}`, 'returned'),
       gate('Gemini 4 Argon', '\r', 'picked'),
       witness('gemini-4-argon', 'model', gone('Mercury · model')),
-      gate('+ new session · n', ESC),
+      gate('+ new · n', ESC),
       witness('↑↓', 'end', BOOT_FACE_READY),
     ]
     const out = join(ROOT, `${id}.json`)

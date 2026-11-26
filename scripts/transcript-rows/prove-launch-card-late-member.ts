@@ -243,6 +243,8 @@ section('§A four launches in one message, the fourth answered late: the card th
   const early = screen.lines()
   show('frame with three launches answered and the fourth still out', early)
   check('with three launches answered, the card counts the three that are launched', three && cardHeads(early).join('|') === '3 background crewmates launched' && ['seat-a', 'seat-b', 'seat-c'].every(label => inCard(early, label) === 1), j({ heads: cardHeads(early), lines: STATIONS.map(st => `${st}:${inCard(early, `seat-${st}`)}`) }))
+  const exactHeads = (lines: string[]): string[] => lines.filter(l => /background crewmates launched/.test(l)).map(l => l.trim())
+  check('the launched-crewmates header reads only 3 background crewmates launched, with no ↓ manage hint', exactHeads(early).join('|') === '3 background crewmates launched', j(exactHeads(early)))
   check('…and the fourth, still out, stands as a row of its own beside the card', ownRow(early, 'seat-d') === 1 && inCard(early, 'seat-d') === 0, j({ own: ownRow(early, 'seat-d'), card: inCard(early, 'seat-d') }))
   screen.set([...calls, s.launched.a, s.launched.b, s.launched.c, s.launched.d], [])
   await until(() => cardHeads(screen.lines()).join('|') === '4 background crewmates launched', 3000)

@@ -135,7 +135,7 @@ if (runLeg('git-offer')) {
     check(`${cols}×${rows}: the card names the EXACT folder`, has(lines, "git init(") && has(lines, folder))
     check(`${cols}×${rows}: the standard ask + options`, has(lines, 'Do you want to proceed?') && has(lines, 'Yes') && has(lines, 'No — run here as it is, alone'))
     check(`${cols}×${rows}: the standard key legend`, has(lines, '↑↓ choose · ↵ confirm · esc cancel'))
-    check(`${cols}×${rows}: the card overlays at the BOTTOM of the main band — above the status strip, the list still holding the focus`, title > 3 && strip > title && has(lines, '+ new session · n'), `card=${title} strip=${strip}`)
+    check(`${cols}×${rows}: the card overlays at the BOTTOM of the main band — above the status strip, the list still holding the focus`, title > 3 && strip > title && has(lines, '+ new · n'), `card=${title} strip=${strip}`)
     const legend = rowOf(lines, '↑↓ choose · ↵ confirm · esc cancel')
     const cardTop = title - 1
     const cardBottom = legend + 1

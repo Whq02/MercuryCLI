@@ -71,9 +71,9 @@ export async function moveDaemonAfterInstallerUpgrade(to: string): Promise<{ sta
   try {
     const { deployedRuntime } = await import('../../daemon/control/handover.js')
     if (deployedRuntime() !== null) return await moveDaemonAfterUpdate()
-    const { handshakeDaemon, liveNoun, finishVerb } = await import('../../daemon/control/handshake.js')
+    const { absentDaemonMoveLine, handshakeDaemon, liveNoun, finishVerb } = await import('../../daemon/control/handshake.js')
     const first = await handshakeDaemon()
-    if (first.state === 'absent') return { state: 'absent', line: `background daemon: none running — the next session starts one on v${to}` }
+    if (first.state === 'absent') return { state: 'absent', line: absentDaemonMoveLine(`v${to}`) }
     const d = first.daemon
     if (first.state === 'starting' || d === null) {
       return { state: 'unknown', line: `background daemon: still starting — \`mercury daemon restart\` moves it to v${to} once it answers` }
