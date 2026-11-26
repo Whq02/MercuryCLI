@@ -31,6 +31,13 @@ const ALLOWLIST: ReadonlyArray<{ path: string; callee: string; value: string; co
     reason: 'interactive terminal editor on THIS console (alternate screen); CREATE_NO_WINDOW would sever it',
   },
   {
+    path: 'src/screen/boot-face/logins/devinCliAction.ts',
+    callee: 'spawnSync',
+    value: 'false',
+    count: 1,
+    reason: 'the Devin CLI signs in, reports or signs out on THIS console (stdio inherit, alternate screen); hidden, a window the sign-in opens would start with the hidden show state',
+  },
+  {
     path: 'src/screen/composer/promptEditor.ts',
     callee: 'spawn',
     value: 'false',
