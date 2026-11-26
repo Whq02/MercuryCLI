@@ -3,6 +3,7 @@ import { readSync } from 'node:fs'
 import { startTimeout } from '../../../platform/async/timers.js'
 import { errorMessage } from '../../../platform/errors/errors.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
+import { devinCliInstallHintWords } from '../../../platform/host-os/words.js'
 import { markConsoleLent, markConsoleReturned } from '../../../platform/processes/process.js'
 import { hostSpawnWorld, spawnPlanOf, type SpawnWorld } from '../../../platform/processes/spawnPlan.js'
 import { devinCliChildEnv } from '../../../platform/processes/subprocessEnv.js'
@@ -55,16 +56,6 @@ export function devinCliDetailLines(): string[] {
   ]
 }
 
-export function devinCliInstallHint(platform: string = process.platform): string {
-  if (platform === 'win32') {
-    return 'Install Devin CLI in PowerShell: irm https://static.devin.ai/cli/setup.ps1 | iex (https://docs.devin.ai/cli)'
-  }
-  if (platform === 'darwin') {
-    return 'Install Devin CLI: curl -fsSL https://cli.devin.ai/install.sh | bash (or brew install --cask devin-cli · https://docs.devin.ai/cli)'
-  }
-  return 'Install Devin CLI: curl -fsSL https://cli.devin.ai/install.sh | bash (https://docs.devin.ai/cli)'
-}
-
 function resolveDevinPlan(
   action: DevinCliAction,
   world: SpawnWorld,
@@ -77,7 +68,7 @@ function resolveDevinPlan(
         outcome: {
           kind: 'missing',
           ok: false,
-          receipt: `Devin CLI (devin) is not installed or not on PATH. ${devinCliInstallHint(world.platform)}`,
+          receipt: `Devin CLI (devin) is not installed or not on PATH. ${devinCliInstallHintWords(world.platform)}`,
         },
       }
     }
