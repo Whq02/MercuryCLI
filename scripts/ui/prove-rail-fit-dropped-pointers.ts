@@ -153,6 +153,25 @@ const tok = resolveMercuryTokens('dark', '#88c0d0')
     workAndWorkbenchDedup.pointer === '  more: /workbench · /runs · /browse',
     `pointer=${JSON.stringify(workAndWorkbenchDedup.pointer)}`,
   )
+
+  const saturnShed = buildLanesModel({
+    ...baseBusy,
+    availRows: 9,
+    cursorRow: undefined,
+    wakeGlance: { count: 1, held: 0, nextFireMs: 1_700_000_065_000 },
+  })
+  const saturnShedTight = buildLanesModel({
+    ...baseBusy,
+    availRows: 6,
+    cursorRow: undefined,
+    wakeGlance: { count: 1, held: 0, nextFireMs: 1_700_000_065_000 },
+  })
+  check(
+    'lanes model: when the schedule (saturn) panel is shed, pointer names /schedule and never /saturn',
+    saturnShed.pointer === '  more: /workbench · /schedule' &&
+      saturnShedTight.pointer === '  more: /workbench · /browse · /schedule',
+    `9=${JSON.stringify(saturnShed.pointer)} 6=${JSON.stringify(saturnShedTight.pointer)}`,
+  )
 }
 
 const SOLID = 'T'

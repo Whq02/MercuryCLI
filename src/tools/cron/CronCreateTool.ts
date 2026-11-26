@@ -228,7 +228,7 @@ export const CronCreateTool: Tool<InputSchema, CreateOutput> = buildTool({
       nextFireMs,
       ...(title !== undefined ? { title } : {}),
     })
-    const note = `The daemon fires it within 30 seconds after ${resolved.recurring ? 'each' : 'that'} time, once the session is idle. Cancel: CronDelete with id "${id}". The user sees it on the /saturn board.`
+    const note = `The daemon fires it within 30 seconds after ${resolved.recurring ? 'each' : 'that'} time, once the session is idle. Cancel: CronDelete with id "${id}". The user sees it on the /schedule board.`
     return {
       data: {
         submitted: true,

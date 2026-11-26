@@ -139,8 +139,8 @@ for (const [cols, rows] of [[120, 40], [80, 24]] as Array<[number, number]>) {
   const tag = `saturn-empty-${cols}x${rows}`
   const res = await runDrive(tag, cols, rows, 'empty', [
     { requireAwait: true, awaitText: FACE_READY, awaitSettleTicks: 2, data: '\r' },
-    { requireAwait: true, awaitText: ADMITTED, awaitSettleTicks: 2, data: '/saturn' },
-    { requireAwait: true, awaitText: 'Schedules — next fire', awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: ADMITTED, awaitSettleTicks: 2, data: '/schedule' },
+    { requireAwait: true, awaitText: 'Schedules (Saturn): the board', awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: 'no schedules stand.', awaitSettleTicks: 4, data: '', mark: 'open' },
     { requireAwait: true, awaitText: 'no schedules stand.', awaitSettleTicks: 1, data: '\x1b' },
     { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 2, data: '', mark: 'closed' },
@@ -166,8 +166,8 @@ for (const [cols, rows] of [[120, 40], [80, 24]] as Array<[number, number]>) {
   const tag = `saturn-rows-${cols}x${rows}`
   const res = await runDrive(tag, cols, rows, 'box', [
     { requireAwait: true, awaitText: FACE_READY, awaitSettleTicks: 2, data: '\r' },
-    { requireAwait: true, awaitText: ADMITTED, awaitSettleTicks: 2, data: '/saturn' },
-    { requireAwait: true, awaitText: 'Schedules — next fire', awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: ADMITTED, awaitSettleTicks: 2, data: '/schedule' },
+    { requireAwait: true, awaitText: 'Schedules (Saturn): the board', awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: 'aaaa1111', awaitSettleTicks: 4, data: '', mark: 'open' },
     { requireAwait: true, awaitText: 'aaaa1111', awaitSettleTicks: 1, data: '\x1b[B' },
     { requireAwait: true, awaitText: 'bbbb2222', awaitSettleTicks: 2, data: '', mark: 'down' },
@@ -222,8 +222,8 @@ for (const [cols, rows] of [[120, 40], [80, 24]] as Array<[number, number]>) {
   const CLICK = '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m'
   const res = await runDrive('saturn-mouse-120x40', 120, 40, 'box', [
     { requireAwait: true, awaitText: FACE_READY, awaitSettleTicks: 2, data: '\r' },
-    { requireAwait: true, awaitText: ADMITTED, awaitSettleTicks: 2, data: '/saturn' },
-    { requireAwait: true, awaitText: 'Schedules — next fire', awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: ADMITTED, awaitSettleTicks: 2, data: '/schedule' },
+    { requireAwait: true, awaitText: 'Schedules (Saturn): the board', awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: 'aaaa1111', awaitSettleTicks: 4, data: '', mark: 'open' },
     { requireAwait: true, awaitText: 'bbbb2222', awaitSettleTicks: 1, targetText: 'bbbb2222', targetDx: 2, data: CLICK },
     { requireAwait: true, awaitText: 'bbbb2222', awaitSettleTicks: 2, data: '', mark: 'clicked-row' },
@@ -263,7 +263,7 @@ for (const [cols, rows] of [[120, 40], [80, 24]] as Array<[number, number]>) {
     { requireAwait: true, awaitText: FACE_READY, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: ADMITTED, awaitSettleTicks: 2, data: DRAFT },
     { requireAwait: true, awaitText: DRAFT, awaitSettleTicks: 2, targetText: 'in 2h', targetDx: 1, data: CLICK },
-    { requireAwait: true, awaitText: '❯ lanes', awaitSettleTicks: 1, data: '\r' },
+    { requireAwait: true, awaitText: '❯ ◐', awaitSettleTicks: 1, data: '\r' },
     { requireAwait: true, awaitText: 'Mercury — saturn', awaitSettleTicks: 4, data: '', mark: 'open' },
     { requireAwait: true, awaitText: 'Mercury — saturn', awaitSettleTicks: 1, data: '\x1b' },
     { requireAwait: true, awaitText: DRAFT, awaitSettleTicks: 2, data: '', mark: 'closed' },
