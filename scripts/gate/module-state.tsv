@@ -4884,8 +4884,6 @@ src/sessions/saved-prompts/savedPromptsStore.ts	store	process	module	defineStore
 src/sessions/session-memory/extractionState.ts	lastSummarizedMessageId	owner	module	session level; module let; missing end — tracks last message ID summarized into session memory; cross-owner overwrite/read on interleave
 src/sessions/transcripts/branchSelection.ts	PRUNE_CHAIN_KINDS	process	module	Fixed transcript record kinds eligible for branch selection
 src/sessions/transcripts/branchSelection.ts	PRUNE_KIND_NEEDLE	process	module	Fixed byte marker for the transcript record kind
-src/sessions/transcripts/branchSelection.ts	PRUNE_MESSAGE_ID_NEEDLE	process	module	Fixed byte marker for the provider message identifier
-src/sessions/transcripts/branchSelection.ts	PRUNE_PARENT_NEEDLE	process	module	Fixed byte marker for the parent record identifier
 src/sessions/transcripts/branchSelection.ts	RECORD_LINE_PREFIX	process	module	Fixed byte prefix for transcript record lines
 src/sessions/transcripts/builtInCommands.ts	builtInCommandNames	process	module	process-wide startup registration hook supplying built-in command names
 src/sessions/transcripts/chain.ts	PERSISTED_ATTACHMENT_TYPES	process	module	load-time lookup; no local writer
