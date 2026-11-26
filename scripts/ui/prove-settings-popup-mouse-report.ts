@@ -125,6 +125,7 @@ const React = await import('react')
 const { Box } = await import('../../src/screen/themedRenderer.js')
 const { AppStateProvider, useAppStateStore } = await import('../../src/screen/app-state/AppState.js')
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { PopupHost } = await import('../../src/screen/overlays/PopupHost.js')
 const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
 const store = await import('../../src/screen/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
@@ -252,7 +253,7 @@ section('§6 the files popup, its filter focused: the same road on another popup
     React.createElement(
       ThemeProvider as never,
       {},
-      React.createElement(Box, { ref: hostRef, flexDirection: 'column', width: COLS, height: ROWS }, React.createElement(FilesMenuSlot, { hostRef, framed: false })),
+      React.createElement(Box, { ref: hostRef, flexDirection: 'column', width: COLS, height: ROWS }, React.createElement(PopupHost, { hostRef, children: host => React.createElement(FilesMenuSlot, { host }) })),
     ),
   )
   const m = await mountOffscreen(element, COLS, ROWS)

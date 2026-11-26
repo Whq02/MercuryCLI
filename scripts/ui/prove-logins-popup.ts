@@ -111,6 +111,7 @@ const { Box, Text } = await import('../../src/screen/themedRenderer.js')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
 const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+const { PopupHost } = await import('../../src/screen/overlays/PopupHost.js')
 const { SettingsPopupSlot, settingsPopupGeometry } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
 const { ScrollKeybindingHandler } = await import('../../src/screen/scroll-keys/ScrollKeybindingHandler.js')
 const store = await import('../../src/screen/cockpit/settingsPopup.js')
@@ -151,7 +152,7 @@ async function mount(scene: Scene, focus = '') {
       React.createElement(Box, { ref, height: s.rows - (s.bottom ?? 0), flexDirection: 'column' }, ...Array.from({ length: s.rows - (s.bottom ?? 0) }, (_, i) => React.createElement(Text, { key: i }, `CONTEXT ${i}`))),
       React.createElement(Box, { height: s.bottom ?? 0, flexDirection: 'column' }, ...Array.from({ length: s.bottom ?? 0 }, (_, i) => React.createElement(Text, { key: i }, 'BOTTOM'))),
       React.createElement(ScrollKeybindingHandler, { isActive: true, scrollRef: { current: null } }),
-      React.createElement(SettingsPopupSlot, { overlay: true, hostRef: ref }),
+      React.createElement(PopupHost, { hostRef: ref, children: host => React.createElement(SettingsPopupSlot, { host, overlay: true }) }),
     ))))
   const m = await mountOffscreen(scaffold(scene), scene.columns, scene.rows)
   await settle(60)
