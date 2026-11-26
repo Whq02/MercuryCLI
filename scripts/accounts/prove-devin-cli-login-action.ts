@@ -3,6 +3,7 @@
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
+import stripAnsi from 'strip-ansi'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-devin-cli-action-'))
 const configHome = join(scratch, 'config')
@@ -96,19 +97,23 @@ const { ScrollKeybindingHandler } = await import('../../src/screen/scroll-keys/S
 const popupStore = await import('../../src/screen/cockpit/settingsPopup.js')
 const { call: openLoginsPopup, parseFamilyFocus } = await import('../../src/commands/logins/login.js')
 const { loginFamilyRows } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.js')
-const { BootLoginsScreen, collectLoginsScreenFacts, loginsCatalogue, loginsFamilyCounts } = await import('../../src/screen/boot-face/BootLoginsScreen.js')
+const { BootLoginsScreen, collectLoginsScreenFacts, loginsCatalogue, loginsFamilyCounts, loginsMenuModelOf, loginsRosterRows } = await import('../../src/screen/boot-face/BootLoginsScreen.js')
+const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
 const { PROVIDER_ID_SPACES } = await import('../../src/models/roads/routeLaw.js')
 const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.js')
 const { deriveFamilySlotGroups } = await import('../../src/models/roads/accountSlots.js')
 const { SIGN_IN_WORDS } = await import('../../src/boot/first-run/Onboarding.js')
 const { providerAuthList } = await import('../../src/commands/verbs/providerAuth.js')
-const { runDevinCliAction } = await import('../../src/screen/boot-face/logins/devinCliAction.js')
+const { devinCliMissingOutcome, runDevinCliAction } = await import('../../src/screen/boot-face/logins/devinCliAction.js')
 const { devinCliInstallHintWords } = await import('../../src/platform/host-os/words.js')
 
 async function send(m: Mounted, data: string): Promise<void> {
   m.push(data)
   await painted(60)
 }
+
+const installLineIn = (frame: string): boolean => frame.includes('cli.devin.ai/install.sh') || frame.includes('static.devin.ai/cli/setup.ps1')
+const wordsOf = (frame: string): string => frame.split('\n').map(row => row.replace(/[│╭╮╰╯─]/g, ' ').replace(/\s+/g, ' ').trim()).filter(row => /Devin|devin|install/.test(row)).join(' / ')
 
 try {
   console.log('§1 — PROVIDER COUNT & NEGATIVE IDENTITY INVARIANTS')
@@ -130,23 +135,78 @@ try {
     let closedCount = 0
     let signedInCount = 0
     const facts = collectLoginsScreenFacts()
-    const el = h(AppStateProvider, {
-      children: h(ThemeProvider, {
-        children: h(KeybindingSetup, {
-          children: h(
-            Box,
-            { width: 120, height: 42, flexDirection: 'column' },
-            h(BootLoginsScreen, {
-              facts,
-              fullScene: { columns: 120, rows: 42 },
-              onClose: () => { closedCount++ },
-              onSignedIn: () => { signedInCount++ },
-            }),
-          ),
+    const bootLogins = (columns = 120, rows = 42): React.ReactElement =>
+      h(AppStateProvider, {
+        children: h(ThemeProvider, {
+          children: h(KeybindingSetup, {
+            children: h(
+              Box,
+              { width: columns, height: rows, flexDirection: 'column' },
+              h(BootLoginsScreen, {
+                facts,
+                fullScene: { columns, rows },
+                onClose: () => { closedCount++ },
+                onSignedIn: () => { signedInCount++ },
+              }),
+            ),
+          }),
         }),
-      }),
-    })
-    const m = await mountOffscreen(el, 120, 42)
+      })
+
+    process.env.PATH = withoutStubPath
+    const bare = await mountOffscreen(bootLogins(), 120, 42)
+    await waitFor(() => bare.screen().includes('Families'), 1500)
+    await send(bare, '\x1b[F')
+    const paneSays = await waitFor(() => bare.screen().includes('is not installed'), 1500)
+    check(
+      'with no devin on PATH the focused Devin CLI pane says it is not installed, gives the install line and offers no devin auth action',
+      paneSays && installLineIn(bare.screen()) && !bare.screen().includes('Press Enter to run devin auth') && bare.screen().includes('/crew attach devin') && readInvocations().length === 0,
+      wordsOf(bare.screen()),
+    )
+    await send(bare, KEY.enter)
+    const told = await waitFor(() => bare.screen().includes('returns to the roster'), 1500)
+    check(
+      'Enter on that row opens no action menu: the not-installed line and the way back, zero child runs',
+      told && bare.screen().includes('is not installed') && installLineIn(bare.screen()) && !bare.screen().includes('devin auth status') && readInvocations().length === 0,
+      wordsOf(bare.screen()),
+    )
+    await send(bare, KEY.enter)
+    await waitFor(() => !bare.screen().includes('returns to the roster'), 1500)
+    process.env.PATH = withStubPath
+    await send(bare, KEY.enter)
+    const menuOnceInstalled = await waitFor(() => bare.screen().includes('devin auth login') && bare.screen().includes('devin auth status') && bare.screen().includes('devin auth logout'), 1500)
+    await send(bare, KEY.esc)
+    const paneOnceInstalled = await waitFor(() => bare.screen().includes('Press Enter to run devin auth'), 1500)
+    check(
+      'once devin is on PATH the next Enter opens the three actions and the pane offers them again',
+      menuOnceInstalled && paneOnceInstalled && !bare.screen().includes('is not installed') && closedCount === 0 && signedInCount === 0 && readInvocations().length === 0,
+      wordsOf(bare.screen()),
+    )
+    bare.unmount()
+
+    process.env.PATH = withoutStubPath
+    const narrow = await mountOffscreen(bootLogins(100, 30), 100, 30)
+    await waitFor(() => narrow.screen().includes('logins'), 1500)
+    await send(narrow, '\x1b[F')
+    await send(narrow, KEY.enter)
+    const narrowSays = await waitFor(() => narrow.screen().includes('is not installed'), 1500)
+    check(
+      'at 100x30, where the screen has no pane, Enter on the row with no devin on PATH still paints the not-installed line and the install line',
+      narrowSays && installLineIn(narrow.screen()) && !narrow.screen().includes('devin auth status') && readInvocations().length === 0,
+      wordsOf(narrow.screen()),
+    )
+    await send(narrow, KEY.enter)
+    process.env.PATH = withStubPath
+    await send(narrow, KEY.enter)
+    await waitFor(() => narrow.screen().includes('devin auth status'), 1500)
+    await send(narrow, KEY.down)
+    await send(narrow, KEY.enter)
+    const narrowReceipt = await waitFor(() => narrow.screen().includes('interactive terminal'), 2000)
+    check('at 100x30 the receipt of an action is painted too (status with no attached terminal says so)', narrowReceipt && readInvocations().length === 0, wordsOf(narrow.screen()))
+    narrow.unmount()
+    closedCount = 0
+
+    const m = await mountOffscreen(bootLogins(), 120, 42)
     const rosterUp = await waitFor(() => m.screen().includes('Families') && m.screen().includes('22'), 1500)
     check('Boot Logins keeps Families at 22 while zero child runs on mount', rosterUp && readInvocations().length === 0, `invocations=${readInvocations().length}`)
 
@@ -231,6 +291,19 @@ try {
     const popupUp = await waitFor(() => m.screen().includes('Devin CLI (external agent)'), 3000)
     check('/logins devin opens popup focused on Devin CLI (external agent) with zero child runs', popupUp && m.screen().includes('❯ Devin CLI (external agent)') && readInvocations().length === 0)
 
+    process.env.PATH = withoutStubPath
+    await send(m, KEY.enter)
+    const cardSays = await waitFor(() => m.screen().includes('is not installed'), 2000)
+    check(
+      '/logins with no devin on PATH: Enter on the row lists no devin auth action, only the not-installed line and the install line',
+      cardSays && installLineIn(m.screen()) && !m.screen().includes('devin auth status') && readInvocations().length === 0,
+      wordsOf(m.screen()),
+    )
+    await send(m, KEY.enter)
+    const rosterAgain = await waitFor(() => m.screen().includes('❯ Devin CLI (external agent)') && !m.screen().includes('is not installed'), 1500)
+    check('/logins: Enter on the not-installed line returns to the family list', rosterAgain && popupStore.isSettingsPopupOpen() && readInvocations().length === 0, wordsOf(m.screen()))
+    process.env.PATH = withStubPath
+
     await send(m, KEY.enter)
     const cardUp = await waitFor(() => m.screen().includes('devin auth login') && m.screen().includes('devin auth status') && m.screen().includes('devin auth logout'), 2000)
     check('/logins Devin CLI card lists all three distinct actions with zero child runs', cardUp && readInvocations().length === 0)
@@ -250,9 +323,7 @@ try {
     process.env.PATH = withStubPath
 
     await send(m, KEY.enter)
-    await waitFor(() => m.screen().includes('devin auth login'), 1500)
-    await send(m, KEY.esc)
-    await waitFor(() => m.screen().includes('OpenAI — ChatGPT'), 1500)
+    await waitFor(() => m.screen().includes('OpenAI — ChatGPT') && !m.screen().includes('is not installed'), 1500)
     await send(m, KEY.esc)
     const closed = await waitFor(() => !popupStore.isSettingsPopupOpen(), 1500)
     check('closing /logins after external CLI action leaves Mercury provider credentials and signed history untouched', closed && keyChanges === 0 && currentMessages === signedHistory && readInvocations().length === 0)
@@ -265,6 +336,14 @@ try {
     clearInvocations()
     const nonTtyIn = { isTTY: false } as NodeJS.ReadStream
     const nonTtyOut = { isTTY: false } as NodeJS.WriteStream
+    const emptyWorld = { platform: process.platform, path: withoutStubPath }
+    const said = [devinCliMissingOutcome(emptyWorld)?.receipt]
+    for (const action of ['login', 'status', 'logout'] as const) said.push((await runDevinCliAction(action, { world: emptyWorld })).receipt)
+    check(
+      'the pane, sign-in, status and sign-out say one not-installed sentence with no devin on PATH, and the lookup answers nothing when devin is there',
+      said[0] !== undefined && new Set(said).size === 1 && said[0].endsWith(devinCliInstallHintWords(process.platform)) && devinCliMissingOutcome({ platform: process.platform, path: withStubPath }) === null && readInvocations().length === 0,
+      JSON.stringify(said),
+    )
     for (const action of ['login', 'status', 'logout'] as const) {
       const refused = await runDevinCliAction(action, {
         world: { platform: process.platform, path: withStubPath },
@@ -274,6 +353,32 @@ try {
       check(`non-TTY devin auth ${action} refuses honestly and never spawns in background`, refused.kind === 'refused' && refused.ok === false && refused.receipt.includes('interactive terminal') && readInvocations().length === 0, JSON.stringify(refused))
     }
     check('platform install lines match official docs for macOS, Linux and Windows', devinCliInstallHintWords('darwin').includes('cli.devin.ai/install.sh') && devinCliInstallHintWords('darwin').includes('brew install --cask devin-cli') && devinCliInstallHintWords('linux').includes('cli.devin.ai/install.sh') && devinCliInstallHintWords('win32').includes('static.devin.ai/cli/setup.ps1'))
+  }
+  console.log('§5 — A DEVIN RECEIPT WHERE THE SCREEN HAS NO PANE (100x30, 80x24), UNCHANGED WHERE IT HAS ONE (120x40)')
+  {
+    const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' })
+    const facts = collectLoginsScreenFacts()
+    const selIdx = loginsRosterRows(facts).length - 1
+    const environment = { model: 'model', critter: 'crab', critterHue: 'crimson', dirBase: 'work', dirTail: '' }
+    const frame = (columns: number, rows: number, model: unknown): string[] => (core.composeBootMenu(columns, rows, model) as { lines: string[] }).lines.map(line => stripAnsi(line))
+    const read = (lines: string[]): string => lines.join(' ').replace(/\s+/g, ' ')
+    const receipts: Array<[string, string]> = [
+      ['failed', 'devin auth status exited with code 2.'],
+      ['cancelled', 'devin auth login was cancelled (SIGINT).'],
+      ['not-installed', devinCliMissingOutcome({ platform: process.platform, path: withoutStubPath })?.receipt ?? ''],
+    ]
+    for (const [name, receipt] of receipts) {
+      const model = loginsMenuModelOf(facts, { selIdx, environment, flow: { kind: 'receipt', receipt, ok: false, external: true } })
+      check(
+        `a ${name} receipt is readable at 100x30 and at 80x24`,
+        receipt !== '' && read(frame(100, 30, model)).includes(receipt) && read(frame(80, 24, model)).includes(receipt),
+        read(frame(100, 30, model)).slice(0, 300),
+      )
+      check(
+        `a ${name} receipt at 120x40 stands in its pane, cell for cell the frame without the compact mark`,
+        frame(120, 40, model).some(line => line.includes(receipt.slice(0, 24))) && JSON.stringify(frame(120, 40, model)) === JSON.stringify(frame(120, 40, { ...model, detailOverrideConfirms: false })),
+      )
+    }
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })

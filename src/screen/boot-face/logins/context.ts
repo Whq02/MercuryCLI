@@ -29,6 +29,7 @@ export type LoginsFlowContext = {
   startHandlesRun: (leg: HandlesLegId) => void;
   startOpenaiDeviceRun: () => void;
   startDevinCliRun: (action: DevinCliAction) => void;
+  lookUpDevinCli: () => string | null;
   model: ReturnType<typeof useAnthropicLoginModel>;
   openPick: (pick: LoginsPickId, cursor?: number) => void;
   submitKey: (leg: FaceKeyLegId, raw: string) => void;
