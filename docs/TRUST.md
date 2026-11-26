@@ -338,7 +338,9 @@ saves; with it off the row decides (`asks` by default)
 
 ## Release signatures
 
-Every release archive carries a `manifest.json` with an Ed25519 signature over the release record
+Every release archive ships with a detached `.sig` Ed25519 signature over the
+archive's name and SHA-256 (verified by `mercury update` before unpacking) and
+carries a `manifest.json` with an Ed25519 signature over the release record
 (the version, the platform target, the packaging time, the source tree, the
 SHA-256 of the runtime bundle and a digest of every other shipped byte). The
 signing key is the Mercury release key, id `627b54b734ca0e72`, whose public

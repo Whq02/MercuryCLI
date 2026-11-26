@@ -51,6 +51,10 @@ export function markConsoleReturned(): void {
   consoleReturnedAt = Date.now()
 }
 
+export function isConsoleLent(): boolean {
+  return consoleLentDepth > 0
+}
+
 function consoleLentOrJustReturned(now: number = Date.now()): boolean {
   return consoleLentDepth > 0 || (consoleReturnedAt > 0 && now - consoleReturnedAt < CONSOLE_HANDBACK_GRACE_MS)
 }

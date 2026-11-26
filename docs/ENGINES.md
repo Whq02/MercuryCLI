@@ -1123,8 +1123,9 @@ Run `/accounts` to see every connected account and API key across all providers:
   from Gemini CLI to Antigravity; a Google AI Pro or
   Ultra plan rides this road, whereas an API key or your own OAuth client bills a
   Cloud project (free Flash ~20 requests/day, Pro 0; billing enables paid
-  limits). The token is refreshed single-flight with the project kept; a
-  revoked refresh token drops the sign-in and every surface names `/logins`;
+  limits). The token is refreshed under a cross-process lock with the project
+  kept; a revoked refresh token marks the sign-in row expired and every surface
+  names `/logins`;
   a refusal from the endpoint carries Google's words (an ineligible account
   with its validation link, an exhausted quota with Google's retry words, a
   model Google does not serve the account as a 404 naming the roster). The

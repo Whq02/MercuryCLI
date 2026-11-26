@@ -13,8 +13,9 @@ import { wrapPlain } from '../BootHealthScreen.js';
 import { anthropicArmPickRows, keyPageLine, openaiArmPickRows } from '../../../models/sign-in/flow-cards/loginFamilyRows.js';
 import { DETAIL_W } from './facts.js';
 import { wrapClauses, maskedDraftLine, wrapHard } from './anthropicLines.js';
+import { devinCliActionOptions, devinCliLogoutConfirmOptions } from './devinCliAction.js';
 
-export type LoginsPickId = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'huggingface' | 'kimi-region' | 'openrouter' | 'gemini' | 'xai' | 'nous' | 'orcarouter' | 'meta';
+export type LoginsPickId = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'huggingface' | 'kimi-region' | 'openrouter' | 'gemini' | 'xai' | 'nous' | 'orcarouter' | 'meta' | 'devin-cli' | 'devin-cli-logout-confirm';
 export type FaceKeyLegId =
   | 'anthropic-key'
   | 'anthropic-workspace'
@@ -98,6 +99,10 @@ export function loginsPickOptions(
         { label: 'Global — kimi.ai (auth.kimi.ai · api.kimi.ai/coding/v1)', value: 'global' },
         { label: 'Mainland China — kimi.com (auth.kimi.com · api.kimi.com/coding/v1)', value: 'mainland-cn' },
       ];
+    case 'devin-cli':
+      return devinCliActionOptions();
+    case 'devin-cli-logout-confirm':
+      return devinCliLogoutConfirmOptions();
   }
 }
 
@@ -128,13 +133,17 @@ export function loginsPickPaneLines(pick: LoginsPickId, pickSel = 0): string[] {
         return "One credential unlocks OpenRouter's whole multi-model catalogue (credits-billed).";
       case 'gemini':
         return pickSel === 1 ? GEMINI_KEY_BILLING_NOTE : GEMINI_CONNECT_INTRO;
+      case 'devin-cli':
+        return 'Devin CLI is an external agent — not a model provider for /model. Credentials stay with Devin CLI; once signed in, attach from chat with /crew attach devin.';
+      case 'devin-cli-logout-confirm':
+        return 'Confirm before running devin auth logout. This removes Devin CLI credentials stored by Devin CLI.';
     }
   })();
   return [
     ...(body ? wrapPlain(body, DETAIL_W) : []),
-    ...(pick === 'kimi-region' || pick === 'anthropic' ? [] : wrapClauses(keyPageLine(pick), DETAIL_W)),
+    ...(pick === 'kimi-region' || pick === 'anthropic' || pick === 'devin-cli' || pick === 'devin-cli-logout-confirm' ? [] : wrapClauses(keyPageLine(pick), DETAIL_W)),
     '',
-    pick === 'kimi-region' ? 'esc — back to the Kimi choice' : 'esc — back to the roster',
+    pick === 'kimi-region' ? 'esc — back to the Kimi choice' : pick === 'devin-cli-logout-confirm' ? 'esc — back to Devin CLI' : 'esc — back to the roster',
   ];
 }
 

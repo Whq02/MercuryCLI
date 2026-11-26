@@ -1,5 +1,5 @@
 import type { BootMenuData } from '../../../../assets/splash/splash-core.mjs';
-import { loginsSwitchableFamily, loginsEntryOf, loginsLegendOf, loginsSummaryRows, loginsStatusLine, type LoginsScreenFactsV1, loginsSortedArms, loginsDetailLines } from './facts.js';
+import { loginsSwitchableFamily, loginsRosterEntryOf, loginsLegendOf, loginsSummaryRows, loginsStatusLine, type LoginsScreenFactsV1, loginsRosterRows, loginsRosterDetailLines } from './facts.js';
 import { loginsPickOptions } from './pickLines.js';
 import type { useAnthropicLoginModel } from '../../widgets/faces/anthropicLoginModel.js';
 import { type LoginsFlowPaneV1, loginsFlowPaneLines, type OpenFlowState, loginsFlowStatusOf, loginsFlowLegendOf } from './flowLines.js';
@@ -15,8 +15,8 @@ export function loginsMenuModelOf(
     flow?: LoginsFlowPaneV1;
   },
 ): BootMenuData {
-  const arms = loginsSortedArms(facts);
-  const selected = opts.selIdx >= 0 ? arms[opts.selIdx] : undefined;
+  const roster = loginsRosterRows(facts);
+  const selected = opts.selIdx >= 0 ? roster[opts.selIdx] : undefined;
   const pick = opts.flow?.kind === 'pick' ? opts.flow : null;
   const flowPane =
     opts.flow !== undefined
@@ -53,19 +53,19 @@ export function loginsMenuModelOf(
                         ? 'OpenRouter'
                         : pick.pick === 'gemini'
                           ? 'Google Gemini'
-                          : pick.pick === 'xai' ? 'xAI (Grok)' : pick.pick === 'nous' ? 'Nous Portal' : pick.pick === 'orcarouter' ? 'OrcaRouter' : pick.pick === 'meta' ? 'Meta (Muse)' : 'which deployment?',
+                          : pick.pick === 'xai' ? 'xAI (Grok)' : pick.pick === 'nous' ? 'Nous Portal' : pick.pick === 'orcarouter' ? 'OrcaRouter' : pick.pick === 'meta' ? 'Meta (Muse)' : pick.pick === 'devin-cli' ? 'Devin CLI (external agent)' : pick.pick === 'devin-cli-logout-confirm' ? 'Sign out of Devin CLI' : 'which deployment?',
             summary: '',
             valueLabel: '',
             valueIsDefault: true,
             pinnedVal: null,
             detail: null,
           }))
-        : arms.map(a => loginsEntryOf(a, facts)),
+        : roster.map(row => loginsRosterEntryOf(row, facts)),
     selIdx: pick !== null ? pick.pickSel : opts.selIdx,
     statusRight: opts.statusNote ?? loginsStatusLine(facts),
-    legend: loginsLegendOf(selected !== undefined && loginsSwitchableFamily(selected, facts) !== null),
+    legend: loginsLegendOf(selected !== undefined && selected.kind === 'provider' && loginsSwitchableFamily(selected.arm, facts) !== null),
     moreHint: '… (the trail continues — taller terminal)',
-    ...(selected !== undefined ? { detailOverride: loginsDetailLines(selected, facts) } : {}),
+    ...(selected !== undefined ? { detailOverride: loginsRosterDetailLines(selected, facts) } : {}),
     ...(opts.glowWord !== undefined ? { glowWord: opts.glowWord } : {}),
     ...(flowPane ?? {}),
   };
@@ -100,6 +100,8 @@ export function loginsFlowPaneOf(flow: OpenFlowState, model: ReturnType<typeof u
                 ? { kind: 'opdevice' as const, opdevice: flow.opdevice }
                 : flow.kind === 'client'
                   ? { kind: 'client' as const, client: flow.client, draftLen: draft.length, draft }
-                  : { kind: 'receipt' as const, receipt: flow.receipt, ok: flow.ok, ...(onSignedIn !== undefined ? { backToPicker: true } : {}) }
+                  : flow.kind === 'external-run'
+                    ? { kind: 'external-run' as const, action: flow.action }
+                    : { kind: 'receipt' as const, receipt: flow.receipt, ok: flow.ok, ...(flow.external === true ? { external: true as const } : {}), ...(onSignedIn !== undefined && flow.external !== true ? { backToPicker: true } : {}) }
   );
 }
