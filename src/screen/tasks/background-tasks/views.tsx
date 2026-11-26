@@ -167,6 +167,7 @@ export function boardListView({ accent, crewmateTasks, armedWork, bootRecovery, 
   const selectedResumable = selected?.work !== undefined && selected.kind === 'agent' && !workRowRuns(selected.work)
   const anyAgentRunning = crewmateTasks.some(task => task.status === 'running')
 
+  const footerWarning = armedWork !== null ? crewStopHint(armedWork.name) : undefined
   const footerParts: string[] = []
   if (flat.length > 0) {
     footerParts.push(
@@ -175,8 +176,7 @@ export function boardListView({ accent, crewmateTasks, armedWork, bootRecovery, 
       `↵ ${selected?.kind === 'lead' ? `back to ${LEAD_ROW_NAME}` : 'open'}`,
     )
   }
-  if (armedWork !== null) footerParts.push(crewStopHint(armedWork.name))
-  else if (selectedStoppable) footerParts.push(selected?.work !== undefined ? 'x x stop' : 'x stop')
+  if (armedWork === null && selectedStoppable) footerParts.push(selected?.work !== undefined ? 'x x stop' : 'x stop')
   if (selectedResumable) footerParts.push('r resume')
   if (anyAgentRunning) footerParts.push('X stop all')
   footerParts.push('esc close')
@@ -185,6 +185,7 @@ export function boardListView({ accent, crewmateTasks, armedWork, bootRecovery, 
     <CommandCenter elevated
       view={summaryEntry ? "activity" : "runs"}
       bodyOwnsPageKeys
+      footerWarning={footerWarning}
       footer={footerParts.join(' · ')}
       subtitle={subtitle}
       onClose={onDone}
