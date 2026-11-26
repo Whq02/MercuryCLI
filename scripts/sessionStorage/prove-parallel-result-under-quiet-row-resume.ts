@@ -429,11 +429,166 @@ try {
       const out = graph.chain(map.get(preply.uuid)!)
       graph.ordered = origOrdered
       check(
-        `${shape} of ${N} quiet rows restores the result without per-node ordered() calls in decorateOf`,
-        out.some(row => row.uuid === pr2.uuid) && orderedCalls <= 3 * N + 30,
-        `hasResult=${out.some(row => row.uuid === pr2.uuid)} orderedCalls=${orderedCalls} (limit ${3 * N + 30})`,
+        `${shape} of ${N} quiet rows restores the result without per-node ordered() calls`,
+        out.some(row => row.uuid === pr2.uuid) && orderedCalls <= 10,
+        `hasResult=${out.some(row => row.uuid === pr2.uuid)} orderedCalls=${orderedCalls} (limit 10)`,
       )
     }
+  }
+
+  section('§5 deep quiet system chain survives load and iterative notesUnder matches recursive order on 300 random trees')
+  {
+    const writeSystemChain = async (count: number): Promise<{ file: string; replyId: UUID; noteIds: UUID[] }> => {
+      startFreshSession()
+      const u1 = atNextTick(createUserMessage({ content: `chain ${count}` }))
+      const a1 = atNextTick(createAssistantMessage({ content: `reply ${count}` }))
+      a1.message.stop_reason = 'end_turn'
+      const notes: Message[] = []
+      for (let i = 0; i < count; i++) notes.push(atNextTick(createSystemMessage(`board note ${i}`, 'info')))
+      await recordTranscript([u1, a1, ...notes])
+      await flushSessionStorage()
+      return { file: getTranscriptPath(), replyId: a1.uuid, noteIds: notes.map(n => n.uuid) }
+    }
+
+    const shallow = await writeSystemChain(5)
+    _resetTranscriptReaderForTesting()
+    const shallowLoaded = await loadTranscriptFile(shallow.file, { keepAllLeaves: true })
+    const shallowChain = buildConversationChain(shallowLoaded.messages, shallowLoaded.messages.get(shallow.replyId)!)
+    const shallowSys = shallowChain.filter(row => row.type === 'system').map(row => row.uuid)
+    check(
+      'shallow chain of 5 system rows loads all 5 in creation order',
+      shallowSys.length === 5 && shallowSys.every((id, i) => id === shallow.noteIds[i]),
+      `len=${shallowSys.length}`,
+    )
+
+    const DEEP = 20_000
+    const deep = await writeSystemChain(DEEP)
+    _resetTranscriptReaderForTesting()
+    const deepLoaded = await loadTranscriptFile(deep.file, { keepAllLeaves: true })
+    let deepThrew: string | null = null
+    let deepSys: UUID[] = []
+    try {
+      const deepChain = buildConversationChain(deepLoaded.messages, deepLoaded.messages.get(deep.replyId)!)
+      deepSys = deepChain.filter(row => row.type === 'system').map(row => row.uuid)
+    } catch (error) {
+      deepThrew = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+    }
+    check(
+      `deep chain of ${DEEP} quiet system rows loads without stack overflow in exact creation order`,
+      deepThrew === null && deepSys.length === DEEP && deepSys.every((id, i) => id === deep.noteIds[i]),
+      deepThrew ?? `len=${deepSys.length}`,
+    )
+
+    type Graph = ReturnType<typeof transcriptRows>
+    const refOrdered = (graph: Graph, ids: Iterable<UUID>): TranscriptMessage[] =>
+      [...ids].filter(id => graph.has(id)).sort((a, b) => graph.positionOf(a) - graph.positionOf(b)).map(id => graph.get(id)!)
+    const refHookRows = (graph: Graph, id: UUID, seen: Set<UUID>): TranscriptMessage[] => {
+      const hooks: TranscriptMessage[] = []
+      const pending = [...refOrdered(graph, graph.children.get(id) ?? [])]
+      while (pending.length > 0) {
+        const row = pending.shift()!
+        if (row.type !== 'attachment' || seen.has(row.uuid)) continue
+        const attachment = (row as { attachment?: unknown }).attachment as { type?: unknown; callId?: unknown } | undefined
+        if (typeof attachment === 'object' && attachment !== null && attachment.type === 'hook' && typeof attachment.callId === 'string') {
+          seen.add(row.uuid)
+          hooks.push(row)
+        }
+        pending.push(...refOrdered(graph, graph.children.get(row.uuid) ?? []))
+      }
+      return hooks
+    }
+    const refSysNotes = (graph: Graph, id: UUID, seen: Set<UUID>): TranscriptMessage[] => {
+      const out: TranscriptMessage[] = []
+      for (const note of refOrdered(graph, graph.children.get(id) ?? [])) {
+        if (note.type !== 'system' || seen.has(note.uuid) || note.subtype === 'compact_boundary' || note.subtype === 'microcompact_boundary') continue
+        seen.add(note.uuid)
+        out.push(note, ...refNotesUnder(graph, note.uuid, seen))
+      }
+      return out
+    }
+    const refNotesUnder = (graph: Graph, id: UUID, seen: Set<UUID>): TranscriptMessage[] => {
+      const out = refSysNotes(graph, id, seen)
+      out.push(...refHookRows(graph, id, seen))
+      const pending = [...refOrdered(graph, graph.children.get(id) ?? [])]
+      while (pending.length > 0) {
+        const row = pending.shift()!
+        if (row.type !== 'attachment') continue
+        out.push(...refSysNotes(graph, row.uuid, seen))
+        pending.push(...refOrdered(graph, graph.children.get(row.uuid) ?? []))
+      }
+      return out
+    }
+
+    let seed = 0x51a7c0de
+    const rand = (): number => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
+      return seed / 0x100000000
+    }
+    const sid = randomUUID()
+    let mismatches = 0
+    let firstMismatch = ''
+    const TREES = 300
+    for (let t = 0; t < TREES; t++) {
+      const size = 6 + Math.floor(rand() * 35)
+      const root = atNextTick(createAssistantMessage({ content: `root ${t}` }))
+      const nodes: Array<{ id: UUID; row: TranscriptMessage }> = [
+        {
+          id: root.uuid,
+          row: { ...root, parentUuid: null, isSidechain: false, cwd: workdir, sessionId: sid, version: '1.0.0' } as TranscriptMessage,
+        },
+      ]
+      for (let i = 1; i < size; i++) {
+        const parent = nodes[Math.floor(rand() * nodes.length)]!.id
+        const pick = Math.floor(rand() * 8)
+        let raw: Record<string, unknown>
+        const id = randomUUID()
+        const ts = nextStamp()
+        if (pick < 2) {
+          raw = { uuid: id, parentUuid: parent, isSidechain: false, cwd: workdir, sessionId: sid, version: '1.0.0', timestamp: ts, type: 'system', subtype: 'informational', content: `s${i}`, level: 'info' }
+        } else if (pick === 2) {
+          raw = { uuid: id, parentUuid: parent, isSidechain: false, cwd: workdir, sessionId: sid, version: '1.0.0', timestamp: ts, type: 'system', subtype: 'compact_boundary', content: 'fold', level: 'info', compactMetadata: { trigger: 'auto', preTokens: 10 } }
+        } else if (pick === 3) {
+          raw = { uuid: id, parentUuid: parent, isSidechain: false, cwd: workdir, sessionId: sid, version: '1.0.0', timestamp: ts, type: 'system', subtype: 'microcompact_boundary', content: 'micro', level: 'info' }
+        } else if (pick === 4) {
+          raw = { uuid: id, parentUuid: parent, isSidechain: false, cwd: workdir, sessionId: sid, version: '1.0.0', timestamp: ts, type: 'attachment', attachment: { type: 'dead_thinking', dead: [] } }
+        } else if (pick === 5) {
+          raw = { uuid: id, parentUuid: parent, isSidechain: false, cwd: workdir, sessionId: sid, version: '1.0.0', timestamp: ts, type: 'attachment', attachment: { type: 'hook', callId: `call_${i}`, event: 'post', outcome: 'context', words: 'ok' } }
+        } else if (pick === 6) {
+          raw = { uuid: id, parentUuid: parent, isSidechain: false, cwd: workdir, sessionId: sid, version: '1.0.0', timestamp: ts, type: 'attachment', attachment: { type: 'hook', event: 'post', outcome: 'context' } }
+        } else {
+          raw = { uuid: id, parentUuid: parent, isSidechain: false, cwd: workdir, sessionId: sid, version: '1.0.0', timestamp: ts, type: 'user', message: { role: 'user', content: `u${i}` } }
+        }
+        nodes.push({ id, row: raw as TranscriptMessage })
+      }
+      const order = nodes.map(n => n.id)
+      const shuffled = [...nodes]
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1))
+        const tmp = shuffled[i]!
+        shuffled[i] = shuffled[j]!
+        shuffled[j] = tmp
+      }
+      const map = createTranscriptRows(shuffled.map(n => [n.id, n.row]), order)
+      const graph = transcriptRows(map)
+      const preSeen = new Set<UUID>([root.uuid])
+      for (let i = 1; i < nodes.length; i++) if (rand() < 0.2) preSeen.add(nodes[i]!.id)
+
+      const seenRef = new Set(preSeen)
+      const expected = refNotesUnder(graph, root.uuid, seenRef).map(r => r.uuid)
+      const seenGot = new Set(preSeen)
+      const actual = graph.notesUnder(root.uuid, seenGot).map(r => r.uuid)
+      const sameOut = expected.length === actual.length && expected.every((id, i) => id === actual[i])
+      const sameSeen = seenRef.size === seenGot.size && [...seenRef].every(id => seenGot.has(id))
+      if (!sameOut || !sameSeen) {
+        mismatches++
+        if (!firstMismatch) firstMismatch = `tree ${t}: out=${sameOut} seen=${sameSeen} exp=${expected.length} got=${actual.length}`
+      }
+    }
+    check(
+      `notesUnder matches the recursive reference on all ${TREES} random mixed trees (order and seen set)`,
+      mismatches === 0,
+      firstMismatch || `${mismatches}/${TREES} mismatched`,
+    )
   }
 } finally {
   rmSync(home, { recursive: true, force: true })
