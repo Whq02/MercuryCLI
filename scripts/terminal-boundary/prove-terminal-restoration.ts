@@ -133,7 +133,7 @@ section('R4 — interactive boot: the hold is consumed by the takeover, never re
       } catch {
       }
     }
-    check('the cockpit boots (rail chrome present)', visibleText(bytes).includes('Lanes'), JSON.stringify(bytes.slice(0, 200)) + ' — the interactive boot drew no rail chrome within the window: boot it with MERCURY_ALT_HELD=1 under a pty and read the bytes above')
+    check('the cockpit boots (rail chrome present)', visibleText(bytes).includes('workbench'), JSON.stringify(bytes.slice(0, 200)) + ' — the interactive boot drew no rail chrome within the window: boot it with MERCURY_ALT_HELD=1 under a pty and read the bytes above')
     check('ZERO alt-screen exits during the live window', !bytes.includes('\x1b[?1049l'), 'an alt-screen exit was written while the held screen should be consumed by the interactive boot: check releaseLauncherAltHoldNow callers in src/boot/entrypoints/cli.tsx and consumeLauncherAltHold in src/screen/renderer/launcherAltHold.ts')
   } finally {
     run.cleanup()

@@ -66,13 +66,13 @@ function railLines(frame: string[]): string[] {
   })
 }
 
-const isHeader = (line: string): boolean => /^[A-Z]/.test(line)
+const isHeader = (line: string): boolean => /^[a-z]/.test(line)
 const railHeaders = (rail: string[]): string[] => rail.filter(isHeader).map(l => l.split(' · ')[0]!.trim())
 function recentRows(rail: string[]): string[] {
   const rows: string[] = []
   let inside = false
   for (const line of rail) {
-    if (isHeader(line)) inside = line.startsWith('Recent')
+    if (isHeader(line)) inside = line.startsWith('recent')
     else if (inside && line.trim() !== '') rows.push(line.trim())
   }
   return rows

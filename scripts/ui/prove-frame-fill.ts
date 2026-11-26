@@ -160,7 +160,7 @@ async function renderAt(columns: number, rows: number): Promise<string[]> {
   }
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(Harness)))
   try {
-    const painted = await until(() => insertRef.current !== null && ink.lastFrameText().includes('Type a prompt') && ink.lastFrameText().includes('Lanes'))
+    const painted = await until(() => insertRef.current !== null && ink.lastFrameText().includes('Type a prompt') && ink.lastFrameText().includes('workbench'))
     check(`${columns}x${rows}: the cockpit paints its composer placeholder and the lanes header`, painted, ink.lastFrameText().slice(0, 400), 'FullscreenLayout in src/screen/fullscreen-layout/FullscreenLayout.tsx or Composer did not paint the composer placeholder and the lanes header within 15s; read the frame text above')
     await new Promise<void>(resolve => setTimeout(resolve, 150))
     return ink.lastFrameText().replace(/\n$/, '').split('\n')
@@ -179,7 +179,7 @@ for (const [columns, rows] of SIZES) {
   console.log(`${columns}x${rows}: ${describe(shape)}`)
   if (frameDir !== undefined) writeFileSync(join(frameDir, `frame-fill-${columns}x${rows}.txt`), `${lines.join('\n')}\n`)
   check(`${columns}x${rows}: the frame's rows equal the terminal's rows`, shape.rows === rows, `${shape.rows} rows for a ${rows}-row terminal`, 'FullscreenLayout in src/screen/fullscreen-layout/FullscreenLayout.tsx must fill exactly the terminal rows')
-  check(`${columns}x${rows}: the first row is the frame's top (no blank rows above)`, shape.frameTop === 0 && shape.firstInkRow === 0 && lines[0]!.includes('Lanes'), `frame top ${shape.frameTop}, first ink row ${shape.firstInkRow}`, 'FullscreenLayout in src/screen/fullscreen-layout/FullscreenLayout.tsx must start its frame on row 0 with the lanes header')
+  check(`${columns}x${rows}: the first row is the frame's top (no blank rows above)`, shape.frameTop === 0 && shape.firstInkRow === 0 && lines[0]!.includes('╭') && !lines[0]!.includes('lanes'), `frame top ${shape.frameTop}, first ink row ${shape.firstInkRow}`, 'FullscreenLayout in src/screen/fullscreen-layout/FullscreenLayout.tsx must start its frame on row 0')
   check(`${columns}x${rows}: the last row is the frame's bottom (no blank rows below)`, shape.lastInkRow === rows - 1, `last ink row ${shape.lastInkRow}`, 'FullscreenLayout in src/screen/fullscreen-layout/FullscreenLayout.tsx must paint down to the terminal last row')
   check(`${columns}x${rows}: the outline spans every row from the frame top to the centre column's bottom border`, shape.outlineRows === shape.centreBottom + 1, `${shape.outlineRows} outline rows over ${shape.centreBottom + 1}`, 'the centre column outline in FullscreenLayout (src/screen/fullscreen-layout/FullscreenLayout.tsx) must stretch to the bottom border row')
   check(`${columns}x${rows}: every row is at most ${columns} cells wide`, lines.every(line => [...line.replace(/\x1b\[[0-9;]*m/g, '')].length <= columns), '', 'a painted row is wider than the terminal; check the widths in FullscreenLayout (src/screen/fullscreen-layout/FullscreenLayout.tsx) and Composer')

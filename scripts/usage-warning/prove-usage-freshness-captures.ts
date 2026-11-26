@@ -205,7 +205,7 @@ const fiveHourPct = (frame: string): number | undefined => {
 }
 const usageBlock = (frame: string): string => {
   const lines = frame.split('\n').map(l => l.replace(/\s+/g, ' ').trim())
-  const start = lines.findIndex(l => l.includes('▆ Usage'))
+  const start = lines.findIndex(l => l.includes('▆ usage'))
   return start === -1 ? '(no USAGE panel)' : lines.slice(start, start + 9).join(' | ')
 }
 
@@ -257,7 +257,7 @@ if (LEGS.has('a')) {
       cwd: workspace,
       sends: [
         ...FACE_THEN_CHAT,
-        { data: '', atTick: 999, awaitText: '▆ Usage', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'before-usage' },
+        { data: '', atTick: 999, awaitText: '▆ usage', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'before-usage' },
         ...usageThenBack('Current session'),
         markAfter('floor1', POLL_MS + 1_500),
         markAfter('floor2', POLL_MS),
@@ -486,7 +486,7 @@ if (LEGS.has('f')) {
       cwd: workspace,
       sends: [
         ...FACE_THEN_CHAT,
-        { data: '', atTick: 999, awaitText: '▆ Usage', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'boot' },
+        { data: '', atTick: 999, awaitText: '▆ usage', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'boot' },
         markAfter('floor', POLL_MS + 1_500),
         { data: 'Spare a word.\r', afterPrevTicks: 2 },
         { data: '', atTick: 999, awaitText: 'Spare.', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'turn' },

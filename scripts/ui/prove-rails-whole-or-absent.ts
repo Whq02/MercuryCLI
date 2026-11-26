@@ -64,8 +64,9 @@ const wrap = (node: React.ReactNode): React.ReactNode => h(App, { initialState: 
 
 const { getHelmRows } = await import('../../src/screen/cockpit/helmFocus.ts')
 function tornRailBoxes(lines: string[], columns: number, paneRows: number): string[] {
-  const paneLeft = (lines[0] ?? '').indexOf('╭')
-  const paneRight = (lines[0] ?? '').indexOf('╮', paneLeft + 1)
+  const top = lines[0] ?? ''
+  const paneLeft = top.startsWith('╭') ? top.indexOf('╭', 1) : top.indexOf('╭')
+  const paneRight = top.indexOf('╮', paneLeft + 1)
   const tears: string[] = []
   for (let y = 0; y < paneRows; y++) {
     const row = Array.from(lines[y] ?? '')
@@ -94,9 +95,11 @@ for (const [columns, rows] of SIZES) {
       const torn = tornRailBoxes(lines, columns, paneRows)
       check(`${columns}x${rows}, pane ${paneRows}: every rail box closes`, torn.length === 0, torn.join('; '))
       if (columns >= 160) {
-        const rail = lines.slice(0, paneRows).map(line => line.slice((lines[0] ?? '').indexOf('╮') + 1))
+        const top = lines[0] ?? ''
+        const paneLeft = top.startsWith('╭') ? top.indexOf('╭', 1) : top.indexOf('╭')
+        const rail = lines.slice(0, paneRows).map(line => line.slice(top.indexOf('╮', paneLeft + 1) + 1))
         const free = paneRows - 1 - rail.reduce((last, row, y) => (row.includes('╰') ? y : last), 0)
-        const healthShed = !rail.some(row => row.includes('✓ Health'))
+        const healthShed = !rail.some(row => row.includes('✓ health'))
         const pointer = rail.some(row => row.includes('short height — /health'))
         check(`${columns}x${rows}, pane ${paneRows}: the vitals rail points at what it shed exactly when a row is free for the pointer`, pointer === (healthShed && free >= 1), `${free} free, HEALTH ${healthShed ? 'shed' : 'painted'}, pointer ${pointer ? 'shown' : 'absent'}`)
       }
@@ -106,8 +109,8 @@ for (const [columns, rows] of SIZES) {
       }
       if (columns < 160) {
         const left = lines.slice(0, paneRows).map(line => line.slice(0, (lines[0] ?? '').indexOf('╭'))).join('\n')
-        if (paneRows === 6) check(`${columns}x${rows}: the unboxed FILES section keeps its last visible row`, left.includes('Files ·') && left.includes('↵ browse'), left)
-        if (paneRows === 9) check(`${columns}x${rows}: the unboxed VITALS head and spend remain visible`, left.includes('Vitals') && left.includes('spend'), left)
+        if (paneRows === 6) check(`${columns}x${rows}: the unboxed FILES section keeps its last visible row`, left.includes('files ·') && left.includes('↵ browse'), left)
+        if (paneRows === 9) check(`${columns}x${rows}: the unboxed VITALS head and spend remain visible`, left.includes('vitals') && left.includes('spend'), left)
         if (paneRows === 12) check(`${columns}x${rows}: the unboxed pointer keeps the last available row`, left.includes('more: /help'), left)
       }
     }

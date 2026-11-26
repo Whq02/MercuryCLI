@@ -114,8 +114,8 @@ try {
       }
       if (code !== 0) continue
       const marks = Object.fromEntries(capture.marks.map(mark => [mark.label, mark.grid]))
-      const viewBefore = inkOfRow(marks.chat!, 'Lanes')
-      const viewOpen = inkOfRow(marks.open!, 'Lanes')
+      const viewBefore = inkOfRow(marks.chat!, 'workbench')
+      const viewOpen = inkOfRow(marks.open!, 'workbench')
       if (noDim) check(`${tag}: with the recess off the cockpit stays around the window with its ink untouched (the lanes label row reads as before the open)`, viewBefore !== null && viewOpen === viewBefore, `before ${viewBefore?.slice(0, 120)} · open ${viewOpen?.slice(0, 120)}`)
       else if (panel === 'crewmates') check(`${tag}: the cockpit stays around the window, dimmed by the elevated registration (the lanes label row's ink moved)`, viewBefore !== null && viewOpen !== null && viewOpen !== viewBefore, `before ${viewBefore?.slice(0, 120)} · open ${viewOpen?.slice(0, 120)}`)
       check(`${tag}: clicking the frame edge does not close`, text(marks.edge!).includes(needle))
@@ -123,7 +123,7 @@ try {
       check(`${tag}: its release is consumed`, text(marks.pressed!) === text(marks.clicked!), firstDifference(text(marks.pressed!), text(marks.clicked!)))
       check(`${tag}: Escape still closes a freshly opened panel`, text(marks.reopened!).includes(needle) && !text(marks.escaped!).includes(needle))
       check(`${tag}: no text selection starts`, !marks.clicked!.some(row => row.some(cell => cell.rev)))
-      check(`${tag}: the composer is empty after dismissal`, text(marks.clicked!).includes('Type a prompt') && !text(marks.clicked!).includes('❯ Vitals'))
+      check(`${tag}: the composer is empty after dismissal`, text(marks.clicked!).includes('Type a prompt') && !/│ ❯ (?:spend|ctx|◌ no cert)/.test(text(marks.clicked!)))
       check(`${tag}: every chat cell matches the Escape close`, JSON.stringify(marks.clicked) === JSON.stringify(marks.escaped), firstDifference(text(marks.clicked!), text(marks.escaped!)) || 'the words are the same; a colour or weight differs')
     }
   }

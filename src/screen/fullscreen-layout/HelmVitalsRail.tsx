@@ -28,7 +28,7 @@ import { InteractiveRow } from '../widgets/InteractiveRow.js'
 import { RailPanel } from '../widgets/RailPanel.js'
 import { fitPointerRows } from '../cockpit-gauges/helmLanesModel.js'
 import { Sparkline, UsageMeter, useNowTick } from '../widgets/components.js'
-import { CURSOR_NUDGE_MS, ValueGlow } from '../widgets/LiveGlyphs.js'
+import { ValueGlow } from '../widgets/LiveGlyphs.js'
 import { useTerminalSize } from './useTerminalSize.js'
 import { fluxMark } from '../../integrations/media-flux/fluxProbe.js'
 import { buildVitalsModel, type VitalsInput, type VitalsRowSpec, type VitalsSectionSpec } from '../cockpit-gauges/helmVitalsModel.js'
@@ -257,21 +257,6 @@ function HelmVitalsRailImpl({ width, availRows }: { width: number; availRows?: n
 
   return (
     <Box flexDirection="column" width={width}>
-      <Box width={width} height={1} flexShrink={0}>
-        <Text wrap="truncate-end">
-          <ValueGlow value={focused} color={focused ? accent : tok.textMuted} ms={CURSOR_NUDGE_MS}>
-            {focused ? <Text bold>{`${GLYPH.prompt} `}</Text> : '  '}
-          </ValueGlow>
-          {focused ? (
-            <>
-              <Text color={accent} bold>{'Vitals'}</Text>
-              <Text color={tok.textMuted}>{' · ↑↓ ↵ tab esc'}</Text>
-            </>
-          ) : (
-            <Text color={tok.textMuted}>{'Vitals'}</Text>
-          )}
-        </Text>
-      </Box>
       {model.sections.map(paintSection)}
       {model.pointer !== null
         ? fitPointerRows(model.pointer, width, availRows !== undefined ? availRows - model.paintedRows : Infinity).map((line, idx) => (

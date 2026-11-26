@@ -228,7 +228,7 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
   const { availRows, termRows } = input
   const sectionRows = (children: number): number => children + RAIL_PANEL_CHROME
   const shedCeiling = availRows ?? termRows - CHROME_ROWS
-  let spentRows = 1 + sectionRows(usageRows.length)
+  let spentRows = sectionRows(usageRows.length)
   const fitsSection = (children: number): boolean => spentRows + sectionRows(children) <= shedCeiling
   const healthShed = !fitsSection(healthRows.length)
   if (!healthShed) spentRows += sectionRows(healthRows.length)
@@ -236,21 +236,21 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
   const shedPointers = [...(healthShed ? ['/health'] : [])]
   const shed = shedPointers.map(k => k.slice(1) as 'health')
   const sections: VitalsSectionSpec[] = [
-    { key: 'usage', glyph: '', label: 'Usage', open: '/usage', rows: usageRows },
+    { key: 'usage', glyph: '', label: 'usage', open: '/usage', rows: usageRows },
     ...(healthShed
       ? []
       : [
           {
             key: 'health' as const,
             glyph: GLYPH.check,
-            label: 'Health',
+            label: 'health',
             count: certChip.state === 'live' && certChip.data.verdict !== null ? certChip.data.ageLabel.replace(' ago', '') : undefined,
             open: '/health',
             rows: healthRows,
           },
         ]),
   ]
-  let paintedRows = 1
+  let paintedRows = 0
   const firstClipped = sections.findIndex(section => {
     const cost = sectionRows(section.rows.length)
     if (paintedRows + cost > shedCeiling) return true

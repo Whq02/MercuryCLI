@@ -310,7 +310,7 @@ async function mount(cols: number, rows: number): Promise<Scene> {
   const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(cols, rows) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Harness)))
-  const painted = await until(() => ink.lastFrameText() !== '' && stripAnsi(ink.lastFrameText()).includes('Crew ·'))
+  const painted = await until(() => ink.lastFrameText() !== '' && /crew \d+/.test(stripAnsi(ink.lastFrameText())))
   check(`the cockpit painted with the crew lane at ${cols}x${rows}`, painted, stripAnsi(ink.lastFrameText()).slice(0, 300))
   await sleep(400)
   stdin.push(FOCUS_IN)
@@ -330,7 +330,7 @@ async function mount(cols: number, rows: number): Promise<Scene> {
 
 const cells = (line: string): string[] => Array.from(line)
 function railColsOf(lines: string[]): number {
-  const header = lines.find(line => line.includes('Crew ·')) ?? ''
+  const header = lines.find(line => /crew \d+/.test(line)) ?? ''
   const chars = cells(header)
   for (let x = 1; x < chars.length; x++) if (chars[x] === '│') return x + 1
   return 32
@@ -342,12 +342,12 @@ const railRowText = (lines: string[], needle: string, railCols: number): string 
   return row < 0 ? '(no row)' : railText(lines[row]!, railCols).replace(/[│]/g, '').trim()
 }
 function crewBox(lines: string[], railCols: number): { header: string; rows: string[] } | null {
-  const headerRow = railRow(lines, 'Crew ·', railCols)
+  const headerRow = lines.findIndex(line => /crew \d+/.test(railText(line, railCols)))
   if (headerRow < 0) return null
   const rows: string[] = []
   for (let y = headerRow + 1; y < lines.length; y++) {
     const text = railText(lines[y]!, railCols)
-    if (/[╰╭]/.test(text) || /^│\s*[▤◐◆◉✶◇○◌·]?\s*(Work|Runs|Workbench|Files|Saturn|Recent|Mission|Next)\b/.test(text.replace(/[│]/g, '│'))) break
+    if (/[╰╭]/.test(text) || /^│\s*[▤◐◆◉✶◇○◌·]?\s*(work|runs|workbench|files|saturn|recent|goal|next)\b/.test(text.replace(/[│]/g, '│'))) break
     const bare = text.replace(/[│]/g, '').trim()
     if (bare === '') break
     rows.push(bare)
@@ -438,7 +438,7 @@ async function run(cols: number, rows: number): Promise<void> {
     check('the CREW box stands and Mercury Lead is its first row', b !== null && (b.rows[0] ?? '').includes(LEAD_ROW), describeBox())
     check('the three running crewmates are listed', b !== null && ['atlas', 'birch', 'cedar'].every(name => b.rows.some(row => NAMES.test(row) && row.includes(name))), describeBox())
     check('the crewmate that already landed (delta) is listed with its state word: landed', b !== null && b.rows.some(row => row.includes('delta') && row.includes('landed')), describeBox())
-    check('the box counts every crewmate the session has had (4 agents)', b !== null && b.header.includes('4 crewmates'), describeBox())
+    check('the box counts every crewmate the session has had (4 agents)', b !== null && b.header.includes('crew 4') && !b.header.includes('crewmate'), describeBox())
   }
 
   section(`§1b ${tag('esc on a landed crewmate the runner still lists goes back to Mercury Lead')}`)

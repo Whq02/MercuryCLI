@@ -59,7 +59,7 @@ export const DEFAULT_MASKS = [
   'health [▲●◌◐✕✓·◓] \\S+( · \\d+[smhd])? *',
   'row:\\S+ ⌥ ?[^…\\s]\\S*',
   'row:│ \\S+ │ ⤳',
-  'Files · [^│]*',
+  'files · [^│]*',
   '⌥ ?\\S+ *',
   'row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back',
   'row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back',
@@ -112,11 +112,11 @@ export function canonicalizeCheckoutRows(
     [`│ ${checkout.basename} │ ⤳`, '│ mercury │ ⤳'],
     [` · ${checkout.basename} · `, ' · mercury · '],
     [` ${checkout.basename} · `, ' mercury · '],
-    [`Files · ${checkout.basename}`, 'Files · mercury'],
+    [`files · ${checkout.basename}`, 'files · mercury'],
     [`  ${checkout.basename}  `, '  mercury  '],
     [`│ ${checkout.basename} ▸`, '│ mercury ▸'],
   ]
-  const clipped = new RegExp(`Files · (${[...checkout.basename].map((_, i, all) => all.slice(0, i + 1).join('').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).reverse().join('|')})…`)
+  const clipped = new RegExp(`files · (${[...checkout.basename].map((_, i, all) => all.slice(0, i + 1).join('').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).reverse().join('|')})…`)
   const restoreAt = (row: string, start: number, end: number): number => {
     const before = / {2,}$/.exec(row.slice(0, start))
     const after = /^(?: {2,}|│)/.exec(row.slice(end))
@@ -228,7 +228,7 @@ export function canonicalizeCheckoutRows(
       return
     }
     const cut = clipped.exec(row)
-    if (cut && cut.index !== undefined && cut[0].length >= 'Files · mercury'.length) return take(respell(row, cells, cut.index, cut[0], 'Files · mercury'))
+    if (cut && cut.index !== undefined && cut[0].length >= 'files · mercury'.length) return take(respell(row, cells, cut.index, cut[0], 'files · mercury'))
     keep()
   })
   return { ...grid, text, styles }
@@ -356,7 +356,7 @@ export function readStoredGrid(entry: VisualBaselineEntry, root: string = LIVE_D
 export const SETTLE_LAW = { tickMs: 200, stillTicks: 8, ceilingTicks: 300 } as const
 
 export const COMPOSER_NEEDLE = 'Type a prompt'
-export const RAIL_SCAN_NEEDLES = ['Recent', '○ '] as const
+export const RAIL_SCAN_NEEDLES = ['recent', '○ '] as const
 export const NARROW_COUNT_NEEDLE = 'concourse'
 
 export function cockpitReadyText(cols: number, wideMinCols: number): string[] {

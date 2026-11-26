@@ -21,7 +21,7 @@ const CTRL_G = '\x07'
 const DOWN = '\x1b[B'
 const TITLE = 'Mercury · files'
 const HINT = '↑↓ move · ↵ open · → ← unfold · / filter'
-const FILES_BOX = ['╭────────────────────────────╮', '│ ▤ Files · fixture-cwd      │', '│   ↵ browse                 │', '╰────────────────────────────╯']
+const FILES_BOX = ['╭────────────────────────────╮', '│ ▤ files · fixture-cwd      │', '│   ↵ browse                 │', '╰────────────────────────────╯']
 
 if (!existsSync(DIST)) {
   console.log(`  [SKIP] ${DIST} absent — build first`)
@@ -224,7 +224,7 @@ const railRoad = (): Array<Record<string, unknown>> => [
   gated('\x1b[B', '❯ no prompts yet', { awaitSettleTicks: 4 }),
   gated('\x1b[B', '❯ /health', { awaitSettleTicks: 2 }),
   gated('\x1b[B', '❯ /memory', { awaitSettleTicks: 2 }),
-  gated('\x1b[B', '❯ /mission', { awaitSettleTicks: 2 }),
+  gated('\x1b[B', '❯ /goal', { awaitSettleTicks: 2 }),
   gated('\r', '❯ ↵ browse', { awaitSettleTicks: 2, mark: 'files-row' }),
 ]
 const cfgFor = (cols: number, rows: number, cwd: string, sends: Array<Record<string, unknown>>): Record<string, unknown> => ({
@@ -274,11 +274,11 @@ if (worlds.has('plain') || worlds.has('off')) {
     gated('\r', '❯ Alpha.tsx', { awaitSettleTicks: 2, mark: 'on-file' }),
     gated('\x1b', '@src/components/Alpha.tsx', { awaitSettleTicks: 4, mark: 'picked' }),
     after('\x1b', 2),
-    gated(CLICK, 'Type a prompt', { mark: 'draft-cleared', targetText: 'Files · fixture-cwd' }),
+    gated(CLICK, 'Type a prompt', { mark: 'draft-cleared', targetText: 'files · fixture-cwd' }),
     gated('\x1b', TITLE, { awaitSettleTicks: 4, mark: 'command' }),
     after('', 6, { mark: 'esc-closed' }),
-    after(CLICK, 2, { targetText: 'Files · fixture-cwd' }),
-    gated(CLICK, TITLE, { awaitSettleTicks: 4, mark: 'click-open', targetText: 'Lanes' }),
+    after(CLICK, 2, { targetText: 'files · fixture-cwd' }),
+    gated(CLICK, TITLE, { awaitSettleTicks: 4, mark: 'click-open', targetText: '❯ workbench' }),
     after('', 6, { mark: 'click-closed' }),
     after('/model', 2),
     after('\r', 3),
@@ -294,7 +294,7 @@ if (worlds.has('plain') || worlds.has('off')) {
   tally.check('P1 every send became due', cap.receipts === cap.sends && cap.status === 0, `${cap.receipts}/${cap.sends} · status ${cap.status} · end ${cap.endReason} · ${cap.stderr.slice(-300)}`)
   const land = railRows(m.land)
   const boxAt = land.findIndex(r => r === FILES_BOX[1])
-  tally.check('P2 the FILES box paints its four rows exactly, under the NEXT box', boxAt > 1 && [land[boxAt - 1], land[boxAt], land[boxAt + 1], land[boxAt + 2]].join('\n') === FILES_BOX.join('\n') && (land[boxAt - 2] ?? '').startsWith('╰') && (land[boxAt - 3] ?? '').includes('/mission'), land.slice(Math.max(0, boxAt - 3), boxAt + 3).join(' | '))
+  tally.check('P2 the FILES box paints its four rows exactly, under the NEXT box', boxAt > 1 && [land[boxAt - 1], land[boxAt], land[boxAt + 1], land[boxAt + 2]].join('\n') === FILES_BOX.join('\n') && (land[boxAt - 2] ?? '').startsWith('╰') && (land[boxAt - 3] ?? '').includes('/goal'), land.slice(Math.max(0, boxAt - 3), boxAt + 3).join(' | '))
   tally.check('P3 the rail row under the cursor reads the caret on the FILES row', railRows(m['files-row']).includes('│ ❯ ↵ browse                 │'), railRows(m['files-row']).filter(r => r.includes('browse')).join(' | '))
   const menu = menuRegion(m.menu)
   tally.check('P4 the menu opens over the chat at rows 5..20, columns 54..123, seventy wide', menu !== null && menu.top === 5 && menu.left === 54 && menu.right === 123 && menu.rows.length === 16, menu === null ? 'no menu' : `top ${menu.top} left ${menu.left} right ${menu.right} rows ${menu.rows.length}`)
@@ -370,7 +370,7 @@ if (worlds.has('off')) {
   const m = cap.marks
   tally.section('off · 178x51 · the setting off restores the rail as shipped')
   tally.check('O1 every send became due', cap.receipts === cap.sends && cap.status === 0, `${cap.receipts}/${cap.sends} · status ${cap.status} · end ${cap.endReason} · ${cap.stderr.slice(-300)}`)
-  tally.check('O2 no FILES box anywhere', !railRows(m.land).some(r => r.includes('Files ·')))
+  tally.check('O2 no FILES box anywhere', !railRows(m.land).some(r => r.includes('files ·')))
   const plainLand = railRows(frames.plain?.marks.land)
   const boxAt = plainLand.findIndex(r => r === FILES_BOX[1])
   const plainWithoutBox = boxAt > 0 ? plainLand.map((row, i) => (i >= boxAt - 1 && i <= boxAt + 2 ? '' : row)) : []
@@ -409,7 +409,7 @@ if (worlds.has('small')) {
     const m = cap.marks
     tally.section(`plain · ${label} · the box and the menu fit`)
     tally.check(`${label} S1 every send became due`, cap.receipts === cap.sends && cap.status === 0, `${cap.receipts}/${cap.sends} · status ${cap.status} · end ${cap.endReason} · ${cap.stderr.slice(-300)}`)
-    tally.check(`${label} S2 the rail carries the FILES section and its row`, (m.land ?? '').includes('Files · fixture-cwd') && /↵ browse/.test(m.land ?? ''), rowWith(m.land, 'browse') ?? '(no row)')
+    tally.check(`${label} S2 the rail carries the FILES section and its row`, (m.land ?? '').includes('files · fixture-cwd') && /↵ browse/.test(m.land ?? ''), rowWith(m.land, 'browse') ?? '(no row)')
     const menu = menuRegion(m.menu)
     const composerAt = rowIndexWith(m.menu, 'Type a prompt')
     tally.check(`${label} S3 the menu fits inside the chat pane with its hint row and bottom border`, menu !== null && menu.rows[menu.rows.length - 1]?.startsWith('╰') === true && menu.rows.some(r => r.includes(HINT.slice(0, 20))) && menu.top + menu.rows.length < composerAt - 1, menu === null ? 'no menu' : `top ${menu.top} rows ${menu.rows.length} composer at ${composerAt}`)
@@ -433,7 +433,7 @@ if (worlds.has('hop')) {
       after('\r', 4),
       after('\r', 4),
       gated('', '← back', { awaitSettleTicks: 6, mark: 'hopped' }),
-      ...(cols >= 178 ? [gated(CLICK, 'Files · fixture-cwd', { awaitSettleTicks: 2, targetText: 'Files · fixture-cwd', targetDx: 1 })] : browseRowOpens()),
+      ...(cols >= 178 ? [gated(CLICK, 'files · fixture-cwd', { awaitSettleTicks: 2, targetText: 'files · fixture-cwd', targetDx: 1 })] : browseRowOpens()),
       gated('', TITLE, { awaitSettleTicks: 4, mark: 'hop-menu' }),
       after(DOWN, 2),
       after(DOWN, 2),
@@ -447,7 +447,7 @@ if (worlds.has('hop')) {
     tally.section(`hop · ${label} · the session of one project focused while the screen's ground is another: the FILES box and the tree follow the session`)
     tally.check(`${label} H1 every send became due`, cap.receipts === cap.sends && cap.status === 0, `${cap.receipts}/${cap.sends} · status ${cap.status} · end ${cap.endReason} · ${cap.stderr.slice(-300)}`)
     tally.check(`${label} H2 the board of the other folder carries the focused session of fixture-cwd as its selected row`, rowsOf(m['board-b']).some(r => r.includes('▸') && /✦.*fixture[-…]/.test(r)) && rowsOf(m['board-b']).some(r => r.includes('other-cwd ⌄')), rowsOf(m['board-b']).filter(r => r.includes('✦')).join(' | ') || '(no carried row)')
-    tally.check(`${label} H3 after the hop back into it, the FILES box names the session's folder, fixture-cwd, not the ground's`, /Files · fixture-cwd/.test(m.hopped ?? '') && !/Files · other-cwd/.test(m.hopped ?? ''), rowWith(m.hopped, 'Files ·') ?? '(no FILES row)')
+    tally.check(`${label} H3 after the hop back into it, the FILES box names the session's folder, fixture-cwd, not the ground's`, /files · fixture-cwd/.test(m.hopped ?? '') && !/files · other-cwd/.test(m.hopped ?? ''), rowWith(m.hopped, 'files ·') ?? '(no FILES row)')
     const menu = menuRegion(m['hop-menu'])
     tally.check(`${label} H4 the tree opens on the session's folder: the folder line reads FIXTURE-CWD and the rows are its files`, menu !== null && menu.rows.some(r => r.startsWith('│ FIXTURE-CWD')) && menu.rows.some(r => r.includes('▸ src')) && menu.rows.some(r => r.includes('README.md')) && !menu.rows.some(r => r.includes('▸ lib') || r.includes('NOTES.md')), menu === null ? 'no menu' : menu.rows.slice(1, 8).join('\n'))
     tally.check(`${label} H5 ↵ on README.md puts the session folder's path in the composer`, rowsOf(m.picked).some(r => r.includes('│❯ @README.md')) && !(m.picked ?? '').includes(TITLE), rowWith(m.picked, '❯ @') ?? '(no @ in the composer)')

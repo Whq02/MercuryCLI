@@ -181,7 +181,7 @@ console.log('============================================================')
   const frame = marks.pools ?? ''
   const lines = frame.split('\n').map(l => l.replace(/\s+/g, ' '))
   const row = (re: RegExp): string | undefined => lines.find(l => re.test(l))
-  check('the USAGE panel is on the rail', /▆ Usage\b/.test(frame), `${frame.slice(0, 200) || '(no frame)'}; ${POOLS_RAIL_HINT}`)
+  check('the USAGE panel is on the rail', /▆ usage\b/.test(frame), `${frame.slice(0, 200) || '(no frame)'}; ${POOLS_RAIL_HINT}`)
   check(`the shared pair paints first — 5h 36%`, row(new RegExp(`5h ${BAR} 36%`)) !== undefined, `${lines.filter(l => /5h/.test(l)).join(' | ')}; ${POOLS_RAIL_HINT}`)
   check(`…and 7d 44%`, row(new RegExp(`7d ${BAR} 44%`)) !== undefined, `${lines.filter(l => /7d/.test(l)).join(' | ')}; ${POOLS_RAIL_HINT}`)
   check(`the Fable pool paints under the pair at 61%`, row(new RegExp(`Fable ${BAR} 61%`)) !== undefined, `${lines.filter(l => /Fable/.test(l)).join(' | ')}; ${POOLS_RAIL_HINT}`)
@@ -258,7 +258,7 @@ console.log('============================================================')
   const closed = marks.closed ?? ''
   const openRows = open.split('\n')
   const titleRow = (rows: string[]): number => rows.findIndex(l => l.includes('Mercury · usage'))
-  check('the panel stood under the cockpit: its title row below row 5, the pane\'s top border and the lanes label above it', titleRow(openRows) > 5 && openRows.slice(0, 5).some(l => /\bLanes\b[^\n]*╭/.test(l)), `title at row ${titleRow(openRows)}; the panel must open under the cockpit with the pane top border above it`)
+  check('the panel stood under the cockpit: its title row below row 5, the pane\'s top border level with the rails above it', titleRow(openRows) > 5 && openRows.slice(0, 5).some(l => /^╭─+╮╭─+╮/.test(l)), `title at row ${titleRow(openRows)}; the panel must open under the cockpit with the pane top border above it`)
   check('the click on the cockpit above the panel closed it: the title and the meters are gone, the hints are back', titleRow(closed.split('\n')) === -1 && !closed.includes('Current week (Opus)') && closed.includes('? for shortcuts'), `${closed.split('\n').filter(l => l.includes('usage') || l.includes('Current week')).join(' | ') || '(no such rows)'}; a click on the cockpit above the panel must close it`)
 }
 

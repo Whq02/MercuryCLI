@@ -26,7 +26,7 @@ import { useNowTick } from '../widgets/components.js'
 import { useProviderUsageOnShow } from '../model-picker/useProviderUsageOnShow.js'
 import { useFocusedWorkspaceCwd } from '../focused-session/useFocusedWorkspaceCwd.js'
 import { GLYPH, displayWidth, truncateToWidth } from '../theme/glyphs.js'
-import { ValueGlow, CURSOR_NUDGE_MS, AttentionPulse, WorkingGlyph } from '../widgets/LiveGlyphs.js'
+import { AttentionPulse, WorkingGlyph } from '../widgets/LiveGlyphs.js'
 import { RailPanel } from '../widgets/RailPanel.js'
 import { useCockpitActivity } from '../cockpit/cockpitActivity.js'
 import { subscribeUiClock } from '../cockpit/uiClock.js'
@@ -532,21 +532,6 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
 
   return (
     <Box flexDirection="column" width={width}>
-      <Box width={width} height={1} flexShrink={0}>
-        <Text wrap="truncate-end">
-          <ValueGlow value={focused} color={focused ? accent : tok.textMuted} ms={CURSOR_NUDGE_MS}>
-            {focused ? <Text bold>{`${GLYPH.prompt} `}</Text> : '  '}
-          </ValueGlow>
-          {!focused ? (
-            <Text color={tok.textMuted}>{'Lanes'}</Text>
-          ) : (
-            <>
-              <Text color={accent} bold>{'Lanes'}</Text>
-              <Text color={tok.textMuted}>{' · ↑↓ ↵ tab esc'}</Text>
-            </>
-          )}
-        </Text>
-      </Box>
       {model.sections.map(paintSection)}
       {model.pointer !== null ? (
         model.boxed ? (

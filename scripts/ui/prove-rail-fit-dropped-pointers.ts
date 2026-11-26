@@ -120,11 +120,11 @@ const tok = resolveMercuryTokens('dark', '#88c0d0')
 
   const runsAndFilesDropped = buildLanesModel({
     ...baseBusy,
-    availRows: 4,
+    availRows: 3,
     cursorRow: { kind: 'command', command: '/workbench', label: 'workbench:last' },
   })
   check(
-    'lanes model: when RUNS, WORKBENCH and FILES are dropped at 4 rows, pointer names /runs · /workbench · /browse',
+    'lanes model: when RUNS, WORKBENCH and FILES are dropped at 3 rows, pointer names /runs · /workbench · /browse',
     runsAndFilesDropped.pointer === '  more: /runs · /workbench · /browse',
     `pointer=${JSON.stringify(runsAndFilesDropped.pointer)}`,
   )
@@ -178,34 +178,35 @@ for (const [columns, rows] of [[160, 50], [177, 49], [213, 60]] as const) {
   const scene = await mountOffscreen(wrap(h(Harness, { columns, cardRows: 3 })), columns, rows)
   try {
     await settledFrame(scene, frame => frame.includes(CARD) && frame.includes(BAND.repeat(8)))
-    for (const paneRows of [2, 4, 6, 9, 10] as const) {
+    for (const paneRows of [1, 3, 6, 8, 9] as const) {
       scene.resize(wrap(h(Harness, { columns, cardRows: rows - paneRows })), columns, rows)
       await settledFrame(scene, frame => frame.includes(CARD) && (frame.split('\n')[paneRows] ?? '').startsWith('╭' + '─'.repeat(columns - 2) + '╮'))
       const lines = scene.lines()
       if (frameDir) writeFileSync(join(frameDir, `${tag}-pane-${paneRows}.txt`), lines.join('\n') + '\n')
-      const paneLeft = (lines[0] ?? '').indexOf('╭')
-      const paneRight = (lines[0] ?? '').indexOf('╮', paneLeft + 1)
+      const top = lines[0] ?? ''
+      const paneLeft = top.startsWith('╭') ? top.indexOf('╭', 1) : top.indexOf('╭')
+      const paneRight = top.indexOf('╮', paneLeft + 1)
       const leftText = lines.slice(0, paneRows).map(line => line.slice(0, paneLeft).trimEnd()).join('\n')
       const rightRows = lines.slice(0, paneRows).map(line => line.slice(paneRight + 1).trimEnd())
       const rightText = rightRows.join('\n')
       const danglingSep = [...lines.slice(0, paneRows).map(l => l.slice(0, paneLeft).trimEnd()), ...rightRows].some(r => /[·—]\s*…?$/.test(r))
       check(`${tag}, pane ${paneRows}: no rail pointer line ends on a dangling separator`, !danglingSep, `${leftText} || ${rightText}`)
 
-      if (paneRows === 2) {
+      if (paneRows === 1) {
         check(
-          `${tag}, pane 2: vitals rail with 1 free row marks that more than /health was dropped`,
+          `${tag}, pane 1: vitals rail with 1 free row marks that more than /health was dropped`,
           rightText.includes('short height — /health…'),
           rightText,
         )
       }
-      if (paneRows === 4) {
+      if (paneRows === 3) {
         check(
-          `${tag}, pane 4: lanes rail names /workbench, /help and /browse across its free rows`,
+          `${tag}, pane 3: lanes rail names /workbench, /help and /browse across its free rows`,
           leftText.includes('/workbench') && leftText.includes('/help') && leftText.includes('/browse'),
           leftText,
         )
         check(
-          `${tag}, pane 4: vitals rail names /health and /usage across its free rows`,
+          `${tag}, pane 3: vitals rail names /health and /usage across its free rows`,
           rightText.includes('short height — /health') && rightText.includes('/usage'),
           rightText,
         )
@@ -217,17 +218,17 @@ for (const [columns, rows] of [[160, 50], [177, 49], [213, 60]] as const) {
           rightText,
         )
       }
-      if (paneRows === 9) {
+      if (paneRows === 8) {
         check(
-          `${tag}, pane 9: vitals rail with the USAGE box standing and 1 free row names /health, the one section dropped, with no mark of more`,
-          rightText.includes('▆ Usage') && rightText.includes('short height — /health') && !rightText.includes('/health…') && !rightText.includes('/usage'),
+          `${tag}, pane 8: vitals rail with the USAGE box standing and 1 free row names /health, the one section dropped, with no mark of more`,
+          rightText.includes('▆ usage') && rightText.includes('short height — /health') && !rightText.includes('/health…') && !rightText.includes('/usage'),
           rightText,
         )
       }
-      if (paneRows === 10) {
+      if (paneRows === 9) {
         check(
-          `${tag}, pane 10: vitals rail with the USAGE box standing and 2 free rows names /health alone`,
-          rightText.includes('▆ Usage') && rightText.includes('short height — /health') && !rightText.includes('/health…') && !rightText.includes('/usage'),
+          `${tag}, pane 9: vitals rail with the USAGE box standing and 2 free rows names /health alone`,
+          rightText.includes('▆ usage') && rightText.includes('short height — /health') && !rightText.includes('/health…') && !rightText.includes('/usage'),
           rightText,
         )
       }

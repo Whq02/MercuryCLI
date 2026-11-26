@@ -2352,11 +2352,11 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: ['node', BIN, '--resume', SID],
       sends: [
-        { atTick: 90, minTick: 40, awaitText: 'Recent', awaitSettleTicks: 2, data: '\x1b[5~' },
-        { atTick: 94, minTick: 44, awaitText: 'Next', data: '\x1b[5~' },
+        { atTick: 90, minTick: 40, awaitText: 'recent', awaitSettleTicks: 2, data: '\x1b[5~' },
+        { atTick: 94, minTick: 44, awaitText: 'next', data: '\x1b[5~' },
         ...Array.from({ length: 12 }, () => ({ afterPrevTicks: 4, data: '\x1b[5~' })),
       ],
-      readyText: ['Recent', 'Next'],
+      readyText: ['recent', 'next'],
       stableTicks: 3,
       total: 160, cols, rows,
     }

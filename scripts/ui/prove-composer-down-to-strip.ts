@@ -204,7 +204,7 @@ async function openScene(cols: number, rows: number): Promise<Scene> {
 }
 
 const cells = (line: string): string[] => Array.from(line)
-const hasRail = (frame: string[], rail: 'lanes' | 'vitals'): boolean => frame.slice(0, 2).some(line => line.includes(rail === 'lanes' ? 'Lanes' : 'Vitals'))
+const hasRail = (frame: string[], rail: 'lanes' | 'vitals'): boolean => frame.slice(0, 3).some(line => line.includes(rail === 'lanes' ? 'workbench' : '▆ usage'))
 const centreBorderAt = (frame: string[], column: number): boolean => frame.slice(1, 4).every(line => cells(line)[column] === '│')
 const fullWidthRule = (frame: string[], cols: number): boolean => frame.some(line => line === '─'.repeat(cols))
 const composerRow = (frame: string[]): number => frame.findIndex(line => line.includes(COMPOSER))

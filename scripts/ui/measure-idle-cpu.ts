@@ -204,7 +204,7 @@ for (const { variant, spec, setting } of boots) {
         bytes += row.len ?? 0
       }
     }
-    const chatOpen = /\bLanes\b[^\n]*╭/.test(cap.text)
+    const chatOpen = /^(?:╭─+╮|(?:workbench|recent|crew \d+)[^╭]*)╭/m.test(cap.text)
     const word = /\breduced\b/.test(cap.text)
     results.push({ variant, setting, flags, cols: COLS, rows: ROWS, cpuSeconds, corePct, writes, bytes, word, endReason: cap.endReason })
     console.log(`\n── ${variant} · Motion ${setting} ──`)
