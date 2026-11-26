@@ -40,6 +40,7 @@ if (entryTakesProofHome) {
   for (const name of CALLER_REPOSITORY) delete process.env[name]
   installProofScratch({ ownHome: configHomeIsReal() })
   process.env.MERCURY_LOCAL_PROBE_TARGETS ??= 'none'
+  process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
   delete process.env.NO_COLOR
   delete process.env.FORCE_COLOR
 }
