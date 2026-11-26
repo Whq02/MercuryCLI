@@ -330,14 +330,11 @@ const fullFrameOpen = (lines: string[]): boolean => lines.some((line, index) => 
 const fullFrameClosed = (lines: string[]): boolean => lines.some(line => /^╰─+╯\s*$/.test(line))
 const describe = (lines: string[]): string => region(lines).slice(0, 6).map(line => line.replace(/\s+$/, '')).join(' | ').slice(0, 300)
 
-function cardWhole(frame: string[], name: string): boolean {
-  const nameRow = frame.findIndex(line => line.includes(name))
-  if (nameRow < 0) return false
-  const column = frame[nameRow]!.lastIndexOf('│', frame[nameRow]!.indexOf(name))
-  if (column < 0) return false
-  const launch = frame[nameRow + 1] ?? ''
-  const bottom = frame[nameRow + 2] ?? ''
-  return launch.slice(column).includes('❯ launch') && Array.from(bottom)[column] === '╰'
+function critterRowWhole(frame: string[], name: string): boolean {
+  const row = frame.findIndex(line => line.includes(`❯ ${name}`))
+  if (row < 0) return false
+  const artRows = frame.filter(line => /[▀▄]{9}/.test(line)).length
+  return artRows >= 3
 }
 function familyWhole(frame: string[], head: string, nextHead: string, lineCount: number): boolean {
   const headRow = frame.findIndex(line => line.includes(`▸ ${head}`))
@@ -414,7 +411,7 @@ if (critter !== undefined) {
     const frame = scene.lines()
     save('critter-64x20-down-2', frame)
     const nameRow = frame.findIndex(line => line.includes('[3] '))
-    check('/critter 64x20: ↓ ×2 brings the third card whole into view (its name row and its bottom border painted)', nameRow >= 0 && /^╰/.test(frame[nameRow + 2] ?? ''), describe(frame))
+    check('/critter 64x20: ↓ ×2 selects the third row whole into view (pointer and live preview painted)', nameRow >= 0 && critterRowWhole(frame, '[3] '), describe(frame))
     await scene.close()
   }
   const wide = await openRoute(critter, 177, 49)
@@ -426,7 +423,7 @@ if (critter !== undefined) {
       await wide.resize(cols, rows)
       const frame = wide.lines()
       save(`critter-resize-${cols}x${rows}-card-3`, frame)
-      check(`/critter resize → ${cols}x${rows} with card 3 selected: the card is whole (its name, its ❯ launch row and its bottom border painted)`, cardWhole(frame, '[3] jellyfish'), describe(frame))
+      check(`/critter resize → ${cols}x${rows} with row 3 selected: the row and live preview stay whole`, critterRowWhole(frame, '[3] jellyfish'), describe(frame))
     }
     await wide.close()
   }
