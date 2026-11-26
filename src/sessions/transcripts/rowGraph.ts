@@ -8,9 +8,39 @@ type Segment = NonNullable<SystemFoldBoundaryMessage['compactMetadata']['preserv
 type BoundaryRow = TranscriptMessage & SystemFoldBoundaryMessage
 const foldBoundaryRow = (row: TranscriptMessage): row is BoundaryRow => row.type === 'system' && row.subtype === 'compact_boundary'
 const snipped = (row: TranscriptMessage): UUID[] | undefined => (row as { snipMetadata?: { removedUuids?: UUID[] } }).snipMetadata?.removedUuids
-const stampOf = (row: TranscriptMessage): number => {
-  const at = Date.parse(row.timestamp)
-  return Number.isNaN(at) ? -1 : at
+
+export const sideNote = (row: { type: string; subtype?: string } | null | undefined): boolean => row?.type === 'system' && row.subtype !== 'local_command' && row.subtype?.endsWith('_boundary') !== true
+
+export function keptLine<Id>(listed: readonly Id[], parentOf: (id: Id) => Id | null | undefined, notesUnder: (id: Id) => Iterable<Id>): Id[] {
+  const named = new Set(listed)
+  const under = new Map<Id, Id[]>()
+  const seen = new Set<Id>()
+  let loose: Id[] = []
+  let whole = false
+  for (let id: Id | null | undefined = listed.at(-1); !whole && id !== undefined && id !== null && !seen.has(id); id = parentOf(id)) {
+    seen.add(id)
+    if (!named.has(id)) { loose.unshift(id); continue }
+    under.set(id, loose)
+    loose = []
+    whole = id === listed[0]
+  }
+  if (!whole) under.clear()
+  const reached = new Set<Id>()
+  for (const row of listed.slice(0, -1)) {
+    const group = under.get(row) ?? []
+    const line = new Set(group)
+    const open = [row]
+    for (const from of open) {
+      for (const note of notesUnder(from)) {
+        if (named.has(note) || reached.has(note)) continue
+        reached.add(note)
+        open.push(note)
+        if (!line.has(note)) group.push(note)
+      }
+    }
+    under.set(row, group)
+  }
+  return listed.flatMap(row => [row, ...(under.get(row) ?? [])])
 }
 
 class TranscriptRows {
@@ -141,16 +171,16 @@ class TranscriptRows {
     return this.ordered(this.boundaries).filter(foldBoundaryRow)
   }
 
-  newestBoundary(): BoundaryRow | undefined {
-    return this.boundariesOldestFirst().at(-1)
-  }
-
   private keptBySegment(segment: Segment): Set<UUID> | null {
     if (segment.keptUuids !== undefined) {
       const ids = segment.keptUuids
       if (!Array.isArray(ids) || ids[0] !== segment.headUuid || ids.at(-1) !== segment.tailUuid || !ids.every(id => this.has(id))) return null
-      const kept = new Set(ids)
-      return kept.size === ids.length && !kept.has(segment.anchorUuid) ? kept : null
+      const folds = this.boundariesOldestFirst()
+      const fold = folds.findIndex(row => row.compactMetadata?.preservedSegment === segment)
+      const floor = fold < 1 ? -1 : this.positionOf(folds[fold - 1]!.uuid), end = fold < 0 ? Infinity : this.positionOf(folds[fold]!.uuid)
+      const line = keptLine(ids, id => this.get(id)?.parentUuid, id => [...this.children.get(id) ?? []].filter(note => this.positionOf(note) > floor && this.positionOf(note) < end && sideNote(this.get(note))))
+      const kept = new Set(line)
+      return kept.size === line.length && !kept.has(segment.anchorUuid) ? kept : null
     }
     const kept = new Set<UUID>()
     let cursor = this.get(segment.tailUuid)
@@ -164,7 +194,7 @@ class TranscriptRows {
 
   private relinkSegment(segment: Segment, kept: Set<UUID>): void {
     let parentUuid = segment.anchorUuid
-    for (const id of segment.keptUuids ?? [segment.headUuid]) {
+    for (const id of segment.keptUuids === undefined ? [segment.headUuid] : kept) {
       const row = this.get(id)!
       if (row.parentUuid !== parentUuid) this.set(id, { ...row, parentUuid })
       parentUuid = id
@@ -231,7 +261,7 @@ class TranscriptRows {
     return leaves
   }
 
-  ancestry(leaf: TranscriptMessage, seen: Set<UUID>): TranscriptMessage[] {
+  ancestry(leaf: TranscriptMessage, seen: Set<UUID>, relinks?: ReadonlyMap<UUID, UUID>): TranscriptMessage[] {
     const path: TranscriptMessage[] = []
     let cursor: TranscriptMessage | undefined = leaf
     while (cursor) {
@@ -241,7 +271,8 @@ class TranscriptRows {
       }
       seen.add(cursor.uuid)
       path.push(cursor)
-      cursor = cursor.parentUuid ? this.get(cursor.parentUuid) : undefined
+      const above: UUID | null = relinks?.get(cursor.uuid) ?? cursor.parentUuid
+      cursor = above ? this.get(above) : undefined
     }
     path.reverse()
     return path
@@ -256,20 +287,7 @@ class TranscriptRows {
     return this.decorate(this.ancestry(leaf, seen), seen)
   }
 
-  reaches(leaf: TranscriptMessage, target: UUID): boolean {
-    const visited = new Set<UUID>()
-    let cursor: TranscriptMessage | undefined = leaf
-    while (cursor && !visited.has(cursor.uuid)) {
-      if (cursor.uuid === target) return true
-      visited.add(cursor.uuid)
-      cursor = cursor.parentUuid ? this.get(cursor.parentUuid) : undefined
-    }
-    return false
-  }
-
-  strandedAfter(boundary: BoundaryRow, seen: Set<UUID>): TranscriptMessage[] { return strandedAfterOf.call(this, boundary, seen) }
-
-  screenConversation(): TranscriptMessage[] { return screenConversationOf.call(this) }
+  strandedAfter(boundary: BoundaryRow, seen: Set<UUID>, relinks: ReadonlyMap<UUID, UUID>): TranscriptMessage[] { return strandedAfterOf.call(this, boundary, seen, relinks) }
 }
 
 type NoteFrame =
@@ -463,7 +481,7 @@ function decorateOf(this: TranscriptRows, spine: TranscriptMessage[], seen: Set<
   return withNotes
 }
 
-function strandedAfterOf(this: TranscriptRows, boundary: BoundaryRow, seen: Set<UUID>): TranscriptMessage[] {
+function strandedAfterOf(this: TranscriptRows, boundary: BoundaryRow, seen: Set<UUID>, relinks: ReadonlyMap<UUID, UUID>): TranscriptMessage[] {
   const floor = this.positionOf(boundary.uuid)
   const verdicts = new Map<UUID, 'stranded' | 'attached'>()
   const stranded: TranscriptMessage[] = []
@@ -482,7 +500,8 @@ function strandedAfterOf(this: TranscriptRows, boundary: BoundaryRow, seen: Set<
       if (!cursor.parentUuid) { verdict = 'stranded'; break }
       const parent = this.get(cursor.parentUuid)
       if (parent === undefined) { verdict = 'stranded'; break }
-      cursor = parent
+      const moved = relinks.get(cursor.uuid)
+      cursor = moved === undefined ? parent : this.get(moved)
     }
     for (const step of walked) {
       verdicts.set(step.uuid, verdict)
@@ -491,33 +510,6 @@ function strandedAfterOf(this: TranscriptRows, boundary: BoundaryRow, seen: Set<
   }
   stranded.sort((a, b) => this.positionOf(a.uuid) - this.positionOf(b.uuid))
   return stranded
-}
-
-function screenConversationOf(this: TranscriptRows): TranscriptMessage[] {
-  const leaves = this.resumeLeaves()
-  const candidates = [...leaves]
-    .map(id => this.get(id))
-    .filter((row): row is TranscriptMessage => row !== undefined && (row.type === 'user' || row.type === 'assistant'))
-    .sort((a, b) => stampOf(b) - stampOf(a) || this.positionOf(b.uuid) - this.positionOf(a.uuid))
-  const newest = candidates[0]
-  if (newest === undefined) return []
-  const boundary = this.newestBoundary()
-  const main = boundary === undefined ? newest : candidates.find(leaf => this.reaches(leaf, boundary.uuid))
-  if (boundary === undefined || main === undefined) return this.chain(newest)
-  const seen = new Set<UUID>()
-  const path = this.ancestry(main, seen)
-  const stranded = this.strandedAfter(boundary, seen)
-  if (stranded.length === 0) return this.decorate(path, seen)
-  for (const row of stranded) seen.add(row.uuid)
-  const spine: TranscriptMessage[] = []
-  let next = 0
-  for (const row of path) {
-    const at = this.positionOf(row.uuid)
-    while (next < stranded.length && this.positionOf(stranded[next]!.uuid) < at) spine.push(stranded[next++]!)
-    spine.push(row)
-  }
-  while (next < stranded.length) spine.push(stranded[next++]!)
-  return this.decorate(spine, seen)
 }
 
 const indexedRows = new WeakMap<Map<UUID, TranscriptMessage>, TranscriptRows>()

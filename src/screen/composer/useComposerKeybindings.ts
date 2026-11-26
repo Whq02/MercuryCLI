@@ -60,7 +60,6 @@ type ComposerKeybindingsInput = {
 
 type ComposerKeybindings = {
   performUndo: () => void
-  crewmateFooterIndex: number
 }
 
 function pasteImageFromClipboard(
@@ -374,5 +373,5 @@ export function useComposerKeybindings({
     { context: 'Footer', isActive: footerSelection !== null && !modalOverlayUp },
   )
 
-  return { performUndo, crewmateFooterIndex: 0 }
+  return { performUndo }
 }

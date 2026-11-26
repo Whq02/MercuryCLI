@@ -75,18 +75,20 @@ export function resolveUnknownSlashName(input: string, commands: Command[]): str
 }
 
 export function unknownCommandLine(name: string, commands: Command[]): string {
-  const registered = findCommand(name, [...builtinCommands()])
+  const registered = name === '' ? undefined : findCommand(name, [...builtinCommands()])
   if (registered !== undefined) return unavailableCommandLine(registered)
   let near: string | undefined
-  try {
-    const byNameAlone = commands
-      .filter(command => command.type !== 'prompt' && command.isHidden !== true)
-      .map(command => ({ ...command, description: '' }) as Command)
-    const top = generateCommandSuggestions(`/${name}`, byNameAlone)[0]
-    const meta = top?.metadata as Command | undefined
-    if (meta !== undefined && typeof meta === 'object' && typeof meta.type === 'string') near = getCommandName(meta)
-  } catch (error) {
-    passedOver(error)
+  if (name !== '') {
+    try {
+      const byNameAlone = commands
+        .filter(command => command.type !== 'prompt' && command.isHidden !== true)
+        .map(command => ({ ...command, description: '' }) as Command)
+      const top = generateCommandSuggestions(`/${name}`, byNameAlone)[0]
+      const meta = top?.metadata as Command | undefined
+      if (meta !== undefined && typeof meta === 'object' && typeof meta.type === 'string') near = getCommandName(meta)
+    } catch (error) {
+      passedOver(error)
+    }
   }
   return `Unknown command: /${name}${near !== undefined && near !== name ? ` — closest: /${near}` : ''} · /help lists commands`
 }
@@ -126,6 +128,11 @@ export function unavailableCommandLine(real: Command, args = ''): string {
     if (real.type === 'local-jsx' || commandSeat(real) === 'screen') {
       const verbs = real.type === 'local-jsx' ? real.headlessVerbs : undefined
       if (verbs === undefined || verbs.length === 0) {
+        const hint = real.argumentHint?.trim() ?? ''
+        if (runsPromptWithArgs(real, hint || 'words')) {
+          const tail = hint !== '' ? `: /${name} ${hint}` : ''
+          return `The /${name} command is an interactive surface — it needs the foreground session; with words it runs here too${tail}.`
+        }
         return `The /${name} command is an interactive surface — it needs the foreground session and has no headless form.`
       }
       const typed = args.trim().split(/\s+/)[0] ?? ''

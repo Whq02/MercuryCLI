@@ -100,3 +100,4 @@ prove-use-shimmer-animation-behaviour.ts
 prove-card-question-stays-on-screen.ts
 prove-tool-row-words-cut.ts
 prove-card-prefix-choice-wraps-whole.ts
+prove-command-keybinding-unknown.ts

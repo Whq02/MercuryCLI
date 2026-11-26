@@ -37,7 +37,7 @@ import {
   getFileModificationTime,
   writeTextContent,
 } from '../../platform/files/file.js'
-import { exitLine, interpretCommandResult } from './commandSemantics.js'
+import { closingTableCommand, exitLine, interpretCommandResult } from './commandSemantics.js'
 import { describeCommandDescription, describeMaxOutputChars, describeRunInBackground, describeTimeout, EDITOR_TERMINAL_RESULT_NOTE, getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
 import { firstCommandWord } from '../kit/shellTools.js'
 import { isSedInPlaceEdit, parseSedEditCommand } from './sedEditParser.js'
@@ -305,11 +305,13 @@ function shellRunPlan(input: BashToolInput, context: ToolUseContext, cwd: string
 
   const creations = snapshotCreations(input.command, cwd)
   const launchedAt = Date.now()
-  return { setToolJSX, setTaskState, requestedTimeout, effectiveTimeout, timeoutClampNotice, shouldAutoBackground, creations, launchedAt }
+  const closing = closingTableCommand(input.command)
+  return { setToolJSX, setTaskState, requestedTimeout, effectiveTimeout, timeoutClampNotice, shouldAutoBackground, creations, launchedAt, closing }
 }
 
 interface PostProcessNeeds {
   input: BashToolInput
+  closing: ReturnType<typeof closingTableCommand>
   creations: ReturnType<typeof snapshotCreations>
   editorTerminalNote: string | undefined
   agentId: string | undefined
@@ -321,7 +323,7 @@ interface PostProcessNeeds {
   timeoutClampNotice: string | undefined
 }
 
-async function postProcess(result: ExecResult, { input, creations, editorTerminalNote, agentId, shouldAutoBackground, cwd, abortController, shellCommand, webNotice, timeoutClampNotice }: PostProcessNeeds): Promise<Out> {
+async function postProcess(result: ExecResult, { input, closing, creations, editorTerminalNote, agentId, shouldAutoBackground, cwd, abortController, shellCommand, webNotice, timeoutClampNotice }: PostProcessNeeds): Promise<Out> {
   let prLinkNote: string | undefined
   if (result.backgroundTaskId === undefined) {
     prLinkNote = await trackGitOperations(input.command, result.code, result.stdout)
@@ -336,7 +338,8 @@ async function postProcess(result: ExecResult, { input, creations, editorTermina
   if (commandNamesBoxLock(input.command)) await refreshBoxReading()
   const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd })
   if (boxLine !== null) accumulator.append(boxLine + '\n')
-  const interpretation = interpretCommandResult(input.command, result.code, result.stdout, '')
+  const ran = closing === undefined || result.closingEndedOnOne === undefined ? undefined : { stage: closing.stage, endedOnOne: result.closingEndedOnOne, pipeline: result.pipelineStatus }
+  const interpretation = interpretCommandResult(input.command, result.code, result.stdout, '', ran)
   const returnCodeInterpretation = interpretation.message
   const exitNote =
     !interpretation.isError && result.code !== 0 && interpretation.message !== undefined
@@ -555,10 +558,11 @@ async function launchShell(args: {
   effectiveTimeout: number
   shouldAutoBackground: boolean
   isBackgroundRequest: boolean
+  closing: ReturnType<typeof closingTableCommand>
   owner: ReturnType<typeof processOwnerForLane>
   onProgress: (recentLines: string, allLines: string, numLines: number, numBytes: number, incomplete: boolean) => void
 }): Promise<{ shellCommand: ShellCommand; editorTerminalNote: string | undefined }> {
-  const { input, context, cwd, effectiveTimeout, shouldAutoBackground, isBackgroundRequest, owner, onProgress } = args
+  const { input, context, cwd, effectiveTimeout, shouldAutoBackground, isBackgroundRequest, closing, owner, onProgress } = args
   const verificationStart = captureVerificationStart(input.command, cwd, owner)
   let editorTerminalNote: string | undefined
   let shellCommand: ShellCommand | null = null
@@ -590,6 +594,7 @@ async function launchShell(args: {
       shouldAutoBackground,
       preventCwdChanges: context.agentId !== undefined || input.cwd !== undefined,
       ...(isBackgroundRequest ? { backgroundIntent: true } : {}),
+      ...(closing === undefined ? {} : { closing }),
       ...(input.inherit_session_env === true ? { inheritSessionEnv: true } : {}),
       owner,
       onProgress,
@@ -615,6 +620,7 @@ async function* runShellCommand(
     shouldAutoBackground,
     creations,
     launchedAt,
+    closing,
   } = shellRunPlan(input, context, cwd)
   const owner = processOwnerForLane(context.agentId ?? null)
   const isBackgroundRequest = !BACKGROUND_TASKS_DISABLED && Boolean(input.run_in_background)
@@ -670,12 +676,14 @@ async function* runShellCommand(
     effectiveTimeout,
     shouldAutoBackground,
     isBackgroundRequest,
+    closing,
     owner,
     onProgress,
   })
 
   const postNeeds: PostProcessNeeds = {
     input,
+    closing,
     creations,
     editorTerminalNote,
     agentId: context.agentId,

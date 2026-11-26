@@ -30,6 +30,7 @@ import { keyHintLabel } from '../widgets/keyHintLabel.js'
 import { settingsChangeDetector } from '../../platform/settings/changeDetector.js'
 import { getSettingsSnapshot, settingsRevision } from '../../platform/settings/snapshot.js'
 import { isManageableTask } from '../tasks/taskStatus.js'
+import { crewmateLive, useViewedCrewmate } from '../tasks/useCrewmateView.js'
 import { BASH_MODE_CHARACTER } from './inputModes.js'
 import { ExitChordNotice } from './ExitChordNotice.js'
 import { noticeBlockRows, noticeRowBlock, noticeRowDetail, noticeRowText, noticeRowWayOut } from './Notifications.js'
@@ -47,7 +48,6 @@ export function ComposerFooterLeftSide({
   mode,
   isLoading,
   hintsEnabled = true,
-  crewmateFooterIndex,
   onOpenTasksDialog,
   compact = false,
 }: {
@@ -59,7 +59,6 @@ export function ComposerFooterLeftSide({
   mode: InputMode
   isLoading: boolean
   hintsEnabled?: boolean
-  crewmateFooterIndex?: number
   onOpenTasksDialog?: () => void
   compact?: boolean
 }): React.ReactNode {
@@ -68,7 +67,7 @@ export function ComposerFooterLeftSide({
   const tasks = useAppState((s: AppState) => s.tasks)
   const footerSelection = useAppState((s: AppState) => s.footerSelection)
   const toolPermissionContext = useAppState((s: AppState) => s.toolPermissionContext)
-  const viewingCrewmateTaskId = useAppState((s: AppState) => s.viewingCrewmateTaskId)
+  const viewed = useViewedCrewmate()
   const currentNotice = useAppState((s: AppState) => s.notifications.current)
   const selection = useSelection()
   const hasPaintedSelection = useHasSelection()
@@ -195,12 +194,11 @@ export function ComposerFooterLeftSide({
   }
 
   const parts: React.ReactNode[] = []
-  const viewingCrewmate = viewingCrewmateTaskId !== undefined
-  if (!viewingCrewmate && isLoading) {
+  if (viewed === null ? isLoading : crewmateLive(viewed)) {
     if (!escapeOwned) {
       parts.push(<KeyboardShortcutHint shortcut={cancelChord} action="interrupt" />)
     }
-    if (shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false) {
+    if (viewed === null && shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false) {
       parts.push(
         <KeyboardShortcutHint
           shortcut={keyHintLabel('⇧b')}
@@ -208,7 +206,7 @@ export function ComposerFooterLeftSide({
         />,
       )
     }
-  } else if (!viewingCrewmate) {
+  } else {
     const hasRunningLocalCrewmates = Object.values(tasks).some(
       task => isCrewmateTask(task) && task.status === 'running',
     )
@@ -232,7 +230,7 @@ export function ComposerFooterLeftSide({
     }
   }
 
-  const showTasksPill = Object.values(tasks).some(isManageableTask) || viewingCrewmate
+  const showTasksPill = Object.values(tasks).some(isManageableTask)
   const primaryBits =
     (!isDefaultMode(toolPermissionContext.mode) ? 1 : 0) + (showTasksPill ? 1 : 0)
   const showPrBadge =
@@ -267,7 +265,6 @@ export function ComposerFooterLeftSide({
     noticeBlock,
     blockRows,
     prStatus,
-    viewingCrewmate,
     showPrBadge,
     showTasksPill,
     parts,
@@ -277,8 +274,6 @@ export function ComposerFooterLeftSide({
     rowHasContent,
     searchField,
     vimInsert,
-    isLoading,
-    crewmateFooterIndex,
     onOpenTasksDialog,
   })
 }

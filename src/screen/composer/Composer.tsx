@@ -220,7 +220,7 @@ function ComposerInner(props: ComposerProps): React.ReactNode {
 
   const { surfaceCovered, submitRef } = useComposerHelm({ submit, setAppState })
 
-  const { performUndo, crewmateFooterIndex } = useComposerKeybindings({
+  const { performUndo } = useComposerKeybindings({
     input, cursorOffset, pastedContents, buffer, writeDraft, setCursorOffset,
     lastSelfWriteRef, setOverlay, helpOpen, setHelpOpen,
     setExternalEditorActive, setShowCommandPalette, setShowFileOpen,
@@ -251,6 +251,7 @@ function ComposerInner(props: ComposerProps): React.ReactNode {
 
   const placeholder = useComposerPlaceholder({
     input, submitCount, viewingCrewmateName: viewedCrewmateName,
+    redirected: composerCrewmateRef.current?.pinned === true && composerCrewmateRef.current.taskId !== viewedCrewmateRef.current?.taskId,
     cockpitActive, compact: isCompact,
   })
   const banner = useCrewBanner()
@@ -314,7 +315,7 @@ function ComposerInner(props: ComposerProps): React.ReactNode {
 
   const inputBody = composerInputBody({
     isCompact, maxVisibleLines, compactBudget, mode, isLoading, input,
-    viewedCrewmateName, inputBoxRef, handleInputBoxClick,
+    inputBoxRef, handleInputBoxClick,
     handleInputTextGesture, vimEnabled, textInputProps, vimMode, setVimMode,
     inputSelectionRangeRef, ownSelection, clearOwnSelection, selectionApi,
     pushAtomic: buffer.pushAtomic, cursorOffset, pastedContents,
@@ -331,7 +332,7 @@ function ComposerInner(props: ComposerProps): React.ReactNode {
     apiKeyStatus, debug, verbose, messages, mcpClients, input, helpOpen,
     compactBudget, compactSuggestionRows, typeahead, mode, isLoading,
     exitState, isPasting, searchField, isSearchingHistory,
-    crewmateFooterIndex, setOverlay,
+    setOverlay,
   })
 }
 

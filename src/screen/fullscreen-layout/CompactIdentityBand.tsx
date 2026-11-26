@@ -8,7 +8,7 @@ import { compactBandForm } from '../widgets/geometry.js'
 import { AnimatedCritterArt } from '../widgets/AnimatedCritterArt.js'
 import { cycleSessionCritter, useSessionAccent } from '../widgets/sessionAccent.js'
 import { Wordmark } from '../widgets/assets.js'
-import { EffortChip } from '../widgets/EffortChip.js'
+import { EffortChip, RecordedEffortChip } from '../widgets/EffortChip.js'
 import { FailoverMark } from '../widgets/FailoverMark.js'
 import { GLYPH, branchChip } from '../theme/glyphs.js'
 import { SQUARE_DOCK_ART_LINES, critterDefForKey } from '../cockpit/critterData.js'
@@ -31,10 +31,9 @@ import {
   subscribeThroughFocused,
 } from '../../engine/connector/focusedConnector.js'
 import { hasSeatLive } from '../../engine/connector/seatLive.js'
-import { CrewmateCard } from './CrewmateCard.js'
-import { useViewedCrewmate } from '../tasks/useCrewmateView.js'
-import { crewStatusWords } from '../../engine/connector/crewFacts.js'
-import { COMPACT_BACK_HINT, crewmateCardKeys } from '../cockpit/crewmateWords.js'
+import { useCrewmateIdentity } from '../tasks/useCrewmateModel.js'
+import { useSetAppStateMaybe } from '../app-state/AppState.js'
+import { exitCrewmateView } from '../../crew/crewmates/crewmateView.js'
 
 const subscribeFocusedRecords = subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))
 const getFocusedTurnCount = (): number => countOperatorTurns(getFocusedSessionConnector().records())
@@ -70,9 +69,10 @@ export function CompactIdentityBand(): React.ReactNode {
   const turns = useSyncExternalStore(subscribeFocusedRecords, getFocusedTurnCount, getFocusedTurnCount)
   const inFlight = useSyncExternalStore(subscribeFocusedSeatLive, getFocusedInFlight, getFocusedInFlight)
   const landing = useSyncExternalStore(subscribeFocusedSessionConnector, getFocusedLanding, getFocusedLanding)
-  const idle = compactBandIdle(inFlight, landing)
+  const crew = useCrewmateIdentity()
+  const setAppState = useSetAppStateMaybe()
+  const idle = compactBandIdle(crew?.live ?? inFlight, landing)
   const cwd = useFocusedWorkspaceCwd()
-  const viewed = useViewedCrewmate()
   const [git, setGit] = useState<Snapshot<{ data: GitData }> | null>(null)
   useLoad(signal => {
     setGit(null)
@@ -81,15 +81,16 @@ export function CompactIdentityBand(): React.ReactNode {
   if (form === 'none') return null
   const dir = pathTailLabel(cwd)
   const branch = git?.data.git?.branchName ?? null
-  const used = ctx.usedPct
+  const used = crew === null ? ctx.usedPct : crew.contextPercent
   const ctxColor = used !== null && used >= 90 ? tok.failure : used !== null && used >= 75 ? tok.warning : tok.textSecondary
   const modelFacts = (
     <Text>
-      <Text color={tok.textSecondary}>{modelName || 'model unreported'}</Text>
-      <FailoverMark model={effectiveModel} />
-      <EffortChip model={effectiveModel} plain />
+      <Text color={tok.textSecondary}>{crew?.model ?? (modelName || 'model unreported')}</Text>
+      {crew === null ? <><FailoverMark model={effectiveModel} /><EffortChip model={effectiveModel} plain /></> : (
+        <><RecordedEffortChip effort={crew.effort} plain /><Text color={tok.textSecondary}>{crew.next}</Text></>
+      )}
       <Text color={tok.textMuted}> · ctx </Text>
-      <Text color={ctxColor}>{contextPercentLabel(used, ctx.fillSource)}</Text>
+      <Text color={ctxColor}>{contextPercentLabel(used, crew === null ? ctx.fillSource : 'usage')}</Text>
     </Text>
   )
   const placeFacts = (
@@ -105,7 +106,7 @@ export function CompactIdentityBand(): React.ReactNode {
     </Text>
   ) : null
   const identityLine = (tail: React.ReactNode) => (
-    <Box height={1} flexShrink={0} overflow="hidden" flexDirection="row">
+    <Box height={1} flexShrink={0} overflow="hidden" flexDirection="row" onClick={crew?.viewed && setAppState !== null ? () => exitCrewmateView(setAppState) : undefined}>
       <Box flexShrink={0}>
         <Text>
           <Text color={sa.accent}>{GLYPH.spark} </Text>
@@ -116,6 +117,7 @@ export function CompactIdentityBand(): React.ReactNode {
       <Box flexShrink={1} minWidth={0}>
         <Text wrap="truncate-end">
           {idle ? <Text color={tok.success}>ready</Text> : null}
+          {crew === null ? null : <Text color={tok.textSecondary}> · {crew.address}</Text>}
           {tail}
         </Text>
       </Box>
@@ -123,22 +125,6 @@ export function CompactIdentityBand(): React.ReactNode {
   )
   const rule = <Text color={tok.borderStrong}>{'─'.repeat(Math.max(0, columns))}</Text>
   if (form === 'line') {
-    if (viewed !== null) {
-      const facts = viewed.facts
-      const live = facts === null || facts.running
-      return (
-        <Box flexDirection="column" flexShrink={0}>
-          <Box height={1} flexShrink={0} overflow="hidden">
-            <Text wrap="truncate-end">
-              <Text color={viewed.pinned ? tok.warning : sa.accent} bold>{viewed.pinned ? GLYPH.star : GLYPH.circledBullet} {viewed.name}</Text>
-              {facts !== null ? <Text color={live ? tok.success : tok.textSecondary}> · {crewStatusWords(facts, Date.now())}</Text> : null}
-              <Text color={tok.textMuted}> · {crewmateCardKeys(viewed.pinned, live, COMPACT_BACK_HINT)}</Text>
-            </Text>
-          </Box>
-          {rule}
-        </Box>
-      )
-    }
     return (
       <Box flexDirection="column" flexShrink={0}>
         {identityLine(
@@ -163,29 +149,23 @@ export function CompactIdentityBand(): React.ReactNode {
         </Box>
         <Box width={2} flexShrink={0} />
         <Box flexDirection="column" flexGrow={1} minWidth={0}>
-          {viewed !== null ? (
-            <CrewmateCard crewmate={viewed} width={Math.max(12, columns - artCols - 3)} />
-          ) : (
-            <>
-              {identityLine(
+          {identityLine(
+            <Text>
+              <Text color={tok.textMuted}> · </Text>
+              {modelFacts}
+            </Text>,
+          )}
+          <Box height={1} flexShrink={0} overflow="hidden">
+            <Text wrap="truncate-end">
+              {placeFacts}
+              {turnsFacts !== null ? (
                 <Text>
                   <Text color={tok.textMuted}> · </Text>
-                  {modelFacts}
-                </Text>,
-              )}
-              <Box height={1} flexShrink={0} overflow="hidden">
-                <Text wrap="truncate-end">
-                  {placeFacts}
-                  {turnsFacts !== null ? (
-                    <Text>
-                      <Text color={tok.textMuted}> · </Text>
-                      {turnsFacts}
-                    </Text>
-                  ) : null}
+                  {turnsFacts}
                 </Text>
-              </Box>
-            </>
-          )}
+              ) : null}
+            </Text>
+          </Box>
         </Box>
       </Box>
       {rule}

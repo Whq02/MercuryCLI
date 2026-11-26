@@ -23,6 +23,7 @@ export type ExecResult = {
   code: number
   interrupted: boolean
   pipelineStatus?: number[]
+  closingEndedOnOne?: boolean
   backgroundTaskId?: string
   backgroundedByUser?: boolean
   outputFilePath?: string

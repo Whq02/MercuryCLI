@@ -20,7 +20,6 @@ export function footerClusterOf({
   noticeBlock,
   blockRows,
   prStatus,
-  viewingCrewmate,
   showPrBadge,
   showTasksPill,
   parts,
@@ -30,8 +29,6 @@ export function footerClusterOf({
   rowHasContent,
   searchField,
   vimInsert,
-  isLoading,
-  crewmateFooterIndex,
   onOpenTasksDialog,
 }: {
   tokens: ReturnType<typeof useMercuryTokens>
@@ -44,7 +41,6 @@ export function footerClusterOf({
   noticeBlock: React.ReactNode | null
   blockRows: number
   prStatus: ReturnType<typeof usePrStatus>
-  viewingCrewmate: boolean
   showPrBadge: boolean
   showTasksPill: boolean
   parts: React.ReactNode[]
@@ -54,8 +50,6 @@ export function footerClusterOf({
   rowHasContent: boolean
   searchField: React.ReactNode | undefined
   vimInsert: boolean
-  isLoading: boolean
-  crewmateFooterIndex: number | undefined
   onOpenTasksDialog: (() => void) | undefined
 }): React.ReactNode {
   const cluster = (
@@ -76,9 +70,6 @@ export function footerClusterOf({
         <Box flexShrink={0} marginRight={1}>
           <BackgroundTaskStatus
             tasksSelected={footerSelection === 'tasks'}
-            isViewingCrewmate={viewingCrewmate}
-            crewmateFooterIndex={crewmateFooterIndex}
-            isLeaderIdle={!isLoading}
             onOpenDialog={onOpenTasksDialog}
           />
         </Box>

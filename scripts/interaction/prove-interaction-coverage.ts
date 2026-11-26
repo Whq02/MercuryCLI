@@ -81,6 +81,7 @@ reg(
   [
     'src/screen/boot-face/BootSaturnScreen.tsx',
     'src/screen/boot-face/saturn/menu.tsx',
+    'src/commands/saturn/saturn.tsx',
     'src/screen/boot-face/BootAgentsScreen.tsx',
     'src/screen/boot-face/agents/rows.tsx',
     'src/screen/boot-face/BootLoginsScreen.tsx',
@@ -182,6 +183,7 @@ reg(
     'src/models/sign-in/flow-cards/MinimaxConnect.tsx',
     'src/models/sign-in/flow-cards/TogetherConnect.tsx',
     'src/commands/logins/login.tsx',
+    'src/screen/boot-face/logins/DevinCliCard.tsx',
     'src/models/sign-in/flow-cards/LoginAccountCard.tsx',
     'src/models/sign-in/flow-cards/ZaiConnect.tsx',
     'src/models/sign-in/flow-cards/DeepseekConnect.tsx',
