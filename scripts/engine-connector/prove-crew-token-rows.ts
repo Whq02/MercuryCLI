@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import stripAnsi from 'strip-ansi'
 import stringWidth from 'string-width'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
-
+import { pinRecorderTerminal } from '../lib/proofHome.ts'
 const ROW = {
   assets: ['scripts/engine-connector/fixtures/crew-tokens/*.txt'],
   generator: 'bun scripts/engine-connector/prove-crew-token-rows.ts --write',
@@ -35,6 +35,7 @@ if (registerOnlyRequested(ROW)) process.exit(0)
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const scratch = mkdtempSync(join(tmpdir(), 'crew-token-rows-'))
+pinRecorderTerminal()
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 for (const key of ['MERCURY_LIVE_GLYPHS', 'MERCURY_LIVE_CLOCK']) process.env[key] = '0'

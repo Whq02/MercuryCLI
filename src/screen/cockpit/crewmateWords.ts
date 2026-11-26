@@ -58,14 +58,6 @@ export function crewmateNextTurnWords(model: string | null, effort: string | nul
   return words.length === 0 ? '' : ` → ${words.join(' · ')} next turn`
 }
 
-export function crewmateGlobalCommandWords(command: string, name: string): string {
-  return `/${command} runs for this session, not ${name}`
-}
-
-export function crewmateUnknownCommandWords(bareName: string, name: string, literal: string): string {
-  return `Unknown command: /${bareName} — commands run for ${name} or for this session; ${literal} sends the line to the agent as text`
-}
-
 export function crewmateThinkingKeyWords(name: string, key: string): string {
   return `thinking stays as ${name} was spawned; /effort at ${name} sets its effort; ${key} is ${LEAD_ROW_NAME}'s — press it from the Lead`
 }
@@ -78,16 +70,8 @@ export function crewmateModelSwitchWords(name: string, label: string, running: b
   return running ? `${name} switches to ${label} at its next turn` : `${label} recorded for ${name}'s next resume`
 }
 
-export function crewmateModelKeptWords(name: string, label: string): string {
-  return `${name} stays on ${label}`
-}
-
 export function crewmateModelCurrentWords(name: string, label: string, next: string | null): string {
   return next === null ? `${name} runs ${label}` : `${name} runs ${label} · switches to ${next} at its next turn`
-}
-
-export function crewmateModelPickerLine(name: string, running: boolean): string {
-  return running ? `${name} — a pick switches it at its next turn` : `${name} — a pick is recorded for its next resume`
 }
 
 export function crewmateEffortSwitchWords(name: string, level: string, running: boolean): string {
@@ -96,11 +80,6 @@ export function crewmateEffortSwitchWords(name: string, level: string, running: 
 
 export function crewmateEffortClearedWords(name: string, running: boolean): string {
   return running ? `${name} runs its model's default effort from its next turn` : `${name}'s effort returns to its model's default at its next resume`
-}
-
-export function crewmateEffortCurrentWords(name: string, level: string | null, model: string, levels: readonly string[]): string {
-  const choice = levels.length > 0 ? ` — /effort ${levels.join('|')} sets it` : ''
-  return level === null ? `${name} runs ${model}'s default effort${choice}` : `${name} runs ${level} on ${model}${choice}`
 }
 
 export function crewmateEffortRefusedWords(name: string, level: string, model: string, levels: readonly string[]): string {

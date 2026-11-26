@@ -114,8 +114,7 @@ const { setFocusedSessionConnector } = await import('../../src/engine/connector/
 const { resetHelmFocusForTest } = await import('../../src/screen/cockpit/helmFocus.ts')
 const { default: instances } = await import('../../src/screen/renderer/instances.ts')
 const { call: openMainPicker } = await import('../../src/commands/model/mercuryModel.tsx')
-const { openCrewmateModelPickerFor } = await import('../../src/screen/composer/crewmateCommands.tsx')
-const { closeSettingsPopup } = await import('../../src/screen/cockpit/settingsPopup.ts')
+const { usePickerCommandContext } = await import('./pickerCommandContext.ts')
 const { activeSourceUsage } = await import('../../src/models/roads/providerUsage.ts')
 type AppState = import('../../src/screen/app-state/AppState.tsx').AppState
 type WorkRow = import('../../src/engine/connector/types.ts').WorkRowV1
@@ -160,8 +159,10 @@ const subscribeModal = (listener: () => void): (() => void) => {
   return () => { modalListeners.delete(listener) }
 }
 const transcript = Array.from({ length: 60 }, (_, index) => `${String(index).padStart(2, '0')} ${'·'.repeat(300)}`)
-function Harness(): React.ReactNode {
+function Harness({ opener }: { opener: React.RefObject<(() => Promise<void>) | null> }): React.ReactNode {
   store = useAppStateStore()
+  const pickerContext = usePickerCommandContext([])
+  opener.current = async () => setModal(await openMainPicker(() => setModal(null), pickerContext([], [], new AbortController(), 'claude-fable-5-1'), ''))
   viewed = useViewedCrewmate()
   const modal = React.useSyncExternalStore(subscribeModal, () => modalNode, () => modalNode)
   return h(KeybindingSetup, null, h(FullscreenLayout, {
@@ -203,13 +204,14 @@ for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
   const stdout = new Output(cols, rows)
   const ink = new ScreenInstance({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(cols, rows) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
-  ink.render(h(App, { initialState: { ...getDefaultAppState(), effortValue: 'high' } as AppState, getFpsMetrics: () => undefined }, h(Harness)))
+  const opener = React.createRef<() => Promise<void>>()
+  ink.render(h(App, { initialState: { ...getDefaultAppState(), effortValue: 'high' } as AppState, getFpsMetrics: () => undefined }, h(Harness, { opener })))
   const lines = (): string[] => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n')
   const save = (name: string, frame: string[]): void => {
     if (frameDir !== undefined) writeFileSync(join(frameDir, `${size}-${name}.txt`), frame.join('\n') + '\n')
   }
   await until(() => lines().some(line => line.includes('› message Mercury Lead')))
-  setModal(await openMainPicker(() => setModal(null), { messages: [] } as never, ''))
+  await opener.current!()
   const mainPainted = await until(() => pickerPainted(lines()))
   await new Promise(resolve => setTimeout(resolve, 300))
   const mainFrame = lines()
@@ -223,19 +225,19 @@ for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
   await until(() => !lines().some(line => line.includes('Mercury · model')))
   enterCrewmateView(taskId, store!.setState)
   await until(() => viewed !== null && lines().some(line => line.includes('› message atlas')))
-  await openCrewmateModelPickerFor(viewed!, { setAppState: store!.setState, receipt: () => {} })
+  await opener.current!()
   const crewPainted = await until(() => pickerPainted(lines()))
   await new Promise(resolve => setTimeout(resolve, 300))
   const crewFrame = lines()
   save('crewmate-picker', crewFrame)
   const crew = panelOf(crewFrame)
-  check(`${size}: the crewmate-view picker paints its panel over the viewed crewmate`, crewPainted && crew !== null && crewFrame.some(line => line.includes('↵ picks · esc keeps')), describe(crew), 'openCrewmateModelPickerFor in src/screen/composer/crewmateCommands.tsx must open the crewmate picker panel with the keeps footer')
+  check(`${size}: the crewmate-view picker paints its panel over the viewed crewmate`, crewPainted && crew !== null && crewFrame.some(line => line.includes('↵ switch')), describe(crew), 'the shared /model picker in src/screen/composer/crewmateCommands.tsx must open the crewmate picker panel with the keeps footer')
   check(`${size}: the crewmate-view picker's panel has the main picker's width and columns`, main !== null && crew !== null && crew.width === main.width && crew.left === main.left && crew.right === main.right, `main ${describe(main)} · crewmate ${describe(crew)}`, 'the width and position of the crewmate picker (width entry near line 148 of src/screen/composer/crewmateCommands.tsx) must match the main picker (src/screen/overlays/ModelPickerPopupSlot.tsx, MODEL_PICKER_PANEL in src/models/facts/modelPickerGroups.ts)')
   check(`${size}: the crewmate-view picker's popup hugs its panel as the main picker's does — one ground column each side, never a wide gutter`, main !== null && crew !== null && crew.gutterLeft === main.gutterLeft && crew.gutterRight === main.gutterRight, `main ${main?.gutterLeft}/${main?.gutterRight} · crewmate ${crew?.gutterLeft}/${crew?.gutterRight} blank columns beside the panel`, 'the crewmate picker popup in src/screen/composer/crewmateCommands.tsx must leave the same ground columns beside the panel as src/screen/overlays/ModelPickerPopupSlot.tsx')
   check(`${size}: both pickers frame the selected row the same way (the product's own band, not an annotation)`, main !== null && crew !== null && main.selectedFramed === crew.selectedFramed, `main ${main?.selectedFramed ? 'framed' : 'unframed'} · crewmate ${crew?.selectedFramed ? 'framed' : 'unframed'}`, 'the crewmate picker (src/screen/composer/crewmateCommands.tsx) must frame the selected row the way src/commands/model/picker/MercuryModelPicker.tsx does')
   console.log(`  ${size} main picker:     ${describe(main)}`)
   console.log(`  ${size} crewmate picker: ${describe(crew)}`)
-  closeSettingsPopup()
+  setModal(null)
   ink.unmount()
   await ink.waitUntilExit()
   instances.delete(stdout as never)
