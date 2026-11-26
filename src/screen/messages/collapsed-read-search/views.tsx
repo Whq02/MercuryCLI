@@ -151,14 +151,15 @@ export function collapsedGroupView({ selectedBg, active, anyErrored, anyDenied, 
   return (
     <Box flexDirection="column" backgroundColor={selectedBg}>
       <Box>
-        {}
+        <Box flexShrink={0}>
+          <ToolRowLead
+            state={toolRowStateOf({ resolved: !active, errored: anyErrored, denied: anyDenied })}
+          />
+        </Box>
         <Box flexShrink={0}>
           <TranscriptNameplate />
         </Box>
         <Text wrap="truncate-end">
-          <ToolRowLead
-            state={toolRowStateOf({ resolved: !active, errored: anyErrored, denied: anyDenied })}
-          />
           <Text color={active ? undefined : 'subtle'}>
             {sentence}
             {active ? '…' : ''}
@@ -168,26 +169,36 @@ export function collapsedGroupView({ selectedBg, active, anyErrored, anyDenied, 
         </Text>
       </Box>
       {active && hint !== null ? (
-        <MessageResponse>
-          <Text dimColor wrap="wrap">
-            {hint}
-          </Text>
-        </MessageResponse>
+        <Box paddingLeft={2}>
+          <MessageResponse>
+            <Text dimColor wrap="wrap">
+              {hint}
+            </Text>
+          </MessageResponse>
+        </Box>
       ) : null}
       {memberEntries
         .filter(entry => lookups.deniedToolUseIDs.has(entry.id))
         .map(entry => (
-          <MessageResponse key={entry.id}>
-            <Text dimColor wrap="wrap">
-              {denialLineOf(memberResultText(lookups, entry.id))}
-            </Text>
-          </MessageResponse>
+          <Box key={entry.id} paddingLeft={2}>
+            <MessageResponse>
+              <Text dimColor wrap="wrap">
+                {denialLineOf(memberResultText(lookups, entry.id))}
+              </Text>
+            </MessageResponse>
+          </Box>
         ))}
-      {shellId !== null ? <RunningShellBackgroundHint id={shellId} /> : null}
+      {shellId !== null ? (
+        <Box paddingLeft={2}>
+          <RunningShellBackgroundHint id={shellId} />
+        </Box>
+      ) : null}
       {movedByOperator ? (
-        <MessageResponse height={1}>
-          <Text dimColor>{BACKGROUND_MOVED_WORDS}</Text>
-        </MessageResponse>
+        <Box paddingLeft={2}>
+          <MessageResponse height={1}>
+            <Text dimColor>{BACKGROUND_MOVED_WORDS}</Text>
+          </MessageResponse>
+        </Box>
       ) : null}
     </Box>
   )

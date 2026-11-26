@@ -71,7 +71,7 @@ function cellsOf(ansiRow: string): Cell[] {
 
 const TOOL_ID = 'toolu_lead_01'
 const STAMP = '2026-10-06T07:00:00.000Z'
-const PLATE_RE = /^\d\d:\d\d:\d\d \[Mercury\] /
+const PLATE_RE = /^(?:  |✕ )\d\d:\d\d:\d\d \[Mercury\] /
 const STATE_GLYPHS = [GLYPH.done, GLYPH.inProgress, GLYPH.read, GLYPH.warn, '◓', '◑', '◒', GLYPH.spark]
 
 type RowState = 'queued' | 'running' | 'done' | 'error' | 'denied'
@@ -152,7 +152,7 @@ const representative: ReadonlyArray<readonly [string, string]> = [
   ['system', 'AskUserQuestion'],
   ['external', 'Blender'],
 ]
-section('§1 one row per family in every state: two-cell lead keeps one column; ✕ in failure tone leads error/denied')
+section('§1 one row per family in every state: two-cell left lead keeps one column; single space between nameplate, tool name and target')
 const nameColumns = new Set<number>()
 for (const [family, name] of representative) {
   for (const state of STATES) {
@@ -160,18 +160,18 @@ for (const [family, name] of representative) {
     const rowIndex = text.findIndex(row => row.includes(name))
     const row = text[rowIndex] ?? ''
     const tag = `${family}/${name} ${state}`
-    check(`${tag}: the row paints under the nameplate`, rowIndex >= 0 && PLATE_RE.test(row), JSON.stringify(row))
+    check(`${tag}: the row paints with the two-cell left lead and nameplate`, rowIndex >= 0 && PLATE_RE.test(row), JSON.stringify(row))
     const body = row.replace(PLATE_RE, '')
     check(`${tag}: no state dot or ring on the row`, !STATE_GLYPHS.some(glyph => row.includes(glyph)), JSON.stringify(row))
+    check(`${tag}: single space separates nameplate, tool name and target`, body === `${name} the target`, JSON.stringify(body))
     nameColumns.add(row.indexOf(name))
-    const plateWidth = (PLATE_RE.exec(row)?.[0] ?? '').length
     const cells = cellsOf(ansi[rowIndex] ?? '').filter(cell => cell.ch !== '\x1b')
     if (state === 'denied' || state === 'error') {
-      check(`${tag}: the lead in column one of the row body is ${GLYPH.fail}`, body.startsWith(`${GLYPH.fail} ${name}`), JSON.stringify(body))
-      const lead = cells[plateWidth]
+      check(`${tag}: column one of the row is ${GLYPH.fail} followed by one space`, row.startsWith(`${GLYPH.fail} `), JSON.stringify(row))
+      const lead = cells[0]
       check(`${tag}: the lead wears the failure tone`, lead !== undefined && lead.fg === tokens.failure, `${JSON.stringify(lead)} want ${tokens.failure}`)
     } else {
-      check(`${tag}: the two-cell blank lead precedes the tool name`, body.startsWith(`  ${name}`), JSON.stringify(body))
+      check(`${tag}: the two-cell blank lead precedes the nameplate`, row.startsWith('  '), JSON.stringify(row))
     }
   }
 }
@@ -232,11 +232,11 @@ section('§2 a mixed turn: group, read, edit, agent rows align; the notice row k
   const agentRow = rows.find(row => /\bCrewmate\b/.test(row) && !row.includes('completed')) ?? ''
   const noticeRow = rows.find(row => row.includes('completed')) ?? ''
   const bodyOf = (row: string): string => row.replace(PLATE_RE, '')
-  check('the group row has a two-cell blank lead before its sentence', bodyOf(groupRow).startsWith('  Searched for'), JSON.stringify(groupRow))
-  check('the read row has a two-cell blank lead before Read', bodyOf(readRow).startsWith('  Read'), JSON.stringify(readRow))
-  check('the edit row has a two-cell blank lead before Edit', bodyOf(editRow).startsWith('  Edit'), JSON.stringify(editRow))
-  check('the running agent row has a two-cell blank lead before Crewmate', bodyOf(agentRow).startsWith('  Crewmate'), JSON.stringify(agentRow))
-  const columns = new Set([groupRow, readRow, editRow, agentRow].map(row => (PLATE_RE.exec(row)?.[0] ?? '').length + 2))
+  check('the group row has one space after the nameplate before its sentence', groupRow.startsWith('  ') && bodyOf(groupRow).startsWith('Searched for'), JSON.stringify(groupRow))
+  check('the read row has one space after the nameplate and after Read', readRow.startsWith('  ') && bodyOf(readRow) === 'Read the target', JSON.stringify(readRow))
+  check('the edit row has one space after the nameplate and after Edit', editRow.startsWith('  ') && bodyOf(editRow) === 'Edit the target', JSON.stringify(editRow))
+  check('the running agent row has one space after the nameplate and after Crewmate', agentRow.startsWith('  ') && bodyOf(agentRow) === 'Crewmate the target', JSON.stringify(agentRow))
+  const columns = new Set([groupRow, readRow, editRow, agentRow].map(row => (PLATE_RE.exec(row)?.[0] ?? '').length))
   const wordColumns = new Set([groupRow.indexOf('Searched'), readRow.indexOf('Read'), editRow.indexOf('Edit'), agentRow.indexOf('Crewmate')])
   check('the words of every tool row start at one column (the alignment law)', columns.size === 1 && wordColumns.size === 1 && [...wordColumns][0] === [...columns][0], `${[...wordColumns].join(',')} want ${[...columns].join(',')}`)
   check('no tool row of the turn carries a state dot or ring', [groupRow, readRow, editRow, agentRow].every(row => !STATE_GLYPHS.some(glyph => row.includes(glyph))), JSON.stringify([groupRow, readRow, editRow, agentRow]))
@@ -286,17 +286,16 @@ section('§3 the collapsed group in its states: the lead follows the sentence an
     const { ansi, text } = await renderRows(node)
     const index = text.findIndex(row => /Read(?:ing)? /.test(row))
     const row = text[index] ?? ''
-    const plateWidth = (PLATE_RE.exec(row)?.[0] ?? '').length
-    return { row, body: row.replace(PLATE_RE, ''), lead: cellsOf(ansi[index] ?? '')[plateWidth] }
+    return { row, body: row.replace(PLATE_RE, ''), lead: cellsOf(ansi[index] ?? '')[0] }
   }
   const running = await renderGroup('running')
-  check('a running group has a two-cell blank lead before the present-tense sentence', running.body.startsWith('  Reading '), JSON.stringify(running))
+  check('a running group has a two-cell blank lead before the nameplate and one space before the sentence', running.row.startsWith('  ') && running.body.startsWith('Reading '), JSON.stringify(running))
   const done = await renderGroup('done')
-  check('a settled group has a two-cell blank lead before the past-tense sentence', done.body.startsWith('  Read '), JSON.stringify(done))
+  check('a settled group has a two-cell blank lead before the nameplate and one space before the sentence', done.row.startsWith('  ') && done.body.startsWith('Read '), JSON.stringify(done))
   const errored = await renderGroup('error')
-  check('a group with an errored member leads with ✕ in the failure tone', errored.body.startsWith(`${GLYPH.fail} Read `) && errored.lead?.fg === tokens.failure, JSON.stringify(errored))
+  check('a group with an errored member leads with ✕ in column one in the failure tone', errored.row.startsWith(`${GLYPH.fail} `) && errored.body.startsWith('Read ') && errored.lead?.fg === tokens.failure, JSON.stringify(errored))
   const denied = await renderGroup('denied')
-  check('a group with a denied member leads with ✕ in the failure tone', denied.body.startsWith(`${GLYPH.fail} Read `) && denied.lead?.fg === tokens.failure, JSON.stringify(denied))
+  check('a group with a denied member leads with ✕ in column one in the failure tone', denied.row.startsWith(`${GLYPH.fail} `) && denied.body.startsWith('Read ') && denied.lead?.fg === tokens.failure, JSON.stringify(denied))
   check('no group row carries a state dot or ring', [running, done, errored, denied].every(r => !STATE_GLYPHS.some(glyph => r.row.includes(glyph))))
 }
 
