@@ -85,11 +85,7 @@ const olderFactCache = new Map<
 >()
 const OLDER_FACT_CACHE_CAP = 2048
 
-function readTitleAndLastUsed(
-  rec: { sessionId: string; workspaceId: string },
-  file: string,
-  size: number,
-): { title: string | null; lastUsedMs: number | null } {
+function readTitleAndTail(rec: { sessionId: string; workspaceId: string }): { title: string | null; tailRaw: string | undefined } {
   let custom: string | undefined
   let tailRaw: string | undefined
   try {
@@ -110,6 +106,15 @@ function readTitleAndLastUsed(
     brief === null && custom === undefined
       ? null
       : sanitizeLabel(sessionTitleOf({ title: custom, workspaceId: rec.workspaceId }, () => brief))
+  return { title, tailRaw }
+}
+
+function readTitleAndLastUsed(
+  rec: { sessionId: string; workspaceId: string },
+  file: string,
+  size: number,
+): { title: string | null; lastUsedMs: number | null } {
+  const { title, tailRaw } = readTitleAndTail(rec)
   let lastUsedMs = tailRaw !== undefined ? lastConversationActivityMs(tailRaw) : null
   if (lastUsedMs === null && (size > LITE_READ_BUF_SIZE || historyHead(file).before > 0)) {
     lastUsedMs = scanLastConversationActivityMsSync(file)
@@ -118,22 +123,7 @@ function readTitleAndLastUsed(
 }
 
 export function transcriptTitleOf(rec: { sessionId: string; workspaceId: string }): string | null {
-  let custom: string | undefined
-  try {
-    for (const from of ['tail', 'head'] as const) {
-      const raw = transcriptWindowLines(rec, LITE_READ_BUF_SIZE, from)?.join('\n')
-      const hit = raw !== undefined ? extractLastJsonStringField(raw, 'customTitle')?.trim() : undefined
-      if (hit !== undefined && hit.length > 0) {
-        custom = hit
-        break
-      }
-    }
-  } catch (error) {
-    passedOver(error)
-  }
-  const brief = headBriefLabel(rec, 48, { promptsOnly: true })
-  if (brief === null && custom === undefined) return null
-  return sanitizeLabel(sessionTitleOf({ title: custom, workspaceId: rec.workspaceId }, () => brief))
+  return readTitleAndTail(rec).title
 }
 
 function olderFactOf(

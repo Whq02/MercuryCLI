@@ -53,7 +53,7 @@ const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.ts')
 const paths = await import('../../src/sessions/transcripts/paths.ts')
-const { lastConversationActivityMs } = await import('../../src/sessions/transcripts/sessionIndex.ts')
+const { lastConversationActivityMs, readSessionLastUsedMsCachedSync } = await import('../../src/sessions/transcripts/sessionIndex.ts')
 const { listProjectSessions, listRepoSessions, listSessions, sessionAtIndex, invalidateSessionListingMemo } = await import('../../src/sessions/transcripts/sessionListings.ts')
 const { readListedSessions } = await import('../../src/sessions/transcripts/listedSessions.ts')
 const { resumableNewestFirst, projectSessionPickerRows } = await import('../../src/screen/widgets/faces/sessionPickerModel.ts')
@@ -418,6 +418,49 @@ try {
       utimesSync(f, d, d)
     }
     check('§3 lastConversationActivityMs parses occurredAt from real records and returns null for metadata-only tails', lastConversationActivityMs(readFileSync(fPr, 'utf8')) === base - 29_000 && lastConversationActivityMs(readFileSync(fFallback, 'utf8')) === null)
+
+    const futSt = statSync(fFuture)
+    const futBefore = readSessionLastUsedMsCachedSync(fFuture, futSt.mtimeMs, futSt.size, undefined, Date.now())
+    const futAfter = readSessionLastUsedMsCachedSync(fFuture, futSt.mtimeMs, futSt.size, undefined, futureAt + 2_000)
+    check('§3 future-clock null in lastUsedCache recovers once nowMs passes occurredAt (never pinned forever)', futBefore === null && futAfter === futureAt + 1_000, `before=${String(futBefore)} after=${String(futAfter)}`)
+
+    const fHuge = join(SCRATCH, 'huge-no-tail-turn.jsonl')
+    const hugeHeader = encodeSeedTranscript(
+      [
+        makeRow(sid('99'), base - 10_000, { type: 'user', message: { role: 'user', content: 'early turn' } }),
+      ] as Parameters<typeof encodeSeedTranscript>[0],
+      sid('99'),
+    )
+    const bigAttachmentLine = encodeSeedTranscript(
+      [
+        makeRow(sid('99'), base - 5_000, { type: 'attachment', attachment: { type: 'file', body: 'z'.repeat(120_000) } }),
+      ] as Parameters<typeof encodeSeedTranscript>[0],
+      sid('99'),
+    ).split('\n').filter(Boolean).pop()! + '\n'
+    writeFileSync(fHuge, hugeHeader + bigAttachmentLine.repeat(30))
+    const hugeSt = statSync(fHuge)
+    let hugeBytes1 = 0
+    let hugeBytes2 = 0
+    let activePass = 1
+    setTranscriptReaderIoForTesting({
+      ...nodeTranscriptReaderIo,
+      readRangeSync(path, start, end) {
+        const buf = nodeTranscriptReaderIo.readRangeSync(path, start, end)
+        if (path === fHuge) {
+          if (activePass === 1) hugeBytes1 += buf.length
+          else hugeBytes2 += buf.length
+        }
+        return buf
+      },
+    })
+    try {
+      const res1 = readSessionLastUsedMsCachedSync(fHuge, hugeSt.mtimeMs, hugeSt.size)
+      activePass = 2
+      const res2 = readSessionLastUsedMsCachedSync(fHuge, hugeSt.mtimeMs, hugeSt.size)
+      check('§3 backward scan caps bytes read (<= 2.5 MiB on a 3.6 MiB file), falls back to null, and does not cache budget-hit null as final', res1 === null && res2 === null && hugeBytes1 <= 2_600_000 && hugeBytes2 > 0, `fileBytes=${hugeSt.size} pass1Bytes=${hugeBytes1} pass2Bytes=${hugeBytes2} res1=${String(res1)}`)
+    } finally {
+      setTranscriptReaderIoForTesting(nodeTranscriptReaderIo)
+    }
     const readFiles = new Set<string>()
     let readCount = 0
     setTranscriptReaderIoForTesting({
