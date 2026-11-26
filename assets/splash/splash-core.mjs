@@ -848,6 +848,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   const cRows = []
   const cRowEntry = []
   let selLine = 0
+  let selEnd = 0
   let lastGroup = null
   m.entries.forEach((r2, i) => {
     if (r2.group !== lastGroup) {
@@ -889,6 +890,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
       cRowEntry.push(-1)
       cRows.push(' ' + paint(AMBERC) + '▲ ' + r2.warn + R)
     }
+    if (sel) selEnd = cRows.length - 1
   })
   const wordH = rasterHard(WORD).lines.length
   const headH = withHead ? 1 + rasterHard(HEADSTD).lines.length : 0
@@ -898,7 +900,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   if (cRows.length > leftInteriorBudget) {
     let start = 0
     let end = leftInteriorBudget - 1
-    if (selLine < end) {
+    if (selEnd < leftInteriorBudget - 1) {
       start = 0
       end = leftInteriorBudget - 1
     } else if (selLine >= cRows.length - (leftInteriorBudget - 1)) {
@@ -906,13 +908,10 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
       start = cRows.length - (leftInteriorBudget - 1)
     } else {
       const visRows = leftInteriorBudget - 2
-      start = Math.max(1, Math.min(selLine - (visRows >> 1), cRows.length - visRows - 1))
+      const lo = Math.max(1, selEnd - visRows + 1)
+      const hi = Math.min(selLine, cRows.length - visRows - 1)
+      start = Math.max(lo, Math.min(selLine - (visRows >> 1), hi))
       end = start + visRows
-    }
-    if (m.fitLabels && selLine + 1 < cRows.length && cRowEntry[selLine + 1] === -1 && selLine + 1 >= end) {
-      const visRows = start === 0 ? leftInteriorBudget - 2 : end - start
-      start = Math.min(cRows.length - visRows, start + 1)
-      end = Math.min(cRows.length, start + visRows)
     }
     cShown = [
       ...(start > 0 ? [' ' + faint + `… ${start} more above` + R] : []),
