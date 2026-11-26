@@ -512,9 +512,20 @@ const GENERAL_TIPS: Tip[] = [
   },
 ]
 
-const INTERNAL_TIPS: Tip[] = []
+const INTERNAL_TIPS: Tip[] = [
+  {
+    id: 'rails-tab',
+    cooldownSessions: 12,
+    async content() {
+      return 'On an empty prompt, Tab focuses the side rails — ↑↓ picks a row, ↵ opens it, esc returns.'
+    },
+    async isRelevant() {
+      return getInitialSettings().view?.zen !== true
+    },
+  },
+]
 
-const ALL_TIPS: Tip[] = [...GENERAL_TIPS, ...INTERNAL_TIPS]
+const ALL_TIPS: Tip[] = [...GENERAL_TIPS.slice(0, -2), ...INTERNAL_TIPS, ...GENERAL_TIPS.slice(-2)]
 
 function customTipsFromSettings(): { tips: Tip[]; excludeDefault: boolean } {
   const words = getInitialSettings().activity?.tips?.words
