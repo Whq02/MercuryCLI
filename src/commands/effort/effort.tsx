@@ -31,6 +31,7 @@ import { renderModelName } from '../../models/catalogue/engineModel.js'
 import { updateSettingsForSource } from '../../platform/settings/settings.js'
 import { CommandPopupLease } from '../../screen/overlays/CommandPopupSlot.js'
 import { claimCommandPopup } from '../../screen/cockpit/commandPopup.js'
+import { PickerSeatScope } from '../../screen/composer/crewmateCommands.js'
 import { EffortPopup, effortPopupShape } from './EffortPopup.js'
 
 const OPTION_LIST = `${EFFORT_LEVELS.join('|')}|auto`
@@ -299,7 +300,7 @@ export async function call(
   if (lower === 'status' || lower === 'current' || (seat !== undefined && COMMON_INFO_ARGS.includes(lower)) || (trimmed === '' && context.options.isNonInteractiveSession)) {
     const focused = getFocusedSessionConnector()
     if (seat !== undefined) {
-      onDone(showSeatEffort(seat.effort, undefined, seat.model))
+      onDone(seat.effortStatus)
     } else if (focused.carrier === 'daemon') {
       const facts = focused.modelFacts()
       onDone(showSeatEffort(facts.effort, facts.effortSent, facts.effective))
@@ -314,11 +315,13 @@ export async function call(
     const token = claimCommandPopup(effortPopupShape(popupModel, seat === undefined))
     return (
       <CommandPopupLease token={token}>
-        <EffortPopup seat={seat} apply={async value => {
-          if (seat !== undefined) return seat.setEffort(String(value)).catch(errorMessage)
-          const receipt = await settleEffortResult(executeEffort(String(value), model), context)
-          return receiptOnStatusRow(receipt) || receiptInChat(receipt, String(value)) ? '' : receipt.text
-        }} onDone={message => message === '' ? onDone(undefined, { display: 'skip' }) : onDone(message)} />
+        <PickerSeatScope seat={seat} onDone={onDone}>
+          <EffortPopup seat={seat} apply={async value => {
+            if (seat !== undefined) return seat.setEffort(String(value)).catch(errorMessage)
+            const receipt = await settleEffortResult(executeEffort(String(value), model), context)
+            return receiptOnStatusRow(receipt) || receiptInChat(receipt, String(value)) ? '' : receipt.text
+          }} onDone={message => message === '' ? onDone(undefined, { display: 'skip' }) : onDone(message)} />
+        </PickerSeatScope>
       </CommandPopupLease>
     )
   }

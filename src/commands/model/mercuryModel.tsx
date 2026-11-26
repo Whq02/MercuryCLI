@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { CrewmatePickerSeat } from '../../screen/composer/crewmateCommands.js'
+import { PickerSeatScope, type CrewmatePickerSeat } from '../../screen/composer/crewmateCommands.js'
 import { errorMessage } from '../../platform/errors/errors.js'
 import { hostEndpointChoice, hostRunModelRows } from '../../models/hosting/door.js'
 import type { CommandResultDisplay } from '../catalogue/commands.js'
@@ -387,9 +387,11 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
   claimModelPickerPopup()
   return (
     <ModelPickerPopupLease>
-      <MercuryModelLandingGate>
-        <MercuryModelWrapper seat={seat} messages={context.messages ?? []} onDone={onDone} {...(ask !== undefined ? { ask } : {})} />
-      </MercuryModelLandingGate>
+      <PickerSeatScope seat={seat} onDone={onDone}>
+        <MercuryModelLandingGate>
+          <MercuryModelWrapper seat={seat} messages={context.messages ?? []} onDone={onDone} {...(ask !== undefined ? { ask } : {})} />
+        </MercuryModelLandingGate>
+      </PickerSeatScope>
     </ModelPickerPopupLease>
   )
 }

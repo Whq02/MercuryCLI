@@ -458,6 +458,8 @@ section('§1 a running hosted crewmate in the view: the per-agent commands act o
   check("(b) the user's saved effort and the main seat's effort value did not move", JSON.stringify(getInitialSettings().engine ?? {}) === settingsBefore && scene.state().effortValue === effortBefore, `${JSON.stringify(getInitialSettings().engine)} · ${String(scene.state().effortValue)}`)
   mainSeatUntouched(scene, '(b)', submitsBefore)
 
+  const statusOpened = await command(scene, '/effort status', () => screenWords(scene).includes('Effort is high on Fable 5.1'))
+  check('the status distinguishes the reported turn from the recorded next effort', statusOpened && screenWords(scene).includes('next turn: Haiku 5.5 · low') && !screenWords(scene).includes('has not sent a request'), screenWords(scene).slice(-420))
   const effortOpened = await command(scene, '/effort', () => screenWords(scene).includes('Mercury · effort'))
   save('01-effort-picker-at-atlas', scene.lines())
   check('(b) /effort shows the main popup and the selected model and recorded effort', effortOpened && screenWords(scene).includes('Haiku 5.5') && screenWords(scene).includes('next turn low') && scene.lines().some(line => line.includes('low') && line.includes('current')) && screenWords(scene).includes('↵ apply'), screenWords(scene).slice(-800))
@@ -529,6 +531,18 @@ section('§1 a running hosted crewmate in the view: the per-agent commands act o
   scene.push(ENTER)
   await sleep(500)
   check("(k4) …and changes nothing: the main seat's thinking is as it was, no toggle card opened", scene.state().thinkingEnabled === thinkingBefore && !/Thinking (on|off)/.test(screenWords(scene)), `thinkingEnabled ${String(thinkingBefore)} → ${String(scene.state().thinkingEnabled)}`)
+  for (const name of ['effort', 'model']) {
+    const atlas = JSON.stringify(readRecord(hostedRecord(ATLAS.id)))
+    const cedar = JSON.stringify(readRecord(hostedRecord(CEDAR.id)))
+    const visible = () => screenWords(scene).includes(`Mercury · ${name}`)
+    const opened = await command(scene, `/${name}`, visible)
+    await view(scene, CEDAR.id, 'CEDAR-ROW')
+    const closed = await until(() => !visible(), 4000)
+    scene.push(ENTER)
+    await sleep(200)
+    check(`a ${name} picker cannot commit to a seat that is no longer viewed`, opened && closed && JSON.stringify(readRecord(hostedRecord(ATLAS.id))) === atlas && JSON.stringify(readRecord(hostedRecord(CEDAR.id))) === cedar, `open: ${opened}; closed: ${closed}; viewing: ${scene.state().viewingCrewmateTaskId}`)
+    await view(scene, ATLAS.id, 'ATLAS-ROW')
+  }
   await leave(scene)
 }
 

@@ -1,9 +1,12 @@
+import type { ReactNode } from 'react'
+import type { LocalJSXCommandOnDone } from '../../commands/catalogue/command.js'
+import { useClaim } from '../effects/effects.js'
 import { readFile } from 'node:fs/promises'
 import type { Command } from '../../commands/catalogue/commands.js'
 import { getCommandName } from '../../commands/catalogue/commands.js'
 import type { Notification } from '../notifications/notifications.js'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
-import type { AppState } from '../app-state/AppState.js'
+import { useAppStateMaybeOutsideOfProvider, type AppState } from '../app-state/AppState.js'
 import { publishAtomic } from '../../platform/substrate/fileStore.js'
 import { isCrewmateTask, requestCrewmateFold } from '../../engine/tasks/local-agent/crewmateTask.js'
 import { MERCURY_CREW_AGENT_TYPE } from '../../tools/kit/names/crewmate.js'
@@ -196,16 +199,24 @@ async function seatOf(crewmate: CrewmateInView, command: string): Promise<Crewma
   return { crewmate, name: crewmate.name, running: crewmateRuns(crewmate), file, meta, model }
 }
 
+const pickerAddress = (s: AppState): string | undefined => s.viewingCrewmateTaskId ?? s.mainChatTaskId
+
 export async function crewmatePickerSeat(state: AppState, command: 'model' | 'effort') {
-  const id = state.viewingCrewmateTaskId ?? state.mainChatTaskId
+  const id = pickerAddress(state)
   if (id === undefined) return undefined
   const connector = getFocusedSessionConnector()
   const crew = crewmateInView(id, state, connector.workRoster().rows, connector.sessionId(), state.crewLedger[id]?.facts)
   if (crew === null) throw new Error(crewmateCommandUnreachableWords(id, command))
   const seat = await seatOf(crew, command)
+  const reported = crew.facts?.effort ?? seat.meta?.effort ?? null
+  const effort = seat.meta?.effortOverride ?? seat.meta?.effort ?? reported
+  const serving = runningModelOf(crew)
+  const next = `${renderModelName(seat.model)} · ${effort ?? 'default effort'}`
   return {
-    model: seat.model,
-    effort: seat.meta?.effortOverride ?? seat.meta?.effort ?? crew.facts?.effort ?? null,
+    id, model: seat.model, effort,
+    effortStatus: seat.running
+      ? `Effort is ${reported ?? 'unreported'}${serving === null ? '' : ` on ${renderModelName(serving)}`}${effort !== reported || seat.model !== serving ? ` · next turn: ${next}` : ''}`
+      : `Next resume: ${next}`,
     contextPercent: contextPercentOf(crew, seat.model),
     modelStatus: () => {
       const running = runningModelOf(crew)
@@ -222,6 +233,14 @@ export async function crewmatePickerSeat(state: AppState, command: 'model' | 'ef
 }
 
 export type CrewmatePickerSeat = NonNullable<Awaited<ReturnType<typeof crewmatePickerSeat>>>
+
+export function PickerSeatScope({ seat, onDone, children }: { seat?: CrewmatePickerSeat; onDone: LocalJSXCommandOnDone; children: ReactNode }): ReactNode {
+  const current = useAppStateMaybeOutsideOfProvider(pickerAddress) === seat?.id
+  useClaim(() => {
+    if (!current) onDone(undefined, { display: 'skip' })
+  }, [current, onDone])
+  return current ? children : null
+}
 
 export async function runCrewmateCommand(command: Command, line: string, crewmate: CrewmateInView, io: CrewmateCommandIo): Promise<void> {
   const name = getCommandName(command)
