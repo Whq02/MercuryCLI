@@ -343,8 +343,8 @@ export function BootSettingsScreen({
 
   const changed = useMemo(() => STARTUP_MENU.filter(r => saved[r.env] !== undefined).length, [saved]);
   const menuM = useMemo(() => {
-    return settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot, concourseLive, dirTail, effectiveByEnv, isBackgroundLaunchRow, isJevRow, isMotionRow, isSeatsRow, jevDetailLines, jevSettings, lastReceipt, list, liveCount, mainModel, menuRows, motionSetting, plainWorld, profile, profileReadError, saved, seatFacts, wordGlow });
-  }, [saved, effectiveByEnv, seatFacts, motionSetting, jevSettings, jevDetailLines, backgroundLaunchOn, list.selectedIndex, list.note, lastReceipt, changed, liveCount, apply, mainModel, dirTail, profile, profileReadError, concourseLive, plainWorld, chatBoot, wordGlow?.peakCell, wordGlow?.gainLevel]);
+    return settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot, concourseLive, dirTail, effectiveByEnv, isBackgroundLaunchRow, isJevRow, isMotionRow, isSeatsRow, jevDetailLines, jevSettings, lastReceipt, list, liveCount, mainModel, menuRows, motionSetting, plainWorld, profileReadError, saved, seatFacts, wordGlow });
+  }, [saved, effectiveByEnv, seatFacts, motionSetting, jevSettings, jevDetailLines, backgroundLaunchOn, list.selectedIndex, list.note, lastReceipt, changed, liveCount, apply, mainModel, dirTail, profileReadError, concourseLive, plainWorld, chatBoot, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useBootComposition(core, columns, rows, menuM);
 

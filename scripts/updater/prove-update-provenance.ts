@@ -218,7 +218,7 @@ const writeStub = (name: string, body: string): void => {
 const stubMercury = (version: string): void => writeStub('mercury', IS_WIN ? `echo ${version}\r\n` : `echo "${version}"\n`)
 writeStub('brew', IS_WIN ? 'exit /b 0\r\n' : 'exit 0\n')
 writeStub('npm', IS_WIN ? 'exit /b 0\r\n' : 'exit 0\n')
-const installerDaemonLast = (to: string): string => `background daemon: none running — the next session starts one on v${to}`
+const installerDaemonLast = (to: string): string => `background daemon: none running in this home — the next session here starts one on v${to}`
 const openWindowsLine = 'any Mercury window still open keeps working on the version it started with until it is closed and opened again'
 const endsLikeEveryRoad = (label: string, bundle: string, installerName: string, command: string): void => {
   rmSync(versionsDir, { recursive: true, force: true })
@@ -274,7 +274,7 @@ const seedForUpdate = (): string => {
   check('(a) the stable command first on PATH: the update lands', r.code === 0 && r.stdout.includes(`updated: ${V_OLD} → ${V_NEW}`) && pointer() === V_NEW && existsSync(shim), r.all.slice(0, 500))
   check('(a) and nothing is said about the `mercury` the shell runs', !r.stdout.includes('your shell runs') && !r.stdout.includes('is on your PATH'), r.stdout)
 }
-const daemonLast = `background daemon: none running — the next session starts one on v${V_NEW}`
+const daemonLast = `background daemon: none running in this home — the next session here starts one on v${V_NEW}`
 {
   const bundle = seedForUpdate()
   const r = run(bundle, ['update', '--allow-unsigned'], env(pathOf(otherBin, binDir)))

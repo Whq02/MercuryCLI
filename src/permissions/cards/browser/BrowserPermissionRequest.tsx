@@ -137,7 +137,7 @@ export function BrowserPermissionRequest({
         )}
         {scopeLines.length > 0 ? (
           scopeLines.map((line, i) => <Text key={i}>{line}</Text>)
-        ) : (
+        ) : reason?.type === 'safetyCheck' && !(emulationAct && ruleContent !== null) ? null : (
           <Text dimColor>{toolUseConfirm.description}</Text>
         )}
         <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />

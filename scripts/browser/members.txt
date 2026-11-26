@@ -1,5 +1,6 @@
 prove-browser-allowance.ts
 prove-browser-approval-words.ts
+prove-browser-attach-card.ts
 prove-browser-attach-coord-cross-origin-frame.ts
 prove-browser-attach-covered.ts
 prove-browser-attach-cross-origin-frame-url.ts
@@ -9,6 +10,7 @@ prove-browser-attach.ts
 prove-browser-auth-boundary.ts
 prove-browser-birth-truth.ts
 prove-browser-bounds.ts
+prove-browser-click-enclosing.ts
 prove-browser-close-finish.ts
 prove-browser-crash.ts
 prove-browser-download-paths.ts
@@ -20,6 +22,7 @@ prove-browser-emulation-card.ts
 prove-browser-emulation-consent.ts
 prove-browser-emulation.ts
 prove-browser-error-remedies.ts
+prove-browser-extract-shadow.ts
 prove-browser-first-navigation.ts
 prove-browser-first-request-order.ts
 prove-browser-first-requests.ts
@@ -41,6 +44,7 @@ prove-browser-popups.ts
 prove-browser-prepared-once.ts
 prove-browser-proof-teardown.ts
 prove-browser-provision.ts
+prove-browser-redirect-note.ts
 prove-browser-relaunch.ts
 prove-browser-runner-end.ts
 prove-browser-screenshot-geometry.ts

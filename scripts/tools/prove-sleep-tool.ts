@@ -137,6 +137,81 @@ console.log('\n— new input for the active turn ends the wait at once —')
   const aborted = (await SleepTool.call({ seconds: 30 }, rig(abortStill))) as SleepResult
   check('the abort road is unchanged, byte for byte', JSON.stringify(aborted.data) === '{"message":"Sleep interrupted after 0s","slept_seconds":0,"interrupted":true}', `${JSON.stringify(aborted.data)} — the abort path of SleepTool.call in src/tools/sleep/SleepTool.tsx must keep its old result`)
   queue.resetCommandQueue()
+
+  console.log('\n— concourse worker 300s refusal advice for crewmates vs worker lead —')
+  const { SLEEP_TOOL_PROMPT } = await import('../../src/tools/sleep/prompt.ts')
+  const prevWorkerFlag = process.env.MERCURY_CONCOURSE_WORKER
+  const catchRefusal = async (seconds: number, agentId?: string): Promise<string | null> => {
+    const abort = new AbortController()
+    const timer = setTimeout(() => abort.abort(), 60)
+    try {
+      await SleepTool.call({ seconds }, rig(abort, agentId))
+      return null
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error)
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+  try {
+    process.env.MERCURY_CONCOURSE_WORKER = '1'
+    const crewmateRefusal = await catchRefusal(301, 'crewmate-1')
+    check(
+      'a crewmate inheriting MERCURY_CONCOURSE_WORKER=1 with seconds > 300 gets an actionable bounded refusal without switchboard or turn-ending advice',
+      crewmateRefusal !== null &&
+        crewmateRefusal.includes('300s') &&
+        !/ending the turn|switchboard|idling/i.test(crewmateRefusal),
+      `${JSON.stringify(crewmateRefusal)} — tailor the MERCURY_CONCOURSE_WORKER refusal for agentId !== undefined in src/tools/sleep/SleepTool.tsx`,
+    )
+    const workerRefusal = await catchRefusal(301, undefined)
+    check(
+      'the worker lead itself with seconds > 300 keeps its existing switchboard guidance',
+      workerRefusal ===
+        'refused: this background session must not hold its turn open — ending the turn IS idling here; the switchboard wakes it on the next delivery. Use waits under 300s only for real short backoffs.',
+      `${JSON.stringify(workerRefusal)} — preserve the top-level worker refusal in src/tools/sleep/SleepTool.tsx`,
+    )
+    const crewmateAt300 = await catchRefusal(300, 'crewmate-1')
+    check(
+      'exactly 300s is allowed for a crewmate in a worker environment (interrupted without waiting 300s)',
+      crewmateAt300 === null,
+      `${JSON.stringify(crewmateAt300)} — seconds === 300 must not be refused in src/tools/sleep/SleepTool.tsx`,
+    )
+    const workerAt300 = await catchRefusal(300, undefined)
+    check(
+      'exactly 300s is allowed for the worker itself (interrupted without waiting 300s)',
+      workerAt300 === null,
+      `${JSON.stringify(workerAt300)} — seconds === 300 must not be refused in src/tools/sleep/SleepTool.tsx`,
+    )
+    const workerPrompt = await SleepTool.prompt()
+    check(
+      'SleepTool.prompt() identifies the 300s limit briefly when MERCURY_CONCOURSE_WORKER=1',
+      workerPrompt.includes('300s') && /refused|capped|limit/i.test(workerPrompt),
+      `${JSON.stringify(workerPrompt)} — surface the 300s worker limit in SleepTool.prompt in src/tools/sleep/SleepTool.tsx`,
+    )
+
+    delete process.env.MERCURY_CONCOURSE_WORKER
+    const ordinaryCrewmate = await catchRefusal(301, 'crewmate-1')
+    check(
+      'without the worker flag, a crewmate wait over 300s is allowed (interrupted without waiting)',
+      ordinaryCrewmate === null,
+      `${JSON.stringify(ordinaryCrewmate)} — do not spread the 300s refusal outside MERCURY_CONCOURSE_WORKER=1 in src/tools/sleep/SleepTool.tsx`,
+    )
+    const ordinaryLead = await catchRefusal(301, undefined)
+    check(
+      'without the worker flag, an ordinary wait over 300s is allowed (interrupted without waiting)',
+      ordinaryLead === null,
+      `${JSON.stringify(ordinaryLead)} — do not spread the 300s refusal outside MERCURY_CONCOURSE_WORKER=1 in src/tools/sleep/SleepTool.tsx`,
+    )
+    const ordinaryPrompt = await SleepTool.prompt()
+    check(
+      'SleepTool.prompt() stays unchanged in ordinary contexts without the worker flag',
+      ordinaryPrompt === SLEEP_TOOL_PROMPT,
+      `${JSON.stringify(ordinaryPrompt)} — keep SLEEP_TOOL_PROMPT unchanged outside MERCURY_CONCOURSE_WORKER=1`,
+    )
+  } finally {
+    if (prevWorkerFlag === undefined) delete process.env.MERCURY_CONCOURSE_WORKER
+    else process.env.MERCURY_CONCOURSE_WORKER = prevWorkerFlag
+  }
 }
 
 console.log('\n' + '='.repeat(60))

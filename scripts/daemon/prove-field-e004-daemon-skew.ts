@@ -233,7 +233,7 @@ section('§C the heal moves a release install: a daemon of the old payload is su
     check('E2 the "Mercury build" row shows the daemon\'s build beside the screen\'s', beside !== null && buildRow?.evidence.startsWith(`${identityLine} · ${beside} · `) === true, text({ row: buildRow?.evidence, beside }))
   }
   const direct = await sock.daemonControlRpc({ op: 'restart-when-idle', proto: MERCURY_DAEMON_PROTO, by: 'mercury daemon restart' }, { timeoutMs: 3000 })
-  check('C3 THE FIELD DEFECT, closed at the root: the old daemon never re-executes another build with its own words — asked to restart while another build is installed, it names that build and leaves (now, being idle), spawning nothing', direct.ok && direct.op === 'restart-when-idle' && direct.state === 'refused' && typeof direct.detail === 'string' && direct.detail.startsWith(`another build (v${NEW_VERSION}) is installed`) && direct.detail.includes('starts its own daemon; this one leaves now, re-executing nothing') && (await until(() => !isProcessAlive(old.pid), 20_000, 200)) && !old.log.join('').includes('successor spawned'), `${text(direct)} ${old.log.join('').split('\n').filter(l => /restart|successor|shutting/.test(l)).join(' | ').slice(-500)}`)
+  check('C3 THE FIELD DEFECT, closed at the root: the old daemon never re-executes another build with its own words — asked to restart while another build is installed, it names that build and leaves (now, being idle), spawning nothing', direct.ok && direct.op === 'restart-when-idle' && direct.state === 'refused' && typeof direct.detail === 'string' && direct.detail.startsWith(`another build (v${NEW_VERSION}) is installed`) && direct.detail.includes(`running v${OLD_VERSION}; this one leaves now, re-executing nothing`) && !direct.detail.includes('starts its own daemon') && (await until(() => !isProcessAlive(old.pid), 20_000, 200)) && !old.log.join('').includes('successor spawned'), `${text(direct)} ${old.log.join('').split('\n').filter(l => /restart|successor|shutting/.test(l)).join(' | ').slice(-500)}`)
   const heal = await hsMod.healDaemonVersion(verdict, { by: 'screen 4242' })
   check('C4 the screen\'s heal then hands over: a successor from the build current.txt names, spawned by the new side', heal.state === 'restarting' && typeof heal.detail === 'string' && heal.detail.startsWith('handing over to the deployed build'), text(heal))
   const successor = await otherThan(old.pid)
@@ -295,8 +295,14 @@ section('§D `mercury update` ends by moving a daemon of another build, and says
   const again = await hsMod.moveDaemonToDeployedBuild({ by: 'mercury update (field-e004 proof)', hosted: false, pollMs: 150, tries: 20 })
   check('D2 asked again, the daemon is already current — no restart, no spawn', again.state === 'current' && again.line.startsWith(`background daemon: already on v${NEW_VERSION}`) && (await helloFrom())?.pid === after?.pid, text(again))
   await stopPlane()
+  const secondHome = `${home}2`
+  mkdirSync(secondHome, { recursive: true })
+  const otherHomeDaemon = startDaemon(join(oldDir, 'mercury.mjs'), { MERCURY_CONFIG_DIR: secondHome })
+  spawned.add(otherHomeDaemon.pid)
+  await until(() => existsSync(join(secondHome, 'daemon', 'control.sock')) && isProcessAlive(otherHomeDaemon.pid), 15_000, 100)
   const none = await hsMod.moveDaemonToDeployedBuild({ by: 'mercury update (field-e004 proof)', hosted: false, pollMs: 100, tries: 5 })
-  check('D3 with no daemon the line says the next session starts one on the new build', none.state === 'absent' && none.line === `background daemon: none running — the next session starts one on v${NEW_VERSION}`, text(none))
+  check('D3 with no daemon in this home while a second home has a live daemon, the line scopes to this home and leaves the other daemon alive', none.state === 'absent' && none.line === `background daemon: none running in this home — the next session here starts one on v${NEW_VERSION}` && isProcessAlive(otherHomeDaemon.pid), text({ none, otherAlive: isProcessAlive(otherHomeDaemon.pid) }))
+  try { process.kill(otherHomeDaemon.pid, 'SIGTERM') } catch {}
 
   await sleep(500)
   killAll(spawned)
@@ -315,7 +321,7 @@ section('§DI the installer roads (no versions layout for Mercury to point at): 
   check('DI2 the update verb carries a daemon mover for the installer roads', mover !== null)
   if (mover !== null) {
     const none = await mover(NEW_VERSION)
-    check('DI3 with no daemon the installer road says the next session starts one on the installed version', none !== null && none.state === 'absent' && none.line === `background daemon: none running — the next session starts one on v${NEW_VERSION}`, text(none))
+    check('DI3 with no daemon in this home the installer road scopes to this home', none !== null && none.state === 'absent' && none.line === `background daemon: none running in this home — the next session here starts one on v${NEW_VERSION}`, text(none))
     const old = startDaemon(join(oldDir, 'mercury.mjs'))
     spawned.add(old.pid)
     await readyAt(old.pid)

@@ -108,7 +108,7 @@ function reopenDetail(installed: NonNullable<ReturnType<typeof deployedRuntime>>
 
 function otherBuildInstalledDetail(other: NonNullable<ReturnType<typeof deployedRuntime>>, live: number): string {
   const leaves = live > 0 ? `this one leaves when its ${live} live worker(s) finish, re-executing nothing` : 'this one leaves now, re-executing nothing'
-  return `another build (${installedWords(other)}) is installed — a Mercury of that build starts its own daemon; ${leaves}`
+  return `another build (${installedWords(other)}) is installed — running v${currentVersion()}; ${leaves}`
 }
 
 function liveSessionWords(n: number): string {

@@ -247,8 +247,10 @@ export async function resolveActTargets(driver: DesktopDriver, input: Input, fro
   const walk = treeWalkOf(tree.value, limitsOf(fullReach), started)
   const scrollsInto = input.action !== 'scroll'
   plan.clipped = []
-  const displays = await driver.displays()
-  plan.screens = displays.ok ? { displays: displays.value.displays, spanning: displays.value.spanning ?? true } : undefined
+  if (input.ref !== undefined || input.target !== undefined || input.toTarget !== undefined || input.action === 'scroll') {
+    const displays = await driver.displays()
+    plan.screens = displays.ok ? { displays: displays.value.displays, spanning: displays.value.spanning ?? true } : undefined
+  }
   if (input.ref !== undefined) {
     const elements = resolveTreeRef(owner, front, tree.value, input.ref)
     if (treeRefChanged(owner, front, tree.value, input.ref)) return `${input.action} refused: ref:${input.ref}: ${REF_CHANGED}`
