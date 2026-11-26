@@ -19,6 +19,7 @@ export type ModelChoice = {
   group: string
   door?: string
   gated?: boolean
+  pending?: boolean
   enableFlag?: string
   gatedReason?: string
   action?: boolean
