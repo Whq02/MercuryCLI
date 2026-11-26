@@ -1,19 +1,19 @@
-  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-workbench               │                                                                                              │
-  no prompts yet        │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-                        │ │ Mercury · config                                                                         │ │
-next                    │ │ project · 84 settings · 2 set by you                                                     │ │
-  /health               │ │                                                                                          │ │
-  /memory               │ │ / theme                                                                                  │ │
-  /mission              │ │                                                                                          │ │
-                        │ │ › Theme                             Oasis dark                                           │ │
-files · project         │ │                                                                                          │ │
+workbench               ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
+  no prompts yet        │                                                                                              │
+                        │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+next                    │ │ Mercury · config                                                                         │ │
+  /health               │ │ project · 84 settings · 2 set by you                                                     │ │
+  /memory               │ │                                                                                          │ │
+  /goal                 │ │ / theme                                                                                  │ │
+                        │ │                                                                                          │ │
+files · project         │ │ › Theme                             Oasis dark                                           │ │
   ↵ browse              │ │                                                                                          │ │
                         │ │                                                                                          │ │
 vitals                  │ │                                                                                          │ │
   spend —               │ │                                                                                          │ │
   ctx — · —             │ │                                                                                          │ │
   health — run /health  │ │                                                                                          │ │
+                        │ │                                                                                          │ │
                         │ │                                                                                          │ │
                         │ │                                                                                          │ │
                         │ │                                                                                          │ │

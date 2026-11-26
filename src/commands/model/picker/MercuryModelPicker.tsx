@@ -333,7 +333,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
     if (chordKeys(input, key, event, keys)) return
     filterKeys(input, key, event, keys)
   })
-  const { cardWidth, reasonLines, pendingLine, localWindowLine, noticeInk, noticeLines, liveLine, shedPageHint, shedEffort, paintBudget, markersOn, headingAbove, windowPaint, win } = pickerGeometry({ inner, lines, compact, i, panelWidth, focusedModel, listed, currentRow, current, pendingNext, focusedLocal, windowTyping, tokens, ctxNotice, notice, panelView, live, shedMeters, hasEffort, efforts, effort, availRows, localOffer, totalLines })
+  const { cardWidth, tagWidth, reasonLines, pendingLine, localWindowLine, noticeInk, noticeLines, liveLine, shedPageHint, shedEffort, paintBudget, markersOn, headingAbove, windowPaint, win } = pickerGeometry({ inner, lines, compact, i, focusedModel, listed, currentRow, current, pendingNext, focusedLocal, windowTyping, tokens, ctxNotice, notice, panelView, live, shedMeters, hasEffort, efforts, effort, availRows, localOffer, totalLines })
   usePopupListPaging(i, totalLines, win.end - win.start, target => selectRow(isCursorStop(lines[target]) ? target : nextStop(lines, target, target > i ? 1 : -1)), windowTyping === null)
   const pinnedHeading = headingAbove(win)
   const slack = win.above > 0 || win.below > 0 ? Math.max(0, paintBudget - windowPaint(win)) : 0
@@ -368,7 +368,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
     },
     inner,
   )
-  const renderLine = pickerLineRenderer({ i, headings, inner, selectRow, commitCurrent, TERRA, tokens, compact, narrowId, cardWidth, stateWordOf, focusedSupports1m, focusedGptToggle, context1m, columns, listed: lines.flatMap(line => (line.kind === 'row' ? [line.row.id] : [])) })
+  const renderLine = pickerLineRenderer({ i, headings, inner, selectRow, commitCurrent, TERRA, tokens, compact, narrowId, cardWidth, tagWidth, stateWordOf, focusedSupports1m, focusedGptToggle, context1m, columns, listed: lines.flatMap(line => (line.kind === 'row' ? [line.row.id] : [])) })
   return (
     <Box flexDirection="column" alignItems={modelPickerCentred() ? 'center' : 'flex-start'}>
     <Box ref={surfaceRef} flexDirection="column" borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} width={panelWidth} flexShrink={0}>

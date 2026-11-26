@@ -1185,6 +1185,7 @@ export async function openKeysPart(tag: string, options: { keepHome?: boolean } 
     viewStreamMode: 'responding',
     seatLive: IDLE_LIVE,
     onSubmit: async () => {},
+    paintScreenCommandReceipt: () => {},
     commands: [],
     scrollRef: { current: null },
     modalScrollRef: { current: null },

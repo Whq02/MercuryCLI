@@ -34,7 +34,7 @@
    │   OrcaRouter — device-code sign-in or API key    not signed in │   Ready      4 lanes
    │   Cerebras — API key                             not signed in │
    │   Fireworks — API key                            not signed in │   Mercury    Opus 5
-   │ … 2 more below                                                 │   Critter    Octopus
+   │ … 5 more below                                                 │   Critter    Octopus
    ╰────────────────────────────────────────────────────────────────╯   Dir        orchard-src
     paste Mistral Admin API key (optional)
                                               ↵ store key · empty/esc skip

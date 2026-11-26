@@ -23,6 +23,7 @@ import {
 import { TensorFoldCard, tensorFoldInk } from '../tensorfold/TensorFoldCard.js'
 import type { ModelChoice } from './choice.js'
 import type { pickerActs, pickerCursor } from './moves.js'
+import { ROW_PAD_RIGHT, TAG_LEAD } from './geometry.js'
 
 const cell = (text: string, width: number): string => (width <= 2 ? '' : `${padTo(text, width - 2)}  `)
 const idAndState = (id: string, state: string, columns: PickerColumns, spare: number, listed: readonly string[]): [string, string] => {
@@ -40,6 +41,7 @@ type LineArgs = Pick<ReturnType<typeof pickerCursor>, 'selectRow'> &
     compact: boolean
     narrowId: boolean
     cardWidth: number
+    tagWidth: number
     stateWordOf: (m: ModelChoice, key: string) => [string, string]
     focusedSupports1m: boolean
     focusedGptToggle: boolean
@@ -48,7 +50,7 @@ type LineArgs = Pick<ReturnType<typeof pickerCursor>, 'selectRow'> &
     listed: readonly string[]
   }
 
-export function pickerLineRenderer({ i, headings, inner, selectRow, commitCurrent, TERRA, tokens, compact, narrowId, cardWidth, stateWordOf, focusedSupports1m, focusedGptToggle, context1m, columns, listed }: LineArgs) {
+export function pickerLineRenderer({ i, headings, inner, selectRow, commitCurrent, TERRA, tokens, compact, narrowId, cardWidth, tagWidth, stateWordOf, focusedSupports1m, focusedGptToggle, context1m, columns, listed }: LineArgs) {
   const spareOf = (cells: PickerColumns): number => Math.max(0, cells.tail - (compact ? 1 : 0))
   const renderLine = (line: PickerLine<ModelChoice>, idx: number): React.ReactNode => {
     if (line.kind === 'heading') {
@@ -140,7 +142,7 @@ export function pickerLineRenderer({ i, headings, inner, selectRow, commitCurren
         flexDirection="column"
         selectionBand={true}
       >
-        <Box paddingLeft={compact ? 2 : 0} paddingRight={1} flexDirection="column">
+        <Box paddingLeft={compact ? 2 : 0} paddingRight={ROW_PAD_RIGHT} flexDirection="column">
           <Text wrap="truncate-end">
             <Text color={on ? TERRA : FAINT}>{on ? `${figures.pointer} ` : '  '}</Text>
             {model ? (
@@ -157,7 +159,7 @@ export function pickerLineRenderer({ i, headings, inner, selectRow, commitCurren
               <Text color={tokens.info}>{tail}</Text>
             </> : null}
           </Text>
-          {on && !compact && m.tag !== '' ? <Text color={SAND}>{`  ${m.tag}`}</Text> : null}
+          {on && !compact && m.tag !== '' ? <Box paddingLeft={TAG_LEAD} width={tagWidth + TAG_LEAD}><Text color={SAND}>{m.tag}</Text></Box> : null}
         </Box>
       </InteractiveRow>
     )

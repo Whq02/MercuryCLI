@@ -5,7 +5,7 @@ import { keyHintLabel } from '../widgets/keyHintLabel.js'
 import { InteractiveRow } from '../widgets/InteractiveRow.js'
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
 import { fitGroupedWindow, paneWindow, scrolledWindow, shedToFit } from '../widgets/geometry.js'
-import type { ConcourseRowV1, ConcourseSnapshotV1, ControlNoteState } from './contracts.js'
+import { sessionDraftQueues, type ConcourseRowV1, type ConcourseSnapshotV1, type ControlNoteState } from './contracts.js'
 import { boardSelectionClassOf, browseKeysFor, CONCOURSE_HELP_KEY, helpKeyFiresFor, legendPriorityOf, regionKeysFor, withoutManagerPaneKeys, withSplitViewTruth } from './controlManifest.js'
 import { chatPresent, subscribeSurfaceRoute, surfaceRouteVersion } from '../routes/surfaceRoute.js'
 import { landingInFlight } from '../../engine/connector/focusedConnector.js'
@@ -189,7 +189,7 @@ function boardHelpLegend({
   const composerEnter =
     region === 'live' && !olderBrowse
       ? !liveDraftEmpty
-        ? [{ keys: '↵', label: selectedRow?.state === 'working' ? 'queue' : 'send' }]
+        ? [{ keys: '↵', label: sessionDraftQueues(selectedRow) ? 'queue' : 'send' }]
         : armedSelected
           ? [
               { keys: '↵', label: 'enters (armed)' },
