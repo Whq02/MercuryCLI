@@ -153,7 +153,7 @@ function sameFrame(label: string, a: Grid, b: Grid): void {
 }
 function sameLook(label: string, a: Grid, b: Grid): void {
   const bottom = paneBottom(b, 30, 147)
-  const regions: Array<[number, number, number, number]> = [[0, 6, 30, 178], [6, bottom, 148, 178], [bottom, 51, 0, 178], [8, 18, 30, 148]]
+  const regions: Array<[number, number, number, number]> = [[0, 5, 30, 178], [5, bottom, 148, 178], [bottom, 51, 0, 178], [7, 16, 30, 148]]
   let off = 0
   let first = ''
   for (const [r0, r1, c0, c1] of regions) for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) {
@@ -163,48 +163,56 @@ function sameLook(label: string, a: Grid, b: Grid): void {
   }
   check(label, off === 0 && paneBottom(a, 30, 147) === bottom, `${off} cells differ (${first}); pane bottom ${paneBottom(a, 30, 147)} vs ${bottom}`)
 }
-function boxRows(g: Grid, left: number): { top: number; bottom: number } {
+function bandRows(g: Grid): { top: number; bottom: number } {
   const t = text(g)
-  let top = -1
-  let bottom = -1
-  for (let r = 1; r < t.length && r < 4; r++) if (t[r]![left] === '╭') { top = r; break }
-  for (let r = top + 1; r < t.length && top >= 0; r++) if (t[r]![left] === '╰') { bottom = r; break }
-  return { top, bottom }
+  const paneLeft = (t[0] ?? '').indexOf('╭')
+  const paneRight = (t[0] ?? '').lastIndexOf('╮')
+  if (paneLeft < 0 || paneRight < 0) return { top: -1, bottom: -1 }
+  for (let r = 1; r < t.length; r++) {
+    if (/^ ─+ $/.test(t[r]!.slice(paneLeft + 1, paneRight))) return { top: 1, bottom: r }
+  }
+  return { top: -1, bottom: -1 }
 }
 function berthLeft(g: Grid): number {
-  const paneLeft = (text(g)[0] ?? '').indexOf('╭')
-  return (text(g)[1] ?? '').indexOf('╭', paneLeft + 1)
+  return (text(g)[0] ?? '').indexOf('╭') + 1
 }
 function slotLeft(g: Grid): number {
   return berthLeft(g) + 3
 }
 
-type Berth = { left: number; right: number; top: number; bottom: number; cardTop: number; cardBottom: number; cardLeft: number; x: number; y: number; cells: number }
+type Berth = { left: number; right: number; top: number; bottom: number; workTop: number; workBottom: number; workLeft: number; x: number; y: number; cells: number }
 function berthOf(g: Grid): Berth {
   const t = text(g)
-  const border = t[1] ?? ''
-  const left = berthLeft(g)
-  const right = border.indexOf('╮', left + 1)
-  const { top, bottom } = boxRows(g, left)
-  const inner = t.slice(top + 1, bottom)
-  const cardTop = inner.findIndex(row => row.indexOf('╭', left + 1) >= 0)
-  const cardBottom = inner.findIndex(row => row.indexOf('╰', left + 1) >= 0)
-  const cardLeft = inner.map(row => row.indexOf('╭', left + 1)).find(c => c >= 0) ?? -1
+  const paneLeft = (t[0] ?? '').indexOf('╭')
+  const paneRight = (t[0] ?? '').lastIndexOf('╮')
+  const left = paneLeft + 1
+  const right = paneRight - 1
+  const { top, bottom } = bandRows(g)
+  const workFrom = left + 15
+  const workLines: number[] = []
+  let workLeft = -1
+  for (let r = top; r < bottom && top >= 0; r++) {
+    const slice = t[r]!.slice(workFrom, right + 1)
+    if (slice.trim() === '') continue
+    workLines.push(r)
+    const first = slice.search(/\S/)
+    if (first >= 0) workLeft = workLeft < 0 ? workFrom + first : Math.min(workLeft, workFrom + first)
+  }
   const art: Array<[number, number]> = []
-  for (let r = top + 1; r < bottom; r++) for (let c = left + 1; c < right; c++) if (g[r]![c]!.c === '▀' || g[r]![c]!.c === '▄') art.push([c, r])
+  for (let r = top; r < bottom && top >= 0; r++) for (let c = left; c <= right; c++) if (g[r]![c]!.c === '▀' || g[r]![c]!.c === '▄') art.push([c, r])
   return {
     left, right, top, bottom,
-    cardTop: cardTop < 0 ? -1 : top + 1 + cardTop,
-    cardBottom: cardBottom < 0 ? -1 : top + 1 + cardBottom,
-    cardLeft,
+    workTop: workLines.length ? workLines[0]! : -1,
+    workBottom: workLines.length ? workLines[workLines.length - 1]! : -1,
+    workLeft,
     x: art.length ? Math.min(...art.map(cell => cell[0])) : -1,
     y: art.length ? Math.min(...art.map(cell => cell[1])) : -1,
     cells: art.length,
   }
 }
-const cardRows = (b: Berth): number => b.cardTop < 0 ? 0 : b.cardBottom - b.cardTop + 1
-const spriteTop = (b: Berth): number => b.cardTop + Math.ceil((cardRows(b) - 3) / 2)
-
+const workRows = (b: Berth): number => b.workTop < 0 ? 0 : b.workBottom - b.workTop + 1
+const bandInnerRows = (b: Berth): number => b.top < 0 ? 0 : b.bottom - b.top
+const spriteTop = (b: Berth): number => b.top + Math.ceil((bandInnerRows(b) - 3) / 2)
 function paneBottom(g: Grid, left: number, right: number): number {
   const t = text(g)
   for (let r = t.length - 1; r > 0; r--) if (t[r]![left] === '╰' && t[r]![right] === '╯') return r
@@ -232,61 +240,59 @@ try {
   const tall = await capture('tall', homeFor('tall'), 80, 30, [{ requireAwait: true, awaitText: '1 session on', awaitSettleTicks: 6, data: '', mark: 'boot' }], '1 session on')
   const tallBoot = tall.marks['boot']!
 
-  console.log('§1 the slim box at 178×51 (the one look; no setting), the pane\'s first interior row')
-  const bx = boxRows(boot, 31)
-  check('no title row paints above the box: the pane\'s top border is row 0 and nothing reads ✶ VIEW', rowWith(boot, '✶ VIEW') === -1 && text(boot)[0]!.includes('╭') , `row ${rowWith(boot, '✶ VIEW')}`)
-  check('the session box is five rows under the pane\'s top border: border at row 1, border at row 5', bx.top === 1 && bx.bottom === 5, `top ${bx.top} bottom ${bx.bottom}`)
+  console.log('§1 the borderless band at 178×51 (the one look; no setting), the pane\'s first interior row')
+  const bx = bandRows(boot)
+  check('no title row paints above the band: the pane\'s top border is row 0 and nothing reads ✶ VIEW', rowWith(boot, '✶ VIEW') === -1 && text(boot)[0]!.includes('╭'), `row ${rowWith(boot, '✶ VIEW')}`)
+  check('the status band is four rows under the pane\'s top border: sprite rows 1–3, hairline at row 4', bx.top === 1 && bx.bottom === 4, `top ${bx.top} bottom ${bx.bottom}`)
   let spriteDiff = 0
   const bootLeft = slotLeft(boot)
-  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(boot[2 + r]![bootLeft + col]!, band.grid[r]![2 + col]!)) spriteDiff++
+  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(boot[1 + r]![bootLeft + col]!, band.grid[r]![2 + col]!)) spriteDiff++
   check('the three inner rows carry the band sprite at the slot\'s left (27 cells)', spriteDiff === 0, `${spriteDiff} cells differ, expected column ${bootLeft}`)
-  check('the sprite cells at the slot\'s left are half-block glyphs', boot.slice(2, 5).every(row => row.slice(bootLeft, bootLeft + 9).every(cell => cell.c === '▀' || cell.c === '▄')))
-  const ground = boot[6]![33]!.bg
+  check('the sprite cells at the slot\'s left are half-block glyphs', boot.slice(1, 4).every(row => row.slice(bootLeft, bootLeft + 9).every(cell => cell.c === '▀' || cell.c === '▄')))
+  const ground = boot[5]![33]!.bg
   let tintOff = 0
-  for (let r = 2; r <= 4; r++) for (let col = 32; col <= 145; col++) { if (col >= bootLeft && col < bootLeft + 9) continue; const cell = boot[r]![col]!; if (cell.c !== ' ' || cell.bg !== ground) tintOff++ }
-  check('the rest of the three rows is the box’s own tint (blank cells on the pane ground)', tintOff === 0, `${tintOff} cells off`)
-  check('nothing paints beside the idle sprite (no border glyph on its rows)', boot.slice(2, 5).every(row => !row.slice(43, 146).some(cell => cell.c === '╭' || cell.c === '│')))
+  for (let r = 1; r <= 3; r++) for (let col = 31; col <= 146; col++) { if (col >= bootLeft && col < bootLeft + 9) continue; const cell = boot[r]![col]!; if (cell.c !== ' ' || cell.bg !== ground) tintOff++ }
+  check('the rest of the three rows is blank on the pane ground', tintOff === 0, `${tintOff} cells off`)
+  check('nothing paints beside the idle sprite (no border glyph on its rows)', boot.slice(1, 4).every(row => !row.slice(43, 146).some(cell => cell.c === '╭' || cell.c === '│')))
 
   console.log('§2 no SESSIONS bar paints under the view; the view reaches the status row')
   check('no row of the frame reads ⊞ SESSIONS', rowWith(boot, '⊞ SESSIONS') === -1, `row ${rowWith(boot, '⊞ SESSIONS')}`)
   check('no row of the frame reads ▣ this session', rowWith(boot, '▣ this session') === -1)
   const paneOff = paneBottom(boot, 30, 147)
-  check('the pane’s bottom border sits on row 44, directly above the status row', paneOff === 44 && text(boot)[45]!.includes('ready ·'), `pane ${paneOff}`)
-  check('the chat has thirty-eight inner rows under the box', paneOff - bx.bottom - 1 === 38, `${paneOff} vs ${bx.bottom}`)
+  check('the pane’s bottom border sits on row 45, directly above the status row', paneOff === 45 && text(boot)[46]!.includes('ready ·'), `pane ${paneOff}`)
+  check('the chat has forty inner rows under the band', paneOff - bx.bottom - 1 === 40, `${paneOff} vs ${bx.bottom}`)
 
-  console.log('§3 the landing form sits under the box')
-  check('the wordmark starts three rows under the box', text(boot)[bx.bottom + 3]!.includes('█▄▄▄█'))
-  check('● ready six rows under the box', text(boot)[bx.bottom + 6]!.includes('● ready · type a prompt, or / for commands'))
-  check('model · critter · dir eight, nine and ten rows under the box', text(boot)[bx.bottom + 8]!.includes('model') && text(boot)[bx.bottom + 9]!.includes('critter') && text(boot)[bx.bottom + 10]!.includes('dir'))
-  check('the memory row follows the directory and the send hint follows its blank line', text(boot)[bx.bottom + 11]!.includes('memory') && text(boot)[bx.bottom + 13]!.includes('❯ ↵ sends'))
+  console.log('§3 the landing form sits under the band')
+  check('the wordmark starts three rows under the band', text(boot)[bx.bottom + 3]!.includes('█▄▄▄█'))
+  check('model · dir · memory sit seven, eight and nine rows under the band (no critter row)', text(boot)[bx.bottom + 7]!.includes('model') && text(boot)[bx.bottom + 8]!.includes('dir') && text(boot)[bx.bottom + 9]!.includes('memory') && !text(boot).slice(bx.bottom + 1, bx.bottom + 12).some(row => row.includes('critter')))
+  check('the command hints follow their blank line', text(boot)[bx.bottom + 11]!.includes('/crewmates  /saturn  /health  /trace'))
 
   console.log('§4 /view is an unknown command like any other')
   check('typed, /view on answers the ordinary unknown-command line', rowWith(typed, 'Unknown command: /view') >= 0)
-  check('…and paints no bar, the box stays five rows and the pane keeps its bottom border', rowWith(typed, '⊞ SESSIONS') === -1 && boxRows(typed, 31).top === 1 && boxRows(typed, 31).bottom === 5 && paneBottom(typed, 30, 147) === 44)
+  check('…and paints no bar, the band stays four rows and the pane keeps its bottom border', rowWith(typed, '⊞ SESSIONS') === -1 && bandRows(typed).top === 1 && bandRows(typed).bottom === 4 && paneBottom(typed, 30, 147) === 45)
   sameLook('the answer repaints nothing outside the chat’s own rows', typed, boot)
 
-  console.log('§6 the same slim box at 120×40')
+  console.log('§6 the same borderless band at 120×40')
   const midLeft = berthLeft(midBoot)
-  const mx = boxRows(midBoot, midLeft)
-  check('the box is five rows under the pane’s top border', mx.top === 1 && mx.bottom === 5, `top ${mx.top} bottom ${mx.bottom}`)
+  const mx = bandRows(midBoot)
+  check('the band is four rows under the pane’s top border', mx.top === 1 && mx.bottom === 4, `top ${mx.top} bottom ${mx.bottom}`)
   check('no row reads ⊞ SESSIONS or ✶ VIEW', rowWith(midBoot, '⊞ SESSIONS') === -1 && rowWith(midBoot, '✶ VIEW') === -1)
   let midSprite = 0
-  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(midBoot[mx.top + 1 + r]![slotLeft(midBoot) + col]!, band.grid[r]![2 + col]!)) midSprite++
+  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(midBoot[mx.top + r]![slotLeft(midBoot) + col]!, band.grid[r]![2 + col]!)) midSprite++
   check('the sprite cells equal the band’s (27 cells)', midSprite === 0, `${midSprite} cells differ`)
-  const midBottom = paneBottom(midBoot, midLeft - 1, text(midBoot)[mx.top]!.lastIndexOf('╮') + 1)
+  const midBottom = paneBottom(midBoot, midLeft - 1, text(midBoot)[0]!.lastIndexOf('╮'))
   check('the pane’s bottom border sits directly above the status row', midBottom >= 0 && text(midBoot)[midBottom + 1]!.includes('ready ·'), `pane ${midBottom}`)
 
   console.log('§7 a resize from wide to narrow and back keeps the one sprite')
   let tripDiff = 0
-  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(tripWide[2 + r]![slotLeft(tripWide) + col]!, band.grid[r]![2 + col]!)) tripDiff++
-  check('wide before the resize: the box carries the band’s sprite cells', tripDiff === 0, `${tripDiff} cells differ`)
+  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(tripWide[1 + r]![slotLeft(tripWide) + col]!, band.grid[r]![2 + col]!)) tripDiff++
+  check('wide before the resize: the band carries the compact-band sprite cells', tripDiff === 0, `${tripDiff} cells differ`)
   check('wide before the resize: no bar', rowWith(tripWide, '⊞ SESSIONS') === -1)
   let narrowDiff = 0
   for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(tripNarrow[r]![2 + col]!, band.grid[r]![2 + col]!)) narrowDiff++
   check('narrow: the 80×21 band paints the same sprite cells', narrowDiff === 0, `${narrowDiff} cells differ`)
   check('narrow: the compact layout paints no bar', rowWith(tripNarrow, '⊞ SESSIONS') === -1)
   sameFrame('wide again: the frame is the wide frame cell for cell', tripBack, tripWide)
-
   console.log('§8 a compact window paints the one sprite')
   let tallDiff = 0
   for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(tallBoot[r]![2 + col]!, band.grid[r]![2 + col]!)) tallDiff++
@@ -297,41 +303,39 @@ try {
   check('the 80×21 band paints the dock sprite at rows 0–2, columns 2–10', band.grid.slice(0, 3).every(row => row.slice(2, 11).every(cell => cell.c === '▀' || cell.c === '▄')))
   check('the band’s status row reads 1 session on', rowWith(band.grid, '1 session on') === 20, `row ${rowWith(band.grid, '1 session on')}`)
 
-  console.log('§11 the small critter keeps the slot\'s left and the working card keeps its column')
+  console.log('§11 the small critter keeps the slot\'s left and the unboxed work column keeps its column')
   for (const [cols, rows] of [[178, 51], [120, 40], [100, 30]] as const) {
     const idle = cols === 178 ? boot : cols === 120 ? midBoot : (await capture('floor', homeFor('floor'), cols, rows, [], 'ready ·')).grid
     const left = berthLeft(idle)
-    const bounds = boxRows(idle, left)
+    const bounds = bandRows(idle)
     const at = slotLeft(idle)
-    check(`${cols}×${rows}: the idle sprite sits at the slot's left and fills the three inner rows`, bounds.bottom - bounds.top === 4 && idle.slice(bounds.top + 1, bounds.bottom).every(row => row.slice(at, at + 9).every(cell => cell.c === '▀' || cell.c === '▄')), `expected ${at},${bounds.top + 1}`)
+    check(`${cols}×${rows}: the idle sprite sits at the slot's left and fills the three band rows`, bounds.bottom - bounds.top === 3 && idle.slice(bounds.top, bounds.bottom).every(row => row.slice(at, at + 9).every(cell => cell.c === '▀' || cell.c === '▄')), `expected ${at},${bounds.top}`)
     const busy = await capture(`busy-${cols}x${rows}`, homeFor(`busy-${cols}`), cols, rows, [onReady('hello fixture\r', 'idle')], 'gives up after', [], true)
     const b = berthOf(busy.grid)
-    check(`${cols}×${rows}: work paints beside the sprite`, b.cardLeft > left && b.cells === 27, `card ${b.cardLeft}, art cells ${b.cells}`)
-    check(`${cols}×${rows}: the card keeps its column`, b.cardLeft === left + 16, `card ${b.cardLeft}, expected ${left + 16}`)
-    check(`${cols}×${rows}: the busy sprite keeps the slot's left, its middle on the card's middle`, b.x === left + 3 && b.y === spriteTop(b), `sprite ${b.x},${b.y}; card ${b.cardTop}..${b.cardBottom} (${cardRows(b)} rows), expected ${left + 3},${spriteTop(b)}`)
+    check(`${cols}×${rows}: work paints beside the sprite`, b.workLeft > left && b.cells === 27, `work ${b.workLeft}, art cells ${b.cells}`)
+    check(`${cols}×${rows}: the work column keeps its left`, b.workLeft === left + 16, `work ${b.workLeft}, expected ${left + 16}`)
+    check(`${cols}×${rows}: the busy sprite keeps the slot's left, its middle on the band's middle`, b.x === left + 3 && b.y === spriteTop(b), `sprite ${b.x},${b.y}; band ${b.top}..${b.bottom - 1} (${bandInnerRows(b)} rows), work ${b.workTop}..${b.workBottom} (${workRows(b)} rows), expected ${left + 3},${spriteTop(b)}`)
   }
-  console.log('§14 the sprite’s middle tracks the thinking box’s middle however tall the box grows')
+  console.log('§14 the sprite’s middle tracks the band’s middle however tall the unboxed work grows')
   for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
-    const legs: Array<[string, string, number, number]> = [['one', verbFor(cols), 3, ONE_LINE_COLS], ['stack', verbFor(cols), 4, cols], ['tall', TALL_VERB, cols === 120 ? 5 : 6, cols]]
-    for (const [leg, verb, expectedRows, legCols] of legs) {
+    const legs: Array<[string, string, number, number]> = [['one', verbFor(cols), 1, ONE_LINE_COLS], ['stack', verbFor(cols), 2, cols], ['tall', TALL_VERB, cols === 120 ? 3 : 4, cols]]
+    for (const [leg, verb, expectedWorkRows, legCols] of legs) {
       const shot = await capture(`level-${leg}-${cols}x${rows}`, homeFor(`level-${leg}-${cols}`, verb), legCols, rows, [onReady('hello fixture\r', 'idle')], 'gives up after', [], true)
       const b = berthOf(shot.grid)
-      check(`${legCols}×${rows} ${leg}: the thinking box is ${expectedRows} rows tall with the complete sprite beside it${leg === 'one' ? ' (the clock and the received count share the verb’s line at 130 columns and stack under it at ${cols})' : ''}`, cardRows(b) === expectedRows && b.cells === 27 && b.bottom - b.top - 1 === expectedRows, `card ${b.cardTop}..${b.cardBottom} (${cardRows(b)} rows), box ${b.top}..${b.bottom}, art cells ${b.cells}`)
-      check(`${legCols}×${rows} ${leg}: the sprite’s middle is the box’s middle, the lower middle row for an even box (sprite rows ${spriteTop(b)}–${spriteTop(b) + 2})`, b.y === spriteTop(b), `sprite top ${b.y}, expected ${spriteTop(b)}`)
-      check(`${legCols}×${rows} ${leg}: no sprite row lies beside the box’s top border unless the box is three rows`, expectedRows === 3 || b.y > b.cardTop, `sprite rows ${b.y}–${b.y + 2}, top border ${b.cardTop}`)
+      const expectedBand = Math.max(3, expectedWorkRows)
+      check(`${legCols}×${rows} ${leg}: the unboxed work is ${expectedWorkRows} row(s) tall inside a ${expectedBand}-row band with the complete sprite beside it`, workRows(b) === expectedWorkRows && b.cells === 27 && bandInnerRows(b) === expectedBand, `work ${b.workTop}..${b.workBottom} (${workRows(b)} rows), band ${b.top}..${b.bottom} (${bandInnerRows(b)} inner rows), art cells ${b.cells}`)
+      check(`${legCols}×${rows} ${leg}: the sprite’s middle is the band’s middle, the lower middle row for an even band (sprite rows ${spriteTop(b)}–${spriteTop(b) + 2})`, b.y === spriteTop(b), `sprite top ${b.y}, expected ${spriteTop(b)}`)
     }
-    const wide = ONE_LINE_COLS
-    const grow = await capture(`grow-${cols}x${rows}`, homeFor(`grow-${cols}`, verbFor(cols)), wide, rows, [
+    const grow = await capture(`grow-${cols}x${rows}`, homeFor(`grow-${cols}`, TALL_VERB), 120, rows, [
       onReady('hello fixture\r', 'idle'),
-      { requireAwait: true, awaitText: verbFor(cols), awaitSettleTicks: 5, data: '', mark: 'one-line' },
-    ], '│ (', [{ afterMark: 'one-line', afterMs: 400, cols, rows }], true)
-    const before = berthOf(grow.marks[`stage0:${wide}x${rows}`]!)
+      { requireAwait: true, awaitText: 'gives up after', awaitSettleTicks: 5, data: '', mark: 'three-row' },
+    ], 'gives up after', [{ afterMark: 'three-row', afterMs: 400, cols: 100, rows }], true)
+    const before = berthOf(grow.marks[`stage0:120x${rows}`]!)
     const after = berthOf(grow.grid)
-    console.log(`  ${cols}×${rows} grow: the box is ${cardRows(before)} rows at ${wide} columns and ${cardRows(after)} rows at ${cols} (sprite top ${before.y} → ${after.y})`)
-    check(`${cols}×${rows} grow: at ${wide} columns the status (the clock · the received count) fits one line beside the verb and the box is three rows`, cardRows(before) === 3 && before.cells === 27 && before.y === before.cardTop, `card ${before.cardTop}..${before.cardBottom} (${cardRows(before)} rows), sprite top ${before.y}, art cells ${before.cells}`)
-    check(`${cols}×${rows} grow: at ${cols} columns the meta stacks and the box is four rows`, cardRows(after) === 4 && after.cells === 27, `card ${after.cardTop}..${after.cardBottom} (${cardRows(after)} rows), art cells ${after.cells}`)
-    check(`${cols}×${rows} grow: once the stats stack the sprite sits on the box’s lower three rows (the verb line, the stats, the bottom border)`, after.y === after.cardTop + 1, `sprite top ${after.y}, card top ${after.cardTop}`)
-    check(`${cols}×${rows} grow: the sprite moves down one row as the box grows from three rows to four, its middle following the box’s middle`, after.y === before.y + 1 && before.cardTop === after.cardTop, `sprite top ${before.y} → ${after.y}, card top ${before.cardTop} → ${after.cardTop}`)
+    console.log(`  ${cols}×${rows} grow: the band is ${bandInnerRows(before)} rows at 120 columns and ${bandInnerRows(after)} rows at 100 (sprite top ${before.y} → ${after.y})`)
+    check(`${cols}×${rows} grow: at 120 columns the tall work is three rows and the sprite sits on rows 1–3`, workRows(before) === 3 && bandInnerRows(before) === 3 && before.cells === 27 && before.y === before.top, `work ${workRows(before)}, band ${bandInnerRows(before)}, sprite top ${before.y}, art cells ${before.cells}`)
+    check(`${cols}×${rows} grow: at 100 columns the tall work wraps to four rows and the band grows to four rows`, workRows(after) === 4 && bandInnerRows(after) === 4 && after.cells === 27, `work ${workRows(after)}, band ${bandInnerRows(after)}, art cells ${after.cells}`)
+    check(`${cols}×${rows} grow: the sprite moves down one row as the band grows from three rows to four, its middle following the band’s middle`, after.y === before.y + 1 && after.y === spriteTop(after), `sprite top ${before.y} → ${after.y}`)
   }
   console.log('§12 /critter opens the picker with the four-row list and one live sprite, at 178 and at 60 columns')
   const pickerWide = await capture('picker-178x51', homeFor('picker-178'), 178, 51, [onReady('/critter\r', 'landing')], 'Session theme')
@@ -346,7 +350,7 @@ try {
   }
   const companion = await capture('companion-178x51', homeFor('companion-178'), 178, 51, [onReady('/companion tip\r', 'landing'), { requireAwait: true, awaitText: 'Unknown command', awaitSettleTicks: 6, data: '', mark: 'answer' }], 'Unknown command')
   check('/companion is no command: the chat answers Unknown command and no tip line paints', rowWith(companion.grid, 'Unknown command: /companion') >= 0 && rowWith(companion.grid, 'tip —') === -1, `row ${rowWith(companion.grid, 'Unknown command: /companion')}`)
-  check('/companion leaves the box five rows with the sprite alone', boxRows(companion.grid, 31).top === 1 && boxRows(companion.grid, 31).bottom === 5 && companion.grid.slice(2, 5).every(row => row.slice(slotLeft(companion.grid), slotLeft(companion.grid) + 9).every(cell => cell.c === '▀' || cell.c === '▄')))
+  check('/companion leaves the band four rows with the sprite alone', bandRows(companion.grid).top === 1 && bandRows(companion.grid).bottom === 4 && companion.grid.slice(1, 4).every(row => row.slice(slotLeft(companion.grid), slotLeft(companion.grid) + 9).every(cell => cell.c === '▀' || cell.c === '▄')))
   }
   console.log('§13 the small critter outside the cockpit keeps its neighbours in place')
   for (const cols of [178, 120]) {

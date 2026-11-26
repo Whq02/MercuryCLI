@@ -223,9 +223,9 @@ console.log('§8 — G1/G3: text clips inside its container; every printed key f
   const { regionKeysFor } = await import('../../src/screen/concourse/controlManifest.ts')
   const reducedList = regionKeysFor('list', { newSession: false })
   check('G3: the reduced stage\'s ↵ enters on ONE press — its legend never teaches ↵↵ (no arm without a composer)', reducedList.some(k => k.keys === '↵' && k.label === 'enter session') && !reducedList.some(k => k.keys === '↵↵'))
-  check('G3: the reduced stage prints no newline row (no composer takes one)', !regionKeysFor('live', { newSession: false }).some(k => k.keys === '⇧↵/⌃j') && !reducedList.some(k => k.keys === '⇧↵/⌃j'))
+  check('G3: the reduced stage prints no newline row (no composer takes one)', !regionKeysFor('live', { newSession: false }).some(k => k.label === 'newline') && !reducedList.some(k => k.label === 'newline'))
   const fullList = regionKeysFor('list', { newSession: true })
-  check('G3 CONTROL: the full stage keeps the arm grammar (↵↵) and the composer rows', fullList.some(k => k.keys === '↵↵') && regionKeysFor('live', { newSession: true }).some(k => k.keys === '⇧↵/⌃j'))
+  check('G3 CONTROL: the full stage keeps the arm grammar (↵↵) and the composer rows', fullList.some(k => k.keys === '↵↵') && regionKeysFor('live', { newSession: true }).some(k => k.label === 'newline'))
 }
 
 console.log(failures === 0 ? '\nprove-concourse-design: ALL GREEN' : `\nprove-concourse-design: ${failures} FAILURE(S)`)

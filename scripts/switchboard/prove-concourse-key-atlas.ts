@@ -133,6 +133,7 @@ try {
   for (const [k, word] of liveExpected) {
     check(`live row: ? names "${k} ${word}"`, live.atlasLines.some(l => l.includes(k) && l.includes(word)), live.atlasLines.map(l => l.trim()).join(' | '))
   }
+  check('live row: resting bottom legend names the four chords', live.legend === 'tab panes · / filter · ? keys · esc boot face', live.legend)
   const legendChords = live.legend.split(' · ').map(p => p.trim()).filter(Boolean)
   for (const chord of legendChords) {
     const [k, ...rest] = chord.split(' ')
@@ -154,7 +155,7 @@ try {
   ] as const) {
     check(`paused row: ? names "${k} ${word}"`, paused.atlasLines.some(l => l.includes(k) && l.includes(word)), paused.atlasLines.map(l => l.trim()).join(' | '))
   }
-
+  check('paused row: resting bottom legend names the four chords', paused.legend === 'tab panes · / filter · ? keys · esc boot face', paused.legend)
   const parked = await openAtlasFor('parked', rowOf('s-parked', 'Parked task', 'parked'), 'parked', 'parked')
   for (const [k, word] of [
     [keyHintLabel('⌃g'), 'ground'],

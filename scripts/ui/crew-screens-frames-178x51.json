@@ -624,15 +624,15 @@
   "  │ 47. the footer keys paints the same cells                                                                  │ │                                                             │",
   "  │ 48. the pop-up frame paints the same cells                                                                 │ │                                                             │",
   "  │                                                                                                            │ │                                                             │",
-  "  │ 23:07:50 ● [Crewmate] fjord · completed · 1 line ›                                                         │ │                                                             │",
+  "  │ 01:08:53 ● [Crewmate] fjord · completed · 1 line ›                                                         │ │                                                             │",
   "  │                                                                                                            │ │                                                             │",
-  "  │ 23:07:50 [Mercury] noted — the crewmate is in.                                                             │ │                                                             │",
+  "  │ 01:08:53 [Mercury] noted — the crewmate is in.                                                             │ │                                                             │",
   "  │ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────╮ │ │                                                             │",
   "  │ │ ❯ message crew-screens: launch the crew · queued for its next turn                                     │ │ │                                                             │",
   "  │ │ tab or click to type                                                                                   │ │ │ needs you · 0                                               │",
   "  │ ╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯ │ │ ↑↓ choose · ↵ enter · n new · p pause · x stop · a archive  │",
   "  ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯ ╰─────────────────────────────────────────────────────────────╯",
   "  fixture-cwd ⌄                                                                                                                                                        1/5 seats",
-  "  tab panes · ⌃g ground · i interrupt · m model · e effort · r rename · → peek · / filter · ⌃x ⌃x stop · archive · delete · space mark · s split · ? keys · esc focused chat"
+  "  tab panes · / filter · ? keys · esc focused chat"
  ]
 }

@@ -24,7 +24,7 @@ const { getDefaultAppState } = await import('../../src/screen/app-state/AppState
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const { Select } = await import('../../src/screen/select/Select.tsx')
 const { FocusedSessionStatusRow, escBackHint } = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
-const { crewmateStatusRightHint } = await import('../../src/screen/cockpit/crewmateWords.ts')
+const { crewmateComposerHint } = await import('../../src/screen/cockpit/crewmateWords.ts')
 const { ComposerFooter } = await import('../../src/screen/composer/ComposerFooter.tsx')
 const { CompactWorkSummary } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
 const { useHoldsEscape } = await import('../../src/screen/keys/useEscapeOwned.ts')
@@ -48,9 +48,11 @@ for (const [name, state] of [['running', status], ['interrupting', { ...status, 
   check(`${name}: other hint clauses are unchanged`, hint === escBackHint(live, state, true, true).split(' · ').filter(part => !part.startsWith('esc ')).join(' · '), `${hint} — with escapeOwned true escBackHint in src/screen/chat/SwitchboardTagBar.tsx must remove only the esc clause and keep the others`)
 }
 for (const pinned of [false, true]) for (const running of [false, true]) {
-  const hint = Reflect.apply(crewmateStatusRightHint, undefined, [pinned, running, true]) as string
-  check(`crewmate pinned=${pinned} running=${running}: no Escape action under a card`, !/\besc\b/.test(hint), `${hint} — crewmateStatusRightHint in src/screen/cockpit/crewmateWords.ts must drop the esc clause when its escapeOwned argument is true`)
-  check(`crewmate pinned=${pinned} running=${running}: other hint clauses are unchanged`, hint === crewmateStatusRightHint(pinned, running).split(' · ').filter(part => !part.startsWith('esc ')).join(' · '), `${hint} — with escapeOwned true crewmateStatusRightHint in src/screen/cockpit/crewmateWords.ts must remove only the esc clause`)
+  const target = { name: 'helper', pinned, live: running }
+  const viewed = { name: 'helper', live: running }
+  const hint = crewmateComposerHint(target, viewed, true)
+  check(`crewmate pinned=${pinned} running=${running}: no Escape action under a card`, !/\besc\b/.test(hint), `${hint} — crewmateComposerHint in src/screen/cockpit/crewmateWords.ts must drop the esc clause when its escapeOwned argument is true`)
+  check(`crewmate pinned=${pinned} running=${running}: other hint clauses are unchanged`, hint === crewmateComposerHint(target, viewed).split(' · ').filter(part => !part.startsWith('esc ')).join(' · '), `${hint} — with escapeOwned true crewmateComposerHint in src/screen/cockpit/crewmateWords.ts must remove only the esc clause`)
 }
 let roster: { rows: WorkRowV1[]; mission: never[]; samples: never[] } = { rows: [], mission: [], samples: [] }
 const project = join(home, 'fixture')
