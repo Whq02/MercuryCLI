@@ -145,8 +145,8 @@ try {
       }),
     })
     const m = await mountOffscreen(el, 120, 42)
-    await settle(80)
-    check('Boot Logins keeps Families at 22 while zero child runs on mount', m.screen().includes('Families') && m.screen().includes('22') && readInvocations().length === 0, `invocations=${readInvocations().length}`)
+    const rosterUp = await waitFor(() => m.screen().includes('Families') && m.screen().includes('22'), 1500)
+    check('Boot Logins keeps Families at 22 while zero child runs on mount', rosterUp && readInvocations().length === 0, `invocations=${readInvocations().length}`)
 
     await send(m, '\x1b[F')
     await waitFor(() => m.screen().includes('Devin CLI (external agent)'), 1500)
