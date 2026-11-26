@@ -152,6 +152,9 @@ export async function settleBoundingBox(handle: ElementHandle<Element>, deadline
   }
 }
 
+const ENCLOSING_CONTROL =
+  'button, a, label, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"]'
+
 export async function isDisabledTarget(handle: ElementHandle<Element>): Promise<boolean> {
   return handle.evaluate(
     el => (el as HTMLInputElement).disabled === true || el.getAttribute('aria-disabled') === 'true' || el.closest('fieldset:disabled') !== null,
@@ -170,19 +173,33 @@ export async function clickGate(handle: ElementHandle<Element>): Promise<string 
     const border = container ? await container.evaluate(el => ({ x: el.clientLeft, y: el.clientTop })) : { x: 0, y: 0 }
     const x = point.x - (box?.x ?? 0) - border.x
     const y = point.y - (box?.y ?? 0) - border.y
-    const occluder = await current.evaluate((el, px, py) => {
-      let hit = document.elementFromPoint(px, py)
-      while (hit?.shadowRoot) {
-        const inner = hit.shadowRoot.elementFromPoint(px, py)
-        if (!inner || inner === hit) break
-        hit = inner
-      }
-      if (hit && (hit === el || el.contains(hit))) return null
-      if (!hit) return 'the viewport edge'
-      const id = hit.id ? `#${hit.id}` : ''
-      const cls = typeof hit.className === 'string' && hit.className.trim() !== '' ? `.${hit.className.split(/\s+/).filter(Boolean).slice(0, 2).join('.')}` : ''
-      return `${hit.tagName.toLowerCase()}${id}${cls}`
-    }, x, y)
+    const occluder = await current.evaluate(
+      (el, px, py, allowEnclosing, control) => {
+        let hit = document.elementFromPoint(px, py)
+        while (hit?.shadowRoot) {
+          const inner = hit.shadowRoot.elementFromPoint(px, py)
+          if (!inner || inner === hit) break
+          hit = inner
+        }
+        if (hit && (hit === el || el.contains(hit))) return null
+        if (hit && allowEnclosing && !el.matches(`${control}, input, select, textarea`) && hit.matches(control) && !hit.matches(':disabled, [aria-disabled="true"]')) {
+          let cur: Element | null = el.assignedSlot ?? el.parentElement ?? (el.getRootNode() instanceof ShadowRoot ? (el.getRootNode() as ShadowRoot).host : null)
+          while (cur !== null) {
+            if (cur === hit) return null
+            if (cur.matches(`${control}, input, select, textarea`)) break
+            cur = cur.assignedSlot ?? cur.parentElement ?? (cur.getRootNode() instanceof ShadowRoot ? (cur.getRootNode() as ShadowRoot).host : null)
+          }
+        }
+        if (!hit) return 'the viewport edge'
+        const id = hit.id ? `#${hit.id}` : ''
+        const cls = typeof hit.className === 'string' && hit.className.trim() !== '' ? `.${hit.className.split(/\s+/).filter(Boolean).slice(0, 2).join('.')}` : ''
+        return `${hit.tagName.toLowerCase()}${id}${cls}`
+      },
+      x,
+      y,
+      current === handle,
+      ENCLOSING_CONTROL,
+    )
     if (occluder) return `the click point (${Math.round(point.x)}, ${Math.round(point.y)}) is covered by ${occluder}; click the covering element to dismiss it, or scroll the target into view; after reading the overlay, force: true dispatches a DOM click to the target`
     current = container
   }
