@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 process.env.MERCURY_BROWSER ??= '1'
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 const ROOT = join(import.meta.dir, '..', '..')
 
