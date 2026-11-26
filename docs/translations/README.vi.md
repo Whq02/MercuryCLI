@@ -212,7 +212,7 @@ Xem lại thay đổi bằng `/diff`, theo nguồn, tệp và hunk. `! <command>
 
 Mở danh sách phiên bằng `/concourse` hoặc `Shift+→` từ màn hình chính. Danh sách hiển thị trước các phiên đang chạy của dự án hiện tại, tiếp theo là các chat đã lưu nhưng không chạy, mới nhất trước.
 
-Mỗi phiên đang chạy có một ô NOW hiển thị hoạt động hiện tại của nó. Chọn một hàng và nhấn `Enter` để quay lại chat, trong khi các phiên khác vẫn tiếp tục chạy. Một phiên bị crash vẫn nằm trong danh sách phiên với nhãn NEEDS YOU kèm lý do, cho đến khi bạn giải phóng nó.
+Mỗi phiên đang chạy có một ô NOW hiển thị hoạt động hiện tại của nó. Chọn một hàng và nhấn `Enter` để quay lại chat, trong khi các phiên khác vẫn tiếp tục chạy. Một phiên bị crash vẫn nằm trong danh sách phiên với nhãn needs you kèm lý do, cho đến khi bạn giải phóng nó.
 
 [docs/SESSIONS.md](../SESSIONS.md) trình bày vòng đời của phiên.
 
