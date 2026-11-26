@@ -64,3 +64,4 @@ prove-one-session-name.ts
 prove-early-daemon-bare-launch.ts
 prove-sessions-list-reads-as-chooser.ts
 prove-concourse-key-atlas.ts
+prove-continue-picks-last-used.ts
