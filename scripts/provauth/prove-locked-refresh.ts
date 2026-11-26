@@ -1,11 +1,13 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { PROOF_EXCHANGE_DEADLINE_MS, proofRoad, readRow, told, writeRow, type ProofPair } from './lib/locked-refresh-road.ts'
 import { rotatingTokenServer } from './lib/rotating-token-server.ts'
+import type { LockedRefreshRoad } from '../../src/models/sign-in/lifecycle/lockedRefresh.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { lockedRefresh } = await import('../../src/models/sign-in/lifecycle/lockedRefresh.ts')
@@ -251,6 +253,103 @@ try {
   await waiterCall
   const holderEnd = await holder
   check('the holder then finishes its one exchange and the store holds the live pair', holderEnd.answer.state === 'refreshed' && server.grants.length === before + 1 && server.live !== undefined && stored()?.refreshToken === server.live, JSON.stringify(holderEnd))
+  console.log('── the lock file 1.1.0 takes beside the same store: a road that names it has the door take it first, stale by that road\'s rule ──')
+  const fileLock = `${store}.refresh-lock`
+  const fileStamp = (): string | undefined => (existsSync(fileLock) ? readFileSync(fileLock, 'utf8') : undefined)
+  const byAge = (path: string): LockedRefreshRoad<ProofPair> => ({ ...proofRoad(path, server.base), refreshLockFile: 'stale-by-age' })
+  const byHolder = (path: string): LockedRefreshRoad<ProofPair> => ({ ...proofRoad(path, server.base), refreshLockFile: 'stale-by-holder' })
+  const gonePid = spawnSync(process.execPath, ['-e', '']).pid
+  const aged = (path: string, ms: number): void => utimesSync(path, new Date(Date.now() - ms), new Date(Date.now() - ms))
+  seed(liveToken())
+  before = server.grants.length
+  release = server.hold()
+  const unnamed = mine(proofRoad(store, server.base))
+  await until('the grant is at the server', () => server.grants.length === before + 1)
+  check('a road that names no lock file takes none: its own lock alone stands while it exchanges', existsSync(lockDir) && !existsSync(fileLock))
+  release()
+  await unnamed
+  seed(liveToken())
+  before = server.grants.length
+  release = server.hold()
+  const named = mine(byAge(store))
+  await until('the grant is at the server', () => server.grants.length === before + 1)
+  const ownStamp = fileStamp() ?? ''
+  check('a road that names it holds both while it exchanges, the file stamped with its pid and then the time', new RegExp(`^${process.pid} \\d{13}\\n$`).test(ownStamp) && existsSync(lockDir), JSON.stringify(ownStamp))
+  const secondDoor = other(byHolder(store))
+  await sleep(400)
+  check('a second door in this process waits on that stamp though it carries its own pid: it sends nothing and the file is untouched', server.grants.length === before + 1 && fileStamp() === ownStamp, JSON.stringify({ grants: server.grants.length - before, file: fileStamp() ?? null }))
+  release()
+  const [namedEnd, secondDoorEnd] = await Promise.all([named, secondDoor])
+  check('both are gone when it is done, and the second door took the pair the first wrote', namedEnd.state === 'refreshed' && secondDoorEnd.state === 'current' && server.grants.length === before + 1 && !existsSync(fileLock) && !existsSync(lockDir), JSON.stringify([told(namedEnd), told(secondDoorEnd)]))
+
+  const heldByAge = join(proofHome, '.held-by-age.json')
+  const heldByHolder = join(proofHome, '.held-by-holder.json')
+  const heldUnstamped = join(proofHome, '.held-unstamped.json')
+  const standing: Array<[string, string]> = [[heldByAge, `${gonePid} ${Date.now()}\n`], [heldByHolder, `${process.pid} ${randomUUID()}`], [heldUnstamped, '']]
+  for (const [path, stamp] of standing) {
+    writeRow(path, { email: EMAIL, tokens: { accessToken: 'at-of-rt-held', refreshToken: 'rt-held', expiresAtMs: Date.now() - 1_000 } })
+    writeFileSync(`${path}.refresh-lock`, stamp)
+  }
+  aged(`${heldByHolder}.refresh-lock`, 5_000)
+  before = server.grants.length
+  const waited = await Promise.all([mine(byAge(heldByAge)), mine(byHolder(heldByHolder)), mine(byAge(heldUnstamped))])
+  check('a lock file not stale by the road\'s rule is waited on, never taken and never removed: by age a fresh stamp whose holder is gone, by holder a live pid in a file five seconds old, and a file not yet stamped', waited.every(answer => answer.state === 'busy') && server.grants.length === before && standing.every(([path, stamp]) => readFileSync(`${path}.refresh-lock`, 'utf8') === stamp), JSON.stringify({ answers: waited.map(told), grants: server.grants.length - before }))
+
+  const stale: Array<[string, (path: string) => LockedRefreshRoad<ProofPair>, string, number]> = [
+    ['by age a stamp thirty-one seconds old whose holder is alive', byAge, `${process.pid} ${Date.now() - 31_000}\n`, 0],
+    ['by holder a stamp whose pid is gone', byHolder, `${gonePid} ${randomUUID()}`, 0],
+    ['by holder a stamp of a live pid in a file thirty-one seconds old', byHolder, `${process.pid} ${randomUUID()}`, 31_000],
+    ['by age a file never stamped and a minute old', byAge, '', 60_000],
+    ['by holder a file never stamped and a minute old', byHolder, '', 60_000],
+  ]
+  for (const [name, road, stamp, ageMs] of stale) {
+    seed(liveToken())
+    writeFileSync(fileLock, stamp)
+    if (ageMs > 0) aged(fileLock, ageMs)
+    before = server.grants.length
+    const taken = await mine(road(store))
+    check(`a stale lock file is cleared, taken and released: ${name}`, taken.state === 'refreshed' && server.grants.length === before + 1 && !existsSync(fileLock), JSON.stringify({ answer: told(taken), left: existsSync(fileLock) }))
+    rmSync(fileLock, { force: true })
+  }
+
+  seed(liveToken())
+  before = server.grants.length
+  release = server.hold()
+  const displacedFromFile = mine(byAge(store))
+  await until('the grant is at the server', () => server.grants.length === before + 1)
+  writeFileSync(fileLock, '1 1\n')
+  release()
+  await displacedFromFile
+  check('a lock file another process has since stamped is left standing when the door is done', fileStamp() === '1 1\n' && !existsSync(lockDir), JSON.stringify(fileStamp() ?? null))
+  rmSync(fileLock, { force: true })
+
+  console.log('── another process\'s refused refresh blanked the stored token while the accepted answer was out: the new pair is kept, and nothing else is written over a blank ──')
+  const blank = (accessToken: string): void => writeRow(store, { email: EMAIL, tokens: { accessToken, refreshToken: '', expiresAtMs: Date.now() - 1_000 } })
+  const outWith = async (refreshToken: string, meanwhile: () => void): Promise<{ answer: ReturnType<typeof told>; bytes: string }> => {
+    seed(refreshToken)
+    before = server.grants.length
+    const letGo = server.hold()
+    const out = mine(proofRoad(store, server.base))
+    await until('the grant is at the server', () => server.grants.length === before + 1)
+    meanwhile()
+    const bytes = readFileSync(store, 'utf8')
+    letGo()
+    return { answer: told(await out), bytes }
+  }
+  const accepted = liveToken()
+  const overBlank = await outWith(accepted, () => blank(`at-of-${accepted}`))
+  check('the accepted pair is answered and stored over the blank', overBlank.answer.state === 'refreshed' && server.live !== undefined && overBlank.answer.refreshToken === server.live && stored()?.refreshToken === server.live, JSON.stringify({ answer: overBlank.answer, stored: stored()?.refreshToken ?? null, live: server.live }))
+  const besideAnother = await outWith(liveToken(), () => blank('at-of-another-pair'))
+  check('a blank on a pair it did not exchange is left as it stands', besideAnother.answer.state === 'absent' && readFileSync(store, 'utf8') === besideAnother.bytes, JSON.stringify(besideAnother.answer))
+  const refusedToo = await outWith('rt-the-server-refuses', () => blank('at-of-rt-the-server-refuses'))
+  check('an exchange the server refuses, finding the token already blanked, answers absent and writes nothing', refusedToo.answer.state === 'absent' && readFileSync(store, 'utf8') === refusedToo.bytes, JSON.stringify(refusedToo.answer))
+  const failing = liveToken()
+  const failedToo = await outWith(failing, () => {
+    blank(`at-of-${failing}`)
+    server.status = 503
+  })
+  server.status = 200
+  check('an exchange that fails, finding the token blanked, answers absent and writes nothing', failedToo.answer.state === 'absent' && readFileSync(store, 'utf8') === failedToo.bytes, JSON.stringify(failedToo.answer))
 } finally {
   server.stop()
 }
