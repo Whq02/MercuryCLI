@@ -106,7 +106,8 @@ const RUNS_BESIDE_THE_FRAME = /\b(?:trap|enable)\b/
 const MAY_TURN_VERBOSE_ON = /\b(?:set|shopt)\b[^;&|\n]*(?:\s-[A-Za-z]*v|\bverbose\b|\$)/
 const A_PLAIN_COMMAND_WORD = /^[\w./+~@:-]+$/
 const HOLDS_AN_EXPANSION = /[$`]/
-const RUNS_ITS_WORDS = /^(?:eval|set|shopt|builtin|command|time|source|\.)$/
+const RUNS_ITS_WORDS = /^(?:eval|set|shopt|builtin|command|time|source|\.|mapfile|readarray)$/
+const COMPUTES_WHAT_IT_READS = /\beval\b|\$\{!/
 
 function whatTheShellMayRun(root: Node): string | null {
   const commands: Node[] = []
@@ -136,7 +137,11 @@ function whatTheShellMayRun(root: Node): string | null {
 
 function readsTheLastStatus(node: Node, from: number): boolean {
   if (node.type === 'special_variable_name') return node.text === '?' && node.startIndex >= from
-  return node.endIndex > from && node.children.some(child => readsTheLastStatus(child, from))
+  if (node.type !== 'function_definition') return node.children.some(child => readsTheLastStatus(child, from))
+  const body = node.children.find(child => child.children.length > 0)
+  const first = body?.type === 'compound_statement' || body?.type === 'subshell' ? body.children.find(child => child.children.length > 0) : body
+  const readsWhatItWasCalledWith = first !== undefined && (COMPUTES_WHAT_IT_READS.test(first.text) || readsTheLastStatus(first, 0))
+  return readsWhatItWasCalledWith || node.children.some(child => readsTheLastStatus(child, Infinity))
 }
 
 export function watchesItsShell(command: string, closing: ClosingStatement): boolean {
@@ -144,7 +149,8 @@ export function watchesItsShell(command: string, closing: ClosingStatement): boo
   const at = root === null ? null : placeIn(command, root)
   if (root === null || at === null || NAMES_WHAT_THE_SHELL_RUNS.test(command)) return true
   const run = whatTheShellMayRun(root)
-  return run === null || RUNS_BESIDE_THE_FRAME.test(run) || MAY_TURN_VERBOSE_ON.test(run) || readsTheLastStatus(root, closing.at - at + root.startIndex)
+  if (run === null || RUNS_BESIDE_THE_FRAME.test(run) || MAY_TURN_VERBOSE_ON.test(run)) return true
+  return COMPUTES_WHAT_IT_READS.test(root.text.slice(closing.at - at)) || readsTheLastStatus(root, closing.at - at + root.startIndex)
 }
 
 const NOT_WORDS: ReadonlySet<string> = new Set(['variable_assignment', 'file_redirect', 'herestring_redirect'])

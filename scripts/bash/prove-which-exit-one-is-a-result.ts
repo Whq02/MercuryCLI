@@ -240,6 +240,10 @@ if (process.platform === 'win32') {
     ['IFS set to a digit before a grep of its own that exits 10', `IFS=0; grep() { return 10; }; grep missing ${LEFT}`, 'error'],
     ['a closing test that reads $? sees the status before it (the command is left unmarked)', '(exit 3); [ $? -eq 3 ]', 'ok'],
     ['a closing test that reads $? and is false is left unmarked, and reads as on 1.1.0', 'false; test $? -eq 0', 'error'],
+    ['a function of the script hands $? to the closing test', 'st() { echo $?; }; false; test "$(st)" = 1', 'ok'],
+    ['the closing test reads $? through an indirect name', `s='?'; false; test "\${!s}" = 1`, 'ok'],
+    ['the closing test reads $? through eval', `false; test "$(eval 'echo $?')" = 1`, 'ok'],
+    ['a function of the script, first stage of the closing pipeline, reads $?', 'st() { [ "$?" = 1 ] && echo failed; }; false; st | grep -c failed', 'ok'],
   ]
   for (const [label, command, want, more] of RAN_LAST) {
     const ran = await drive(command, more)
@@ -255,6 +259,8 @@ if (process.platform === 'win32') {
   const TRACE = join(WORK, 'trace')
   const INSTALL = join(WORK, 'install')
   writeFileSync(INSTALL, `trap 'echo "$BASH_COMMAND rc=$?" >> ${SIDE}' DEBUG\n`)
+  const STATUS = join(WORK, 'status')
+  writeFileSync(STATUS, `fixture_status() { echo "rc=$?" >> ${SIDE}; }\nfixture_run() { "$@"; }\n`)
   type Scene = [string, string, ('unmarked' | 'bound')?]
   const SCENES: Scene[] = [
     ['a plain miss', `grep missing ${LEFT}`],
@@ -308,6 +314,10 @@ if (process.platform === 'win32') {
     ['set and -v as the words of another command', `printf '%s\\n' set-url origin -v; grep missing ${LEFT}`],
     ['trap as a word searched for, beside debug', `grep -c trap ${LEFT}; grep debug ${LEFT}`],
     ['set -e ahead of a command with -v', `set -e; grep -v same ${LEFT}`],
+    ['PIPESTATUS read by the closing test', 'false; test "${PIPESTATUS[0]}" = 1'],
+    ['a function of the script that reads no status, called by the closing test', 'say() { echo ok; }; false; test "$(say)" = ok'],
+    ['a function that reads $? after its own command', `run() { "$@"; rc=$?; return $rc; }; run true; grep missing ${LEFT}`],
+    ['a function that reads $? in its second statement, called by the closing test', 'st() { :; echo $?; }; false; test "$(st)" = 0'],
     ['set -euo pipefail ahead of a pipe with --verbose', `set -euo pipefail\ntrue --verbose | grep -c missing`],
     ['--set and a variable in the words of another command', `v=1; true --set image=$v; grep missing ${LEFT}`],
     ['a command held in a variable', `tool=true; $tool --quiet; grep missing ${LEFT}`],
@@ -345,9 +355,18 @@ if (process.platform === 'win32') {
     ['a closing command that reads $?', '(exit 3); [ $? -eq 3 ]', 'unmarked'],
     ['a closing command that reads ${?}', '(exit 3); [ "${?}" = 3 ]', 'unmarked'],
     ['a closing command that reads $? in a substitution', '(exit 3); test "$(printf %s "$?")" = 3', 'unmarked'],
+    ['a function of the script that reads $?, called by the closing test', 'st() { echo $?; }; false; test "$(st)" = 1', 'unmarked'],
+    ['a function of the script that reads $?, first stage of the closing pipeline', 'st() { [ "$?" = 1 ] && echo failed; }; false; st | grep -c failed', 'unmarked'],
+    ['a function with a redirection of its own that reads $?', 'st() { echo $?; } 2>/dev/null; false; test "$(st)" = 1', 'unmarked'],
+    ['a function that reads $? through eval', `st() { eval 'echo $?'; }; false; test "$(st)" = 1`, 'unmarked'],
+    ['a closing test that reads $? through an indirect name', `s='?'; false; test "\${!s}" = 1`, 'unmarked'],
+    ['a closing test that reads $? through eval', `false; test "$(eval 'echo $?')" = 1`, 'unmarked'],
+    ['a trap handed to mapfile as its callback', `mapfile -c 1 -C 'trap "echo seen >> ${SIDE}" DEBUG #' lines < ${LEFT}; grep -e '[' ${LEFT}`, 'unmarked'],
     ['a DEBUG trap installed by a sourced file reads $? as 0 at the closing command, and sees no other command', `. ${INSTALL}; false; grep missing ${LEFT}`, 'bound'],
     ['a DEBUG trap whose name is put together from pieces', `trap 'echo "rc=$?" >> ${SIDE}' DE"BUG"; false; grep missing ${LEFT}`, 'unmarked'],
     ['a trap word put together from pieces sets a DEBUG trap that does the same', `tr"ap" 'echo "rc=$?" >> ${SIDE}' DEBUG; false; grep missing ${LEFT}`, 'bound'],
+    ['a function from a sourced file, called by the closing test, reads $? as 0 too', `. ${STATUS}; false; test "$(fixture_status)" = ""`, 'bound'],
+    ['a function from a sourced file that runs its words sets a DEBUG trap that does the same', `. ${STATUS}; fixture_run trap 'echo "rc=$?" >> ${SIDE}' DEBUG; false; grep missing ${LEFT}`, 'bound'],
   ]
   const served = await systemShellRecord()
   const shells = [...new Set([served.path, '/bin/bash'].filter(path => existsSync(path)).map(path => realpathSync(path)))]
