@@ -55,7 +55,7 @@ function liveRecord(runnerId: string, sessionId: string, workspaceId: string): C
     pid: process.pid,
   } as ConcourseWorkerRecordV1
 }
-function transcriptRows(cwd: string, sessionId: string, words: string): Record<string, unknown>[] {
+function transcriptRows(cwd: string, sessionId: string, words: string, atMs: number = NOW): Record<string, unknown>[] {
   const row = (extra: Record<string, unknown>): Record<string, unknown> => ({
     isSidechain: false,
     entrypoint: 'cli',
@@ -65,7 +65,7 @@ function transcriptRows(cwd: string, sessionId: string, words: string): Record<s
     gitBranch: 'main',
     parentUuid: null,
     uuid: `00000000-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, '0')}`,
-    timestamp: new Date(NOW).toISOString(),
+    timestamp: new Date(atMs).toISOString(),
     ...extra,
   })
   const reply = row({
@@ -77,8 +77,9 @@ function transcriptRows(cwd: string, sessionId: string, words: string): Record<s
 function seedSession(file: string, cwd: string, sessionId: string, words: string, ageMs: number): void {
   mkdirSync(cwd, { recursive: true })
   mkdirSync(dirname(file), { recursive: true })
-  writeFileSync(file, encodeSeedTranscript(transcriptRows(cwd, sessionId, words) as never, sessionId))
-  const at = new Date(NOW - ageMs)
+  const atMs = NOW - ageMs
+  writeFileSync(file, encodeSeedTranscript(transcriptRows(cwd, sessionId, words, atMs) as never, sessionId))
+  const at = new Date(atMs)
   utimesSync(file, at, at)
 }
 function seedChat(project: string, sessionId: string, words: string, ageMs: number): string {
@@ -128,7 +129,7 @@ const S_OTHER = sid('ee')
   check('a file with no first words is not a chat (a blank newborn\'s leftover never parks)', !parked.some(r => r.sessionId === S_BLANK))
   check('every parked row says what it is: state parked, a still "parked · <age>" cell, no fabricated seats', parked.every(r => r.state === 'parked' && typeof r.nowLabel === 'string' && /^parked · \d+[mhd]$/.test(r.nowLabel) && r.seats === null && r.ownerLabel === 'Mercury'), parked.map(r => r.nowLabel).join(' | '))
   check('every parked row carries its transcript for the resume door and its project as the mirror home', parked.every(r => r.transcriptPath === workerTranscriptPath({ sessionId: r.sessionId, workspaceId: P_CUR }) && r.workspaceDir === P_CUR && r.projectLabel === basename(P_CUR)))
-  check('the AGE cell is the file\'s age; the title is the chat\'s brief', parked.map(r => `${r.ageLabel}:${r.title}`).join(',') === '1h:resume me a,3h:resume me b', parked.map(r => `${r.ageLabel}:${r.title}`).join(','))
+  check('the AGE cell is the chat\'s last use; the title is the chat\'s brief', parked.map(r => `${r.ageLabel}:${r.title}`).join(',') === '1h:resume me a,3h:resume me b', parked.map(r => `${r.ageLabel}:${r.title}`).join(','))
   check('parked rows are not live; the COUNTS are the machine\'s (both live records, this project\'s and the other\'s — the seats fraction and the admission pump read them)', snap.counts.live === 2, String(snap.counts.live))
   check('the peek never lands on a parked row nor on another project\'s record (the scoped live record stands)', snap.peek?.sessionId === S_LIVE)
   check('the context names the board\'s project through the door', snap.context.projectLabel === basename(P_CUR))

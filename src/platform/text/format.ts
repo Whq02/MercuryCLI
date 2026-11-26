@@ -99,6 +99,7 @@ export function formatRelativeTimeAgo(
 
 export function formatListingMetadata(log: {
   modified: Date
+  lastUsedAt?: number
   messageCount?: number
   fileSize?: number
   gitBranch?: string
@@ -108,7 +109,7 @@ export function formatListingMetadata(log: {
   prRepository?: string
   endedOnError?: boolean
 }): string {
-  const parts = [formatRelativeTimeAgo(log.modified, { style: 'short' })]
+  const parts = [formatRelativeTimeAgo(new Date(log.lastUsedAt ?? log.modified), { style: 'short' })]
   if (log.gitBranch) parts.push(log.gitBranch)
   if (log.fileSize !== undefined) parts.push(formatFileSize(log.fileSize))
   else if (log.messageCount !== undefined) parts.push(`${log.messageCount} messages`)

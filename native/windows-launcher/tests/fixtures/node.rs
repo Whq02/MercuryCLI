@@ -3,6 +3,14 @@ use std::io::{self, Read};
 fn main() {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     if args.first().map(String::as_str) == Some("-p") {
+        if let Ok(log) = std::env::var("STUB_PROBE_LOG") {
+            let line = format!(
+                "cache={}\ndisable={}\n",
+                std::env::var("NODE_COMPILE_CACHE").unwrap_or_default(),
+                std::env::var("NODE_DISABLE_COMPILE_CACHE").unwrap_or_default(),
+            );
+            std::fs::write(log, line).unwrap();
+        }
         println!("{}", std::env::var("STUB_NODE_VERSION").unwrap());
         return;
     }
@@ -14,6 +22,7 @@ fn main() {
     io::stdin().read_to_string(&mut input).unwrap();
     println!("stdin={input}");
     println!("cache={}", std::env::var("NODE_COMPILE_CACHE").unwrap_or_default());
+    println!("disable={}", std::env::var("NODE_DISABLE_COMPILE_CACHE").unwrap_or_default());
     println!("cwd={}", std::env::current_dir().unwrap().display());
     eprintln!("stub stderr");
     std::process::exit(std::env::var("STUB_NODE_EXIT").unwrap().parse().unwrap());

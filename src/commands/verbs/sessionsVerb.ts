@@ -118,13 +118,14 @@ export async function sessionsListCli(options: { all?: boolean; limit?: number }
     io.out(options.all === true ? `No saved sessions under ${getProjectsDir()}.` : `No saved sessions for this project (${getProjectDir(getOriginalCwd())}); ${cli} sessions list --all reads every project.`)
     return 0
   }
-  io.out(`${logs.length} saved session${logs.length === 1 ? '' : 's'}${options.all === true ? ' across every project' : ' for this project'}, newest first (id · modified · size · title):`)
+  io.out(`${logs.length} saved session${logs.length === 1 ? '' : 's'}${options.all === true ? ' across every project' : ' for this project'}, newest first (id · last used · size · title):`)
   for (const log of logs) {
     const id = log.sessionId ?? (log.fullPath ?? '').split(/[\\/]/).pop()?.replace(/\.jsonl$/, '') ?? '?'
     const title = (listedSessionName(log) ?? '').replace(/\s+/g, ' ').trim()
     const words = title.length > 80 ? `${sliceHeadAtGrapheme(title, 77)}…` : title
     const place = options.all === true && log.projectPath ? ` · ${log.projectPath}` : ''
-    io.out(`${id}  ${log.modified.toISOString()}  ${kib(log.fileSize ?? 0)}${live.has(id) ? '  live' : ''}  ${words}${place}`)
+    const stamp = new Date(log.lastUsedAt ?? log.modified.getTime()).toISOString()
+    io.out(`${id}  ${stamp}  ${kib(log.fileSize ?? 0)}${live.has(id) ? '  live' : ''}  ${words}${place}`)
   }
   io.out(`${cli} --resume <id> reopens one; ${cli} sessions delete <id> removes one.`)
   return 0
