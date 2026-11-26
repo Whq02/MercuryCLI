@@ -449,6 +449,49 @@ try {
     const graceExact = readSessionLastUsedMsCachedSync(fGrace, graceSt.mtimeMs, graceSt.size, undefined, graceNow + 4_000)
     check('§3 time clamped inside 5s grace advances with nowMs on cache hits and returns exact occurredAt after grace', graceClamped === graceNow && graceMid === graceNow + 2_000 && graceExact === graceAt, `clamped=${String(graceClamped)} mid=${String(graceMid)} exact=${String(graceExact)} want=${graceAt}`)
 
+    const pOlderGrace = join(SCRATCH, 'proj-older-grace')
+    mkdirSync(pOlderGrace, { recursive: true })
+    const olderGraceDir = paths.getProjectDir(pOlderGrace)
+    mkdirSync(olderGraceDir, { recursive: true })
+    const sidFast = sid('96')
+    const sidNorm = sid('97')
+    const fFast = join(olderGraceDir, `${sidFast}.jsonl`)
+    const fNorm = join(olderGraceDir, `${sidNorm}.jsonl`)
+    const ogBase = Date.now()
+    writeFileSync(
+      fFast,
+      encodeSeedTranscript(
+        [
+          makeRow(sidFast, ogBase - 400_000, { cwd: pOlderGrace, type: 'user', message: { role: 'user', content: 'fast old prompt' } }),
+          makeRow(sidFast, ogBase + 60_000, {
+            cwd: pOlderGrace,
+            type: 'assistant',
+            message: { id: 'm_fg', type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'fast reply' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+          }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidFast,
+      ),
+    )
+    utimesSync(fFast, new Date(ogBase + 60_000), new Date(ogBase + 60_000))
+    writeFileSync(
+      fNorm,
+      encodeSeedTranscript(
+        [
+          makeRow(sidNorm, ogBase - 300_000, { cwd: pOlderGrace, type: 'user', message: { role: 'user', content: 'normal prompt' } }),
+          makeRow(sidNorm, ogBase - 15_000, {
+            cwd: pOlderGrace,
+            type: 'assistant',
+            message: { id: 'm_ng', type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'normal reply' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+          }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidNorm,
+      ),
+    )
+    utimesSync(fNorm, new Date(ogBase - 12_000), new Date(ogBase - 12_000))
+    const olderBefore = olderChatsCensus(pOlderGrace, new Set(), ogBase, { entryCap: 2 }).entries
+    const olderAfter = olderChatsCensus(pOlderGrace, new Set(), ogBase + 60_500, { entryCap: 2 }).entries
+    check('§3 olderChatsCensus shares clock-aware expiry and recovers once future clock catches up without file writes', olderBefore[0]?.sessionId === sidNorm && olderAfter[0]?.sessionId === sidFast && olderAfter[0]?.ageMs === 500, `before=${olderBefore[0]?.sessionId?.slice(-2)} after=${olderAfter[0]?.sessionId?.slice(-2)} age=${olderAfter[0]?.ageMs}`)
+
     const fSingle7M = join(SCRATCH, 'single-7m.jsonl')
     writeFileSync(
       fSingle7M,

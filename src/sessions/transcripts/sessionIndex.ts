@@ -240,8 +240,13 @@ export function scanLastConversationActivityMsSync(filePath: string, nowMs: numb
 const lastUsedCache = new Map<string, { mtimeMs: number; size: number; rawLastUsedMs: number | null; recheckAtMs?: number }>()
 const LAST_USED_CACHE_CAP = 2048
 
-function readSessionLastUsedSync(filePath: string, fileSize?: number, nowMs: number = Date.now()): ActivityScanResult {
-  const fromTail = scanTailActivity(readTranscriptTailSync(filePath, LITE_READ_BUF_SIZE), nowMs)
+function resolveLastUsedFromTailOrBackward(
+  filePath: string,
+  fileSize: number | undefined,
+  tail: string,
+  nowMs: number,
+): ActivityScanResult {
+  const fromTail = scanTailActivity(tail, nowMs)
   if (fromTail.rawLastUsedMs !== null) return fromTail
   if ((fileSize !== undefined && fileSize > LITE_READ_BUF_SIZE) || historyHead(filePath).before > 0) {
     const back = scanBackwardActivitySync(filePath, nowMs)
@@ -268,10 +273,8 @@ export function readSessionLastUsedMsCachedSync(
   ) {
     return clampAcceptedMs(held.rawLastUsedMs, nowMs)
   }
-  const result =
-    preReadText !== undefined
-      ? scanTailActivity(preReadText, nowMs)
-      : readSessionLastUsedSync(filePath, fileSize, nowMs)
+  const tail = preReadText !== undefined ? preReadText : readTranscriptTailSync(filePath, LITE_READ_BUF_SIZE)
+  const result = resolveLastUsedFromTailOrBackward(filePath, fileSize, tail, nowMs)
   if (lastUsedCache.size >= LAST_USED_CACHE_CAP) lastUsedCache.clear()
   lastUsedCache.set(filePath, {
     mtimeMs,
