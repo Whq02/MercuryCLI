@@ -1,19 +1,19 @@
-  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-workbench               │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+workbench               ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
   private reasoning     │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
-                        │   ▀▄▄▄▀▄▄▄▀                                                                                                      │
-next                    │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
-  /health               │                                                                                                                  │
+                        │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+next                    │   ▀▄▄▄▀▄▄▄▀                                                                                                      │
+  /health               │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
   /memory               │                                                                                                                  │
-  /mission              │ 12:32:17 [sam] ❯ private reasoning                                                                               │
+  /goal                 │                                                                                                                  │
+                        │ 18:12:41 [sam] ❯ private reasoning                                                                               │
+files · project         │                                                                                                                  │
+  ↵ browse              │ ✻ thinking… — the provider returned no thinking text for this model                                              │
                         │                                                                                                                  │
-files · project         │ ✻ thinking… — the provider returned no thinking text for this model                                              │
-  ↵ browse              │                                                                                                                  │
-                        │ 12:32:18 [Mercury] Private reasoning answer.                                                                     │
-vitals                  │                                                                                                                  │
+vitals                  │ 18:12:41 [Mercury] Private reasoning answer.                                                                     │
   spend $0.00           │                                                                                                                  │
   ctx 0% · 1000k        │                                                                                                                  │
   health — run /health  │                                                                                                                  │
+                        │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
