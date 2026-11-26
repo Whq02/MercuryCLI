@@ -8,6 +8,7 @@ import { ReadyBreath } from '../widgets/LiveGlyphs.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js';
 import { composerBorderRole, composerBorderStyle } from '../widgets/composerFloor.js';
+import { getShortNewlineInstructions } from '../composer/composerConfig.js';
 import { getTheme } from '../theme/theme.js';
 import { effectiveSeatCeiling } from '../../daemon/concourse-workers/concourseWorkers.js';
 import { controlNoteOf, type ConcourseSnapshotV1 } from './contracts.js';
@@ -186,7 +187,7 @@ export function ConcourseComposer({
           <Box flexGrow={1} overflow="hidden">
             <Text color={t.textMuted} wrap="truncate-end">
               {}
-              {focused ? keyHintLabel(keysHint ?? '↵ send · ⇧↵ newline · tab panes') : 'tab or click to type'}
+              {focused ? keyHintLabel(keysHint ?? `↵ send · ${getShortNewlineInstructions().startsWith('shift') ? '⇧↵' : '⌃j'} newline · tab panes`) : 'tab or click to type'}
             </Text>
           </Box>
         )}

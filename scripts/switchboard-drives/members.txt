@@ -23,3 +23,4 @@ prove-row-line-wraps.ts
 prove-seat-needs-you.ts
 prove-surface-truth-drive.ts
 prove-clear-model-notice.ts
+prove-concourse-newline-hint-apple-terminal-drive.ts
