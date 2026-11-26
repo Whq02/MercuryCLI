@@ -29,7 +29,7 @@ import { openRosterFlowOf, resolvePickOf } from './logins/picks.js';
 import { submitKeyOf, keyEscapeOf } from './logins/keyLegs.js';
 import { receiptFlowKeys, deviceFlowKeys, handlesFlowKeys, opdeviceFlowKeys, clientFlowKeys, keyFlowKeys, anthropicFlowKeys } from './logins/flowKeys.js';
 import type { LoginsFlowContext } from './logins/context.js';
-import type { DevinCliAction } from './logins/devinCliAction.js';
+import { devinCliMissingOutcome, type DevinCliAction } from './logins/devinCliAction.js';
 export type { LoginsScreenFactsV1, LoginsArmV1, LoginsRowStateV1, LoginsEntry, LoginsRosterRowV1 } from './logins/facts.js';
 export { collectLoginsScreenFacts, loginsCatalogue, loginsFamilyCounts, loginsExpiredFamilies, loginsGlance, loginsArmSlots, loginsSwitchableFamily, loginsRowStateOf, loginsSortedArms, loginsRosterRows, loginsRosterRowValue, loginsRosterRowLabel, loginsEntryOf, loginsDetailLines, lateSettleNotice, loginsSummaryRows, loginsStatusLine, loginsFlowReady, loginsLegendOf } from './logins/facts.js';
 export { maskedDraftLine, wrapHard, wrapClauses, anthropicFlowPaneLines, anthropicFlowLegendOf, anthropicFlowStatusOf, receiptPaneLines, signedInWayOut, signedInStatusWayOut } from './logins/anthropicLines.js';
@@ -67,6 +67,12 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
   const mistralApiReceipt = useRef('Mistral API key kept.');
   flowRef.current = flow;
   const [notice, setNotice] = useState<string | null>(null);
+  const [devinCliMissing, setDevinCliMissing] = useState<string | null>(() => devinCliMissingOutcome()?.receipt ?? null);
+  const lookUpDevinCli = (): string | null => {
+    const missing = devinCliMissingOutcome()?.receipt ?? null;
+    setDevinCliMissing(missing);
+    return missing;
+  };
   const [draft, setDraftState] = useState('');
   const draftRef = useRef('');
   const setDraft = (next: string | ((current: string) => string)): void => {
@@ -140,7 +146,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
   const submitKey = (leg: FaceKeyLegId, raw: string): void => submitKeyOf(ctx, leg, raw);
 
   const keyEscape = (leg: FaceKeyLegId): void => keyEscapeOf(ctx, leg);
-  const ctx: LoginsFlowContext = { given, setAppStateMaybe, flowRef, draftRef, deviceRunRef, handlesRef, anthropicKeyDraft, anthropicKeyRequest, xaiApiReceipt, mistralApiReceipt, setFlow, setNotice, setDraft, refreshFacts, closeFlow, settleSignedIn, discloseLateSettle, startDeviceRun, openGuideStep, startHandlesRun, startOpenaiDeviceRun, startDevinCliRun, model, openPick, submitKey, keyEscape };
+  const ctx: LoginsFlowContext = { given, setAppStateMaybe, flowRef, draftRef, deviceRunRef, handlesRef, anthropicKeyDraft, anthropicKeyRequest, xaiApiReceipt, mistralApiReceipt, setFlow, setNotice, setDraft, refreshFacts, closeFlow, settleSignedIn, discloseLateSettle, startDeviceRun, openGuideStep, startHandlesRun, startOpenaiDeviceRun, startDevinCliRun, lookUpDevinCli, model, openPick, submitKey, keyEscape };
 
   const recordedFocus = loginFamilyFocusFor(mostRecentSignInFamily());
   const requestedFocus = family === 'devin' || family === DEVIN_EXTERNAL_AGENT_VALUE ? DEVIN_EXTERNAL_AGENT_VALUE : loginFamilyFocusFor(family);
@@ -269,13 +275,14 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       statusNote: list.note,
       glowWord: wordGlow,
       notice,
+      devinCliMissing,
       ...(flow !== null
         ? {
             flow: loginsFlowPaneOf(flow, model, draft, pickList, onSignedIn),
           }
         : {}),
     });
-  }, [facts, list.selectedIndex, list.note, mainModel, flow, pickList.selectedIndex, model.flow, model.pastePromptUp, model.copied, model.shadowWarning, model.accountLabel, draft, wordGlow?.peakCell, wordGlow?.gainLevel]);
+  }, [facts, devinCliMissing, list.selectedIndex, list.note, mainModel, flow, pickList.selectedIndex, model.flow, model.pastePromptUp, model.copied, model.shadowWarning, model.accountLabel, draft, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useBootComposition(core, columns, rows, menuM);
 

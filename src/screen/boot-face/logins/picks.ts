@@ -11,7 +11,9 @@ export function openRosterFlowOf(ctx: LoginsFlowContext, row: LoginsRosterRowV1)
   if (row.kind === 'external-agent') {
     ctx.setDraft('');
     ctx.setNotice(null);
-    ctx.openPick('devin-cli');
+    const missing = ctx.lookUpDevinCli();
+    if (missing === null) ctx.openPick('devin-cli');
+    else ctx.setFlow({ kind: 'receipt', receipt: missing, ok: false, external: true });
     return;
   }
   openFlowOf(ctx, row.arm);
