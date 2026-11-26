@@ -34,7 +34,7 @@ import { branchChip } from '../theme/glyphs.js'
 import { InteractiveRow } from '../widgets/InteractiveRow.js'
 import { CREW_VIEW_DOOR } from '../cockpit/crewmateWords.js'
 import { getProjectRoot, getSessionId } from '../../boot/process-state/processState.js'
-import { composeMemoryAtStart, memoryAtStartStatus } from '../../sessions/mneme/entryKnapsack.js'
+import { composeMemoryAtStart, memoryAtStartRowWords, memoryAtStartStatus } from '../../sessions/mneme/entryKnapsack.js'
 import { mnemeEnabled } from '../../sessions/mneme/mnemeGates.js'
 import { mnemeProjectKey } from '../../sessions/mneme/paths.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -110,35 +110,13 @@ export function MercuryHome(): React.ReactNode {
   return isCompact ? null : <MercuryHomeBody />
 }
 
-const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
-
-function joinWords(parts: readonly string[]): string {
-  if (parts.length <= 1) return parts.join('')
-  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
-}
-
-function homeMemoryRowWords(status: NonNullable<ReturnType<typeof memoryAtStartStatus>>): string {
-  const pins = status.pinnedCount > 0 ? plural(status.pinnedCount, 'pinned rule') : null
-  const pending = status.pending > 0 && !(status.rodePending ?? 0) ? ` (${plural(status.pending, 'fact')} pending)` : ''
-  if (status.facts + status.notes === 0 && !(status.rodePending ?? 0)) {
-    if (pins === null && status.pending === 0) return 'nothing on record yet'
-    return `${pins === null ? 'nothing' : `${pins}; nothing else`} loaded${pending}`
-  }
-  const pointers = status.pointers ?? 0
-  const facts = status.facts > 0 ? `${status.rodeFacts} of ${plural(status.facts, 'fact')}${pointers > 0 ? ` (${pointers} as ${pointers === 1 ? 'a pointer' : 'pointers'})` : ''}` : null
-  const rodePending = (status.rodePending ?? 0) > 0 ? `${status.rodePending} of ${plural(status.pending, 'pending fact')}` : null
-  const notes = status.notes > 0 ? `${status.rodeNotes} of ${plural(status.notes, 'note')}` : null
-  const loaded = joinWords([facts, rodePending, notes].filter((part): part is string => part !== null))
-  return `${pins === null ? '' : `${pins} and `}${loaded} loaded${pending}`
-}
-
 function useMemoryAtStartRow(): string | null {
   const [words, setWords] = useState<string | null>(() => (mnemeEnabled() ? null : 'off (memory.enabled is false in settings)'))
   useLoad(signal => {
     if (!mnemeEnabled()) return
     void composeMemoryAtStart({ projectKey: mnemeProjectKey(), sessionId: String(getSessionId()), root: getProjectRoot() }).then(() => {
       const status = memoryAtStartStatus()
-      if (!signal.aborted && status !== null) setWords(homeMemoryRowWords(status))
+      if (!signal.aborted && status !== null) setWords(memoryAtStartRowWords(status))
     })
   }, [])
   return words
@@ -224,7 +202,7 @@ function MercuryHomeBody(): React.ReactNode {
         )}
       </Box>
 
-      <Box marginTop={signInGate.state === 'ok' ? 0 : 1} flexDirection="column">
+      <Box marginTop={1} flexDirection="column">
         {!deckPresent ? (
           <InteractiveRow {...rowClick('model', '/model')}>
             <Text wrap="truncate-end">
