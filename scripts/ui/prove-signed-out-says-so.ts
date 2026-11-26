@@ -70,7 +70,7 @@ async function drive(tag: string, signedIn: boolean, sendPrompt: boolean): Promi
     if (!signedIn) {
       check(`${tag}: the boot face status line says no sign-in yet`, rowsWith(home, 'Model ').some(l => l.includes('no sign-in yet')), rowsWith(home, 'Model ').join(' | '))
       check(`${tag}: the chat's hero row says not signed in and names /logins`, rowsWith(chat, 'not signed in').some(l => l.includes('○ not signed in · /logins connects')), rowsWith(chat, 'signed in').join(' | '))
-      check(`${tag}: …and never says ready`, chat !== null && !chat.some(l => l.includes('● ready')), rowsWith(chat, 'ready').join(' | '))
+      check(`${tag}: …and never says ready`, chat !== null && !chat.some(l => l.includes('ready ·')), rowsWith(chat, 'ready').join(' | '))
       check(`${tag}: the status row reads "not signed in · /logins" before the model`, /^\s*not signed in · \/logins · /.test(statusRow(resting)), statusRow(resting))
       if (sendPrompt) {
         const answer = painted(run, SIGNED_OUT_ANSWER, chatPaint?.ts ?? 0)
@@ -80,7 +80,7 @@ async function drive(tag: string, signedIn: boolean, sendPrompt: boolean): Promi
       }
     } else {
       check(`${tag}: the boot face status line names the signed-in model and never says no sign-in yet`, rowsWith(home, 'Model ').some(l => l.includes('Opus 5.5')) && !(home ?? []).some(l => l.includes('no sign-in yet') || l.includes('not signed in')), rowsWith(home, 'Model ').join(' | '))
-      check(`${tag}: the chat's hero row reads ready`, chat !== null && chat.some(l => l.includes('● ready · type a prompt, or / for commands')), rowsWith(chat, 'ready').join(' | '))
+      check(`${tag}: the chat's hero card shows the model row without the signed-out banner`, chat !== null && chat.some(l => /│\s+model\s+Opus 5\.5\s+\/model/.test(l)), rowsWith(chat, 'model').join(' | '))
       check(`${tag}: the status row reads ready before the model`, /^\s*ready · /.test(statusRow(chat)), statusRow(chat))
       check(`${tag}: nothing on the signed-in chat says not signed in`, chat !== null && !chat.some(l => l.includes('not signed in')), rowsWith(chat, 'signed in').join(' | '))
     }

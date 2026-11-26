@@ -117,12 +117,12 @@ function bandChecks(tag: string, cols: number, rows: number, grid: Grid, chip: '
     check(`${tag}: rows 1-${artLines} carry the session critter's dock form at column 2`, critter !== '', `${BAND_AT}; ${text.slice(0, artLines).map(l => JSON.stringify(l.slice(0, 16))).join(' ')}`)
     check(`${tag}: the rule closes the band on row ${bandRows}`, text[artLines] === '─'.repeat(cols), `${BAND_AT}; ${JSON.stringify(text[artLines] ?? '')}`)
     const facts = (y: number): string => (text[y] ?? '').slice(14)
-    check(`${tag}: row 1 folds the lockup, the readiness, the model, the effort and the context`, /^✶ Mercury · ● ready · Opus 5\.5 · effort \S+(?: \(asked\))? · ctx —$/.test(facts(0)), `${BAND_AT}; ${JSON.stringify(facts(0))}`)
+    check(`${tag}: row 1 folds the lockup, the readiness, the model, the effort and the context`, /^✶ Mercury · ready · Opus 5\.5 · effort \S+(?: \(asked\))? · ctx —$/.test(facts(0)), `${BAND_AT}; ${JSON.stringify(facts(0))}`)
     check(`${tag}: row 2 is the directory and the branch`, new RegExp(`^${tree}(?: ⌥ \\S+)?$`).test(facts(1)), `${BAND_AT}; ${JSON.stringify(facts(1))}`)
     check(`${tag}: row 3 is the critter alone`, facts(2) === '', `${BAND_AT}; ${JSON.stringify(facts(2))}`)
     check(`${tag}: the tree state and the turn count never reach the chip line`, !text.slice(bandRows).some(l => /uncommitted|⤳/.test(l)), `${BAND_AT}; keep the tree state and turn count off the chip line`)
   } else if (form === 'line') {
-    check(`${tag}: row 1 is the one identity line`, new RegExp(`^✶ Mercury · ● ready · Opus 5\\.5 · effort \\S+(?: \\(asked\\))? · ctx — · ${tree}(?: ⌥ \\S+)?$`).test(text[0] ?? ''), `${BAND_AT}; ${JSON.stringify(text[0] ?? '')}`)
+    check(`${tag}: row 1 is the one identity line`, new RegExp(`^✶ Mercury · ready · Opus 5\\.5 · effort \\S+(?: \\(asked\\))? · ctx — · ${tree}(?: ⌥ \\S+)?$`).test(text[0] ?? ''), `${BAND_AT}; ${JSON.stringify(text[0] ?? '')}`)
     check(`${tag}: the rule closes the band on row 2`, text[1] === '─'.repeat(cols), `${BAND_AT}; ${JSON.stringify(text[1] ?? '')}`)
     check(`${tag}: no critter under 20 rows`, !text.some(l => /[▀▄]{3,}/.test(l)), `${BAND_AT}; the dock sprite must not paint under 20 rows`)
   } else {
@@ -147,7 +147,7 @@ function bandChecks(tag: string, cols: number, rows: number, grid: Grid, chip: '
     check(`${tag}: under 14 rows the model returns to the chip line`, /^Opus 5\.5 · effort/.test(chipRow), `${CHIP_AT}; ${JSON.stringify(chipRow)}`)
   }
   const lines = text.filter(l => l.trim() !== '')
-  check(`${tag}: nothing is shown twice (ready · ctx · sessions on)`, ['● ready', 'ctx —', 'sessions on'].every(needle => lines.filter(l => l.includes(needle)).length <= 1), `${BAND_AT}; each of ready, ctx and sessions on must paint once`)
+  check(`${tag}: nothing is shown twice (ready · ctx · sessions on)`, ['· ready ·', 'ctx —', 'sessions on'].every(needle => lines.filter(l => l.includes(needle)).length <= 1), `${BAND_AT}; each of ready, ctx and sessions on must paint once`)
 }
 
 const idleSends = (cols: number, rows: number): unknown[] => [
@@ -252,7 +252,7 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
       check(`${tag}: the chip line keeps its place directly above the composer while streaming`, chipAt >= 0 && composerTop === chipAt + 1, `${CHIP_AT}; chip=${chipAt} composer=${composerTop}`)
       const activity = text[chipAt - 1] ?? ''
       check(`${tag}: the glyph line rides directly above the chip line`, activity.startsWith('✶') && /^✶ \S.*… · \d+s · ↓ ~?\d+/.test(activity), `the glyph activity line must ride directly above the chip line; ${JSON.stringify(activity)}`)
-      check(`${tag}: the band keeps the lockup without the readiness word while the turn runs`, text.some(l => l.includes('✶ Mercury')) && !text.some(l => l.includes('● ready')), `${BAND_AT}; the band keeps the lockup and drops ready while a turn runs`)
+      check(`${tag}: the band keeps the lockup without the readiness word while the turn runs`, text.some(l => l.includes('✶ Mercury')) && !text.some(l => l.includes('· ready ·')), `${BAND_AT}; the band keeps the lockup and drops ready while a turn runs`)
       check(`${tag}: the sessions line carries the interrupt rung beside the way back`, /esc interrupts · (?:⇧|shift\+)← (?:boot face|concourse)$/.test(text[23] ?? ''), `change compactSummaryHint in src/screen/widgets/compactModeChip.ts or the escape rung in src/screen/tasks/CompactWorkSummary.tsx; ${JSON.stringify(text[23] ?? '')}`)
       check(`${tag}: the model still appears on exactly one row while streaming`, text.filter(l => l.includes('Opus 5')).length === 1, `${BAND_AT}; the model must paint once while streaming`)
     }
