@@ -22,8 +22,8 @@ Saturn supports two schedule types, and the board shows both:
 
 ## The board
 
-`/schedule` opens the board inside the chat, in the chat's own frame, with `Esc`
-returning to the chat. Rows group under the session that owns them,
+`/schedule` opens the board as a pop-up over the chat, with `Esc` or a click
+outside returning to the chat. Rows group under the session that owns them,
 with box schedules under their own `box (machine)` section. The legend lists
 the keys: `↑↓ move · pgup/pgdn page · a schedule birth… · x delete · n run-now · p
 pause/resume · r refresh · esc back`. A row's trail shows the time expression

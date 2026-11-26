@@ -183,6 +183,7 @@ reg(
     'src/models/sign-in/flow-cards/MinimaxConnect.tsx',
     'src/models/sign-in/flow-cards/TogetherConnect.tsx',
     'src/commands/logins/login.tsx',
+    'src/screen/boot-face/logins/DevinCliCard.tsx',
     'src/models/sign-in/flow-cards/LoginAccountCard.tsx',
     'src/models/sign-in/flow-cards/ZaiConnect.tsx',
     'src/models/sign-in/flow-cards/DeepseekConnect.tsx',
