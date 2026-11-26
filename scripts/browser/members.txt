@@ -37,6 +37,7 @@ prove-browser-lifecycle.ts
 prove-browser-locale-identity.ts
 prove-browser-marked-names.ts
 prove-browser-misses-named.ts
+prove-browser-missing-libraries.ts
 prove-browser-model-switch.ts
 prove-browser-navigation-truth.ts
 prove-browser-popup-headers.ts
