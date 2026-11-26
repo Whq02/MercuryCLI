@@ -146,7 +146,7 @@ export function TwinkleSpark({
   return <Text color={glint ? accentSoft : color}>{glint ? GLYPH.sparkBright : GLYPH.spark}</Text>
 }
 
-export const CURSOR_NUDGE_MS = 380
+const CURSOR_NUDGE_MS = 380
 
 export function CursorCell({
   focused,
