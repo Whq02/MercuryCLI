@@ -40,6 +40,7 @@ for (const key of [
 const home = mkdtempSync(join(tmpdir(), 'authhard-usage-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_AUTH_SCOPE_DIR = home
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const { enableConfigs } = await import('../../src/platform/settings/config.js')
