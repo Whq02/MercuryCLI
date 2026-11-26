@@ -223,6 +223,9 @@ if (process.platform === 'win32') {
     ['a backgrounded failure waited for before && grep', `false & wait $! && grep missing ${LEFT}`, 'error'],
     ['a here-document read by the closing grep', "grep missing <<'END'\nactual\nEND", 'no matches found'],
     ['a here-document piped to the closing grep', "cat <<'END' | grep missing\nactual\nEND", 'no matches found'],
+    ['a here-document whose line goes on with && test: the test ran last', "grep same <<'END' && test -f /mercury-no-such-file-0x\nsame\nEND", 'condition is false'],
+    ['a here-document whose line goes on with && grep: the grep ran last', `cat > ${WORK}/written <<'END' && grep -c missing ${WORK}/written\nactual\nEND`, 'no matches found'],
+    ['a here-document read by a grep that finds nothing, && test never ran', "grep missing <<'END' && test -f /mercury-no-such-file-0x\nactual\nEND", 'error'],
     ['process substitution in the closing diff', 'diff <(printf a) <(printf b)', 'files differ'],
     ['an EXIT trap that turns a matching grep into exit 1', `trap 'exit 1' EXIT; grep same ${LEFT}`, 'error'],
     ['the shell killed before the closing grep', `kill -TERM $$; grep missing ${LEFT}`, 'error'],
@@ -324,6 +327,12 @@ if (process.platform === 'win32') {
       }
     }
   }
+
+  const engine = await createBashShellProvider({ ...systemShellAt(served.path), origin: 'engine' }, { skipSnapshot: true })
+  const plain = `grep missing ${LEFT}`
+  await BashTool.prepare?.({ command: plain } as never)
+  const underEngine = await engine.buildExecCommand(plain, { id: 'engine', closing: closingTableCommand(plain) })
+  check('a frame built for the bundled engine carries no marks (it has no pipeline record to read them with)', underEngine.closingMarks === undefined, `${underEngine.commandString} — buildExecCommand in src/platform/shell/bashProvider.ts marks only a bash, never a record whose origin is engine`)
 
   section('§8 the marks are gone when the command has settled')
   await new Promise(resolve => setTimeout(resolve, 500))

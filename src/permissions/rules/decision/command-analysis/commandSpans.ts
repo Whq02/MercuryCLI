@@ -76,17 +76,25 @@ function lastStageOf(node: Node): Node | undefined {
   return tail === undefined ? undefined : lastStageOf(tail)
 }
 
+function goesOnAfter(node: Node): Node[] {
+  if (node.type === 'list') return node.children.slice(1)
+  if (node.type !== 'redirected_statement') return []
+  const heredoc = node.children.findLast(child => child.type === 'heredoc_redirect')
+  const operator = heredoc?.children.findIndex(child => child.type === '&&' || child.type === '||') ?? -1
+  return heredoc === undefined || operator === -1 ? [] : heredoc.children.slice(operator, operator + 2)
+}
+
 export function closingStatement(command: string): ClosingStatement | undefined {
   const root = preparedCommandRoot(command)
   const at = root === null || root.type !== 'program' ? null : placeIn(command, root)
   if (root === null || at === null) return undefined
   let node = root.children.findLast(child => child.type !== ';' && child.type !== 'comment')
   let after: ClosingStatement['after'] = ';'
-  while (node?.type === 'list') {
-    const operator = node.children[1]?.type
+  for (let onward = node === undefined ? [] : goesOnAfter(node); onward.length > 0; onward = node === undefined ? [] : goesOnAfter(node)) {
+    const operator = onward[0]?.type
     if (operator !== '&&' && operator !== '||') return undefined
     after = operator
-    node = node.children[2]
+    node = onward[1]
   }
   const stage = node === undefined ? undefined : lastStageOf(node)
   if (node === undefined || stage === undefined) return undefined

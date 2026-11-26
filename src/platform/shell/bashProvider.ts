@@ -104,7 +104,7 @@ export async function createBashShellProvider(
       const cwdFile = cwdFileName(opts.id)
       const cwdFileNative = join(tmpdir(), cwdFile)
       const cwdFileInShell = isWindows ? windowsPathToPosixPath(cwdFileNative) : cwdFileNative
-      const closing = isWindows ? undefined : closingToMark(command, opts.closing)
+      const closing = isWindows || record.origin === 'engine' ? undefined : closingToMark(command, opts.closing)
       const closingMarks = closing === undefined ? undefined : { reached: `${cwdFileInShell}-closing`, endedOnOne: `${cwdFileInShell}-closing-1` }
       const preparedCommand = rewriteWindowsNullRedirect(
         closing === undefined || closingMarks === undefined
