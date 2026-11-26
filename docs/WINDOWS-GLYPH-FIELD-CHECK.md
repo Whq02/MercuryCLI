@@ -35,7 +35,7 @@ Each row names the screen, how to reach it, and what it must look like.
 
 1. **The home screen.** Start `mercury` with no arguments. The selected row
    leads with a plain pointer `❯` (New Session, Continue Last Session,
-   Logins/Keys, Session Manager (Concourse), Boot Menu, Profiles — no row
+   Logins/Keys, Session Manager (Concourse), Boot Menu, Profiles; no row
    icons), and the action arrow at the right is a plain `→` (never a blue
    arrow tile).
 2. **The thinking row.** Open a session and ask something that makes the

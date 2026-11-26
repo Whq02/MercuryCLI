@@ -339,7 +339,7 @@ t.section('§6 — THE BOX WRITERS (stamps daemon-shaped · both presences · ca
   t.check('§6 the 51st schedule refuses at the cap', !overCap.ok && overCap.reason.includes('50'))
 }
 
-t.section('§7 — THE FACE AND THE DOOR (Saturn left the face for /saturn · handover receipt still arms the face door)')
+t.section('§7 — THE FACE AND THE DOOR (Saturn left the face for /schedule · handover receipt still arms the face door)')
 {
   const { assembleCardRows } = await import('../../assets/splash/splash-core.mjs')
   type Row = { key: string; icon: string; label: string; ctx: string }
@@ -353,7 +353,7 @@ t.section('§7 — THE FACE AND THE DOOR (Saturn left the face for /saturn · ha
   const rows = assembleCardRows(FACTS) as Row[]
   const keys = rows.map(r => r.key)
 
-  t.check('§7 Saturn Scheduler left the approved boot face (reached by /saturn from chat)', !keys.includes('saturn') && JSON.stringify(keys) === JSON.stringify(['new', 'logins', 'concourse', 'menu']), keys.join(' · '))
+  t.check('§7 Saturn Scheduler left the approved boot face (reached by /schedule from chat)', !keys.includes('saturn') && JSON.stringify(keys) === JSON.stringify(['new', 'logins', 'concourse', 'menu']), keys.join(' · '))
   t.check('§7 menuAvailable: false drops logins and Boot Menu and adds no saturn row', !(assembleCardRows({ ...FACTS, menuAvailable: false }) as Row[]).some(r => r.key === 'saturn' || r.key === 'menu'))
   t.check('§7 a --chat world carries the face rows minus concourse and no saturn row', JSON.stringify((assembleCardRows({ ...FACTS, concourse: null }) as Row[]).map(r => r.key)) === JSON.stringify(['new', 'logins', 'menu']))
   t.check('§7 Boot Menu stays LAST on the approved boot face', keys[keys.length - 1] === 'menu')

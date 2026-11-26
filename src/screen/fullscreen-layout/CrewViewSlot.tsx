@@ -1,15 +1,15 @@
 import * as React from 'react'
-import { useState, useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from 'react'
 import { type DOMElement } from '../themedRenderer.js'
 import type { ScrollBoxHandle } from '../renderer/elements/ScrollBox.js'
 import { TerminalSizeContext } from '../renderer/elements/TerminalSizeContext.js'
-import { useMeasure } from '../effects/effects.js'
+import type { MeasuredHost } from '../overlays/PopupHost.js'
 import { useTerminalSize } from './useTerminalSize.js'
 import { closeCrewView, crewViewVersion, isCrewViewOpen, subscribeCrewView } from '../cockpit/crewView.js'
 import type { CommandPopupShape } from '../cockpit/commandPopup.js'
 import { CrewView } from '../widgets/faces/CrewView.js'
-import { modelPickerPopupGeometry, modelPickerPopupHost, popupBandBounds, type ModelPickerPopupHost } from '../overlays/ModelPickerPopupSlot.js'
-import { PopupGutter, popupCover, popupWidth, type PopupBand } from '../overlays/PopupGutter.js'
+import { modelPickerPopupGeometry } from '../overlays/ModelPickerPopupSlot.js'
+import { PopupGutter, popupCover, type PopupBounds, popupWidth } from '../overlays/PopupGutter.js'
 import { ModalContext } from '../overlays/modalContext.js'
 import { usePromptOverlayDialog } from '../overlays/promptOverlay.js'
 
@@ -24,7 +24,7 @@ export function crewDoorShape(view: string, width = CREW_POPUP_WIDTH): CommandPo
   return { view, door: 'crew', width: () => width, rows: rows => rows }
 }
 
-function crewPopupGeometry(host: ModelPickerPopupHost, terminalRows: number, shape: CommandPopupShape | null): CrewPopupGeometry {
+function crewPopupGeometry(host: PopupBounds, terminalRows: number, shape: CommandPopupShape | null): CrewPopupGeometry {
   const shared = modelPickerPopupGeometry(host, terminalRows)
   const width = popupWidth(shape === null ? CREW_POPUP_WIDTH : shape.width(host.columns), host.columns)
   const left = Math.max(0, Math.floor((host.columns - width) / 2))
@@ -32,27 +32,15 @@ function crewPopupGeometry(host: ModelPickerPopupHost, terminalRows: number, sha
   return { left, top: Math.max(0, shared.top - host.top), width, rows: shape === null ? rows : Math.min(shape.rows(terminalRows), rows) }
 }
 
-export function CrewViewSlot({ hostRef, bandRef, framed, modal }: { hostRef: React.RefObject<DOMElement | null>; bandRef?: React.RefObject<DOMElement | null>; framed: boolean; modal: CrewDoorModal | null }): React.ReactNode {
+export function CrewViewSlot({ host, modal }: { host: MeasuredHost | null; modal: CrewDoorModal | null }): React.ReactNode {
   useSyncExternalStore(subscribeCrewView, crewViewVersion, crewViewVersion)
   const { rows: terminalRows } = useTerminalSize()
   const dialog = usePromptOverlayDialog()
   const carried: CrewDoorModal | null = modal ?? (dialog === null ? null : { shape: null, scrollRef: null, node: dialog })
   const open = carried !== null || isCrewViewOpen()
-  const [host, setHost] = useState<ModelPickerPopupHost | null>(null)
-  const [band, setBand] = useState<PopupBand | null>(null)
-  useMeasure(() => {
-    if (!open) return
-    const element = hostRef.current
-    if (!element) return
-    const next = modelPickerPopupHost(element, framed)
-    if (next === null) return
-    if (host === null || host.left !== next.left || host.top !== next.top || host.columns !== next.columns || host.rows !== next.rows) setHost(next)
-    const nextBand = popupBandBounds(bandRef?.current ?? null)
-    if ((band === null) !== (nextBand === null) || (band !== null && nextBand !== null && (band.top !== nextBand.top || band.rows !== nextBand.rows))) setBand(nextBand)
-  })
-  if (!open || host === null) return null
+  if (!open || !host) return null
   const geometry = crewPopupGeometry(host, terminalRows, carried === null ? null : carried.shape)
-  const cover = popupCover(host, { left: host.left + geometry.left, top: host.top + geometry.top, width: geometry.width }, band)
+  const cover = popupCover(host, { left: host.left + geometry.left, top: host.top + geometry.top, width: geometry.width }, host.band)
   return (
     <PopupGutter {...geometry} contentRef={carried?.surfaceRef} cover={cover === undefined ? undefined : { left: cover.left - host.left, top: cover.top - host.top, width: cover.width, rows: cover.rows }}>
       <ModalContext.Provider value={{ columns: geometry.width, rows: geometry.rows, scrollRef: carried?.scrollRef ?? null }}>

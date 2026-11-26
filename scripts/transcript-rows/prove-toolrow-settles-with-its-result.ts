@@ -171,7 +171,7 @@ function chained(records: Rec[]): Rec[] {
 }
 const workGlyph = (line: string): boolean => WORK_FRAMES.some(f => line.includes(f))
 const tailOf = (line: string): string | null => /· (\d+)s(?:\s|$)/.exec(line)?.[1] ?? null
-const leadsWith = (line: string, name: string): boolean => line.includes(`]   ${name}`) && !line.includes(BLACK_CIRCLE) && !workGlyph(line)
+const leadsWith = (line: string, name: string): boolean => line.includes(`] ${name}`) && !line.includes(BLACK_CIRCLE) && !workGlyph(line)
 
 section('§A the record road — the reader and the fold the connector uses carry a large Eval result and an Edit result to an empty set')
 {

@@ -18,9 +18,9 @@ type MissionView = Pick<MissionCardFactV1, 'goal' | 'state' | 'nextStep' | 'iter
 
 function metLine(mission: MissionView): string {
   const outcome = mission.outcome
-  if (outcome === undefined) return '✓ Mission met — stops are allowed; a new /mission replaces it'
+  if (outcome === undefined) return '✓ Goal met — stops are allowed; a new /goal replaces it'
   const elapsed = formatDuration(Math.max(0, Date.parse(outcome.metAt) - Date.parse(mission.setAt)), { mostSignificantOnly: true })
-  return `✓ Mission completed — ${outcome.reason} · ${outcome.turns} ${plural(outcome.turns, 'turn')} · ${elapsed} · a new /mission replaces it`
+  return `✓ Goal completed — ${outcome.reason} · ${outcome.turns} ${plural(outcome.turns, 'turn')} · ${elapsed} · a new /goal replaces it`
 }
 
 function MissionStatusPanel({ mission }: { mission: MissionView }): React.ReactNode {
@@ -31,11 +31,11 @@ function MissionStatusPanel({ mission }: { mission: MissionView }): React.ReactN
   const stateLine = mission.state === 'met'
     ? metLine(mission)
     : mission.state === 'paused'
-      ? `${GLYPH.warn} Mission paused — ${mission.nextStep ?? 'waiting on you'}; your next message resumes it`
-      : `Mission active · ${iterationsLabel}${mission.nextStep ? ` · ${mission.nextStep}` : ''} · the session checks it at every turn end`
+      ? `${GLYPH.warn} Goal paused — ${mission.nextStep ?? 'waiting on you'}; your next message resumes it`
+      : `Goal active · ${iterationsLabel}${mission.nextStep ? ` · ${mission.nextStep}` : ''} · the session checks it at every turn end`
   return (
     <Box flexDirection="column">
-      <Text bold>Standing mission</Text>
+      <Text bold>Standing goal</Text>
       <Box marginTop={1}>
         <Text dimColor>{stateLine}</Text>
       </Box>
@@ -43,7 +43,7 @@ function MissionStatusPanel({ mission }: { mission: MissionView }): React.ReactN
         <Text>{mission.goal}</Text>
       </Box>
       <Box marginTop={1}>
-        <Text dimColor>"/mission clear" to drop it</Text>
+        <Text dimColor>"/goal clear" to drop it</Text>
       </Box>
     </Box>
   )
@@ -79,7 +79,7 @@ async function sessionMissionCard(): Promise<SessionMissionCardRead> {
 }
 
 const FACT_WAIT_MS = 4000
-const OLDER_RUNNER_LINE = 'the session took the line, but its runner did not take the mission: that runner predates session-owned missions — /restart restarts this chat on the installed build, then set the mission again'
+const OLDER_RUNNER_LINE = 'the session took the line, but its runner did not take the goal: that runner predates session-owned goals — /restart restarts this chat on the installed build, then set the goal again'
 
 async function missionFactArrives(expected: (card: MissionCardFactV1 | null | undefined) => boolean): Promise<boolean> {
   const { getFocusedSessionConnector } = await import('../../engine/connector/focusedConnector.js')
@@ -116,12 +116,12 @@ export async function call(
       return null
     }
     if (read.state === 'absent') {
-      onDone('No mission set. Usage: `/mission <goal>` (or `/goal <goal>`)')
+      onDone('No goal set. Usage: `/goal <goal>`')
       return null
     }
     const card = read.card
     if (card.state !== 'armed' && card.state !== 'paused' && card.state !== 'met') {
-      onDone(`Mission card ${card.state}: ${card.goal}${card.nextStep ? `\nNext step: ${card.nextStep}` : ''}`)
+      onDone(`Goal card ${card.state}: ${card.goal}${card.nextStep ? `\nNext step: ${card.nextStep}` : ''}`)
       return null
     }
     const output = await renderToString(<MissionStatusPanel mission={card} />)
@@ -130,20 +130,20 @@ export async function call(
   }
 
   if (!hosted) {
-    onDone('No session is open — start or open one, then /mission again', { display: 'system' })
+    onDone('No session is open — start or open one, then /goal again', { display: 'system' })
     return null
   }
 
   if (isMissionClearKeyword(arg)) {
     const current = await sessionMissionCard()
     const goal = current.state === 'ok' ? current.card.goal : undefined
-    const receipt = await getFocusedSessionConnector().sendWords(`/mission ${arg}`, { metaFrom: { command: 'mission' } })
+    const receipt = await getFocusedSessionConnector().sendWords(`/goal ${arg}`, { metaFrom: { command: 'goal' } })
     if (receipt.state !== 'accepted') {
-      onDone(`/mission ${arg} did not reach the session — ${receipt.detail}`, { display: 'system' })
+      onDone(`/goal ${arg} did not reach the session — ${receipt.detail}`, { display: 'system' })
       return null
     }
     const cleared = await missionFactArrives(card => card === undefined || card === null || card.state === 'cleared' || card.goal !== goal)
-    onDone(cleared ? `Mission cleared${goal === undefined ? '' : `: ${goal}`}` : `/mission ${arg}: ${OLDER_RUNNER_LINE}`, { display: 'system' })
+    onDone(cleared ? `Goal cleared${goal === undefined ? '' : `: ${goal}`}` : `/goal ${arg}: ${OLDER_RUNNER_LINE}`, { display: 'system' })
     return null
   }
 
@@ -155,16 +155,16 @@ export async function call(
     return null
   }
 
-  const receipt = await getFocusedSessionConnector().sendWords(`/mission ${arg}`, { metaFrom: { command: 'mission' } })
+  const receipt = await getFocusedSessionConnector().sendWords(`/goal ${arg}`, { metaFrom: { command: 'goal' } })
   if (receipt.state !== 'accepted') {
-    onDone(`/mission did not reach the session — ${receipt.detail}`, { display: 'system' })
+    onDone(`/goal did not reach the session — ${receipt.detail}`, { display: 'system' })
     return null
   }
   const armed = await missionFactArrives(card => card !== undefined && card !== null && card.goal === arg && (card.state === 'armed' || card.state === 'paused' || card.state === 'met'))
   if (!armed) {
-    onDone(`/mission: ${OLDER_RUNNER_LINE}`, { display: 'system' })
+    onDone(`/goal: ${OLDER_RUNNER_LINE}`, { display: 'system' })
     return null
   }
-  onDone(`Mission set: ${arg}`)
+  onDone(`Goal set: ${arg}`)
   return null
 }

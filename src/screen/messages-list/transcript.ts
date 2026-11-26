@@ -114,7 +114,7 @@ export function isAssistantContinuationRow(
     const content = Array.isArray(m.message.content) ? m.message.content : []
     const first = content[0]
     if (!first) return false
-    return first.type !== 'thinking' && first.type !== 'redacted_thinking'
+    return first.type !== 'thinking' && first.type !== 'redacted_thinking' && first.type !== 'tool_use'
   }
 
   return agentSide(current) && agentSide(previous) && stamps(previous)

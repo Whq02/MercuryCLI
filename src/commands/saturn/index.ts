@@ -2,8 +2,10 @@ import type { Command } from '../catalogue/commands.js'
 
 const command = {
   type: 'local-jsx',
-  name: 'saturn',
-  description: 'Schedules — next fire · held fires · pause/run-now (Saturn)',
+  name: 'schedule',
+  description: 'Schedules (Saturn): the board; with words, schedules it',
+  argumentHint: '[what and when]',
+  promptWithArgs: true,
   isEnabled: () => true,
   isHidden: false,
   load: () => import('./saturn.js'),

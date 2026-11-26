@@ -36,7 +36,7 @@ covers the whole repository ([TRUST.md](TRUST.md)).
 
 Running `mercury` with no arguments opens the home screen, with no chat behind it. The rows are **New Session**, **Continue Last Session** (once history exists), **Logins/Keys**, **Session Manager (Concourse)**, **Boot Menu**, and **Profiles**. The line below shows the model and the current folder.
 
-In Boot Menu, **MCPs & Skills** and **Agents** set up the next session. Inside a chat, use `/mcp`, `/skills` or `/agents`. Use `/health` for diagnostics (`mercury health` also runs from a terminal) and `/saturn` for the [scheduler](SATURN.md). To reopen another folder’s chat before starting one, open Session Manager, press `Ctrl+G`, choose the folder, then open a parked chat or press `Enter` on **older chats** to browse. Inside a chat, `/sessions` opens the session picker.
+In Boot Menu, **MCPs & Skills** and **Agents** set up the next session. Inside a chat, use `/mcp`, `/skills` or `/agents`. Use `/health` for diagnostics (`mercury health` also runs from a terminal) and `/schedule` for the [scheduler](SATURN.md). To reopen another folder’s chat before starting one, open Session Manager, press `Ctrl+G`, choose the folder, then open a parked chat or press `Enter` on **older chats** to browse. Inside a chat, `/sessions` opens the session picker.
 
 Pressing `m` on the home screen opens the default model and effort picker whenever `engine.sessionDefaults` is not `false`. Boot Menu starts with **NEXT SESSION** and the two editors, followed by **TRUST COMBO**
 (`Content-rule wards`, `Debug tool`, `C/C++ IDE lane (clangd)`,
@@ -75,12 +75,12 @@ Pressing `Enter` on New Session creates a session for the current folder on your
 default model, and opens it. The session, the chat and its board row are created
 together (the record is on the board before the chat paints)
 and no prompt is sent: the session starts blank and ready, just like a row
-opened from the board. A `/mission` (`/goal`) typed in the moment before the runner
+opened from the board. A `/goal` typed in the moment before the runner
 is ready still belongs to the chat you opened: it is held like any line and sent
 to the session when the runner is ready, the session arms it, and the rail shows
 it from the session's card.
 
-`/goal <goal>` (`/mission <goal>`) sends the goal to the session, which owns it:
+`/goal <goal>` sends the goal to the session, which owns it:
 the session arms the standing goal (up to 4,000 characters, split into its end
 state and any constraints, each one a criterion), writes the goal card, and
 starts a turn with the goal directive when it is idle (mid-turn the goal joins
@@ -120,11 +120,11 @@ the footer indicator clears, and bare `/goal` shows the achieved goal with its r
 turns and duration; when `not yet`, the turn continues with `Mission not
 completed: <goal> — <what is open>. Continue.`; when `impossible`, the goal
 pauses with the reason as the note. The only brake on the loop: three
-consecutive turn ends without a tool call pause the goal (`"mission paused
+consecutive turn ends without a tool call pause the goal (`"goal paused
 after 3 turns without a tool call — your next message resumes it"`), while a
 turn with any tool call since the previous judged end never trips it; a turn
-that ends on a question to you pauses it the same way (`"mission paused — <why>
-· your next message resumes it; /mission clear ends it"`). A pause keeps the
+that ends on a question to you pauses it the same way (`"goal paused — <why>
+· your next message resumes it; /goal clear ends it"`). A pause keeps the
 goal armed. Your next message resumes a paused goal; a scheduled wake does not.
 
 Pressing `Enter` opens a chat immediately using a pre-warmed
