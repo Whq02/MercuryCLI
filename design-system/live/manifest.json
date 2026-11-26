@@ -1240,8 +1240,8 @@
     },
     {
       "id": "sessions--120x40--dark--truecolor--full",
-      "sourceSha": "1c7c67b5a876f95a1007e670d88e1bd30292360f",
-      "buildDigest": "99fae3cd2dfac1d7089193c70b95de8ec21b8046",
+      "sourceSha": "8c8794532e04656da2b058022c702f591aa0e533",
+      "buildDigest": "464b88722559d35c1d3ceba088146264d119711f",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1252,8 +1252,8 @@
       "stateFixture": "sessions",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/sessions--120x40--dark--truecolor--full.grid.json",
-      "gridDigest": "2e7842f1017eaab4fa5724deedbd77b688501c938e3af41eb66bce1e4a5cc004",
-      "styleDigest": "afc0ab9879053fccf8362aac49ca6817a02b1576ad79b07d7a93cf7555d599a4",
+      "gridDigest": "3924d951da7098c1d94d30bdd45778b1a597bcabcbf250c57c1eb899b735e9e1",
+      "styleDigest": "870e60c6460b5bddb62a2cb34948701aefead1200488aed9a4ea50746c3bea41",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",

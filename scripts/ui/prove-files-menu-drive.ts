@@ -300,7 +300,7 @@ if (worlds.has('plain') || worlds.has('off')) {
   tally.check('P4 the menu opens over the chat at rows 5..20, columns 54..123, seventy wide', menu !== null && menu.top === 5 && menu.left === 54 && menu.right === 123 && menu.rows.length === 16, menu === null ? 'no menu' : `top ${menu.top} left ${menu.left} right ${menu.right} rows ${menu.rows.length}`)
   const expectedMenu = [
     '╭────────────────────────────────────────────────────────────────────╮',
-    '│ ▖▟▆▙▗ Mercury · files                                              │',
+    '│ Mercury · files                                                    │',
     '│ FIXTURE-CWD                                                        │',
     '│                                                                    │',
     '│ ❯ .mercury                                                         │',

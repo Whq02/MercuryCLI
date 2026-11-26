@@ -1,7 +1,7 @@
   lanes             ╭──────────────────────────────────────────────────────────────────────────────╮
 WORKBENCH           │                                                                              │
   no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
-                    │ │ ▖▟▆▙▗ Mercury · usage                                                    │ │
+                    │ │ Mercury · usage                                                          │ │
 NEXT                │ │ API usage session on · 0 subscriptions signed in                         │ │
   · /health…        │ │                                                                          │ │
                     │ │ Anthropic usage                                                          │ │
