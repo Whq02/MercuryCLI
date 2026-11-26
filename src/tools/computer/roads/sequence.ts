@@ -1,15 +1,32 @@
 import { isTerminalApplication, readTerminalText } from '../terminalText.js'
 import { WEB_CONTENT_NOTICE } from '../../shell/webContent.js'
 import type { PermissionDecision } from '../../../permissions/rules/permissions.js'
-import { appApproved, peekCheckedActApp } from '../../../integrations/desktop/desktopSession.js'
+import { appApproved, peekCheckedActApp, screenOf } from '../../../integrations/desktop/desktopSession.js'
 import { type DesktopObservation, STATE_LINE, observationChanged, readObservation, stateWord, treeObservation } from '../fastRoad.js'
-import { ACT_ACTIONS, type Input, SCREENSHOT_SUPERSEDED, SCREENSHOT_UNSEEN, permissionAction } from '../call/schema.js'
+import { ACT_ACTIONS, type Input, SCREENSHOT_SUPERSEDED, SCREENSHOT_UNSEEN, definitelyTakesImage, permissionAction, usesScreenshotPixels } from '../call/schema.js'
 import { frontAfterCard } from '../call/plan.js'
 import { interruptedAfterActText, interruptedText } from '../call/words.js'
 import { takeScreenshot } from '../call/shot.js'
+import type { ScreenMap } from '../screenMap.js'
 import type { ComputerAnswer, RoadNeeds } from './needs.js'
 
-export async function sequenceRoad({ run, input, context, owner, signal, toolUseId, sameMessage, driver, canUseTool, parentAssistantMessage, takeShot, adoptShot, shotLines, finish, ComputerTool }: RoadNeeds, steps: Input[]): Promise<ComputerAnswer> {
+async function preflightUnseenScreenshot(driver: RoadNeeds['driver'], input: Input, steps: Input[]): Promise<Input | null> {
+  const first = steps[0]
+  if (first?.action !== 'screenshot') return null
+  const bad = steps.slice(1).find(usesScreenshotPixels)
+  if (!bad) return null
+  if (definitelyTakesImage(first, input) || process.platform !== 'darwin') return bad
+  const front = await driver.frontmostApplication()
+  return front.ok && !isTerminalApplication(front.value) ? bad : null
+}
+
+export async function sequenceRoad({ run, input, context, owner, signal, toolUseId, sameMessage, driver, canUseTool, parentAssistantMessage, adoptShot, shotLines, finish, ComputerTool }: RoadNeeds, steps: Input[]): Promise<ComputerAnswer> {
+  const preflight = await preflightUnseenScreenshot(driver, input, steps)
+  if (preflight !== null) {
+    run.result = `sequence 0/${steps.length} completed · ${preflight.action} refused: ${SCREENSHOT_UNSEEN}; nothing further done`
+    run.outcome = 'failed'
+    return finish()
+  }
   const lines: string[] = []
   let completed = 0
   let afterState = ''
@@ -18,6 +35,7 @@ export async function sequenceRoad({ run, input, context, owner, signal, toolUse
   let firstBefore: DesktopObservation | null = null
   let mayRead = false
   let shotInSequence = false
+  let lastShotScreen: ScreenMap | null = screenOf(owner)
   const readable = new Set<string>()
   for (const step of steps) {
     if (signal.aborted) {
@@ -26,7 +44,7 @@ export async function sequenceRoad({ run, input, context, owner, signal, toolUse
       run.outcome = 'failed'
       return finish()
     }
-    if (shotInSequence && ((step.x !== undefined && step.y !== undefined) || (step.toX !== undefined && step.toY !== undefined) || step.region !== undefined)) {
+    if (shotInSequence && usesScreenshotPixels(step)) {
       run.result = `sequence ${completed}/${steps.length} completed · ${step.action} refused: ${SCREENSHOT_UNSEEN}; nothing further done\n${lines.join('\n')}`
       run.outcome = 'failed'
       return finish()
@@ -62,28 +80,28 @@ export async function sequenceRoad({ run, input, context, owner, signal, toolUse
       mayRead = true
     }
     if (step.action === 'screenshot') {
-      if (input.capture !== false) {
-        const front = await driver.frontmostApplication()
-        if (front.ok && isTerminalApplication(front.value) && !step.pixels && !(step.full ?? input.full) && step.display === undefined && (step.region ?? input.region) === undefined) {
-          for (let at = 0; at < lines.length; at++) if (shotLines.has(lines[at]!)) lines[at] = SCREENSHOT_SUPERSEDED
-          lines.push(await readTerminalText(driver, front.value, signal))
-          run.contentShown = true
-          run.imagePath = run.inlinePath = run.inlineMediaType = undefined
-          run.screen = undefined
-          completed++
-          continue
-        }
-        const shot = await takeScreenshot(owner, driver, context, toolUseId, step.display, step.label, signal, step.region ?? input.region, 0, undefined, step.full ?? input.full, step.scale ?? input.scale, false, sameMessage)
-        if (!shot.ok) {
-          run.result = `sequence ${completed}/${steps.length} completed\n${lines.join('\n')}\n${shot.aborted ? interruptedText('screenshot') : shot.text}`
-          run.outcome = 'failed'
-          return finish()
-        }
-        adoptShot(shot)
-        shotInSequence = true
-        lines.push(shot.line)
+      const front = await driver.frontmostApplication()
+      if (front.ok && isTerminalApplication(front.value) && !step.pixels && !(step.full ?? input.full) && step.display === undefined && (step.region ?? input.region) === undefined) {
+        for (let at = 0; at < lines.length; at++) if (shotLines.has(lines[at]!)) lines[at] = SCREENSHOT_SUPERSEDED
+        lines.push(await readTerminalText(driver, front.value, signal))
         run.contentShown = true
-      } else lines.push('screenshot step skipped (capture: false)')
+        run.imagePath = run.inlinePath = run.inlineMediaType = undefined
+        run.screen = undefined
+        lastShotScreen = screenOf(owner)
+        completed++
+        continue
+      }
+      const shot = await takeScreenshot(owner, driver, context, toolUseId, step.display, step.label, signal, step.region ?? input.region, 0, undefined, step.full ?? input.full, step.scale ?? input.scale, false, sameMessage, lastShotScreen)
+      if (!shot.ok) {
+        run.result = `sequence ${completed}/${steps.length} completed${lines.length ? `\n${lines.join('\n')}` : ''}\n${shot.aborted ? interruptedText('screenshot') : shot.text}`
+        run.outcome = 'failed'
+        return finish()
+      }
+      adoptShot(shot)
+      lastShotScreen = shot.screen
+      shotInSequence = true
+      lines.push(shot.line)
+      run.contentShown = true
       completed++
       continue
     }
@@ -104,11 +122,10 @@ export async function sequenceRoad({ run, input, context, owner, signal, toolUse
   }
   run.outcome = 'succeeded'
   if (input.capture !== false && steps.at(-1)?.action !== 'screenshot') {
-    run.imagePath = run.inlinePath = run.inlineMediaType = undefined
-    run.screen = undefined
-    const shot = await takeShot(undefined, input.label)
+    const shot = await takeScreenshot(owner, driver, context, toolUseId, undefined, input.label, signal, input.region, 0, undefined, input.full, input.scale, false, sameMessage, lastShotScreen)
     if (shot.ok) {
       adoptShot(shot)
+      lastShotScreen = shot.screen
       lines.push(shot.line)
     } else {
       lines.push(shot.aborted ? interruptedAfterActText('sequence') : shot.text)

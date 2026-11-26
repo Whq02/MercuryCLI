@@ -139,7 +139,7 @@ try {
     script.deployed = OTHER
     const idle = fresh()
     const answer = restart.restartWhenIdle(idle, needs, 'the operator')
-    check('E4 an idle daemon of another build is refused the restart, with words that name the installed tree', answer.state === 'refused' && (answer.detail ?? '') === 'another build (tree bbbbbbbbbbbb) is installed — a Mercury of that build starts its own daemon; this one leaves now, re-executing nothing', answer)
+    check('E4 an idle daemon of another build is refused the restart, with words that name the installed tree and running version without promising a separate daemon', answer.state === 'refused' && (answer.detail ?? '') === `another build (tree bbbbbbbbbbbb) is installed — running v${currentVersion()}; this one leaves now, re-executing nothing` && !(answer.detail ?? '').includes('starts its own daemon'), answer)
     check('…asks its live sessions for their facts, and marks no restart after teardown', counts.asked === 1 && idle.restartAfterTeardown === false && idle.restartArmed === false)
     await tick()
     check('E4 …and then leaves by control:restart-when-idle', shutdowns.join() === 'control:restart-when-idle')
@@ -150,7 +150,7 @@ try {
     counts.live = 1
     const armed = restart.restartWhenIdle(live, needs, 'the operator')
     await tick()
-    check('with a live worker it arms and leaves nothing yet', armed.state === 'armed' && armed.live === 1 && live.restartArmed === true && shutdowns.length === 0 && said.some(line => line.includes('this one leaves when its 1 live worker(s) finish, re-executing nothing')), { armed, said })
+    check('with a live worker it arms, leaves nothing yet, and logs the installed/running/live state without promising a separate daemon', armed.state === 'armed' && armed.live === 1 && live.restartArmed === true && shutdowns.length === 0 && said.some(line => line.includes(`another build (tree bbbbbbbbbbbb) is installed — running v${currentVersion()}; this one leaves when its 1 live worker(s) finish, re-executing nothing`) && !line.includes('starts its own daemon')), { armed, said })
 
     reset()
     script.deployed = OTHER

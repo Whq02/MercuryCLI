@@ -74,11 +74,17 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
   const takeShot = (wanted: number | undefined, label: string | undefined, settleMs = 0, observe?: DesktopBounds): Promise<Shot> =>
     takeScreenshot(owner, driver, context, toolUseId, wanted, label, signal, input.region, settleMs, observe, input.full, input.scale, true, sameMessage)
   const shotLines = new Set<string>()
+  const omittedShots: Array<{ line: string; imagePath: string }> = []
+  let activeShotLine: string | undefined
   const adoptShot = (shot: Extract<Shot, { ok: true }>): void => {
+    if (run.imagePath !== undefined && activeShotLine !== undefined) {
+      omittedShots.push({ line: activeShotLine, imagePath: run.imagePath })
+    }
     run.imagePath = shot.imagePath
     run.inlinePath = shot.inlinePath
     run.inlineMediaType = shot.inlineMediaType
     run.screen = shot.screen
+    activeShotLine = shot.line
     shotLines.add(shot.line)
   }
   const needs: RoadNeeds = { run, input, context, owner, signal, toolUseId, sameMessage, driver, canUseTool, parentAssistantMessage, takeShot, adoptShot, shotLines, finish, ComputerTool }
@@ -278,11 +284,26 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
       run.imagePath = run.inlinePath = run.inlineMediaType = undefined
       run.screen = undefined
     }
-    const { result, outcome, imagePath, inlinePath, inlineMediaType, screen, claimedForAct, contentShown } = run
+    const { outcome, imagePath, inlinePath, inlineMediaType, screen, claimedForAct, contentShown } = run
+    let result = run.result!
+    const keptOmitted: Array<{ line: string; imagePath: string }> = []
+    if (outcome === 'succeeded' && imagePath !== undefined && omittedShots.length > 0) {
+      const resultLines = result.split('\n')
+      const byLine = new Map(omittedShots.map(shot => [shot.line, shot]))
+      result = resultLines.map(line => {
+        const omitted = byLine.get(line)
+        if (!omitted) return line
+        keptOmitted.push(omitted)
+        return `screenshot saved at ${omitted.imagePath} (not returned in this answer — only the last screenshot travels; use Read on that path to view it)`
+      }).join('\n')
+      if (keptOmitted.length > 0) {
+        result += `\nimages: 1 of ${keptOmitted.length + 1} returned (only the last screenshot travels; ${keptOmitted.length} earlier saved to disk — see paths above); coordinates now refer to ${imagePath}`
+      }
+    }
     if (imagePath && screen) setScreen(owner, screen)
     if (claimedForAct && !signal.aborted) renewDesktopClaim()
     const clamps = ([['depth', TREE_DEPTH_CAP], ['limit', TREE_LIMIT_CAP]] as const).filter(([field, cap]) => (input[field] ?? 0) > cap).map(([field, cap]) => `${field} ${input[field]} → ${cap}`)
-    const text = result! + (clamps.length && outcome === 'succeeded' ? `\nclamped: ${clamps.join('; ')}` : '')
+    const text = result + (clamps.length && outcome === 'succeeded' ? `\nclamped: ${clamps.join('; ')}` : '')
     const noted = imagePath !== undefined || contentShown || (outcome === 'succeeded' && carriesScreenContent(input, false))
     const output: Output = {
       action: input.action,
@@ -298,7 +319,7 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
       effect: {
         outcome,
         operation: `computer.${input.action}`,
-        changedPaths: imagePath ? [imagePath] : [],
+        changedPaths: imagePath ? [...keptOmitted.map(shot => shot.imagePath), imagePath] : [],
         evidence: text.split('\n')[0]?.slice(0, 160) ?? '',
         startedAt,
         completedAt: Date.now(),

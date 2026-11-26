@@ -15,13 +15,14 @@ let focus = 'First'
 let inputValue = ''
 let mode: 'title' | 'focus' | 'late' | 'value' | 'same' | 'slow' = 'title'
 let acted = false
+let actedAt = 0
 let afterReads = 0
 let cancelled = false
+let truncated = true
 const app = { identity: 'com.example.Editor', name: 'Editor', pid: 123, title, windowId: 'editor', bounds: { x: 100, y: 100, width: 800, height: 600 } }
 driver.frontmostApplication = async () => ({ ok: true, value: { ...app, title } })
 driver.accessibilityTree = async (_app, _limits, signal) => {
   if (acted) afterReads++
-  if (acted && mode === 'focus' && afterReads >= 3) focus = 'Second'
   if (acted && mode === 'late' && afterReads >= 2) focus = 'Second'
   if (acted && mode === 'slow') return new Promise(resolve => {
     const fallback = setTimeout(() => resolve({ ok: false, error: { kind: 'defect', note: 'the read deadline never arrived' } }), 1000)
@@ -30,36 +31,55 @@ driver.accessibilityTree = async (_app, _limits, signal) => {
     else signal.addEventListener('abort', abort, { once: true })
   })
   const focused: DesktopTreeElement = { depth: 16, role: 'AXTextField', title: focus, value: inputValue, focused: true, frame: { x: focus === 'First' ? 150 : 250, y: 150, width: 80, height: 20 } }
-  return { ok: true, value: { elements: [{ depth: 0, role: 'AXWindow', title, value: null, frame: app.bounds }], focused, truncated: true, reason: null, scope: 'window' } }
+  return { ok: true, value: { elements: [{ depth: 0, role: 'AXWindow', title, value: null, frame: app.bounds }], focused, truncated, reason: null, scope: 'window' } }
 }
 const keyTap = driver.keyTap.bind(driver)
 driver.keyTap = async (...args) => {
   const answer = await keyTap(...args)
   acted = true
+  actedAt = Date.now()
   afterReads = 0
   if (mode === 'title') title = title === 'Document' ? 'New Bot - Grok' : 'Automations - Grok'
+  if (mode === 'focus') setTimeout(() => { focus = 'Second' }, 60)
   if (mode === 'value') inputValue = 'new text'
   return answer
 }
-const reset = (next: typeof mode) => { mode = next; acted = false; afterReads = 0; title = 'Document'; focus = 'First'; inputValue = '' }
+const scrollAct = driver.scroll.bind(driver)
+driver.scroll = async (...args) => {
+  const answer = await scrollAct(...args)
+  acted = true
+  actedAt = Date.now()
+  afterReads = 0
+  return answer
+}
+const reset = (next: typeof mode, fullTree = false) => { mode = next; acted = false; actedAt = 0; afterReads = 0; title = 'Document'; focus = 'First'; inputValue = ''; truncated = !fullTree }
 
-section('change is an observation of the window or focused element')
-const changed = await call({ action: 'key', key: 'Tab', settleMs: 100, capture: false })
-check('navigation reports changed before the new after-state', changed.outcome === 'succeeded' && changed.result.includes('changed · now: window "New Bot - Grok"'), changed.result)
+section('change is an observation of the window or focused element; settleMs waits out the clamped delay and reads once')
+const changed = await call({ action: 'key', key: 'Tab', settleMs: 180, capture: false })
+const changedAfterActMs = Date.now() - actedAt
+check('immediate title change waits out settleMs instead of returning early, and reads once at the end', changed.outcome === 'succeeded' && changed.result.includes('changed · now: window "New Bot - Grok"') && changedAfterActMs >= 160 && afterReads === 1, `elapsed=${changedAfterActMs}ms reads=${afterReads}\n${changed.result}`)
 reset('same')
 let start = Date.now()
-const unchanged = await call({ action: 'key', key: 'Tab', settleMs: 100, capture: false })
-check('no change waits through settleMs and reports unchanged', unchanged.outcome === 'succeeded' && unchanged.result.includes('unchanged · now: window "Document"') && Date.now() - start >= 90, unchanged.result)
+const unchanged = await call({ action: 'key', key: 'Tab', settleMs: 180, capture: false })
+const unchangedAfterActMs = Date.now() - actedAt
+check('unchanged key waits through settleMs with one end tree read (zero redundant polling reads)', unchanged.outcome === 'succeeded' && unchanged.result.includes('unchanged · now: window "Document"') && unchangedAfterActMs >= 160 && afterReads === 1, `elapsed=${unchangedAfterActMs}ms reads=${afterReads}\n${unchanged.result}`)
+reset('same', true)
+const scrolled = await call({ action: 'scroll', target: { role: 'AXWindow', name: 'Document' }, dy: 5, settleMs: 180, capture: false })
+const scrolledAfterActMs = Date.now() - actedAt
+check('unchanged scroll waits through settleMs with one end tree read (zero redundant polling reads)', scrolled.outcome === 'succeeded' && scrolled.result.includes('unchanged · now: window "Document"') && scrolledAfterActMs >= 160 && afterReads === 1, `elapsed=${scrolledAfterActMs}ms reads=${afterReads}\n${scrolled.result}`)
 reset('focus')
-const focused = await call({ action: 'key', key: 'Tab', settleMs: 500, capture: false })
-check('a delayed focus change is observed beyond the shallow tree', focused.outcome === 'succeeded' && focused.result.includes('changed · now: window "Document" · focus AXTextField "Second"') && afterReads >= 3, `${focused.result}; reads ${afterReads}`)
+const focused = await call({ action: 'key', key: 'Tab', settleMs: 180, capture: false })
+const focusedAfterActMs = Date.now() - actedAt
+check('a delayed focus change is observed at the end of settleMs in one tree read', focused.outcome === 'succeeded' && focused.result.includes('changed · now: window "Document" · focus AXTextField "Second"') && focusedAfterActMs >= 160 && afterReads === 1, `elapsed=${focusedAfterActMs}ms reads=${afterReads}\n${focused.result}`)
 reset('value')
 const typed = await call({ action: 'key', key: 'Tab', settleMs: 0, capture: false })
 check('a value change in the same focused control is not a focus change', typed.result.includes('unchanged · now:') && typed.result.includes('focus AXTextField "First"'), typed.result)
 reset('same')
 const instant = await call({ action: 'key', key: 'Tab', settleMs: 0, capture: false })
 check('zero settle still reads the after-state exactly once', instant.outcome === 'succeeded' && afterReads === 1 && instant.result.includes('unchanged · now:'), instant.result)
-
+reset('title', true)
+const verified = await call({ action: 'key', key: 'Tab', settleMs: 100, capture: false, verify: true })
+check('verify:true preserves tree diff after waiting out settleMs', verified.outcome === 'succeeded' && Date.now() - actedAt >= 90 && afterReads === 1 && verified.result.includes('tree changed'), `elapsed=${Date.now() - actedAt}ms reads=${afterReads}\n${verified.result}`)
 section('bounded reads and operator cancellation')
 reset('slow')
 start = Date.now()
@@ -128,7 +148,16 @@ const sequenceShot = await call({ action: 'sequence', steps: [{ action: 'key', k
 check('only the after-state of the captured final screen is returned', sequenceShot.outcome === 'succeeded' && (sequenceShot.result.match(/now:/g)?.length ?? 0) === 1 && sequenceShot.result.includes('now: window "After final capture"'), sequenceShot.result)
 driver.capture = capture
 
-section('an operator interruption during the after-read remains an interruption')
+section('an operator interruption during the settle delay or after-read remains an interruption')
+reset('same')
+const delayController = new AbortController()
+const delayContext = toolContext({ controller: delayController })
+const delayStart = Date.now()
+setTimeout(() => delayController.abort(), 40)
+const { createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const delayParent = createAssistantMessage({ content: [{ type: 'tool_use', id: 'settle-delay-interrupted', name: 'Computer', input: { action: 'key', key: 'Tab', settleMs: 2000, capture: false } }] })
+const delayInterrupted = resultOf(await ComputerTool.call({ action: 'key', key: 'Tab', settleMs: 2000, capture: false }, delayContext, allowEverything, delayParent))
+check('interrupting during settleMs aborts promptly without waiting out the delay or reading the tree', delayInterrupted.outcome === 'failed' && Date.now() - delayStart < 500 && afterReads === 0 && delayInterrupted.result.includes('interrupted by the operator') && delayInterrupted.result.includes('released'), `elapsed=${Date.now() - delayStart}ms reads=${afterReads}\n${delayInterrupted.result}`)
 reset('slow')
 const controller = new AbortController()
 const interruptedContext = toolContext({ controller })
