@@ -86,13 +86,14 @@ export function* transcriptLineBytes(
   }
 }
 
-export function* transcriptLinesInReverse(path: string, start: number, end: number, opened?: number): Generator<Buffer> {
+export function* transcriptLinesInReverse(path: string, start: number, end: number, opened?: number, maxBytes?: number): Generator<Buffer> {
   if (end <= start) return
+  const floor = maxBytes !== undefined ? Math.max(start, end - maxBytes) : start
   const fd = opened ?? (transcriptIo === nodeTranscriptReaderIo ? openSync(path, 'r') : undefined)
   let pending: Buffer[] = []
   try {
-    for (let to = end; to > start;) {
-      const from = Math.max(start, to - 64 * 1024)
+    for (let to = end; to > floor;) {
+      const from = Math.max(floor, to - 64 * 1024)
       const chunk = fd === undefined ? transcriptIo.readRangeSync(path, from, to) : rangeFromFd(fd, from, to)
       transcriptReaderCensus.bytesRead += chunk.length
       if (chunk.length !== to - from) throw new Error(`History changed during the read: ${path}`)
@@ -108,6 +109,6 @@ export function* transcriptLinesInReverse(path: string, start: number, end: numb
       if (right) pending.push(chunk.subarray(0, right))
       to = from
     }
-    if (pending.length) yield pending.length === 1 ? pending[0]! : Buffer.concat(pending.reverse())
+    if (pending.length && floor === start) yield pending.length === 1 ? pending[0]! : Buffer.concat(pending.reverse())
   } finally { if (opened === undefined && fd !== undefined) closeSync(fd) }
 }

@@ -207,20 +207,24 @@ export function lastConversationActivityMs(tail: string, nowMs: number = Date.no
 function scanBackwardActivitySync(filePath: string, nowMs: number = Date.now()): ActivityScanResult {
   let found: number | null = null
   let recheckAtMs: number | undefined
-  let bytes = 0
   try {
-    scanTranscriptLinesBackward(filePath, line => {
-      bytes += line.length + 1
-      const res = parseConversationActivityLine(line, nowMs)
-      if (res.kind === 'future') {
-        recheckAtMs = earlierAt(recheckAtMs, res.validAtMs)
-      } else if (res.kind === 'match') {
-        found = res.ms
-        recheckAtMs = earlierAt(recheckAtMs, res.recheckAtMs)
-        return true
-      }
-      return bytes >= BACKWARD_SCAN_BYTE_BUDGET
-    })
+    scanTranscriptLinesBackward(
+      filePath,
+      line => {
+        const res = parseConversationActivityLine(line, nowMs)
+        if (res.kind === 'future') {
+          recheckAtMs = earlierAt(recheckAtMs, res.validAtMs)
+          return false
+        }
+        if (res.kind === 'match') {
+          found = res.ms
+          recheckAtMs = earlierAt(recheckAtMs, res.recheckAtMs)
+          return true
+        }
+        return false
+      },
+      { maxBytes: BACKWARD_SCAN_BYTE_BUDGET },
+    )
   } catch (error) {
     passedOver(error)
   }

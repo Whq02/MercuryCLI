@@ -448,6 +448,48 @@ try {
     const graceExact = readSessionLastUsedMsCachedSync(fGrace, graceSt.mtimeMs, graceSt.size, undefined, graceNow + 4_000)
     check('§3 time clamped inside 5s grace carries recheckAtMs and returns exact occurredAt once clock passes it', graceClamped === graceNow && graceExact === graceAt, `clamped=${String(graceClamped)} exact=${String(graceExact)} want=${graceAt}`)
 
+    const fSingle7M = join(SCRATCH, 'single-7m.jsonl')
+    writeFileSync(
+      fSingle7M,
+      encodeSeedTranscript(
+        [
+          makeRow(sid('94'), base - 90_000, { type: 'user', message: { role: 'user', content: 'early before 7m row' } }),
+          makeRow(sid('94'), base - 4_000, { type: 'attachment', attachment: { type: 'file', body: 'x'.repeat(7 * 1024 * 1024) } }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sid('94'),
+      ),
+    )
+    const fMultiByte = join(SCRATCH, 'multibyte-7m.jsonl')
+    const mbHead = encodeSeedTranscript(
+      [makeRow(sid('95'), base - 90_000, { type: 'user', message: { role: 'user', content: 'early before multibyte' } })] as Parameters<typeof encodeSeedTranscript>[0],
+      sid('95'),
+    )
+    const mbLine = encodeSeedTranscript(
+      [makeRow(sid('95'), base - 4_000, { type: 'attachment', attachment: { type: 'file', body: '記'.repeat(64_000) } })] as Parameters<typeof encodeSeedTranscript>[0],
+      sid('95'),
+    ).split('\n').filter(Boolean).pop()! + '\n'
+    writeFileSync(fMultiByte, mbHead + mbLine.repeat(40))
+    const st7m = statSync(fSingle7M)
+    const stMb = statSync(fMultiByte)
+    let bytes7m = 0
+    let bytesMb = 0
+    setTranscriptReaderIoForTesting({
+      ...nodeTranscriptReaderIo,
+      readRangeSync(path, start, end) {
+        const buf = nodeTranscriptReaderIo.readRangeSync(path, start, end)
+        if (path === fSingle7M) bytes7m += buf.length
+        if (path === fMultiByte) bytesMb += buf.length
+        return buf
+      },
+    })
+    try {
+      const r7m = readSessionLastUsedMsCachedSync(fSingle7M, st7m.mtimeMs, st7m.size)
+      const rMb = readSessionLastUsedMsCachedSync(fMultiByte, stMb.mtimeMs, stMb.size)
+      check('§3 actual-byte 2 MiB budget bounds single 7 MiB row and 3-byte UTF-8 multibyte rows (<= 2.5 MiB each)', r7m === null && rMb === null && bytes7m <= 2_600_000 && bytesMb <= 2_600_000, `single=${bytes7m}/${st7m.size} multibyte=${bytesMb}/${stMb.size}`)
+    } finally {
+      setTranscriptReaderIoForTesting(nodeTranscriptReaderIo)
+    }
+
     const fHuge = join(SCRATCH, 'huge-no-tail-turn.jsonl')
     const hugeHeader = encodeSeedTranscript(
       [
