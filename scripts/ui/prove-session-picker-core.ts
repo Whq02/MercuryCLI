@@ -11,7 +11,10 @@ import {
   rowProject,
   type SessionPickerFacts,
 } from '../../src/screen/widgets/faces/sessionPickerModel.js'
-import type { SessionListing } from '../../src/sessions/transcripts/transcriptEntries.js'
+import {
+  sortSessionListings,
+  type SessionListing,
+} from '../../src/sessions/transcripts/transcriptEntries.js'
 
 const t = checker()
 
@@ -47,6 +50,16 @@ t.section('§2 — THE RESUMABLE PROJECTION (drop · keep · order)')
   ]
   const got = resumableNewestFirst(all, 'current').map(l => l.sessionId)
   t.check('the current session and sidechains drop; small command-only junk drops; a LARGE command-first session is real work and stays', JSON.stringify(got) === JSON.stringify(['new', 'big-command', 'old']), got.join(','))
+
+  const husk = log({ sessionId: 'husk', modifiedMs: 20_000, lastUsedAt: 20_000, isAuthFailureHusk: true })
+  const real = log({ sessionId: 'real', modifiedMs: 10_000, lastUsedAt: 10_000 })
+  const pickerPair = resumableNewestFirst([husk, real], '').map(l => l.sessionId)
+  const sharedPair = sortSessionListings([husk, real]).map(l => l.sessionId)
+  t.check(
+    'a newer failed-sign-in husk ranks after a real session and matches sortSessionListings',
+    pickerPair[0] === 'real' && JSON.stringify(pickerPair) === JSON.stringify(sharedPair),
+    `picker=${pickerPair.join(',')} shared=${sharedPair.join(',')}`,
+  )
 }
 
 t.section('§3 — SCOPE SEMANTICS (project · all · board-homed · heads)')
