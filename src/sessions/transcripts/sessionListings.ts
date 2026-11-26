@@ -40,6 +40,7 @@ import {
   findLatestMessage,
   removeExtraFields,
 } from './chain.js'
+import { electConversationEnd } from './conversationEnd.js'
 import { loadSessionFile, loadTranscriptFile, type TranscriptFoldState } from './loading.js'
 import {
   getCrewmateTranscriptPath,
@@ -737,14 +738,12 @@ export async function getCrewmateTranscript(agentId: AgentId): Promise<{
 } | null> {
   const agentFile = getCrewmateTranscriptPath(agentId)
   const { messages, agentContentReplacements } = await loadTranscriptFile(agentFile, { throwOnError: true })
-  const own = [...messages.values()].filter(msg => msg.agentId === agentId && msg.isSidechain)
-  const parents = new Set(own.map(msg => msg.parentUuid))
-  const leaf = findLatestMessage(own, msg => !parents.has(msg.uuid))
-  if (!leaf) return null
-  const chain = buildConversationChain(messages, leaf).filter(msg => msg.agentId === agentId)
+  const end = electConversationEnd(messages, { kind: 'crewmate', agentId })
+  if (end === undefined) return null
+  const chain = [...end.rows]
   const first = chain.find(msg => msg.type === 'assistant' || (msg.type === 'user' && msg.isMeta !== true))
-  const prefix = first === undefined ? undefined : findLatestMessage(own, msg =>
-    msg.sessionId === leaf.sessionId && msg.type === 'attachment' && msg.attachment.type === 'bound_prefix' &&
+  const prefix = first === undefined ? undefined : findLatestMessage(messages.values(), msg =>
+    msg.agentId === agentId && msg.isSidechain && msg.sessionId === end.primary.sessionId && msg.type === 'attachment' && msg.attachment.type === 'bound_prefix' &&
     msg.attachment.boundKey.split('|').at(-2) === first.uuid,
   )
   if (prefix !== undefined && !chain.some(msg => msg.uuid === prefix.uuid)) chain.push(prefix)
