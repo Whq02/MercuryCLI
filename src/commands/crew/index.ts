@@ -1,11 +1,12 @@
+import { randomUUID } from 'node:crypto'
 import type { Command } from '../catalogue/commands.js'
 import type { LocalCommandCall } from '../catalogue/command.js'
 import { crewDirectoryEnabled } from '../../crew/crewmates/identity.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
-const call: LocalCommandCall = async (args: string) => {
-  const [verb, ...rest] = args.trim().split(/\s+/).filter(Boolean)
-
+const call: LocalCommandCall = async (args: string, context) => {
+  const trimmed = args.trim()
+  const [verb, ...rest] = trimmed.split(/\s+/).filter(Boolean)
   if (verb === 'attach') {
     const kind = rest[0]
     const { attachExternalSeat } = await import('../../crew/crewmates/seatBridge.js')
@@ -17,20 +18,37 @@ const call: LocalCommandCall = async (args: string) => {
         value: `· attached ${seat.displayName} — seat ${seat.seatId} · agent ${seat.agentId} · ${seat.protocol} · ${seat.revision}`,
       }
     }
-    if (kind === 'opencode' || kind === 'goose') {
+    if (kind === 'opencode' || kind === 'goose' || kind === 'devin') {
       const { acpSeatTransport } = await import('../../crew/crewmates/adapters/acpProfile.js')
-      const display = kind === 'opencode' ? 'OpenCode' : 'goose'
-      const seat = await attachExternalSeat(
-        acpSeatTransport(kind, display, { command: [kind, 'acp'] }),
-      )
-      return {
-        type: 'text',
-        value: `· attached ${seat.displayName} — seat ${seat.seatId} · agent ${seat.agentId} · ${seat.protocol} · ${seat.revision}`,
+      const { getCwd } = await import('../../platform/files/cwd.js')
+      const display = kind === 'opencode' ? 'OpenCode' : kind === 'devin' ? 'Devin' : 'goose'
+      const getPermissionContext =
+        typeof context?.getAppState === 'function'
+          ? () => context.getAppState().toolPermissionContext
+          : undefined
+      try {
+        const seat = await attachExternalSeat(
+          acpSeatTransport(kind, display, {
+            command: [kind, 'acp'],
+            cwd: getCwd(),
+            ...(getPermissionContext !== undefined ? { getPermissionContext } : {}),
+          }),
+        )
+        return {
+          type: 'text',
+          value: `· attached ${seat.displayName} — seat ${seat.seatId} · agent ${seat.agentId} · ${seat.protocol} · ${seat.revision}\n  ${seat.displayName} runs its own tools and permissions; Mercury only handles permission requests ${seat.displayName} sends and enforces your path deny rules on them.`,
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        return {
+          type: 'text',
+          value: `· attach refused — ${msg}`,
+        }
       }
     }
     return {
       type: 'text',
-      value: `/crew attach <codex|opencode|goose> — '${kind ?? ''}' is not an attachable adapter`,
+      value: `/crew attach <codex|opencode|goose|devin> — '${kind ?? ''}' is not an attachable adapter`,
     }
   }
 
@@ -47,6 +65,31 @@ const call: LocalCommandCall = async (args: string) => {
     }
   }
 
+  if (verb === 'send') {
+    const match = /^send\s+(\S+)\s+([\s\S]+)$/.exec(trimmed)
+    if (!match) return { type: 'text', value: '/crew send <seat-id> <prompt>' }
+    const seatId = match[1]!
+    const prompt = match[2]!
+    const { attachedSeatOf } = await import('../../crew/crewmates/seatBridge.js')
+    const seat = attachedSeatOf(seatId)
+    if (!seat) return { type: 'text', value: `· no attached seat '${seatId}'` }
+    const { dispatchToAgent } = await import('../../crew/crewmates/dispatch.js')
+    const receipt = await dispatchToAgent({
+      clientMessageId: `crew-${randomUUID().replace(/-/g, '').slice(0, 12)}`,
+      requestedAddress: { agentId: seat.agentId },
+      requestedDisposition: 'start-turn',
+      instruction: prompt,
+      attachments: [],
+    })
+    return {
+      type: 'text',
+      value:
+        receipt.state === 'delivered'
+          ? `· dispatched to ${seat.displayName} (${seat.seatId}) — ${receipt.disposition ?? 'started-turn'} · ${receipt.clientMessageId} (use /crew activity or /crew seats for completion)`
+          : `· send ${receipt.state} — ${receipt.reason ?? 'not delivered'}`,
+    }
+  }
+
   if (verb === 'cancel') {
     const seatId = rest[0]
     if (!seatId) return { type: 'text', value: '/crew cancel <seat-id>' }
@@ -60,7 +103,6 @@ const call: LocalCommandCall = async (args: string) => {
           : `· cancel ${outcome.result} — ${outcome.reason}`,
     }
   }
-
   if (verb === 'renegotiate') {
     const seatId = rest[0]
     if (!seatId) return { type: 'text', value: '/crew renegotiate <seat-id>' }
@@ -95,11 +137,11 @@ const call: LocalCommandCall = async (args: string) => {
   }
 
   if (verb === 'seats') {
-    const { listAttachedSeats } = await import('../../crew/crewmates/seatBridge.js')
+    const { lastSeatTurn, listAttachedSeats } = await import('../../crew/crewmates/seatBridge.js')
     const { capabilitiesOf } = await import('../../crew/crewmates/capabilities.js')
     const seats = listAttachedSeats()
     if (seats.length === 0) {
-      return { type: 'text', value: 'no attached external seats — /crew attach <codex|opencode|goose>' }
+      return { type: 'text', value: 'no attached external seats — /crew attach <codex|opencode|goose|devin>' }
     }
     const lines = seats.map(s => {
       const caps = capabilitiesOf(s.seatId)
@@ -107,7 +149,24 @@ const call: LocalCommandCall = async (args: string) => {
         ? [...caps.facts.values()].filter(f => f.state === 'supported').map(f => f.kind)
         : []
       const stale = caps?.invalidatedAt !== undefined ? ' · observations EXPIRED' : ''
-      return `${s.seatId} — ${s.displayName} (${s.adapterKind}) · ${s.lifecycle} · ${s.revision}${stale}\n    supported: ${supported.join(', ') || '(none observed)'}`
+      const last = lastSeatTurn(s.seatId)
+      const overflowDetail =
+        last?.replyTruncated === true
+          ? last.replyOverflowPath !== undefined
+            ? last.replyOmittedChars && last.replyOmittedChars > 0
+              ? `; ${last.replySavedChars ?? 0} chars saved at ${last.replyOverflowPath}, ${last.replyOmittedChars} chars omitted above cap`
+              : `; full ${last.replySavedChars ?? 0} chars saved at ${last.replyOverflowPath}`
+            : `; overflow save failed${last.replySaveError ? `: ${last.replySaveError}` : ''}`
+          : ''
+      const overflowNote =
+        last?.replyTruncated === true
+          ? `\n    reply truncated (showing ${last.reply?.length ?? 0} of ${last.replyChars ?? 0} chars${overflowDetail})`
+          : ''
+      const replyLine = last?.reply ? `\n    reply: ${last.reply}${overflowNote}` : ''
+      const turnLine = last
+        ? `\n    last turn [${last.clientMessageId}]: ${last.status}${last.stopReason ? ` (${last.stopReason})` : ''}${last.reason ? ` — ${last.reason}` : ''}${replyLine}`
+        : ''
+      return `${s.seatId} — ${s.displayName} (${s.adapterKind}) · ${s.lifecycle} · ${s.revision}${stale}\n    supported: ${supported.join(', ') || '(none observed)'}${turnLine}`
     })
     return { type: 'text', value: lines.join('\n') }
   }

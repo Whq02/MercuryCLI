@@ -1,6 +1,6 @@
-
 import { randomUUID } from 'node:crypto'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
+import type { ExternalSeatPermissionAsk } from '../../permissions/cards/externalSeatAsk.js'
 import { ingestActivity } from './activity.js'
 import {
   authorizeCapability,
@@ -30,7 +30,7 @@ export interface SeatHandshakeResult {
   raw?: unknown
 }
 
-interface SeatDeliveryRequest {
+export interface SeatDeliveryRequest {
   clientMessageId: string
   disposition: 'steer-current' | 'hold-next' | 'start-turn'
   instruction: string
@@ -54,17 +54,43 @@ export interface SeatEvent {
   atMs: number
 }
 
+export interface SeatTurnSettlement {
+  seatId: string
+  sessionId?: string
+  clientMessageId: string
+  status: 'completed' | 'cancelled' | 'failed' | 'exited'
+  stopReason?: string
+  reason?: string
+  reply?: string
+  replyChars?: number
+  replySavedChars?: number
+  replyOmittedChars?: number
+  replyTruncated?: boolean
+  replyOverflowPath?: string
+  replySaveError?: string
+  atMs: number
+}
+
+export interface ExternalSeatHostContext {
+  seatId: string
+  agentId: CrewAgentId
+  postAsk: (ask: ExternalSeatPermissionAsk) => () => void
+  hasAskConsumer: () => boolean
+}
+
 export interface ExternalSeatTransport {
   adapterKind: string
   displayName: string
   mercuryOwnsProcess: boolean
   declaresIdempotentDelivery?: boolean
   handshake(): Promise<SeatHandshakeResult>
+  bindSeat?(ctx: ExternalSeatHostContext): void
   deliver?(req: SeatDeliveryRequest): Promise<SeatDeliveryOutcome>
   cancelTurn?(): Promise<SeatDeliveryOutcome>
   onEvent?(listener: (evt: SeatEvent) => void): () => void
   onLifecycle?(listener: (state: 'connected' | 'disconnected' | 'exited') => void): () => void
   onSessionIdentity?(listener: (externalSessionId: string) => void): () => void
+  onTurnSettled?(listener: (settlement: Omit<SeatTurnSettlement, 'seatId'>) => void): () => void
   detach(): Promise<void>
 }
 
@@ -88,9 +114,202 @@ interface LiveSeat extends AttachedSeat {
   eventUnsub?: () => void
   lifecycleUnsub?: () => void
   sessionIdentityUnsub?: () => void
+  turnSettledUnsub?: () => void
 }
 
-const seats = new Map<string, LiveSeat>()
+class SeatBridgeRegistry {
+  readonly live = new Map<string, LiveSeat>()
+  readonly externalAsks: ExternalSeatPermissionAsk[] = []
+  externalAsksSnapshot: readonly ExternalSeatPermissionAsk[] = []
+  readonly askListeners = new Set<() => void>()
+  readonly turnListeners = new Map<string, Set<(s: SeatTurnSettlement) => void>>()
+  readonly lastTurns = new Map<string, SeatTurnSettlement>()
+  emitAsks(): void {
+    this.externalAsksSnapshot = [...this.externalAsks]
+    for (const listener of [...this.askListeners]) {
+      try {
+        listener()
+      } catch (e) {
+        logForDebugging(`[crew/seatBridge] ask listener threw (ignored): ${e}`)
+      }
+    }
+  }
+
+  postAsk(ask: ExternalSeatPermissionAsk): () => void {
+    if (!this.externalAsks.some(existing => existing.askId === ask.askId)) {
+      this.externalAsks.push(ask)
+      this.emitAsks()
+    }
+    return () => {
+      this.removeAskById(ask.askId)
+    }
+  }
+
+  removeAskById(askId: string): boolean {
+    const idx = this.externalAsks.findIndex(existing => existing.askId === askId)
+    if (idx < 0) return false
+    this.externalAsks.splice(idx, 1)
+    this.emitAsks()
+    return true
+  }
+
+  withdrawSeatAsks(seatId: string): void {
+    const before = this.externalAsks.length
+    for (let i = this.externalAsks.length - 1; i >= 0; i--) {
+      if (this.externalAsks[i]!.seatId === seatId) {
+        this.externalAsks.splice(i, 1)
+      }
+    }
+    if (this.externalAsks.length !== before) {
+      this.emitAsks()
+    }
+  }
+
+  emitTurnSettled(settlement: SeatTurnSettlement): void {
+    this.lastTurns.set(settlement.seatId, settlement)
+    const listeners = this.turnListeners.get(settlement.seatId)
+    if (!listeners) return
+    for (const listener of [...listeners]) {
+      try {
+        listener(settlement)
+      } catch (e) {
+        logForDebugging(`[crew/seatBridge] turn listener threw (ignored): ${e}`)
+      }
+    }
+  }
+}
+
+const seats = new SeatBridgeRegistry()
+
+export function listExternalSeatAsks(): readonly ExternalSeatPermissionAsk[] {
+  return seats.externalAsksSnapshot
+}
+
+export function subscribeExternalSeatAsks(listener: () => void): () => void {
+  seats.askListeners.add(listener)
+  return () => {
+    seats.askListeners.delete(listener)
+  }
+}
+
+export function settleExternalSeatAsk(askId: string): boolean {
+  return seats.removeAskById(askId)
+}
+
+export function onSeatTurnSettled(
+  seatId: string,
+  listener: (settlement: SeatTurnSettlement) => void,
+): () => void {
+  let set = seats.turnListeners.get(seatId)
+  if (!set) {
+    set = new Set()
+    seats.turnListeners.set(seatId, set)
+  }
+  set.add(listener)
+  return () => {
+    set?.delete(listener)
+    if (set && set.size === 0) seats.turnListeners.delete(seatId)
+  }
+}
+
+export function lastSeatTurn(seatId: string): SeatTurnSettlement | null {
+  return seats.lastTurns.get(seatId) ?? null
+}
+
+function wireSeatSubscriptions(live: LiveSeat, dirOpt: { dir: string } | undefined): void {
+  const { transport, seatId } = live
+  transport.bindSeat?.({
+    seatId,
+    agentId: live.agentId,
+    postAsk: ask => seats.postAsk(ask),
+    hasAskConsumer: () => seats.askListeners.size > 0,
+  })
+  if (transport.onEvent) {
+    live.eventUnsub = transport.onEvent(evt => {
+      try {
+        const evtSessionId =
+          typeof evt.payload === 'object' &&
+          evt.payload !== null &&
+          typeof (evt.payload as { sessionId?: unknown }).sessionId === 'string' &&
+          (evt.payload as { sessionId: string }).sessionId !== ''
+            ? (evt.payload as { sessionId: string }).sessionId
+            : undefined
+        ingestActivity({
+          event: evt,
+          agentId: live.agentId,
+          sessionId: evtSessionId ?? live.externalSessionId ?? live.seatId,
+          adapterKind: live.adapterKind,
+        })
+      } catch (e) {
+        logForDebugging(`[crew/seatBridge] activity ingest failed (ignored): ${e}`)
+      }
+    })
+  }
+  if (transport.onLifecycle) {
+    live.lifecycleUnsub = transport.onLifecycle(state => {
+      live.lifecycle = state
+      if (state !== 'connected') {
+        seats.withdrawSeatAsks(seatId)
+        invalidateCapabilities(seatId, `lifecycle:${state}`)
+        void endAgentSession(live.externalSessionId ?? live.seatId, live.dir !== undefined ? { dir: live.dir } : undefined).catch(e =>
+          logForDebugging(`[crew/seatBridge] session close on lifecycle loss failed (ignored): ${e}`),
+        )
+        void import('./descriptor.js')
+          .then(d =>
+            d.retireSessionDescriptor(
+              live.externalSessionId ?? live.seatId,
+              live.dir !== undefined ? { dir: live.dir } : undefined,
+            ),
+          )
+          .catch(e =>
+            logForDebugging(`[crew/seatBridge] descriptor retire on lifecycle loss failed, the seat stays listed as live: ${e}`),
+          )
+      }
+    })
+  }
+  if (transport.onSessionIdentity) {
+    live.sessionIdentityUnsub = transport.onSessionIdentity(externalSessionId => {
+      void (async () => {
+        if (live.externalSessionId === externalSessionId) return
+        const provenId = `${transport.adapterKind}:${externalSessionId}`
+        const existing = await resolveAgent({ bindingKind: 'adapter', bindingId: provenId }, dirOpt)
+        if (existing) {
+          live.agentId = existing
+        } else {
+          const receipt = await bindAgent(
+            live.agentId,
+            {
+              bindingKind: 'adapter',
+              bindingId: provenId,
+              adapterKind: transport.adapterKind,
+              observedRevision: live.revision,
+            },
+            dirOpt,
+          )
+          if (!receipt.ok) {
+            logForDebugging(
+              `[crew/seatBridge] session identity '${provenId}' refused (${receipt.reason}) — seat keeps its attach binding`,
+            )
+            return
+          }
+        }
+        await registerAgentSession({ sessionId: externalSessionId, agentId: live.agentId }, dirOpt)
+        const placeholderSessionId = live.externalSessionId ?? live.seatId
+        live.externalSessionId = externalSessionId
+        const d = await import('./descriptor.js')
+        await d.publishSessionDescriptor({ agentId: live.agentId, sessionId: externalSessionId }, dirOpt)
+        if (placeholderSessionId !== externalSessionId) {
+          await d.retireSessionDescriptor(placeholderSessionId, dirOpt)
+        }
+      })().catch(e => logForDebugging(`[crew/seatBridge] session identity bind failed (ignored): ${e}`))
+    })
+  }
+  if (transport.onTurnSettled) {
+    live.turnSettledUnsub = transport.onTurnSettled(settlement => {
+      seats.emitTurnSettled({ ...settlement, seatId })
+    })
+  }
+}
 
 export async function attachExternalSeat(
   transport: ExternalSeatTransport,
@@ -165,79 +384,8 @@ export async function attachExternalSeat(
       ...(opts?.dir !== undefined ? { dir: opts.dir } : {}),
       transport,
     }
-    if (transport.onEvent) {
-      live.eventUnsub = transport.onEvent(evt => {
-        try {
-          ingestActivity({
-            event: evt,
-            agentId: live.agentId,
-            sessionId: live.externalSessionId ?? live.seatId,
-            adapterKind: live.adapterKind,
-          })
-        } catch (e) {
-          logForDebugging(`[crew/seatBridge] activity ingest failed (ignored): ${e}`)
-        }
-      })
-    }
-    if (transport.onLifecycle) {
-      live.lifecycleUnsub = transport.onLifecycle(state => {
-        live.lifecycle = state
-        if (state !== 'connected') {
-          invalidateCapabilities(seatId, `lifecycle:${state}`)
-          void endAgentSession(live.externalSessionId ?? live.seatId, live.dir !== undefined ? { dir: live.dir } : undefined).catch(e =>
-            logForDebugging(`[crew/seatBridge] session close on lifecycle loss failed (ignored): ${e}`),
-          )
-          void import('./descriptor.js')
-            .then(d =>
-              d.retireSessionDescriptor(
-                live.externalSessionId ?? live.seatId,
-                live.dir !== undefined ? { dir: live.dir } : undefined,
-              ),
-            )
-            .catch(e =>
-              logForDebugging(`[crew/seatBridge] descriptor retire on lifecycle loss failed, the seat stays listed as live: ${e}`),
-            )
-        }
-      })
-    }
-    if (transport.onSessionIdentity) {
-      live.sessionIdentityUnsub = transport.onSessionIdentity(externalSessionId => {
-        void (async () => {
-          if (live.externalSessionId === externalSessionId) return
-          const provenId = `${transport.adapterKind}:${externalSessionId}`
-          const existing = await resolveAgent({ bindingKind: 'adapter', bindingId: provenId }, dirOpt)
-          if (existing) {
-            live.agentId = existing
-          } else {
-            const receipt = await bindAgent(
-              live.agentId,
-              {
-                bindingKind: 'adapter',
-                bindingId: provenId,
-                adapterKind: transport.adapterKind,
-                observedRevision: live.revision,
-              },
-              dirOpt,
-            )
-            if (!receipt.ok) {
-              logForDebugging(
-                `[crew/seatBridge] session identity '${provenId}' refused (${receipt.reason}) — seat keeps its attach binding`,
-              )
-              return
-            }
-          }
-          await registerAgentSession({ sessionId: externalSessionId, agentId: live.agentId }, dirOpt)
-          const placeholderSessionId = live.externalSessionId ?? live.seatId
-          live.externalSessionId = externalSessionId
-          const d = await import('./descriptor.js')
-          await d.publishSessionDescriptor({ agentId: live.agentId, sessionId: externalSessionId }, dirOpt)
-          if (placeholderSessionId !== externalSessionId) {
-            await d.retireSessionDescriptor(placeholderSessionId, dirOpt)
-          }
-        })().catch(e => logForDebugging(`[crew/seatBridge] session identity bind failed (ignored): ${e}`))
-      })
-    }
-    seats.set(seatId, live)
+    wireSeatSubscriptions(live, dirOpt)
+    seats.live.set(seatId, live)
     return toView(live)
   } catch (e) {
     forgetCapabilities(seatId)
@@ -251,8 +399,9 @@ export async function attachExternalSeat(
 }
 
 export async function renegotiateSeat(seatId: string): Promise<AttachedSeat | null> {
-  const live = seats.get(seatId)
+  const live = seats.live.get(seatId)
   if (!live) return null
+  seats.withdrawSeatAsks(seatId)
   invalidateCapabilities(seatId, 'renegotiation')
   const handshake = await live.transport.handshake()
   live.revision = handshake.revision
@@ -281,7 +430,7 @@ export async function deliverToSeat(
   seatId: string,
   req: SeatDeliveryRequest,
 ): Promise<SeatDeliveryOutcome> {
-  const live = seats.get(seatId)
+  const live = seats.live.get(seatId)
   if (!live) return { result: 'rejected', reason: `no attached seat '${seatId}'` }
   if (!live.transport.deliver) {
     return { result: 'rejected', reason: `${live.adapterKind} declares no delivery operation` }
@@ -297,7 +446,7 @@ export async function deliverToSeat(
 }
 
 export async function cancelSeatTurn(seatId: string): Promise<SeatDeliveryOutcome> {
-  const live = seats.get(seatId)
+  const live = seats.live.get(seatId)
   if (!live) return { result: 'rejected', reason: `no attached seat '${seatId}'` }
   if (!live.transport.cancelTurn) {
     return { result: 'rejected', reason: `${live.adapterKind} advertises no cancel operation` }
@@ -314,11 +463,15 @@ export async function cancelSeatTurn(seatId: string): Promise<SeatDeliveryOutcom
 }
 
 export async function detachExternalSeat(seatId: string): Promise<boolean> {
-  const live = seats.get(seatId)
+  const live = seats.live.get(seatId)
   if (!live) return false
   live.eventUnsub?.()
   live.lifecycleUnsub?.()
   live.sessionIdentityUnsub?.()
+  live.turnSettledUnsub?.()
+  seats.withdrawSeatAsks(seatId)
+  seats.turnListeners.delete(seatId)
+  seats.lastTurns.delete(seatId)
   invalidateCapabilities(seatId, 'detached')
   try {
     await live.transport.detach()
@@ -326,7 +479,7 @@ export async function detachExternalSeat(seatId: string): Promise<boolean> {
     logForDebugging(`[crew/seatBridge] transport detach threw (seat still removed): ${e}`)
   }
   forgetCapabilities(seatId)
-  seats.delete(seatId)
+  seats.live.delete(seatId)
   const sessionId = live.externalSessionId ?? live.seatId
   const dirOpt = live.dir !== undefined ? { dir: live.dir } : undefined
   try {
@@ -344,11 +497,11 @@ export async function detachExternalSeat(seatId: string): Promise<boolean> {
 }
 
 export function listAttachedSeats(): AttachedSeat[] {
-  return [...seats.values()].map(toView)
+  return [...seats.live.values()].map(toView)
 }
 
 export function attachedSeatOf(seatId: string): AttachedSeat | null {
-  const live = seats.get(seatId)
+  const live = seats.live.get(seatId)
   return live ? toView(live) : null
 }
 
@@ -359,7 +512,7 @@ export function seatOfAgent(agentId: CrewAgentId): AttachedSeat | null {
     return set !== null && set.invalidatedAt === undefined ? 2 : 1
   }
   let best: LiveSeat | null = null
-  for (const live of seats.values()) {
+  for (const live of seats.live.values()) {
     if (live.agentId !== agentId) continue
     if (
       best === null ||
@@ -389,10 +542,16 @@ function toView(live: LiveSeat): AttachedSeat {
 }
 
 export function _resetSeatBridgeForTesting(): void {
-  for (const live of seats.values()) {
+  for (const live of seats.live.values()) {
     live.eventUnsub?.()
     live.lifecycleUnsub?.()
     live.sessionIdentityUnsub?.()
+    live.turnSettledUnsub?.()
   }
-  seats.clear()
+  seats.live.clear()
+  seats.externalAsks.length = 0
+  seats.externalAsksSnapshot = []
+  seats.askListeners.clear()
+  seats.turnListeners.clear()
+  seats.lastTurns.clear()
 }
