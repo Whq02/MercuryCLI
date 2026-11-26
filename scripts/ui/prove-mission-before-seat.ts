@@ -55,7 +55,7 @@ function lastUserText(body: unknown): string {
 }
 
 const missionSentAt = (run: ArenaRun): number | undefined => {
-  const send = run.sendLog.find(s => Buffer.from(s.b64, 'base64').toString('utf8').startsWith('/mission'))
+  const send = run.sendLog.find(s => Buffer.from(s.b64, 'base64').toString('utf8').startsWith('/goal'))
   return send === undefined ? undefined : send.sent - firstOutputTs(run)
 }
 
@@ -84,7 +84,7 @@ async function drive(cols: number, rows: number): Promise<ArenaRun> {
       { kind: 'text', text: `1. ${MISSION} — the mission is met now, the relay answered the probe\n${MISSION_MET_SENTINEL}` },
       { kind: 'text', text: 'hello back' },
     ],
-    sends: [`after:no prompts yet:0:/mission ${MISSION}\\r`, `after:relay probe:${CARD_LOOK_AFTER_MS + 400}:hello\\r`],
+    sends: [`after:no prompts yet:0:/goal ${MISSION}\\r`, `after:relay probe:${CARD_LOOK_AFTER_MS + 400}:hello\\r`],
     seconds: 24,
     cols,
     rows,
@@ -115,7 +115,7 @@ const hosted = armedOrMet.find(c => transcriptExists(configDir, c.sessionId))
 const ownId = cards.find(c => !transcriptExists(configDir, c.sessionId))
 const windowOpened = ownId !== undefined
 console.log(`  at the send: ${readyRow(atMission!.rows).length === 0 ? 'no seat status row yet' : 'the seat status row already stood'} · the command ran ${windowOpened ? 'BEFORE the seat was admitted (the window this drive is about opened)' : 'after the seat was admitted (the window did not open on this box; the fix has nothing to do on this run)'} · cards: ${JSON.stringify(cards.map(c => ({ id: c.sessionId.slice(0, 8), state: c.state, transcript: transcriptExists(configDir, c.sessionId) })))}`)
-check('the command was taken (its receipt painted) and the seat landed after it', findRows(atCard!.rows, `Mission set: ${MISSION}`).length > 0 && readyRow(atCard!.rows).length > 0, atCard!.rows.filter(r => r.includes('Mission') || r.includes('ready')).join(' | '))
+check('the command was taken (its receipt painted) and the seat landed after it', findRows(atCard!.rows, `Goal set: ${MISSION}`).length > 0 && readyRow(atCard!.rows).length > 0, atCard!.rows.filter(r => r.includes('Goal') || r.includes('ready')).join(' | '))
 check("the mission's card is keyed by the hosted chat (the id its transcript carries), not by the cockpit's own id", hosted !== undefined, `${JSON.stringify(cards.map(c => ({ id: c.sessionId.slice(0, 8), state: c.state, transcript: transcriptExists(configDir, c.sessionId) })))} · no armed or met mission card carries the id of a session with a transcript; the card must be keyed by the hosted chat, so look at where the /mission command writes its card under src/sessions/mission`)
 check("no card under the cockpit's own id stays armed: when the command ran before admission, that card reads continued and names the hosted chat", !windowOpened || (ownId?.state === 'continued' && hosted !== undefined && (ownId.nextStep ?? '').includes(hosted.sessionId)), `${JSON.stringify({ own: ownId, continued })} · a card written under the cockpit id before the seat was admitted must be marked continued with nextStep naming the hosted chat; see src/sessions/mission`)
 check("the rail's MISSION card paints the mission while it stands and drops it once met: at the card look (the first reply still streaming) the ◆ goal row stands; at the end the completed row stands and no ◆ goal row remains", findRows(atCard!.rows, `◆ ${MISSION}`).length > 0 && findRows(atEnd!.rows, `Mission completed: ${MISSION}`).length > 0 && findRows(atEnd!.rows, `◆ ${MISSION}`).length === 0, `${atCard!.rows.filter(r => r.includes('Mission') || r.includes('◆')).join(' | ')} :: ${atEnd!.rows.filter(r => r.includes('Mission') || r.includes('◆')).join(' | ')}`)

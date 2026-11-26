@@ -308,8 +308,8 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
           scriptedDialog('proof-dialog-throws-words', () => {
             throw 'a planted fault of the dialog that is no Error'
           }),
-          scriptedDialog('mission', (done, args) => {
-            done(`the scripted mission took ${args}`)
+          scriptedDialog('goal', (done, args) => {
+            done(`the scripted goal took ${args}`)
             return null
           }),
           scriptedDialog('logins', (done, args) => {
@@ -2444,8 +2444,8 @@ export const SCENARIOS: Scenario[] = [
       await stage.type('!')
       await stage.type('ls -la')
       await stage.key(KEY.enter, 'a shell line is held behind it', lacks('ls -la'))
-      await stage.type('/mission ship it')
-      await stage.key(KEY.enter, 'a mission with words is held too', has('/mission sends when it lands'))
+      await stage.type('/goal ship it')
+      await stage.key(KEY.enter, 'a goal with words is held too', has('/goal sends when it lands'))
       await stage.type('/whisper to the crew')
       await stage.key(KEY.enter, 'and a command of the screen', has('/whisper sends when it lands'))
       const session = stage.newSession('rec-refusing', [])

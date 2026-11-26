@@ -97,7 +97,7 @@ for (const shape of SHAPES) {
     sends: [
       { atTick: 999, awaitText: 'New Session', minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3, data: '\r', mark: 'face' },
       { atTick: 999, requireAwait: true, awaitText: 'shortcuts', minTick: 4, awaitSettleTicks: 8, data: '\x1b[I', mark: 'chat' },
-      { atTick: 999, requireAwait: true, awaitText: 'no prompts yet', minTick: 2, awaitSettleTicks: 3, data: '/mission relay probe\r', mark: 'mission' },
+      { atTick: 999, requireAwait: true, awaitText: 'no prompts yet', minTick: 2, awaitSettleTicks: 3, data: '/goal relay probe\r', mark: 'mission' },
       { atTick: 999, requireAwait: true, awaitText: 'no prompts yet', minTick: 2, awaitSettleTicks: 3, data: '\t', mark: 'focus' },
       { atTick: 999, requireAwait: true, awaitText: '❯ no prompts yet', minTick: 2, awaitSettleTicks: 3, targetText: '◆ relay probe', targetDx: 2, data: CLICK, mark: 'warmup' },
       { atTick: 999, requireAwait: true, awaitText: '❯ ◆ relay probe', minTick: 2, awaitSettleTicks: 3, targetText: 'no prompts yet', data: CLICK, mark: 'click1' },

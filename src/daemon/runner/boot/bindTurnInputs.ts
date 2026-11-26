@@ -30,7 +30,7 @@ function run(ports: RunnerPorts): BootMade<'isMainThreadCommand' | 'takeMainThre
     const parsed = line === undefined ? null : parseSlashCommand(line)
     if (parsed === null || parsed.isMcp) return null
     const found = findCommand(parsed.commandName, live.activeCommands)
-    if (found === undefined || found.name !== 'mission') return null
+    if (found === undefined || found.name !== 'goal') return null
     const words = parsed.args.trim()
     return words.length > cap ? null : words
   }
