@@ -7,8 +7,8 @@ import { logForDebugging } from '../logs/debugLog.js'
 import { getMercuryHome } from '../environment/envUtils.js'
 import { getEssentialTrafficOnlyReason } from '../../models/roads/privacyLevel.js'
 import { comparePrivateVersions, parsePrivateVersion } from './channelCore.js'
-import { readCurrentVersion, reconcileManagedShims, resolveLayoutRoots, type LayoutRoots } from './installLayout.js'
-import { firstProfileHome } from '../profiles/profiles.js'
+import { readCurrentVersion, resolveLayoutRoots, type LayoutRoots } from './installLayout.js'
+import { firstProfileHome, reconcileManagedCommands } from '../profiles/profiles.js'
 import { checkForUpdate, type CheckOutcome } from './updateService.js'
 import { nixInstallRoot } from './installProvenance.js'
 import { passedOver } from '../errors/passedOver.js'
@@ -262,7 +262,7 @@ export function scheduleQuietUpdateNotice(
   }
   const timer = startTimeout(() => {
     const roots = resolveLayoutRoots()
-    reconcileManagedShims(roots)
+    reconcileManagedCommands(roots)
     void runQuietUpdateCheck({
       check: () => checkForUpdate(roots, () => {}),
       readCache: () => readUpdateNoticeCache(),
