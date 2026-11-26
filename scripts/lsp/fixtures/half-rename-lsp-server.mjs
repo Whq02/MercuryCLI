@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { basename, dirname, extname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const pullCapable = process.env.HALF_RENAME_PULL === '1'
+const pullCapable = process.env.HALF_RENAME_PULL !== '0'
 const workspaceStems = ['defs', 'a', 'b', 'c']
 
 let buf = Buffer.alloc(0)

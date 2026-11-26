@@ -63,7 +63,7 @@ function convertDiagnostics(rawDiagnostics: PublishDiagnosticsParams['diagnostic
 }
 
 export function pullServersOf(manager: LSPServerManager, path: string): LSPServerInstance[] {
-  return manager.getServersForFile(path).filter(server => server.state === 'running' && Boolean(server.capabilities?.diagnosticProvider))
+  return manager.getServersForFile(path).filter(server => server.config.pullIsPush === true && server.state === 'running' && Boolean(server.capabilities?.diagnosticProvider))
 }
 
 export function pullWrittenFiles(manager: LSPServerManager, paths: readonly string[], deadlineMs: number): Map<string, Promise<unknown>> {

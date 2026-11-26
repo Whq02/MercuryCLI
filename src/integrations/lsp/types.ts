@@ -6,6 +6,7 @@ type LspServerConfig = z.infer<ReturnType<typeof LspServerConfigSchema>>
 export type ScopedLspServerConfig = LspServerConfig & {
   scope: 'dynamic'
   source: string
+  pullIsPush?: true
 }
 
 export type LspServerState =

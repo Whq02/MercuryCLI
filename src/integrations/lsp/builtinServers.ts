@@ -133,6 +133,7 @@ function builtinTsServer(): Record<string, ScopedLspServerConfig> {
       maxRestarts: 2,
       scope: 'dynamic',
       source: 'mercury-builtin',
+      pullIsPush: true,
     },
   }
 }

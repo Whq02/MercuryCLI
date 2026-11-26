@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -23,22 +23,22 @@ const wsRoot = path.join(scratch, 'ws')
 const pullDir = path.join(wsRoot, 'pull')
 const pushDir = path.join(wsRoot, 'push')
 const peerDir = path.join(wsRoot, 'peer')
-mkdirSync(pullDir, { recursive: true })
-mkdirSync(pushDir, { recursive: true })
-mkdirSync(peerDir, { recursive: true })
+const dualDir = path.join(wsRoot, 'dual')
+for (const dir of [pullDir, pushDir, peerDir, dualDir]) mkdirSync(dir, { recursive: true })
+symlinkSync(path.join(repo, 'node_modules'), path.join(wsRoot, 'node_modules'), 'dir')
 
+process.env.MERCURY_LSP_SIDECAR_ENTRY = stubPath
 process.env.MERCURY_LSP_SERVERS = JSON.stringify({
-  'stub-pull': {
-    command: process.execPath,
-    args: [stubPath],
-    extensionToLanguage: { '.ts': 'typescript' },
-    env: { HALF_RENAME_PULL: '1' },
-  },
   'stub-push': {
     command: process.execPath,
     args: [stubPath],
     extensionToLanguage: { '.zz': 'zed' },
     env: { HALF_RENAME_PULL: '0' },
+  },
+  'stub-dual': {
+    command: process.execPath,
+    args: [stubPath],
+    extensionToLanguage: { '.dd': 'dual' },
   },
 })
 
@@ -192,7 +192,7 @@ const QUIET_STUB = {
   clearPersistent: true,
   resetPullCount: true,
 }
-const PULL_SERVER = 'env:stub-pull'
+const PULL_SERVER = 'mercury-ts'
 const PUSH_SERVER = 'env:stub-push'
 const REAL_DEFECT = "Type 'number' is not assignable to type 'string'."
 
@@ -680,6 +680,26 @@ try {
       'two writers on two lanes: each lane asks for its own 4 files and is told its own real error once, alone',
       theirsApplied.applied === true && mineAsked === 4 && theirsAsked === 4 && totalDiagCount(mineDrain) === 1 && urisOf(mineDrain) === mine.b && totalDiagCount(theirsDrain) === 1 && urisOf(theirsDrain) === theirs.b,
       `main lane: ${totalDiagCount(mineDrain)} in ${urisOf(mineDrain)} after ${mineAsked} requests; peer lane: ${totalDiagCount(theirsDrain)} in ${urisOf(theirsDrain)} after ${theirsAsked} requests; peer apply: ${theirsApplied.result.slice(0, 160)}`,
+    )
+
+    registry.resetAllLSPDiagnosticState()
+    await manager.closeAllFiles()
+    const dual = writeFourFiles(dualDir, 'dd', 'oldDual')
+    const dualCtx = makeContext()
+    await configureStub(dual.defs, { ...QUIET_STUB, settledPushOnSaveCount: 4 })
+    const dualPreview = await renameOp(dualDir, dualCtx, dual.defs, 'newDual')
+    const dualApplied = await renameOp(dualDir, dualCtx, dual.defs, 'newDual', { apply: true, plan: dualPreview.plan })
+    const dualToolPulls = (await stubPulls(dual.defs)).pullCount
+    await manager.sendRequest(dual.defs, 'test/publish', { uri: pathToFileURL(dual.a).href, diagnostics: [{ ...stubFinding('Pushed finding its pull never returns.', 1), source: 'second-source' }] })
+    await syncStub(dual.defs)
+    const dualDrain = asDiagAttachments(await getLSPDiagnosticAttachments(dualCtx))
+    const dualAgain = asDiagAttachments(await getLSPDiagnosticAttachments(dualCtx))
+    const dualAsked = (await stubPulls(dual.defs)).pullCount - dualToolPulls
+    durableFindings += totalDiagCount(dualDrain)
+    check(
+      'a pull server that is not known to answer with all it pushes is not asked: a finding it pushed after the rename, absent from its pull, is told once',
+      /Post-apply diagnostics: 0 error\(s\), 0 warning\(s\)/.test(dualApplied.result) && dualToolPulls === 1 && dualAsked === 0 && totalDiagCount(dualDrain) === 1 && urisOf(dualDrain) === dual.a && modelFacingText(dualDrain).includes('Pushed finding its pull never returns.') && dualAgain.length === 0,
+      `tool pulls=${dualToolPulls}, attachment pulls=${dualAsked} (pullServersOf in src/integrations/lsp/publishedDiagnostics.ts must ask only a server whose config says pullIsPush: its answer would stand in for every report the server pushed before it); told ${totalDiagCount(dualDrain)} then ${totalDiagCount(dualAgain)}: ${modelFacingText(dualDrain).slice(0, 240)}`,
     )
 
     registry.resetAllLSPDiagnosticState()
