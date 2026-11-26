@@ -109,13 +109,14 @@ fn install_dry_run(args: &[OsString]) -> bool {
             .any(|a| *a == OsStr::new("--dry-run"))
 }
 
-fn prepare_cache(args: &[OsString]) {
-    if install_dry_run(args) {
+fn prepare_cache(dry_run: bool, enable_default: bool) {
+    if dry_run {
         env::remove_var("NODE_COMPILE_CACHE");
         env::set_var("NODE_DISABLE_COMPILE_CACHE", "1");
         return;
     }
-    if nonempty_env("NODE_COMPILE_CACHE").is_some()
+    if !enable_default
+        || nonempty_env("NODE_COMPILE_CACHE").is_some()
         || nonempty_env("NODE_DISABLE_COMPILE_CACHE").is_some()
     {
         return;
@@ -168,8 +169,9 @@ fn launch() -> Result<i32, String> {
     #[cfg(windows)]
     console::prepare().map_err(|e| format!("could not listen for console events: {e}"))?;
     let args = env::args_os().skip(1).collect::<Vec<_>>();
+    let dry_run = install_dry_run(&args);
     let node = node_binary(dir).map_err(|_| node_missing())?;
-    prepare_cache(&args);
+    prepare_cache(dry_run, false);
     let probe = Command::new(&node)
         .args(["-p", "process.versions.node"])
         .stdin(Stdio::null())
@@ -190,6 +192,7 @@ fn launch() -> Result<i32, String> {
     if take && verifier.is_file() {
         let _ = child(&node, &verifier, &["--launcher".into()]).status();
     }
+    prepare_cache(dry_run, true);
     let splash = dir.join("splash.mjs");
     if take
         && splash.is_file()
