@@ -150,7 +150,7 @@ async function focusedComposerFor(
   row: ConcourseRowV1,
   groupId: ConcourseSnapshotV1['groups'][number]['id'],
   groupLabel: string,
-): Promise<{ restPrompt: string; focusedFoot: string }> {
+): Promise<{ restPrompt: string; armedRowLine: string; focusedFoot: string; focusedLegend: string }> {
   _resetConcourseCapsuleForTesting()
   const snapshot = boardSnapshot([row], groupId, groupLabel)
   const mounted = await mountOffscreen(
@@ -164,12 +164,31 @@ async function focusedComposerFor(
   try {
     await waitFor(() => mounted.screen().includes('status & title') && mounted.screen().includes(`❯ message ${row.title}`), 5000)
     const restPrompt = mounted.lines().find(l => l.includes(`❯ message ${row.title}`)) ?? ''
+    mounted.push('\r')
+    await waitFor(() => mounted.screen().includes('armed —'), 5000)
     mounted.push('\t')
-    await waitFor(() => mounted.screen().includes('↵↵ enter session'), 5000)
+    await waitFor(() => mounted.screen().includes('↵↵ enter session') || mounted.screen().includes('enters (armed)'), 5000)
     mounted.push('check')
     await waitFor(() => mounted.screen().includes('❯ check') && mounted.screen().includes('newline · tab panes'), 5000)
-    const focusedFoot = mounted.lines().find(l => l.includes('newline · tab panes')) ?? ''
-    return { restPrompt, focusedFoot }
+    const lines = mounted.lines()
+    const rightPaneCol = (lines[0] ?? '').lastIndexOf('╭')
+    const rightCell = (line: string): string => {
+      const inner = rightPaneCol >= 0 ? line.slice(rightPaneCol + 1) : ''
+      const end = inner.lastIndexOf('│')
+      return (end >= 0 ? inner.slice(0, end) : inner).trim()
+    }
+    const armedIdx = lines.findIndex(l => rightCell(l).includes('armed —'))
+    const armedParts: string[] = []
+    for (let i = armedIdx; armedIdx >= 0 && i < lines.length; i++) {
+      const cell = rightCell(lines[i] ?? '')
+      if (cell.length === 0 || cell.includes('needs you')) break
+      armedParts.push(cell)
+      if (cell.includes('esc disarms')) break
+    }
+    const armedRowLine = armedParts.join(' ').replace(/\s+/g, ' ').trim()
+    const focusedFoot = lines.find(l => l.includes('newline · tab panes')) ?? ''
+    const focusedLegend = (lines[lines.length - 1] ?? '').trim()
+    return { restPrompt, armedRowLine, focusedFoot, focusedLegend }
   } finally {
     mounted.unmount()
   }
@@ -236,11 +255,15 @@ try {
 
   const workingComposer = await focusedComposerFor(rowOf('s-work', 'Live task', 'working'), 'working', 'working')
   check('working row: resting composer keeps short "message <title>" placeholder', workingComposer.restPrompt.includes('❯ message Live task') && !workingComposer.restPrompt.includes('on its next turn'), workingComposer.restPrompt.trim())
+  check('working row: armed row line with draft says "queues" (not "sends")', workingComposer.armedRowLine.includes('armed — ↵ queues the draft · → enters') && !workingComposer.armedRowLine.includes('sends'), workingComposer.armedRowLine)
   check('working row: focused composer foot says "↵ queue" (not "↵ send")', workingComposer.focusedFoot.includes('↵ queue ·') && !workingComposer.focusedFoot.includes('↵ send ·'), workingComposer.focusedFoot.trim())
+  check('working row: focused bottom legend says "↵ queue" (not "↵ send")', workingComposer.focusedLegend.includes('↵ queue') && !workingComposer.focusedLegend.includes('↵ send'), workingComposer.focusedLegend)
 
   const idleComposer = await focusedComposerFor(rowOf('s-idle', 'Idle task', 'ready-to-review'), 'ready-to-review', 'ready to review')
   check('idle row: resting composer keeps short "message <title>" placeholder', idleComposer.restPrompt.includes('❯ message Idle task') && !idleComposer.restPrompt.includes('on its next turn'), idleComposer.restPrompt.trim())
+  check('idle row: armed row line with draft says "sends" (not "queues")', idleComposer.armedRowLine.includes('armed — ↵ sends the draft · → enters') && !idleComposer.armedRowLine.includes('queues'), idleComposer.armedRowLine)
   check('idle row: focused composer foot says "↵ send" (not "↵ queue")', idleComposer.focusedFoot.includes('↵ send ·') && !idleComposer.focusedFoot.includes('↵ queue ·'), idleComposer.focusedFoot.trim())
+  check('idle row: focused bottom legend says "↵ send" (not "↵ queue")', idleComposer.focusedLegend.includes('↵ send') && !idleComposer.focusedLegend.includes('↵ queue'), idleComposer.focusedLegend)
 } finally {
   await releaseScratchHome(HOME)
 }
