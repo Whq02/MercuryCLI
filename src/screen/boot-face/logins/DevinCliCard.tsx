@@ -6,6 +6,7 @@ import {
   DEVIN_CLI_ACTION_TITLE,
   devinCliActionOptions,
   devinCliLogoutConfirmOptions,
+  devinCliMissingOutcome,
   runDevinCliAction,
   type DevinCliAction,
   type DevinCliRunOutcome,
@@ -24,7 +25,10 @@ export function DevinCliCard({
   compact: boolean
   onBack: () => void
 }): React.ReactNode {
-  const [state, setState] = useState<CardState>({ kind: 'menu' })
+  const [state, setState] = useState<CardState>(() => {
+    const missing = devinCliMissingOutcome()
+    return missing === null ? { kind: 'menu' } : { kind: 'receipt', outcome: missing }
+  })
   const runRef = useRef(0)
   const mountedRef = useRef(true)
 
@@ -46,7 +50,8 @@ export function DevinCliCard({
     (_input, key, event) => {
       if (state.kind === 'receipt' && (key.return || key.escape)) {
         event.stopImmediatePropagation()
-        setState({ kind: 'menu' })
+        if (state.outcome.kind === 'missing') onBack()
+        else setState({ kind: 'menu' })
       }
     },
     { isActive: state.kind === 'receipt' },
