@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-HEADER = re.compile(r'^\s*(?:❯ )?lanes\b.*╭')
+HEADER = re.compile(r'^(?:╭─+╮|(?:crew \d+|work|runs|recent|goal|workbench|next|files|saturn|vitals)[^╭]*)╭─+╮')
 SPAN = 60
 failures = 0
 

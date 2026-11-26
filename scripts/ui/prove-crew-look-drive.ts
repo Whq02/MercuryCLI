@@ -146,7 +146,7 @@ const cells = (line: string): string[] => Array.from(line)
 type Cockpit = { left: number; right: number; top: number; bottom: number; cols: number; composerTop: number; composerBottom: number; railRight: number; vitalsLeft: number | null }
 function cockpitOf(rows: string[]): Cockpit | null {
   const first = cells(rows[0] ?? '')
-  const left = first.indexOf('╭')
+  const left = first[0] === '╭' ? first.indexOf('╭', 1) : first.indexOf('╭')
   if (left < 0) return null
   const right = first.indexOf('╮', left + 1)
   if (right < 0) return null
@@ -258,10 +258,10 @@ const firstDiff = (a: string[], b: string[]): string => {
 const wideRows = (rows: string[]): string[] => rows.filter(line => line.includes('c00=') || line.includes('c29='))
 const pastCentre = (rows: string[], cockpit: Cockpit, needle: string): string[] => rows.filter(line => cells(line).slice(cockpit.right + 1, cockpit.vitalsLeft ?? cockpit.cols).join('').includes(needle))
 function railInkCell(mark: Mark): Cell | undefined {
-  const heading = /^(?:│ ⦿ )?crew · /
+  const heading = /^(?:│ ⦿ )?crew \d+/
   const y = mark.rows.findIndex(line => heading.test(cells(line).slice(0, 30).join('')))
   if (y < 0) return undefined
-  const x = cells(mark.rows[y]!).slice(0, 30).join('').indexOf('crew · ')
+  const x = cells(mark.rows[y]!).slice(0, 30).join('').indexOf('crew ')
   return x < 0 ? undefined : mark.grid[y]?.[x]
 }
 

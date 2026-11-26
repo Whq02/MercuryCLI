@@ -22,7 +22,7 @@ function check(name: string, ok: boolean, detail?: string): void {
 
 console.log('prove-effective-catalogue — the ONE surface catalogue + the zero-specimen law')
 
-const { builtinCommands } = await import('../../src/commands/catalogue/commands.js')
+const { builtinCommands, findCommand } = await import('../../src/commands/catalogue/commands.js')
 const { effectiveCatalogue, normalSurfaces } = await import(
   '../../src/commands/catalogue/effectiveCatalogue.js'
 )
@@ -79,7 +79,7 @@ check('catalogue rows = registry rows', catalogue.length === registry.length, `c
   const { isCommandEnabled } = await import('../../src/commands/catalogue/command.js')
   const { getIsInteractive, setIsInteractive } = await import('../../src/boot/process-state/processState.js')
 
-  const BLESSED_PAIRS = ['context', 'mission'] as const
+  const BLESSED_PAIRS = ['context', 'goal'] as const
 
   const byName = new Map<string, typeof registry[number][]>()
   for (const cmd of registry) {
@@ -136,6 +136,34 @@ check('catalogue rows = registry rows', catalogue.length === registry.length, `c
       'every non-pair name is registered exactly once',
       overRegistered.length === 0,
       overRegistered.map(([name, list]) => `${name}×${list.length}`).join(', ') + ' (remove the duplicate registration in builtinCommands, src/commands/catalogue/commands.ts)',
+    )
+    const mutableRegistry = [...registry]
+    setIsInteractive(true)
+    const interactiveCommands = mutableRegistry.filter(isCommandEnabled)
+    const goalInteractive = findCommand('goal', interactiveCommands)
+    const missionInteractive = findCommand('mission', interactiveCommands)
+    setIsInteractive(false)
+    const headlessCommands = mutableRegistry.filter(isCommandEnabled)
+    const goalHeadless = findCommand('goal', headlessCommands)
+    const missionHeadless = findCommand('mission', headlessCommands)
+    const goalEntries = catalogue.filter(s => s.name === 'goal')
+    check(
+      '/goal resolves to the command in both interactive and headless catalogues with no alias, and /mission resolves to nothing',
+      goalInteractive?.name === 'goal' &&
+        goalHeadless?.name === 'goal' &&
+        goalInteractive !== goalHeadless &&
+        missionInteractive === undefined &&
+        missionHeadless === undefined &&
+        goalEntries.length === 2 &&
+        goalEntries.every(s => s.aliases.length === 0) &&
+        catalogue.every(s => s.name !== 'mission' && !s.aliases.includes('mission') && !s.aliases.includes('goal')),
+      JSON.stringify({
+        goalInteractive: goalInteractive?.name,
+        goalHeadless: goalHeadless?.name,
+        missionInteractive: missionInteractive?.name,
+        missionHeadless: missionHeadless?.name,
+        goalAliases: goalEntries.map(s => s.aliases),
+      }),
     )
   } finally {
     setIsInteractive(initialInteractive)
