@@ -147,11 +147,6 @@ export const CREWMATE_BETWEEN_TURNS_DETAIL = `it is between turns and nothing dr
 export function crewmateInterruptRefusedWords(name: string, detail: string): string {
   return `${name} did not take the interrupt: ${detail}`
 }
-
-export function crewmateStatusRightHint(_pinned: boolean, _live = true, _escapeOwned = false): string {
-  return ''
-}
-
 export function crewmatePlaceholder(name: string): string {
   return `message ${name}`
 }

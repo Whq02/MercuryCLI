@@ -41,8 +41,8 @@ import { renderModelChip } from '../../models/catalogue/engineModel.js'
 import { focusedEffortLabelOf } from '../widgets/EffortChip.js'
 import { modelSupportsEffort } from '../../models/effort/effort.js'
 import { useAppStateMaybeOutsideOfProvider } from '../app-state/AppState.js'
-import { crewmateLive, targetWords, useComposerCrewmate, useViewedCrewmate } from '../tasks/useCrewmateView.js'
-import { crewmateNextTurnWords, crewmateStatusRightHint, crewmateStatusWords } from '../cockpit/crewmateWords.js'
+import { targetWords, useComposerCrewmate, useViewedCrewmate } from '../tasks/useCrewmateView.js'
+import { crewmateNextTurnWords, crewmateStatusWords } from '../cockpit/crewmateWords.js'
 import { daemonBuildStatusWords, lastDaemonHandshake, subscribeDaemonHandshake } from '../../daemon/control/handshake.js'
 import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
 import { createSignal } from '../../platform/async/signal.js'
@@ -341,11 +341,9 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   if (!painting) return null
   const status: SeatStatusV1 = c.status()
   const line = composerCrewmate !== null ? crewmateStatusWords(crewmate, targetWords(composerCrewmate), composerCrewmate.running) : statusLine(live, status, crew)
-  const crewmateRightHint =
-    crewmate !== null && !crewmate.pinned ? crewmateStatusRightHint(false, crewmateLive(crewmate), escapeOwned) : ''
   const backHint =
     crewmate !== null && !crewmate.pinned
-      ? crewmateRightHint !== '' ? `${crewmateRightHint} · ${keyHintLabel('⇧← back')}` : keyHintLabel('⇧← back')
+      ? keyHintLabel('⇧← back')
       : escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false, sendNow, escapeOwned)
   const effortLabel = modelSupportsEffort(effectiveModel) ? focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false) : null
   const chipCrewmate = crewmate ?? composerCrewmate
