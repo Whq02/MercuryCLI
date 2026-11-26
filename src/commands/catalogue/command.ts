@@ -1,4 +1,3 @@
-import type { CrewmatePickerSeat } from '../../screen/composer/crewmateCommands.js'
 import type * as React from 'react'
 import type { UUID } from 'crypto'
 import type { CanUseToolFn, ToolUseContext } from '../../tools/kit/tool.js'
@@ -9,6 +8,7 @@ import type { SessionListing } from '../../sessions/transcripts/transcriptEntrie
 import type { ContentBlockParam } from '../../engine/message-shapes/wire.js'
 import type { ExtensionManifest } from '../../integrations/extensions/manifest.js'
 import type { ThemeName } from '../../screen/theme/theme.js'
+import type { CrewmatePickerSeat } from '../../screen/composer/crewmateCommands.js'
 
 type LoadedFromLabel = 'skills' | 'extension' | 'managed' | 'bundled' | 'mcp'
 type CommandSource = 'mcp' | 'userSettings' | 'projectSettings' | 'localSettings' | 'flagSettings' | 'policySettings' | 'extension' | 'builtin' | 'bundled'

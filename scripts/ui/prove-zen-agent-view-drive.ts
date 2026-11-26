@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/screen/tasks/BackgroundTasksDialog.tsx src/screen/chat/CrewmateTranscript.tsx src/screen/tasks/useCrewmateTranscript.ts src/screen/fullscreen-layout/CompactIdentityBand.tsx src/screen/fullscreen-layout/CrewmateCard.tsx src/screen/cockpit/crewmateWords.ts src/screen/widgets/faces/CrewView.tsx
+// gate-watch: src/screen/tasks/BackgroundTasksDialog.tsx src/screen/chat/CrewmateTranscript.tsx src/screen/tasks/useCrewmateTranscript.ts src/screen/fullscreen-layout/CompactIdentityBand.tsx src/screen/cockpit/crewmateWords.ts src/screen/widgets/faces/CrewView.tsx
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -44,7 +44,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — the frames dumped below show what painted; change the screen code this proof watches (the gate-watch line at the top of this file: src/screen/chat/CrewmateTranscript.tsx, src/screen/fullscreen-layout/CompactIdentityBand.tsx, src/screen/fullscreen-layout/CrewmateCard.tsx, src/screen/tasks/BackgroundTasksDialog.tsx, src/screen/widgets/faces/CrewView.tsx), or the sends in compactLeg and cockpitLeg when a frame never painted' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — the frames dumped below show what painted; change the screen code this proof watches (the gate-watch line at the top of this file: src/screen/chat/CrewmateTranscript.tsx, src/screen/fullscreen-layout/CompactIdentityBand.tsx,, src/screen/tasks/BackgroundTasksDialog.tsx, src/screen/widgets/faces/CrewView.tsx), or the sends in compactLeg and cockpitLeg when a frame never painted' : ''}`)
 }
 
 type Grid = Array<Array<{ c?: string } | string>>
@@ -147,7 +147,9 @@ async function compactLeg(cols: number, rows: number, zen: boolean): Promise<voi
     { data: CTRL_T, atTick: 999, awaitText: LEAD_LINE, requireAwait: true, minTick: 5, awaitSettleTicks: 6, mark: 'launched' },
     { data: '\r', atTick: 999, awaitText: LEAD_LINE, requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
     { data: '\r', atTick: 999, awaitText: ACTIVITY_TITLE, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'activity' },
-    { data: CTRL_T, atTick: 999, awaitText: CREWMATE_PLATE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'strip-view' },
+    { data: '?', atTick: 999, awaitText: CREWMATE_PLATE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'strip-view' },
+    { data: ESC, atTick: 999, awaitText: 'for shell mode', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'help-live' },
+    { data: CTRL_T, atTick: 999, awaitText: CREWMATE_PLATE, absentText: 'for shell mode', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
     { data: '\r', atTick: 999, awaitText: CREWMATE_PLATE, requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
     { data: '\r', atTick: 999, awaitText: LEAD_ROW_WORDS, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'activity-lead' },
     { data: '/crewmates', atTick: 999, awaitText: LEAD_LINE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'strip-back' },
@@ -163,7 +165,9 @@ async function compactLeg(cols: number, rows: number, zen: boolean): Promise<voi
     { data: 'haiku', atTick: 999, awaitText: 'Mercury · model', requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'crew-model' },
     { data: '\r', atTick: 999, awaitText: 'Haiku', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
     { data: ESC, atTick: 999, awaitText: 'switches to Haiku', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'popup-view' },
-    { data: ESC, atTick: 999, awaitText: 'the interrupt ended', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'cut' },
+    { data: '?', atTick: 999, awaitText: 'the interrupt ended', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'cut' },
+    { data: ESC, atTick: 999, awaitText: 'for shell mode', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'help-ended' },
+    { data: ESC, atTick: 999, awaitText: 'the interrupt ended', absentText: 'for shell mode', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
     { data: '', atTick: 999, awaitText: LEAD_LINE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'esc-back' },
   ]
   let cap: Capture | null = null
@@ -183,20 +187,20 @@ async function compactLeg(cols: number, rows: number, zen: boolean): Promise<voi
   check(`${tag}: ctrl+t then ↵ opens the activity screen with the sleeper as its crewmate row`, has(activity, ACTIVITY_TITLE) && rowsOf(activity).some(row => row.includes('❯') && row.includes(SEAT_NAME)), flat(activity).slice(0, 300))
   const view = marks['strip-view'] ?? ''
   check(`${tag}: ↵ on the crewmate row opens it in the view — its rows take the transcript ([you → sleeper] and its Sleep call), the lead's rows are gone, no facts card`, crewmateRowsTakeTheCentre(view) && !has(view, CARD_ROW) && !has(view, ACTIVITY_TITLE), flat(view).slice(0, 400))
-  check(`${tag}: the band shows the sleeper's card and the composer routes to it`, bandRow(view).includes(`◉ ${SEAT_NAME}`) && composerRow(view).includes(`message ${SEAT_NAME}`), `${bandRow(view).trim().slice(0, 120)} · ${composerRow(view).trim().slice(0, 60)}`)
-  if (cols >= 160) check(`${tag}: the compact card drops both goes-back clauses while keeping esc interrupts`, !has(view, COMPACT_BACK) && !has(view, RAIL_BACK) && has(view, 'esc interrupts'), rowsOf(view).filter(row => row.includes('esc interrupts') || row.includes('goes back')).map(row => row.trim()).join(' | ').slice(0, 200))
+  check(`${tag}: the main identity row adds only the viewed address; the composer does not repeat it`, bandRow(view).includes('✶ Mercury') && bandRow(view).includes(`viewing ${SEAT_NAME}`) && !composerRow(view).includes(SEAT_NAME) && !/commands →|composer →|esc back to Mercury Lead/.test(view), view)
+  check(`${tag}: shortcuts alone explain a safe return and tell live Escape from ended Escape`, [marks['help-live'], marks['help-ended']].every(frame => frame?.split('Mercury Lead → ↵ · or click viewing').length === 2) && has(marks['help-live'] ?? '', 'esc interrupts this crewmate') && has(marks['help-ended'] ?? '', 'esc closes this view') && !has(view, 'or click viewing'), marks['help-live'] ?? '')
   const activityLead = marks['activity-lead'] ?? ''
   const crewList = rowsOf(activityLead).slice(Math.max(0, rowsOf(activityLead).findIndex(row => row.startsWith('Crewmates ('))))
-  check(`${tag}: with the sleeper viewed, the activity screen heads its crewmates with the lead's row, the cursor on it, and its key row (where it fits) says ↵ back to the lead`, crewList.some(row => row.includes('❯') && row.includes(LEAD_ROW) && row.includes(LEAD_ROW_WORDS)) && (crewList.findIndex(row => row.includes(SEAT_NAME)) < 0 || crewList.findIndex(row => row.includes(LEAD_ROW_WORDS)) < crewList.findIndex(row => row.includes(SEAT_NAME))) && (!has(activityLead, '↑/↓ select') || has(activityLead, `↵ back to ${LEAD_ROW}`)), crewList.map(row => row.trim()).filter(Boolean).join(' | ').slice(0, 300))
+  check(`${tag}: the lead heads the activity list and has the ordinary open action`, crewList.some(row => row.includes('❯') && row.includes(LEAD_ROW) && row.includes(LEAD_ROW_WORDS)) && !has(activityLead, '↵ goes back') && !has(activityLead, '↵ back to Mercury Lead'), activityLead)
   const back = marks['strip-back'] ?? ''
   check(`${tag}: ↵ on the lead's row goes back — the lead's rows return, the band is the session's own, the sleeper still runs`, leadRowsBack(back) && bandRow(back).includes('✶ Mercury') && has(back, '1 crewmate here'), flat(back).slice(0, 300))
   const popup = marks['popup'] ?? ''
   const sleeperRow = rowsOf(popup).find(row => row.includes(SEAT_NAME) && row.includes('claude-opus')) ?? ''
   check(`${tag}: /crewmates lists the sleeper still running (the way back stopped nothing)`, /\brunning\b/.test(sleeperRow) && !/stopped|landed|interrupted|paused/.test(sleeperRow), flat(sleeperRow || popup).slice(0, 300))
   const popupView = marks['popup-view'] ?? ''
-  check(`${tag}: /crewmates' ↵ opens the sleeper in the view too — its rows take the transcript`, crewmateRowsTakeTheCentre(popupView) && bandRow(popupView).includes(`◉ ${SEAT_NAME}`), flat(popupView).slice(0, 300))
+  check(`${tag}: /crewmates' ↵ opens the sleeper in the view too — its rows take the transcript`, crewmateRowsTakeTheCentre(popupView) && bandRow(popupView).includes(`viewing ${SEAT_NAME}`), flat(popupView).slice(0, 300))
   const cut = marks['cut'] ?? ''
-  check(`${tag}: esc interrupts the viewed sleeper — the cut row lands in its transcript, the view stays`, has(cut, 'the interrupt ended') && has(cut, CREWMATE_PLATE) && bandRow(cut).includes(`◉ ${SEAT_NAME}`) && bandRow(cut).includes('interrupted'), flat(cut).slice(0, 300))
+  check(`${tag}: esc interrupts the viewed sleeper — the cut row lands in its transcript, the view stays`, has(cut, 'the interrupt ended') && has(cut, CREWMATE_PLATE) && bandRow(cut).includes(`viewing ${SEAT_NAME}`) && !has(cut, 'esc interrupts'), flat(cut).slice(0, 300))
   const escBack = marks['esc-back'] ?? ''
   check(`${tag}: esc on the interrupted sleeper goes back to the lead's rows`, leadRowsBack(escBack) && bandRow(escBack).includes('✶ Mercury'), flat(escBack).slice(0, 300))
   if (failures > before || process.env.AGENT_VIEW_KEEP === '1') {
@@ -222,7 +226,9 @@ async function cockpitLeg(cols: number, rows: number): Promise<void> {
     { data: '/crewmates', atTick: 999, awaitText: LEAD_LINE, requireAwait: true, minTick: 5, awaitSettleTicks: 6, mark: 'launched' },
     { data: '\r', atTick: 999, awaitText: '/crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
     { data: '\r', atTick: 999, awaitText: '↵ open in the view', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'popup' },
-    { data: ESC, atTick: 999, awaitText: CREWMATE_PLATE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'popup-view' },
+    { data: '?', atTick: 999, awaitText: CREWMATE_PLATE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'popup-view' },
+    { data: ESC, atTick: 999, awaitText: 'for shell mode', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'help-live' },
+    { data: ESC, atTick: 999, awaitText: CREWMATE_PLATE, absentText: 'for shell mode', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
     { data: ESC, atTick: 999, awaitText: 'the interrupt ended', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'cut' },
     { data: '', atTick: 999, awaitText: LEAD_LINE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'esc-back' },
   ]
@@ -238,8 +244,9 @@ async function cockpitLeg(cols: number, rows: number): Promise<void> {
   const launched = marks['launched'] ?? ''
   check(`${tag}: the rails are shown (the CREW lane lists Mercury Lead and the sleeper)`, has(launched, 'crew 1') && has(launched, LEAD_ROW) && has(launched, SEAT_NAME), flat(launched).slice(0, 300))
   const popupView = marks['popup-view'] ?? ''
-  check(`${tag}: /crewmates' ↵ opens the sleeper in the view — its rows take the centre, the berth card names it`, crewmateRowsTakeTheCentre(popupView) && has(popupView, `◉ ${SEAT_NAME}`), flat(popupView).slice(0, 300))
-  check(`${tag}: the wide card drops both goes-back clauses`, !has(popupView, RAIL_BACK) && !has(popupView, COMPACT_BACK), rowsOf(popupView).filter(row => row.includes('goes back')).map(row => row.trim()).join(' | ').slice(0, 200))
+  check(`${tag}: /crewmates' ↵ opens the sleeper in the view — its rows take the centre, the status row names it once`, crewmateRowsTakeTheCentre(popupView) && has(popupView, `viewing ${SEAT_NAME}`), flat(popupView).slice(0, 300))
+  check(`${tag}: the wide status and composer have no second address or return legend`, !has(popupView, RAIL_BACK) && !has(popupView, COMPACT_BACK) && !/composer →|commands →|esc back to Mercury Lead/.test(popupView) && !composerRow(popupView).includes(SEAT_NAME), rowsOf(popupView).filter(row => row.includes('goes back')).map(row => row.trim()).join(' | ').slice(0, 200))
+  check(`${tag}: the running crew footer tells the same interrupt key as the main chat`, rowsOf(popupView).at(-1)?.trim() === 'esc interrupt' && has(marks['help-live'] ?? '', 'Mercury Lead → ↵ · or click its rail row'), rowsOf(popupView).at(-1) ?? '')
   const cut = marks['cut'] ?? ''
   check(`${tag}: esc interrupts the viewed sleeper, the view stays`, has(cut, 'the interrupt ended') && has(cut, CREWMATE_PLATE), flat(cut).slice(0, 300))
   const escBack = marks['esc-back'] ?? ''
