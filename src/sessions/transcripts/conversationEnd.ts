@@ -7,7 +7,7 @@ import type { TranscriptMessage } from './transcriptEntries.js'
 type Scope = { kind: 'session' } | { kind: 'crewmate'; agentId: string }
 type ConversationEnd = { primary: TranscriptMessage; rows: TranscriptMessage[]; screenRows: TranscriptMessage[] }
 type Point = { id: UUID; parent: UUID | null; stamp: string; position: number; role: 'turn' | 'result' | 'quiet' | 'fence'; group: string; kept: { anchor: UUID; tail: UUID } | undefined }
-type Choice = { primary: UUID; end: UUID; fence: UUID | undefined; relinks: Map<UUID, UUID>; late: Map<UUID, UUID> }
+type Choice = { primary: UUID; end: UUID; shown: UUID; fence: UUID | undefined; relinks: Map<UUID, UUID>; late: Map<UUID, UUID> }
 type Graph = ReturnType<typeof transcriptRows>
 
 function pointOf(row: TranscriptMessage, position: number): Point {
@@ -84,25 +84,32 @@ function chooseBehind(ordered: readonly Point[], points: ReadonlyMap<UUID, Point
   }
 
   const fenceOf = climber(above, point => point === fence, ordered.length)
-  const continued = new Set<string>()
-  const lastTurn = new Map<string, number>()
+  const blocks = new Map<UUID, UUID>()
+  const continued = new Set<UUID>()
+  const lastTurn = new Map<UUID, number>()
   for (let index = 0; index < ordered.length; index++) {
     const point = ordered[index]!
     if (point.role !== 'turn' || (fence !== undefined && fenceOf(point) === undefined)) continue
-    const prior = groupAt(above(point))
-    if (prior !== undefined && prior !== point.group) continued.add(prior)
-    lastTurn.set(point.group, index)
+    const upper = turnOf(above(point))
+    const prior = upper === undefined ? undefined : (blocks.get(upper.id) ?? upper.id)
+    const block = prior !== undefined && upper?.group === point.group ? prior : point.id
+    blocks.set(point.id, block)
+    if (prior !== undefined && prior !== block) continued.add(prior)
+    lastTurn.set(block, index)
   }
   let turnAt = -1
-  for (const [group, index] of lastTurn) if (!continued.has(group) && (turnAt < 0 || newer(ordered[index]!, ordered[turnAt]!))) turnAt = index
-  const turn = turnAt < 0 ? (fence === undefined ? stand : undefined) : ordered[turnAt]
+  for (const [block, index] of lastTurn) if (!continued.has(block) && (turnAt < 0 || newer(ordered[index]!, ordered[turnAt]!))) turnAt = index
+  const turn = ordered[turnAt]
   if (turn === undefined) return undefined
 
   const tail = new Map<UUID, Point>()
   const behind = turnAt >= fenceAt ? turnAt + 1 : 0
+  const block = blocks.get(turn.id)
   for (let index = behind; index < ordered.length; index++) {
     const point = ordered[index]!
-    if ((point.role === 'quiet' || (point.role === 'result' && !late.has(point.id))) && groupAt(point) === turn.group) tail.set(point.id, point)
+    if (point.role !== 'quiet' && (point.role !== 'result' || late.has(point.id))) continue
+    const under = turnOf(point)
+    if (under !== undefined && blocks.get(under.id) === block) tail.set(point.id, point)
   }
   for (let index = behind; tail.size > 1 && index < ordered.length; index++) {
     const parent = late.has(ordered[index]!.id) ? undefined : above(ordered[index]!)
@@ -111,8 +118,12 @@ function chooseBehind(ordered: readonly Point[], points: ReadonlyMap<UUID, Point
   let end = turn
   for (const point of tail.values()) end = point
   let primary = end
-  while (primary.role === 'quiet' && primary !== turn) primary = above(primary) ?? turn
-  return { primary: primary.id, end: end.id, fence: fence?.id, relinks, late }
+  let underLate = false
+  while (primary.role === 'quiet' && primary !== turn) {
+    underLate ||= primary.parent !== null && late.has(primary.parent)
+    primary = above(primary) ?? turn
+  }
+  return { primary: primary.id, end: end.id, shown: underLate ? end.id : primary.id, fence: fence?.id, relinks, late }
 }
 
 function withStranded(graph: Graph, path: TranscriptMessage[], seen: Set<UUID>, fence: TranscriptMessage | undefined, relinks: ReadonlyMap<UUID, UUID>): TranscriptMessage[] {
@@ -159,7 +170,7 @@ export function electConversationEnd(messages: Map<UUID, TranscriptMessage>, sco
       return (rows ??= project(messages.get(choice.end)!, false))
     },
     get screenRows() {
-      return (screenRows ??= project(primary, true))
+      return (screenRows ??= project(messages.get(choice.shown)!, true))
     },
   }
 }
