@@ -57,12 +57,13 @@ if (!manager) throw new Error('LSP manager failed to initialize')
 const registry = await import('../../src/integrations/lsp/LSPDiagnosticRegistry.js')
 const { getLSPDiagnosticAttachments } = await import('../../src/engine/attachments/diagnostics.js')
 const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.js')
-const { runMercuryLspOp } = await import('../../src/tools/lsp/mercuryOps.js')
+const { awaitDiagnosticStabilization, runMercuryLspOp } = await import('../../src/tools/lsp/mercuryOps.js')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 const { BASH_TOOL_NAME } = await import('../../src/tools/kit/names/bash.js')
 const { processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.js')
 const { LSP_TOOLS } = await import('../../src/tools/lsp/lspTools.js')
 const { FileStateCache } = await import('../../src/platform/files/fileStateCache.js')
+
 const renameTool = LSP_TOOLS.find(tool => tool.name === 'LspRename')!
 
 type DiagAttachment = { type: 'diagnostics'; files: DiagnosticFile[]; isNew: boolean }
@@ -171,7 +172,7 @@ async function syncStub(filePath: string): Promise<void> {
 }
 
 try {
-  section('§1 pull+push unversioned 4-file LspRename: late half-applied 8 diagnostics in 3 files vs clean apply')
+  section('§1 unversioned half-state delivered BEFORE clean pull/tool result (8 diagnostics in 3 files)')
   {
     registry.resetAllLSPDiagnosticState()
     const files = writeFourFiles(pullDir, 'ts', 'oldAlpha')
@@ -181,8 +182,10 @@ try {
       releaseHalfOnFirstChange: false,
       versioned: false,
       settledPushOnSaveCount: 0,
+      silentStems: [],
       defectFile: '',
       clearHeld: true,
+      clearPersistent: true,
     })
     const preview = await renameOp(pullDir, ctx, files.defs, 'newAlpha')
     check('preview returns plan across 4 files without writing', preview.applied === false && typeof preview.plan === 'string' && readFileSync(files.defs, 'utf8').includes('oldAlpha'), preview.result)
@@ -193,26 +196,68 @@ try {
     const attachStart = Date.now()
     const attachments = asDiagAttachments(await getLSPDiagnosticAttachments(ctx))
     const attachMs = Date.now() - attachStart
-    waitSamples.push({ label: 'pull-unversioned', applyMs, attachMs })
+    waitSamples.push({ label: 'pull-unversioned-before-return', applyMs, attachMs })
 
     const diagCount = totalDiagCount(attachments)
-    const fileCount = totalFileCount(attachments)
     if (diagCount > 0) staleAttachments += attachments.length
-    const witness = modelFacingText(attachments)
 
     check(
-      'apply succeeds across 4 files with 0 post-apply errors',
+      'apply succeeds across 4 files with primary-file tool check reporting 0 errors',
       applied.applied === true && applied.effect.outcome === 'succeeded' && applied.effect.changedPaths.length === 4 && /Post-apply diagnostics: 0 error\(s\), 0 warning\(s\)/.test(applied.result),
       applied.result,
     )
     check(
       'next model turn receives 0 stale half-rename diagnostics (not 8 in 3 files)',
       attachments.length === 0 && diagCount === 0,
-      `got ${diagCount} diagnostics in ${fileCount} file(s); witness=${witness.slice(0, 320)}`,
+      `got ${diagCount} diagnostics in ${totalFileCount(attachments)} file(s); witness=${modelFacingText(attachments).slice(0, 320)}`,
     )
   }
 
-  section('§2 out-of-order late versioned half-rename notification after settled clean state')
+  section('§2 unversioned half-state delivered AFTER clean pull/tool result and BEFORE next model attachment')
+  {
+    registry.resetAllLSPDiagnosticState()
+    await manager.closeAllFiles()
+    const files = writeFourFiles(pullDir, 'ts', 'oldAfter')
+    const ctx = makeContext()
+    await configureStub(files.defs, {
+      releaseHalfOnSaveCount: 0,
+      releaseHalfOnFirstChange: false,
+      versioned: false,
+      settledPushOnSaveCount: 0,
+      silentStems: [],
+      defectFile: '',
+      clearHeld: true,
+      clearPersistent: true,
+    })
+    const preview = await renameOp(pullDir, ctx, files.defs, 'newAfter')
+    const applyStart = Date.now()
+    const applied = await renameOp(pullDir, ctx, files.defs, 'newAfter', { apply: true, plan: preview.plan })
+    const applyMs = Date.now() - applyStart
+
+    await manager.sendRequest(files.defs, 'test/releaseHalfState', { versioned: false })
+    await syncStub(files.defs)
+
+    const attachStart = Date.now()
+    const attachments = asDiagAttachments(await getLSPDiagnosticAttachments(ctx))
+    const attachMs = Date.now() - attachStart
+    waitSamples.push({ label: 'pull-unversioned-after-return', applyMs, attachMs })
+
+    const diagCount = totalDiagCount(attachments)
+    if (diagCount > 0) staleAttachments += attachments.length
+
+    check(
+      'apply succeeds with 0 post-apply errors on primary file',
+      applied.applied === true && /Post-apply diagnostics: 0 error\(s\), 0 warning\(s\)/.test(applied.result),
+      applied.result,
+    )
+    check(
+      'unversioned half-state arriving AFTER clean tool return is reconciled away before model attachment',
+      attachments.length === 0 && diagCount === 0,
+      `got ${diagCount} diagnostics in ${totalFileCount(attachments)} file(s); witness=${modelFacingText(attachments).slice(0, 320)}`,
+    )
+  }
+
+  section('§3 out-of-order late versioned half-rename notification after settled clean state (pull + push-only)')
   {
     registry.resetAllLSPDiagnosticState()
     await manager.closeAllFiles()
@@ -222,9 +267,13 @@ try {
       releaseHalfOnSaveCount: 0,
       releaseHalfOnFirstChange: false,
       versioned: true,
-      settledPushOnSaveCount: 0,
+      settledPushOnSaveCount: 4,
+      settledPushDelayMs: 5,
+      settledSplitDelayMs: 0,
+      silentStems: [],
       defectFile: '',
       clearHeld: true,
+      clearPersistent: true,
     })
     const preview = await renameOp(pullDir, ctx, files.defs, 'newBeta')
     const applyStart = Date.now()
@@ -241,97 +290,62 @@ try {
 
     const diagCount = totalDiagCount(attachments)
     if (diagCount > 0) staleAttachments += attachments.length
-
     check(
-      'apply succeeds with 0 post-apply errors',
-      applied.applied === true && /Post-apply diagnostics: 0 error\(s\), 0 warning\(s\)/.test(applied.result),
-      applied.result,
-    )
-    check(
-      'out-of-order version-1 half-rename notifications arriving after version-2 settlement are rejected',
-      attachments.length === 0 && diagCount === 0,
+      'pull-capable out-of-order version-1 notifications arriving after version-2 settlement are rejected',
+      applied.applied === true && attachments.length === 0 && diagCount === 0,
       `got ${diagCount} diagnostics in ${totalFileCount(attachments)} file(s); witness=${modelFacingText(attachments).slice(0, 320)}`,
     )
-  }
 
-  section('§3 push-only server: mid-sync half-state + split clean push + late versioned out-of-order')
-  {
     registry.resetAllLSPDiagnosticState()
     await manager.closeAllFiles()
-    const files = writeFourFiles(pushDir, 'zz', 'oldGamma')
-    const ctx = makeContext()
-    await configureStub(files.defs, {
+    const pushFiles = writeFourFiles(pushDir, 'zz', 'oldGamma')
+    const pushCtx = makeContext()
+    await configureStub(pushFiles.defs, {
       releaseHalfOnSaveCount: 0,
       releaseHalfOnFirstChange: true,
       versioned: true,
       settledPushOnSaveCount: 4,
-      settledPushDelayMs: 20,
-      settledSplitDelayMs: 60,
-      settledStaggerMs: [],
+      settledPushDelayMs: 15,
+      settledSplitDelayMs: 40,
+      silentStems: ['c'],
       defectFile: '',
       clearHeld: true,
+      clearPersistent: true,
     })
-    const preview = await renameOp(pushDir, ctx, files.defs, 'newGamma')
-    check('push-only preview returns plan across 4 files', preview.applied === false && typeof preview.plan === 'string', preview.result)
+    const pushPreview = await renameOp(pushDir, pushCtx, pushFiles.defs, 'newGamma')
+    const pushApplyStart = Date.now()
+    const pushApplied = await renameOp(pushDir, pushCtx, pushFiles.defs, 'newGamma', { apply: true, plan: pushPreview.plan })
+    const pushApplyMs = Date.now() - pushApplyStart
 
-    const applyStart = Date.now()
-    const applied = await renameOp(pushDir, ctx, files.defs, 'newGamma', { apply: true, plan: preview.plan })
-    const applyMs = Date.now() - applyStart
+    await manager.sendRequest(pushFiles.defs, 'test/releaseHalfState', { versioned: true })
+    await syncStub(pushFiles.defs)
 
-    await manager.sendRequest(files.defs, 'test/releaseHalfState', { versioned: true })
-    await syncStub(files.defs)
+    const pushAttachStart = Date.now()
+    const pushAttachments = asDiagAttachments(await getLSPDiagnosticAttachments(pushCtx))
+    const pushAttachMs = Date.now() - pushAttachStart
+    waitSamples.push({ label: 'push-versioned-one-silent', applyMs: pushApplyMs, attachMs: pushAttachMs })
 
-    const attachStart = Date.now()
-    const attachments = asDiagAttachments(await getLSPDiagnosticAttachments(ctx))
-    const attachMs = Date.now() - attachStart
-    waitSamples.push({ label: 'push-versioned', applyMs, attachMs })
-
-    const diagCount = totalDiagCount(attachments)
-    if (diagCount > 0) staleAttachments += attachments.length
+    const pushDiagCount = totalDiagCount(pushAttachments)
+    if (pushDiagCount > 0) staleAttachments += pushAttachments.length
     check(
-      'push-only apply succeeds with 0 post-apply errors',
-      applied.applied === true && /Post-apply diagnostics: 0 error\(s\), 0 warning\(s\)/.test(applied.result),
-      applied.result,
-    )
-    check(
-      'push-only next model turn receives 0 stale half-rename diagnostics (mid-sync + split clean + late v1)',
-      attachments.length === 0 && diagCount === 0,
-      `got ${diagCount} diagnostics in ${totalFileCount(attachments)} file(s); witness=${modelFacingText(attachments).slice(0, 320)}`,
+      'push-only with one never-publishing path (c.zz): primary tool check settles honestly, never fabricates a report for c.zz, and rejects late v1',
+      pushApplied.applied === true &&
+        /Post-apply diagnostics: 0 error\(s\), 0 warning\(s\)/.test(pushApplied.result) &&
+        pushAttachments.length === 0 &&
+        pushDiagCount === 0 &&
+        registry.peekLastPublishedReport('env:stub-push', pushFiles.c) === undefined,
+      `result=${pushApplied.result}; diags=${pushDiagCount}; cLast=${JSON.stringify(registry.peekLastPublishedReport('env:stub-push', pushFiles.c))}`,
     )
 
-    registry.resetAllLSPDiagnosticState()
-    await manager.closeAllFiles()
-    const filesU = writeFourFiles(pushDir, 'zz', 'oldUnver')
-    const ctxU = makeContext()
-    await configureStub(filesU.defs, {
-      releaseHalfOnSaveCount: 4,
-      releaseHalfOnFirstChange: false,
-      versioned: false,
-      settledPushOnSaveCount: 4,
-      settledPushDelayMs: 20,
-      settledSplitDelayMs: 0,
-      settledStaggerMs: [180, 250, 350],
-      defectFile: '',
-      clearHeld: true,
-    })
-    const previewU = await renameOp(pushDir, ctxU, filesU.defs, 'newUnver')
-    const applyStartU = Date.now()
-    const appliedU = await renameOp(pushDir, ctxU, filesU.defs, 'newUnver', { apply: true, plan: previewU.plan })
-    const applyMsU = Date.now() - applyStartU
-    const attachStartU = Date.now()
-    const attachmentsU = asDiagAttachments(await getLSPDiagnosticAttachments(ctxU))
-    const attachMsU = Date.now() - attachStartU
-    waitSamples.push({ label: 'push-unversioned', applyMs: applyMsU, attachMs: attachMsU })
-    const diagCountU = totalDiagCount(attachmentsU)
-    if (diagCountU > 0) staleAttachments += attachmentsU.length
+    const silentCheck = await awaitDiagnosticStabilization(manager, pushFiles.c, { deadlineMs: 120, quietWindowMs: 40 })
     check(
-      'push-only unversioned apply settles clean across all 4 files with 0 stale diagnostics',
-      appliedU.applied === true && /Post-apply diagnostics: 0 error\(s\), 0 warning\(s\)/.test(appliedU.result) && attachmentsU.length === 0 && diagCountU === 0,
-      `result=${appliedU.result}; got ${diagCountU} diagnostics in ${totalFileCount(attachmentsU)} file(s); witness=${modelFacingText(attachmentsU).slice(0, 320)}`,
+      'awaitDiagnosticStabilization on a never-publishing push-only path returns timed-out (never fabricated fresh/zero)',
+      silentCheck.state === 'timed-out',
+      JSON.stringify(silentCheck),
     )
   }
 
-  section('§4 controls: fresh genuine post-apply defect arrives once, clear sticks, unrelated/peer independent, preview/drift/cancel preserve reports')
+  section('§4 controls: surviving real finding arrives once, per-server isolation, clear sticks, unrelated/peer, preview/drift/cancel')
   {
     registry.resetAllLSPDiagnosticState()
     await manager.closeAllFiles()
@@ -342,25 +356,30 @@ try {
       releaseHalfOnFirstChange: false,
       versioned: false,
       settledPushOnSaveCount: 0,
+      silentStems: [],
       defectFile: 'b.ts',
       defectMessage: "Type 'number' is not assignable to type 'string'.",
       clearHeld: true,
+      clearPersistent: true,
     })
 
     const preview = await renameOp(pullDir, ctx, files.defs, 'newDelta')
     const applied = await renameOp(pullDir, ctx, files.defs, 'newDelta', { apply: true, plan: preview.plan })
+    await manager.sendRequest(files.defs, 'test/releaseHalfState', { versioned: false })
+    await syncStub(files.defs)
+
     const firstDrain = asDiagAttachments(await getLSPDiagnosticAttachments(ctx))
     const firstCount = totalDiagCount(firstDrain)
     durableFindings += firstCount
     const firstText = modelFacingText(firstDrain)
 
     check(
-      'genuine post-apply defect is reported by the tool (1 error)',
-      applied.applied === true && /Post-apply diagnostics: 1 error\(s\), 0 warning\(s\)/.test(applied.result),
+      'primary-file tool check stays honest on defs.ts (0 errors on defs.ts)',
+      applied.applied === true && /Post-apply diagnostics: 0 error\(s\), 0 warning\(s\)/.test(applied.result),
       applied.result,
     )
     check(
-      'genuine post-apply defect arrives in <new-diagnostics> for b.ts without the 8 half-rename errors',
+      'surviving real finding in b.ts arrives in <new-diagnostics> without the 8 half-rename errors',
       firstCount === 1 && firstText.includes("Type 'number' is not assignable to type 'string'.") && !firstText.includes('oldDelta'),
       firstText.slice(0, 320),
     )
@@ -374,6 +393,7 @@ try {
     const dupDrain = asDiagAttachments(await getLSPDiagnosticAttachments(ctx))
     check('genuine defect is delivered once (duplicate push deduped)', dupDrain.length === 0, modelFacingText(dupDrain))
 
+    await configureStub(files.defs, { defectFile: '' })
     await manager.sendRequest(files.defs, 'test/publish', {
       uri: pathToFileURL(files.b).href,
       diagnostics: [],
@@ -392,6 +412,29 @@ try {
     const resurrectDrain = asDiagAttachments(await getLSPDiagnosticAttachments(ctx))
     check('out-of-order older version after clear does not resurrect cleared defect', resurrectDrain.length === 0, modelFacingText(resurrectDrain))
 
+    registry.registerPendingLSPDiagnostic({
+      serverName: 'companion-linter',
+      files: [{
+        uri: files.a,
+        diagnostics: [{
+          message: 'Companion push finding on a.ts.',
+          severity: 'Warning',
+          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } },
+          source: 'companion-linter',
+          code: 'L1',
+        }],
+      }],
+    })
+    await manager.sendRequest(files.defs, 'test/releaseHalfState', { versioned: false })
+    await syncStub(files.defs)
+    const multiServerDrain = asDiagAttachments(await getLSPDiagnosticAttachments(ctx))
+    const multiServerText = modelFacingText(multiServerDrain)
+    check(
+      'pull reconciliation is per-server: cleaning stub-pull half-state on a.ts preserves independent companion-linter finding',
+      totalDiagCount(multiServerDrain) === 1 && multiServerText.includes('Companion push finding on a.ts.') && !multiServerText.includes('oldDelta'),
+      multiServerText.slice(0, 320),
+    )
+
     registry.resetAllLSPDiagnosticState()
     await manager.closeAllFiles()
     const files5 = writeFourFiles(pullDir, 'ts', 'oldEps')
@@ -408,17 +451,21 @@ try {
       releaseHalfOnFirstChange: false,
       versioned: false,
       settledPushOnSaveCount: 0,
+      silentStems: [],
       defectFile: '',
       clearHeld: true,
+      clearPersistent: true,
     })
 
     const preview5 = await renameOp(pullDir, mainCtx, files5.defs, 'newEps')
     await manager.sendRequest(files5.defs, 'test/publish', {
       uri: pathToFileURL(unrelatedPath).href,
+      persistent: true,
       diagnostics: [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } }, severity: 1, source: 'half-rename-stub', code: '2322', message: 'Unrelated main defect.' }],
     })
     await manager.sendRequest(files5.defs, 'test/publish', {
       uri: pathToFileURL(crewPath).href,
+      persistent: true,
       diagnostics: [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } }, severity: 1, source: 'half-rename-stub', code: '2322', message: 'Peer crew defect.' }],
     })
     await syncStub(files5.defs)
@@ -448,13 +495,16 @@ try {
       releaseHalfOnFirstChange: false,
       versioned: false,
       settledPushOnSaveCount: 0,
+      silentStems: [],
       defectFile: '',
       clearHeld: true,
+      clearPersistent: true,
     })
 
     const publishValidForA = async (msg: string) => {
       await manager.sendRequest(files6.defs, 'test/publish', {
         uri: pathToFileURL(files6.a).href,
+        persistent: true,
         diagnostics: [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } }, severity: 1, source: 'half-rename-stub', code: '2322', message: msg }],
       })
       await syncStub(files6.defs)

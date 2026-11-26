@@ -9,6 +9,7 @@ const workspaceStems = ['defs', 'a', 'b', 'c']
 let buf = Buffer.alloc(0)
 const docs = new Map()
 const heldHalfState = new Map()
+const persistentDiagnostics = new Map()
 let config = {
   releaseHalfOnSaveCount: 0,
   releaseHalfOnFirstChange: false,
@@ -16,7 +17,7 @@ let config = {
   settledPushOnSaveCount: 0,
   settledPushDelayMs: 0,
   settledSplitDelayMs: 0,
-  settledStaggerMs: [],
+  silentStems: [],
   defectFile: '',
   defectMessage: '',
 }
@@ -87,6 +88,8 @@ function computeDiagnosticsForUri(uri) {
   const name = basename(filePath)
   const ext = extname(filePath)
   const diagnostics = []
+  const persistent = persistentDiagnostics.get(uri)
+  if (persistent !== undefined) diagnostics.push(...persistent)
   if (config.defectFile && name === config.defectFile) {
     diagnostics.push({
       range: { start: { line: 1, character: 0 }, end: { line: 1, character: 10 } },
@@ -139,24 +142,15 @@ function flushHeldHalfState(versionedOverride) {
 
 function flushSettledState(dir, ext) {
   const useVersion = config.versioned
-  const defsUri = pathToFileURL(join(dir, `defs${ext}`)).href
-  const defsOpen = docs.get(defsUri)
-  publish(defsUri, computeDiagnosticsForUri(defsUri), useVersion ? defsOpen?.version : undefined)
-  const consumers = ['a', 'b', 'c']
-  if (Array.isArray(config.settledStaggerMs) && config.settledStaggerMs.length === consumers.length) {
-    for (let i = 0; i < consumers.length; i++) {
-      const stem = consumers[i]
-      const delay = config.settledStaggerMs[i]
-      setTimeout(() => {
-        const uri = pathToFileURL(join(dir, `${stem}${ext}`)).href
-        const open = docs.get(uri)
-        publish(uri, computeDiagnosticsForUri(uri), useVersion ? open?.version : undefined)
-      }, delay)
-    }
-    return
+  const silent = new Set(Array.isArray(config.silentStems) ? config.silentStems : [])
+  if (!silent.has('defs')) {
+    const defsUri = pathToFileURL(join(dir, `defs${ext}`)).href
+    const defsOpen = docs.get(defsUri)
+    publish(defsUri, computeDiagnosticsForUri(defsUri), useVersion ? defsOpen?.version : undefined)
   }
   const emitConsumers = () => {
-    for (const stem of consumers) {
+    for (const stem of ['a', 'b', 'c']) {
+      if (silent.has(stem)) continue
       const uri = pathToFileURL(join(dir, `${stem}${ext}`)).href
       const open = docs.get(uri)
       publish(uri, computeDiagnosticsForUri(uri), useVersion ? open?.version : undefined)
@@ -192,6 +186,7 @@ function onMessage(msg) {
     config = { ...config, ...(msg.params ?? {}) }
     saveCount = 0
     if (msg.params?.clearHeld === true) heldHalfState.clear()
+    if (msg.params?.clearPersistent === true) persistentDiagnostics.clear()
     send({ jsonrpc: '2.0', id: msg.id, result: { ok: true } })
     return
   }
@@ -202,6 +197,10 @@ function onMessage(msg) {
   }
   if (msg.method === 'test/publish') {
     const p = msg.params ?? {}
+    if (p.persistent === true) {
+      if (Array.isArray(p.diagnostics) && p.diagnostics.length > 0) persistentDiagnostics.set(p.uri, p.diagnostics)
+      else persistentDiagnostics.delete(p.uri)
+    }
     publish(p.uri, p.diagnostics ?? [], p.version)
     send({ jsonrpc: '2.0', id: msg.id, result: { ok: true } })
     return

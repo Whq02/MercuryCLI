@@ -291,7 +291,8 @@ export async function applyPrepared(
       logForDebugging(`lsp ops: anchor bookkeeping failed for ${w.abs}: ${String(error)}`)
     }
   }
-  const stabilization = await awaitDiagnosticStabilization(manager, writtenPaths)
+  const primary = written[0]!.abs
+  const stabilization = await awaitDiagnosticStabilization(manager, primary)
   try {
     const feedbackState =
       stabilization.state === 'fresh' || stabilization.state === 'unchanged'

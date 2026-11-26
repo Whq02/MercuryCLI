@@ -31,7 +31,6 @@ export type PullDiagnosticsOutcome =
       items: LspWireDiagnostic[]
       docVersion: number | undefined
       pulledFrom?: string[]
-      pulledByServer?: Array<{ serverName: string; items: LspWireDiagnostic[] }>
       pushed?: string[]
       failed?: ClaimantFailure[]
     }
@@ -40,7 +39,6 @@ export type PullDiagnosticsOutcome =
       items: LspWireDiagnostic[]
       docVersion: number | undefined
       pulledFrom?: string[]
-      pulledByServer?: Array<{ serverName: string; items: LspWireDiagnostic[] }>
       pushed?: string[]
       failed?: ClaimantFailure[]
     }
@@ -161,7 +159,6 @@ export async function pullFileDiagnostics(
   const docVersion = manager.getDocumentVersion(absolutePath)
   const pulledItems: LspWireDiagnostic[] = []
   const pulledFrom: string[] = []
-  const pulledByServer: Array<{ serverName: string; items: LspWireDiagnostic[] }> = []
   const pushOnlyNames: string[] = []
   const failed: ClaimantFailure[] = []
   let anyFresh = false
@@ -210,7 +207,6 @@ export async function pullFileDiagnostics(
       }
       pulledItems.push(...baseline.items)
       pulledFrom.push(server.name)
-      pulledByServer.push({ serverName: server.name, items: baseline.items })
       continue
     }
     const items = Array.isArray(response.items) ? response.items : []
@@ -222,7 +218,6 @@ export async function pullFileDiagnostics(
     })
     pulledItems.push(...items)
     pulledFrom.push(server.name)
-    pulledByServer.push({ serverName: server.name, items })
     anyFresh = true
   }
   const pushed = await harvestPublishedReports(
@@ -243,7 +238,7 @@ export async function pullFileDiagnostics(
     kind: anyFresh || pushed.length > 0 ? 'fresh' : 'unchanged',
     items: pulledItems,
     docVersion,
-    ...(pulledFrom.length > 0 ? { pulledFrom, pulledByServer } : {}),
+    ...(pulledFrom.length > 0 ? { pulledFrom } : {}),
     ...(pushedNames.length > 0 ? { pushed: pushedNames } : {}),
     ...(failed.length > 0 ? { failed } : {}),
   }

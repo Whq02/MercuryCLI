@@ -4,17 +4,14 @@ import {
   clearDeliveredDiagnosticsForFile,
   foldDriveCase,
   rearmAfterMultiFileSync,
-  recordPublishedReport,
-  registerPendingLSPDiagnostic,
   snapshotDiagnosticsBeforeWrite,
   subscribeLSPDiagnosticPublish,
 } from '../../../integrations/lsp/LSPDiagnosticRegistry.js'
-import { convertDiagnostics } from '../../../integrations/lsp/publishedDiagnostics.js'
 import type { LSPServerManager } from '../../../integrations/lsp/LSPServerManager.js'
 import type { OwnerKey } from '../../../engine/run-owner/ownerKey.js'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { SERVER_SYNC_DEADLINE_MS, STABILIZE_DEADLINE_MS, STABILIZE_QUIET_WINDOW_MS, countBySeverity } from './shared.js'
-import { pullFileDiagnostics, unavailableWords, type PullDiagnosticsOutcome } from './pull.js'
+import { pullFileDiagnostics, unavailableWords } from './pull.js'
 import { withDeadline } from '../../../platform/async/deadline.js'
 import { startTimeout, stopTimeout } from '../../../platform/async/timers.js'
 
@@ -90,94 +87,48 @@ type DiagnosticStabilization =
   | { state: 'failed'; reason: string }
   | { state: 'timed-out'; waitedMs: number }
 
-function plainPath(uriOrPath: string): string {
-  return foldDriveCase(uriOrPath.startsWith('file://') ? uriOrPath.slice('file://'.length) : uriOrPath)
+function uriMatchesFile(uri: string, absolutePath: string): boolean {
+  return foldDriveCase(uri).endsWith(foldDriveCase(absolutePath))
 }
 
-function recordPulledPostApply(
-  absolutePath: string,
-  outcome: Extract<PullDiagnosticsOutcome, { kind: 'fresh' | 'unchanged' }>,
-): void {
-  const pulled = outcome.pulledByServer
-  if (pulled === undefined || pulled.length === 0) return
-  const uri = foldDriveCase(absolutePath)
-  for (const entry of pulled) {
-    const file = { uri, diagnostics: convertDiagnostics(entry.items) }
-    recordPublishedReport(entry.serverName, file, outcome.docVersion)
-    registerPendingLSPDiagnostic({
-      serverName: entry.serverName,
-      files: [file],
-      ...(outcome.docVersion !== undefined ? { version: outcome.docVersion } : {}),
-    })
-  }
-}
-
-async function stabilizePullPaths(
+export async function awaitDiagnosticStabilization(
   manager: LSPServerManager,
-  pullPaths: readonly string[],
-  deadlineMs: number,
+  absolutePath: string,
+  opts?: { deadlineMs?: number; quietWindowMs?: number },
 ): Promise<DiagnosticStabilization> {
-  try {
-    const outcomes = await withDeadline(
-      Promise.all(pullPaths.map(async path => ({ path, outcome: await pullFileDiagnostics(manager, path) }))),
-      deadlineMs,
-      () => 'timeout' as const,
-    )
-    if (outcomes === 'timeout') return { state: 'timed-out', waitedMs: deadlineMs }
-    let errors = 0
-    let warnings = 0
-    let total = 0
-    let anyFresh = false
-    let anySettled = false
-    let firstFailure: string | undefined
-    for (const { path, outcome } of outcomes) {
-      if (outcome.kind === 'unsupported' || outcome.kind === 'no-claimant') continue
-      if (outcome.kind === 'protocol-violation') {
-        firstFailure ??= outcome.detail
-        continue
-      }
-      if (outcome.kind === 'unavailable') {
-        firstFailure ??= unavailableWords(outcome.failed, path, dirname(path)).what
-        continue
-      }
-      recordPulledPostApply(path, outcome)
-      const counts = countBySeverity(outcome.items)
-      errors += counts.errors
-      warnings += counts.warnings
-      total += outcome.items.length
-      if (outcome.kind === 'fresh') anyFresh = true
-      anySettled = true
-    }
-    if (!anySettled) {
-      return firstFailure !== undefined ? { state: 'failed', reason: firstFailure } : { state: 'unsupported' }
-    }
-    return { state: anyFresh ? 'fresh' : 'unchanged', errors, warnings, total }
-  } catch (error) {
-    return { state: 'failed', reason: error instanceof Error ? error.message : String(error) }
-  }
-}
+  const deadlineMs = opts?.deadlineMs ?? STABILIZE_DEADLINE_MS
+  const quietWindowMs = opts?.quietWindowMs ?? STABILIZE_QUIET_WINDOW_MS
+  const server = manager.getServerForFile(absolutePath)
+  if (!server) return { state: 'unsupported' }
+  const capabilities = server.capabilities as ServerCapabilities | undefined
 
-function stabilizePushPaths(
-  pushPaths: readonly string[],
-  deadlineMs: number,
-  quietWindowMs: number,
-): Promise<DiagnosticStabilization> {
-  const watched = new Set(pushPaths.map(plainPath))
+  if (capabilities?.diagnosticProvider) {
+    try {
+      const outcome = await withDeadline(
+        pullFileDiagnostics(manager, absolutePath),
+        deadlineMs,
+        () => 'timeout' as const,
+      )
+      if (outcome === 'timeout') return { state: 'timed-out', waitedMs: deadlineMs }
+      if (outcome.kind === 'unsupported' || outcome.kind === 'no-claimant') return { state: 'unsupported' }
+      if (outcome.kind === 'protocol-violation') return { state: 'failed', reason: outcome.detail }
+      if (outcome.kind === 'unavailable') return { state: 'failed', reason: unavailableWords(outcome.failed, absolutePath, dirname(absolutePath)).what }
+      const { errors, warnings } = countBySeverity(outcome.items)
+      return {
+        state: outcome.kind === 'fresh' ? 'fresh' : 'unchanged',
+        errors,
+        warnings,
+        total: outcome.items.length,
+      }
+    } catch (error) {
+      return { state: 'failed', reason: error instanceof Error ? error.message : String(error) }
+    }
+  }
+
   return new Promise<DiagnosticStabilization>(resolvePromise => {
-    const latestByFile = new Map<string, { errors: number; warnings: number; total: number }>()
+    let lastCounts: { errors: number; warnings: number; total: number } | undefined
     let quietTimer: NodeJS.Timeout | undefined
     let settled = false
-    const totals = (): { errors: number; warnings: number; total: number } => {
-      let errors = 0
-      let warnings = 0
-      let total = 0
-      for (const counts of latestByFile.values()) {
-        errors += counts.errors
-        warnings += counts.warnings
-        total += counts.total
-      }
-      return { errors, warnings, total }
-    }
     const finish = (outcome: DiagnosticStabilization): void => {
       if (settled) return
       settled = true
@@ -187,74 +138,27 @@ function stabilizePushPaths(
       resolvePromise(outcome)
     }
     const unsubscribe = subscribeLSPDiagnosticPublish(event => {
-      let matchedAny = false
-      for (const file of event.files) {
-        const key = plainPath(file.uri)
-        if (!watched.has(key)) continue
-        matchedAny = true
-        let errors = 0
-        let warnings = 0
-        let total = 0
+      const matched = event.files.filter(file => uriMatchesFile(file.uri, absolutePath))
+      if (matched.length === 0) return
+      let errors = 0
+      let warnings = 0
+      let total = 0
+      for (const file of matched) {
         for (const diagnostic of file.diagnostics) {
           total++
           if (diagnostic.severity === 'Error') errors++
           else if (diagnostic.severity === 'Warning') warnings++
         }
-        latestByFile.set(key, { errors, warnings, total })
       }
-      if (!matchedAny) return
+      lastCounts = { errors, warnings, total }
       if (quietTimer !== undefined) stopTimeout(quietTimer)
       quietTimer = startTimeout(() => {
-        finish({ state: 'fresh', ...totals() })
+        finish({ state: 'fresh', ...lastCounts! })
       }, quietWindowMs)
     })
     const deadlineTimer = startTimeout(() => {
-      if (latestByFile.size > 0) finish({ state: 'fresh', ...totals() })
+      if (lastCounts !== undefined) finish({ state: 'fresh', ...lastCounts })
       else finish({ state: 'timed-out', waitedMs: deadlineMs })
     }, deadlineMs)
   })
-}
-
-export async function awaitDiagnosticStabilization(
-  manager: LSPServerManager,
-  absolutePathOrPaths: string | readonly string[],
-  opts?: { deadlineMs?: number; quietWindowMs?: number },
-): Promise<DiagnosticStabilization> {
-  const deadlineMs = opts?.deadlineMs ?? STABILIZE_DEADLINE_MS
-  const quietWindowMs = opts?.quietWindowMs ?? STABILIZE_QUIET_WINDOW_MS
-  const rawPaths = typeof absolutePathOrPaths === 'string' ? [absolutePathOrPaths] : absolutePathOrPaths
-  const seen = new Set<string>()
-  const pullPaths: string[] = []
-  const pushPaths: string[] = []
-  for (const absolutePath of rawPaths) {
-    const key = plainPath(absolutePath)
-    if (seen.has(key)) continue
-    seen.add(key)
-    const server = manager.getServerForFile(absolutePath)
-    if (!server) continue
-    const capabilities = server.capabilities as ServerCapabilities | undefined
-    if (capabilities?.diagnosticProvider) pullPaths.push(absolutePath)
-    else pushPaths.push(absolutePath)
-  }
-  if (pullPaths.length === 0 && pushPaths.length === 0) return { state: 'unsupported' }
-  if (pushPaths.length === 0) return stabilizePullPaths(manager, pullPaths, deadlineMs)
-  if (pullPaths.length === 0) return stabilizePushPaths(pushPaths, deadlineMs, quietWindowMs)
-
-  const [pullOutcome, pushOutcome] = await Promise.all([
-    stabilizePullPaths(manager, pullPaths, deadlineMs),
-    stabilizePushPaths(pushPaths, deadlineMs, quietWindowMs),
-  ])
-  const settledOutcomes = [pullOutcome, pushOutcome].filter(
-    (item): item is Extract<DiagnosticStabilization, { state: 'fresh' | 'unchanged' }> =>
-      item.state === 'fresh' || item.state === 'unchanged',
-  )
-  if (settledOutcomes.length > 0) {
-    return {
-      state: settledOutcomes.some(item => item.state === 'fresh') ? 'fresh' : 'unchanged',
-      errors: settledOutcomes.reduce((sum, item) => sum + item.errors, 0),
-      warnings: settledOutcomes.reduce((sum, item) => sum + item.warnings, 0),
-      total: settledOutcomes.reduce((sum, item) => sum + item.total, 0),
-    }
-  }
-  return pullOutcome.state === 'failed' ? pullOutcome : pushOutcome
 }

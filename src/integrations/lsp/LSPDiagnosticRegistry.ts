@@ -505,10 +505,50 @@ export function _writeBaselineForTesting(path: string): Array<{ serverName: stri
   return [...baselines].map(([serverName, baseline]) => ({ serverName, steps: baseline.steps.length, docVersion: baseline.docVersion }))
 }
 
+export function pendingReportsForOwner(owner?: OwnerKey): Array<{ serverName: string; uri: string }> {
+  const lane = laneOf(owner)
+  const seen = new Set<string>()
+  const out: Array<{ serverName: string; uri: string }> = []
+  for (const entry of pending.values()) {
+    if (entry.attachmentSent || entry.owner !== lane) continue
+    for (const file of entry.files) {
+      if (file.diagnostics.length === 0) continue
+      const key = `${entry.serverName}::${plainPathKey(file.uri)}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push({ serverName: entry.serverName, uri: plainPathKey(file.uri) })
+    }
+  }
+  return out
+}
+
+export function reconcilePendingLSPDiagnostic(
+  serverName: string,
+  file: DiagnosticFile,
+  owner?: OwnerKey,
+  version?: number,
+): void {
+  if (staleAgainstWriteBaseline(serverName, file.uri, version)) return
+  recordPublishedReport(serverName, file, version)
+  const lane = laneOf(owner)
+  const targetKey = plainPathKey(file.uri)
+  let replaced = false
+  for (const [id, entry] of pending) {
+    if (entry.attachmentSent || entry.owner !== lane || entry.serverName !== serverName) continue
+    const hasTarget = entry.files.some(item => plainPathKey(item.uri) === targetKey)
+    if (!hasTarget) continue
+    const nextFiles = entry.files.filter(item => plainPathKey(item.uri) !== targetKey)
+    if (!replaced && file.diagnostics.length > 0) {
+      nextFiles.push(file)
+      replaced = true
+    }
+    if (nextFiles.length === 0) pending.delete(id)
+    else entry.files = nextFiles
+  }
+}
 export function _pendingForTesting(): Array<{ serverName: string; uris: string[]; owner: OwnerKey | null }> {
   return [...pending.values()].filter(entry => !entry.attachmentSent).map(entry => ({ serverName: entry.serverName, uris: entry.files.map(file => file.uri), owner: entry.owner }))
 }
-
 export function _writerForTesting(path: string): OwnerKey | null {
   return writers.peek(plainPathKey(path))?.owner ?? null
 }

@@ -1,4 +1,16 @@
-import { checkForLSPDiagnostics, foldDriveCase, settleWritesAwaitingReport, subscribePublishedReports, writesAwaitingReport } from '../../integrations/lsp/LSPDiagnosticRegistry.js'
+import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import type { ServerCapabilities } from 'vscode-languageserver-protocol'
+import {
+  checkForLSPDiagnostics,
+  foldDriveCase,
+  pendingReportsForOwner,
+  reconcilePendingLSPDiagnostic,
+  settleWritesAwaitingReport,
+  subscribePublishedReports,
+  writesAwaitingReport,
+} from '../../integrations/lsp/LSPDiagnosticRegistry.js'
+import { convertDiagnostics } from '../../integrations/lsp/publishedDiagnostics.js'
 import type { LSPServerManager } from '../../integrations/lsp/LSPServerManager.js'
 import { ownerFromToolUseContext } from '../run-owner/resolveOwner.js'
 import type { OwnerKey } from '../run-owner/ownerKey.js'
@@ -9,8 +21,8 @@ import { toError } from '../../platform/errors/errors.js'
 import { logError } from '../../platform/logs/errorLog.js'
 import type { Attachment } from '../attachment-shapes/attachmentTypes.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
+import { withDeadline } from '../../platform/async/deadline.js'
 import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
-
 const RESYNC_REPORT_WAIT_MS = 1_500
 
 async function managerIfAny(): Promise<LSPServerManager | undefined> {
@@ -63,10 +75,47 @@ function deliverDiagnostics(owner: OwnerKey | undefined): Attachment[] {
   }
 }
 
+async function reconcilePendingReports(
+  manager: LSPServerManager | undefined,
+  owner: OwnerKey | undefined,
+  deadlineMs: number,
+): Promise<void> {
+  if (manager === undefined || typeof manager.getAllServers !== 'function') return
+  const candidates = pendingReportsForOwner(owner)
+  if (candidates.length === 0) return
+  const servers = manager.getAllServers()
+  const tasks: Array<Promise<void>> = []
+  for (const { serverName, uri } of candidates) {
+    const server = servers.get(serverName)
+    if (server === undefined || server.state !== 'running') continue
+    const capabilities = server.capabilities as ServerCapabilities | undefined
+    if (!capabilities?.diagnosticProvider) continue
+    const docVersion = manager.getDocumentVersion(uri)
+    const fileUri = pathToFileURL(resolve(uri)).href
+    tasks.push(
+      withDeadline(
+        server.sendRequest<{ kind?: string; items?: Parameters<typeof convertDiagnostics>[0] }>('textDocument/diagnostic', {
+          textDocument: { uri: fileUri },
+        }),
+        deadlineMs,
+        () => undefined,
+      )
+        .then(response => {
+          if (response === undefined || response === null || response.kind === 'unchanged' || !Array.isArray(response.items)) return
+          const file = { uri: foldDriveCase(uri), diagnostics: convertDiagnostics(response.items) }
+          reconcilePendingLSPDiagnostic(serverName, file, owner, docVersion)
+        })
+        .catch(passedOver),
+    )
+  }
+  if (tasks.length > 0) await Promise.all(tasks)
+}
+
 export async function deliverAfterRevalidation(
   resynced: readonly string[],
   deadlineMs = RESYNC_REPORT_WAIT_MS,
   settle?: { owner: OwnerKey | undefined; written: readonly string[] },
+  manager?: LSPServerManager,
 ): Promise<Attachment[]> {
   const written = settle?.written ?? []
   const waitFor = [...resynced, ...written]
@@ -77,6 +126,7 @@ export async function deliverAfterRevalidation(
     logForDebugging(`diagnostics: ${resynced.length} document(s) re-synced from disk and ${written.length} just written awaited before delivery${unanswered.length > 0 ? `; no fresh report within ${deadlineMs} ms for ${unanswered.join(', ')} — their earlier publishes are held back` : ''}`)
   }
   if (settle !== undefined && written.length > 0) settleWritesAwaitingReport(settle.owner, written)
+  await reconcilePendingReports(manager, settle?.owner, deadlineMs)
   return deliverDiagnostics(settle?.owner)
 }
 
@@ -90,9 +140,8 @@ export async function getLSPDiagnosticAttachments(context: ToolUseContext): Prom
   const written = manager === undefined ? [] : armed.filter(path => isOpenOn(manager, path))
   const unserved = armed.filter(path => !written.includes(path))
   if (unserved.length > 0) settleWritesAwaitingReport(owner, unserved)
-  return deliverAfterRevalidation(resynced, RESYNC_REPORT_WAIT_MS, { owner, written })
+  return deliverAfterRevalidation(resynced, RESYNC_REPORT_WAIT_MS, { owner, written }, manager)
 }
-
 export async function settleWriterDiagnosticsAtTurnEnd(context: ToolUseContext): Promise<Attachment[]> {
   if (context.abortController.signal.aborted) return []
   const rows = await getLSPDiagnosticAttachments(context)
