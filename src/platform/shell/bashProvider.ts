@@ -53,7 +53,7 @@ function markFrameRead(cwdFileInShell: string): string {
 
 const RUNS_NOTHING = 'for __mercury_none in; do :; done'
 
-const SEES_THE_MARK = /\bDEBUG\b|\bBASH_XTRACEFD\b|\bverbose\b|\bset\b[^;&|\n]*\s-[A-Za-z]*v/
+const SEES_THE_MARK = /\bDEBUG\b|\bBASH_XTRACEFD\b|\bPS4\b|\bverbose\b|\bset\b[^;&|\n]*\s-[A-Za-z]*v/
 const READS_THE_LAST_STATUS = /\$\{?\?/
 
 function closingToMark(command: string, closing: ClosingPlace | undefined): ClosingPlace | undefined {
@@ -68,7 +68,8 @@ function marksTheClosing(reachedPath: string, after: ClosingPlace['after']): str
 
 function marksAnEndOnOne(endedOnOnePath: string, id: number | string): string {
   const other = `__mercury_${String(id).replace(/\W/g, '_')}`
-  return `{ for ${other} in \${?#1}; do builtin exit "$?"; done 2>/dev/null && ! { ${RUNS_NOTHING} 2>/dev/null >| ${quote([endedOnOnePath])} || ${RUNS_NOTHING}; }; }`
+  const leaves = `${other}=$?; builtin exit "$${other}"; exit "$${other}"; ! ${RUNS_NOTHING}`
+  return `{ for ${other} in \${?#1}; do ${leaves}; done 2>/dev/null && ! { ${RUNS_NOTHING} 2>/dev/null >| ${quote([endedOnOnePath])} || ${RUNS_NOTHING}; }; }`
 }
 
 export async function createBashShellProvider(
