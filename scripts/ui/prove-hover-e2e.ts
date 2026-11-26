@@ -206,16 +206,17 @@ if (rowA >= 0 && rowB >= 0) {
   const labelFg = (grid: Cell[][], y: number, x0: number): string[] =>
     (grid[y] ?? []).slice(x0, x0 + 6).map(c => (c as Cell & { fg?: string }).fg?.toLowerCase() ?? '')
 
-  const hdrBase = capture('hdr-base', [], 90, 'HEALTH', W, H, {
+  const HEALTH_HEADING = '✓ health'
+  const hdrBase = capture('hdr-base', [], 90, HEALTH_HEADING, W, H, {
     stableTicks: 8,
     region: [RIGHT_START, 0, W, H],
   })
   let hx = -1
   let hy = -1
   if (hdrBase) {
-    hy = hdrBase.lines.findIndex(l => l.includes('HEALTH'))
-    hx = hy >= 0 ? hdrBase.lines[hy]!.indexOf('HEALTH') : -1
-    check('the HEALTH header is present at 160×50', hy >= 0 && hx >= RIGHT_START, `row=${hy} col=${hx}`)
+    hy = hdrBase.lines.findIndex(l => l.slice(RIGHT_START).includes(HEALTH_HEADING))
+    hx = hy >= 0 ? hdrBase.lines[hy]!.indexOf(HEALTH_HEADING, RIGHT_START) + 2 : -1
+    check('the health header is present at 160×50', hy >= 0 && hx >= RIGHT_START, `row=${hy} col=${hx}`)
     check('rest: zero fill cells in the right-rail band', rightBandFills(hdrBase.grid).length === 0)
     check(
       'rest: the label wears the info hue',
@@ -228,19 +229,19 @@ if (rowA >= 0 && rowB >= 0) {
       MOUSE_ARM_GATE,
       {
         data: 'glidedraft',
-        awaitText: 'HEALTH',
+        awaitText: HEALTH_HEADING,
         minTick: 8,
         awaitSettleTicks: 8,
         awaitStableTicks: 8,
         awaitStableRegion: [RIGHT_START, 0, W, H],
         requireAwait: true,
       },
-      { data: motionT, targetText: 'HEALTH', targetDx: 2, awaitText: 'glidedraft', minTick: 8, awaitSettleTicks: 2, requireAwait: true },
+      { data: motionT, targetText: HEALTH_HEADING, targetDx: 2, awaitText: 'glidedraft', minTick: 8, awaitSettleTicks: 2, requireAwait: true },
     ]
     const hovered = capture('hdr-hover', hoverSends, 130, undefined, W, H, { stableTicks: 8, region: [RIGHT_START, 0, W, H] })
     if (hovered) {
-      const y2 = hovered.lines.findIndex(l => l.includes('HEALTH'))
-      const x2 = y2 >= 0 ? hovered.lines[y2]!.indexOf('HEALTH') : -1
+      const y2 = hovered.lines.findIndex(l => l.slice(RIGHT_START).includes(HEALTH_HEADING))
+      const x2 = y2 >= 0 ? hovered.lines[y2]!.indexOf(HEALTH_HEADING, RIGHT_START) + 2 : -1
       check('hover: ZERO fill cells in the right-rail band', rightBandFills(hovered.grid).length === 0, `rows=${rightBandFills(hovered.grid).join(',')}`)
       check(
         'hover: the label brightened to infoShimmer',
@@ -251,8 +252,8 @@ if (rowA >= 0 && rowB >= 0) {
     }
     const openSends: Send[] = [
       ...hoverSends,
-      { data: pressT, targetText: 'HEALTH', targetDx: 2, afterPrevTicks: 6 },
-      { data: releaseT, targetText: 'HEALTH', targetDx: 2, afterPrevTicks: 2 },
+      { data: pressT, targetText: HEALTH_HEADING, targetDx: 2, afterPrevTicks: 6 },
+      { data: releaseT, targetText: HEALTH_HEADING, targetDx: 2, afterPrevTicks: 2 },
     ]
     const opened = capture('hdr-open', openSends, 150, undefined, W, H, { stableTicks: 8, region: [RIGHT_START, 0, W, H] })
     if (opened) {

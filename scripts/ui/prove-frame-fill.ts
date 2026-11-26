@@ -110,7 +110,7 @@ const describe = (shape: Shape): string =>
 const stored = JSON.parse(readFileSync(join(ROOT, 'design-system/live/grids/frame--120x40--dark--truecolor--full.grid.json'), 'utf8')) as { rows: number; text: string[] }
 const storedShape = shapeOf(stored.text)
 console.log(`stored 120x40 grid: ${describe(storedShape)}`)
-check('the stored 120x40 grid fills its 40 rows from the frame top to the last row', storedShape.rows === 40 && storedShape.frameTop === 0 && storedShape.firstInkRow === 0 && storedShape.lastInkRow === 39 && storedShape.centreBottom === 33 && storedShape.composerTop === 35, describe(storedShape), 'the stored grid design-system/live/grids/frame--120x40--dark--truecolor--full.grid.json no longer fills 40 rows with the frame top on row 0; regenerate or repair that grid')
+check('the stored 120x40 grid fills its 40 rows from the frame top to the last row', storedShape.rows === 40 && storedShape.frameTop === 0 && storedShape.firstInkRow === 0 && storedShape.lastInkRow === 39 && storedShape.centreBottom === 34 && storedShape.composerTop === 36, describe(storedShape), 'the stored grid design-system/live/grids/frame--120x40--dark--truecolor--full.grid.json no longer fills 40 rows with the frame top on row 0; regenerate or repair that grid')
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }

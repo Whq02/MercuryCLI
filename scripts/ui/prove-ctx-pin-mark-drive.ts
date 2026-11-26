@@ -221,7 +221,7 @@ async function capture(tag: string, home: string, cols: number, rows: number, se
 const FACE_THEN_COMPOSER: Send[] = [
   { data: '\r', atTick: 999, awaitText: 'New Session', requireAwait: true, minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3 },
 ]
-const ctxRowOf = (frame: string): string => frame.split('\n').find(line => /·\s*ctx\b/.test(line))?.trim() ?? ''
+const ctxRowOf = (frame: string): string => frame.split('\n').find(line => /(?:·\s*|^ {2})ctx\b/.test(line))?.trim() ?? ''
 
 console.log("the ctx figure marks a GPT pin until the session's runner reports the live list — the built cockpit in a PTY at four sizes")
 console.log(`  bundle ${DIST}\n  fixture ${base}\n  scratch ${SCRATCH}`)
