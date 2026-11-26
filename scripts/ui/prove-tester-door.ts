@@ -6,7 +6,7 @@ import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
-
+import { pinRecorderTerminal } from '../lib/proofHome.ts'
 const root = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'tester-door-'))
 const driver = resolveCaptureDriver()
@@ -43,7 +43,7 @@ async function drive(name: string, sends: Record<string, unknown>[], total: numb
   const out = join(scratch, `${name}.json`)
   const cfg = join(scratch, `${name}-cfg.json`)
   writeFileSync(cfg, JSON.stringify({ argv: ['node', join(root, 'dist/mercury.mjs')], cwd: project, cols: 120, rows: 44, sends, total, readyText, out }))
-  const env = { ...process.env, VSHOT_TEE: join(scratch, `${name}.bin`), BROWSER: '/usr/bin/true', MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_HEALTH_STATE_DIR: join(home, 'health'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_SLEEP: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_LIVE_GLYPHS: '0', MERCURY_SKIP_PROMPT_HISTORY: '1', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ...extra }
+  const env = { ...pinRecorderTerminal({ ...process.env }), VSHOT_TEE: join(scratch, `${name}.bin`), BROWSER: '/usr/bin/true', MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_HEALTH_STATE_DIR: join(home, 'health'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_SLEEP: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_LIVE_GLYPHS: '0', MERCURY_SKIP_PROMPT_HISTORY: '1', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ...extra }
   const child = spawn(python, [join(root, 'scripts/ui/vshot.py'), cfg], { env, stdio: ['ignore', 'pipe', 'pipe'] })
   let output = ''
   child.stdout.on('data', chunk => { output += chunk })

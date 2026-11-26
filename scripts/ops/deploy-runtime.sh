@@ -50,15 +50,23 @@ else
 fi
 
 runtime_folder_in_use() {
-  local dir="$1" real f pid
+  local dir="$1" real f pid procs line pids
   real="$(cd "$dir" 2>/dev/null && pwd -P)" || return 1
-  if ps -axo command= 2>/dev/null | grep -F -- "$real/" | grep -qv 'grep -F'; then return 0; fi
+  procs="$(ps -axo command= 2>/dev/null || true)"
+  while IFS= read -r line; do
+    case "$line" in
+      *"$real/"*) return 0 ;;
+    esac
+  done <<< "$procs"
   if command -v lsof >/dev/null 2>&1; then
     local files=()
     for f in "$real/manifest.json" "$real/mercury.mjs" "$real/vendor/node/bin/node" "$real/vendor/node/node.exe"; do
       [ -f "$f" ] && files+=("$f")
     done
-    if [ "${#files[@]}" -gt 0 ] && lsof -t -- "${files[@]}" 2>/dev/null | grep -q .; then return 0; fi
+    if [ "${#files[@]}" -gt 0 ]; then
+      pids="$(lsof -t -- "${files[@]}" 2>/dev/null || true)"
+      [ -n "$pids" ] && return 0
+    fi
   elif [ -d /proc ]; then
     for pid in /proc/[0-9]*; do
       case "$(readlink "$pid/exe" 2>/dev/null || true)" in "$real/"*) return 0 ;; esac

@@ -148,7 +148,21 @@ let exited = false
 daemon.once('exit', () => {
   exited = true
 })
+const dummies: ChildProcess[] = []
+const killChild = async (child: ChildProcess): Promise<void> => {
+  if (child.exitCode !== null || child.signalCode !== null) return
+  try {
+    child.kill('SIGTERM')
+  } catch {}
+  await untilAsync(() => child.exitCode !== null || child.signalCode !== null, 5_000, 50)
+  if (child.exitCode === null && child.signalCode === null) {
+    try {
+      child.kill('SIGKILL')
+    } catch {}
+  }
+}
 const cleanup = async (): Promise<void> => {
+  await Promise.all(dummies.map(killChild))
   if (!exited) {
     try {
       daemon.kill('SIGTERM')
@@ -211,6 +225,54 @@ try {
   check('exactly one build folder remains (the deployed bytes; nothing runs from any other)', buildFolders().length === 1, buildFolders().join(', '))
   const lv2 = launcherVersion()
   check('the launcher still boots the deployed build', lv2.rc === 0 && /^Mercury \d/.test(lv2.out) && lv2.dist.includes(`${join(runtime, 'current')}/`), `rc=${lv2.rc} ${lv2.dist}`)
+
+  section('§4 swarm ps road: 40 live processes carrying a build path keep that folder under pipefail (no SIGPIPE false-free)')
+  {
+    const swarmBuild = join(buildsDir, 'aaaaaaaaaaaa-11111111')
+    mkdirSync(swarmBuild, { recursive: true })
+    writeFileSync(join(swarmBuild, 'manifest.json'), JSON.stringify({ ...repoManifest, buildTree: 'a'.repeat(40) }, null, 2))
+    writeFileSync(join(swarmBuild, 'mercury.mjs'), 'console.log("Mercury 0.0.0-swarm")\n')
+    const holdBin = join(swarmBuild, 'hold-node')
+    copyFileSync(NODE, holdBin)
+    spawnSync('chmod', ['+x', holdBin])
+    const swarmChildren: ChildProcess[] = []
+    const pad = 'p'.repeat(300)
+    for (let i = 0; i < 40; i++) {
+      const child = spawn(holdBin, ['-e', 'setTimeout(() => {}, 120000)', pad, String(i)], { stdio: 'ignore' })
+      swarmChildren.push(child)
+      dummies.push(child)
+    }
+    const allUp = await untilAsync(() => swarmChildren.every(c => c.pid !== undefined && alive(c.pid) && psCommand(c.pid).includes(`${swarmBuild}/`)), 10_000, 50)
+    check('40 dummy processes started carrying the build folder path', allUp && swarmChildren.length === 40)
+    const third = deploy()
+    check('deploy over 40 matching processes succeeded', third.rc === 0, third.out.slice(-800))
+    check('the build folder with 40 live processes is KEPT (never pruned by SIGPIPE under pipefail)', existsSync(swarmBuild) && existsSync(holdBin), `builds: ${buildFolders().join(', ')}`)
+    check('the deploy log says kept for the 40-process build folder', third.out.includes(`kept`) && third.out.includes(swarmBuild), third.out.split('\n').filter(l => /kept|deployed/.test(l)).join(' | '))
+    await Promise.all(swarmChildren.map(killChild))
+  }
+
+  section('§5 lsof road: a copied binary running with manifest.json unopened keeps its build folder (no partial-open exit-1 false-free)')
+  {
+    const lsofBuild = join(buildsDir, 'bbbbbbbbbbbb-22222222')
+    const lsofBinDir = join(lsofBuild, 'vendor', 'node', 'bin')
+    mkdirSync(lsofBinDir, { recursive: true })
+    writeFileSync(join(lsofBuild, 'manifest.json'), JSON.stringify({ ...repoManifest, buildTree: 'b'.repeat(40) }, null, 2))
+    writeFileSync(join(lsofBuild, 'mercury.mjs'), 'console.log("Mercury 0.0.0-lsof")\n')
+    const lsofNode = join(lsofBinDir, 'node')
+    copyFileSync(NODE, lsofNode)
+    spawnSync('chmod', ['+x', lsofNode])
+    const holder = spawn('./node', ['-e', 'setTimeout(() => {}, 120000)'], { cwd: lsofBinDir, stdio: 'ignore' })
+    dummies.push(holder)
+    const holderPid = holder.pid ?? 0
+    const holderReady = await untilAsync(() => holderPid > 0 && alive(holderPid) && psCommand(holderPid).includes('./node'), 5_000, 50)
+    check('copied vendor/node/bin/node started with relative ./node command line (not carrying build path in ps)', holderReady && !psCommand(holderPid).includes(lsofBuild), psCommand(holderPid))
+    const fourth = deploy()
+    check('deploy over lsof-only live build succeeded', fourth.rc === 0, fourth.out.slice(-800))
+    check('the lsof-only build folder is KEPT while its manifest.json is open in no process', existsSync(lsofBuild) && existsSync(lsofNode), `builds: ${buildFolders().join(', ')}`)
+    check('the deploy log says kept for the lsof-only build folder', fourth.out.includes(`kept`) && fourth.out.includes(lsofBuild), fourth.out.split('\n').filter(l => /kept|deployed/.test(l)).join(' | '))
+    await killChild(holder)
+    check('the previous 40-process folder (now free) was pruned once its processes exited', !existsSync(join(buildsDir, 'aaaaaaaaaaaa-11111111')), buildFolders().join(', '))
+  }
 } finally {
   await cleanup()
 }

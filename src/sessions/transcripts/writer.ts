@@ -1,7 +1,4 @@
 import type { UUID } from 'crypto'
-import { sleep } from '../../platform/async/sleep.js'
-import { historyHead, sealedExtents, historyIndex } from './historyParts.js'
-import { transcriptLineBytes } from './transcriptBytes.js'
 import { dirname } from 'path'
 import memoize from 'lodash-es/memoize.js'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
@@ -15,6 +12,7 @@ import type {
   TranscriptMessage,
 } from './transcriptEntries.js'
 import type { Message } from '../../engine/message-shapes/message.js'
+import { isFoldBoundaryMessage } from '../../engine/message-shapes/systemMessages.js'
 import { storageRowPolicy } from '../../engine/rows/storage.js'
 import { SessionMeta, SESSION_META_COMPAT_FIELDS } from './sessionMeta.js'
 import { readTranscriptRecordIds, readTranscriptTailSync } from './transcriptReader.js'
@@ -85,18 +83,7 @@ async function getCrewmateFileMessages(filePath: string): Promise<Set<string>> {
   const cached = crewmateFileMessages.get(filePath)
   if (cached !== undefined) return cached
   try {
-    const head = historyHead(filePath)
-    const set = new Set<string>()
-    for (const part of sealedExtents(head)) for (const [, id] of historyIndex(part)) if (id !== null) set.add(id)
-    let added = 0
-    for (const row of transcriptLineBytes(filePath, { end: head.end })) {
-      added += row.length
-      if (added >= 1024 * 1024) { await sleep(0); added = 0 }
-      try {
-        const id = JSON.parse(row.toString('utf8'))?.annotations?.uuid
-        if (typeof id === 'string') set.add(id)
-      } catch (error) { passedOver(error) }
-    }
+    const set = await readTranscriptRecordIds(filePath)
     const known = crewmateFileMessages.get(filePath)
     if (known !== undefined) return known
     crewmateFileMessages.set(filePath, set)
@@ -168,6 +155,16 @@ export function setSessionFileForTesting(path: string): void {
 let transcriptMessagesVisited = 0
 export function getTranscriptMessagesVisited(): number {
   return transcriptMessagesVisited
+}
+
+function recordedBoundary(row: TranscriptMessage, recorded: ReadonlySet<string>): TranscriptMessage {
+  if (!isFoldBoundaryMessage(row)) return row
+  const segment = row.compactMetadata?.preservedSegment
+  if (!segment?.keptUuids) return row
+  const keptUuids = segment.keptUuids.filter(id => recorded.has(id))
+  const headUuid = keptUuids[0], tailUuid = keptUuids.at(-1)
+  const preservedSegment = headUuid && tailUuid ? { ...segment, headUuid, tailUuid, keptUuids } : undefined
+  return { ...row, compactMetadata: { ...row.compactMetadata, preservedSegment } }
 }
 
 function partitionUnwritten(
@@ -492,20 +489,11 @@ class Project {
     }
 
     const message = entry as TranscriptMessage
-    if (message.isSidechain && message.agentId !== undefined) {
-      const agentFile =
-        crewmateTranscriptDestinations.get(message.agentId) ??
-        getCrewmateTranscriptPath(asAgentId(message.agentId))
-      const existing = await getCrewmateFileMessages(agentFile)
-      if (existing.has(message.uuid)) return
-      existing.add(message.uuid)
-      this.settlePart.enqueueMessageWrite(agentFile, message)
-      return
-    }
-
-    const existing = await getSessionMessages(targetSessionId)
+    const agent = message.isSidechain ? message.agentId : undefined
+    const target = agent === undefined ? file : crewmateTranscriptDestinations.get(agent) ?? getCrewmateTranscriptPath(asAgentId(agent))
+    const existing = agent === undefined ? await getSessionMessages(targetSessionId) : await getCrewmateFileMessages(target)
     if (existing.has(message.uuid)) return
-    this.settlePart.enqueueMessageWrite(file, message)
+    this.settlePart.enqueueMessageWrite(target, recordedBoundary(message, existing))
     existing.add(message.uuid)
   }
 
