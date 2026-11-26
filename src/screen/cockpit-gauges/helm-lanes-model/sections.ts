@@ -308,7 +308,7 @@ export function glanceSection({ input, tok }: SectionFacts): LanesSectionSpec | 
   return {
     key: 'vitals',
     glyph: '',
-    label: 'vitals',
+    label: 'usage',
     marginAlways: true,
     rows: [
       muted(labels.usage, 'tel:usage', '/usage'),

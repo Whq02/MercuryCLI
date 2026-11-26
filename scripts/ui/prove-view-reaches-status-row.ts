@@ -52,7 +52,7 @@ try {
     if (payload === undefined) continue
     const lines = rowsOf(payload.grid)
     if (frameDir !== undefined) writeFileSync(join(frameDir, `${tag}.txt`), lines.join('\n') + '\n')
-    const top = lines.findIndex(line => /^(?:╭─+╮|(?:crew \d+|work|runs|recent|goal|workbench|next|files|saturn|vitals)[^╭]*)╭─+╮/.test(line))
+    const top = lines.findIndex(line => /^(?:╭─+╮|(?:crew \d+|work|runs|recent|goal|workbench|next|files|schedule|usage)[^╭]*)╭─+╮/.test(line))
     const left = top < 0 ? -1 : (lines[top]!.startsWith('╭') ? lines[top]!.indexOf('╭', 1) : lines[top]!.indexOf('╭'))
     const rightEdge = top < 0 || left < 0 ? -1 : lines[top]!.indexOf('╮', left + 1)
     const bottom = top < 0 ? -1 : lines.findIndex((line, index) => index > top && line[left] === '╰' && line[rightEdge] === '╯')
