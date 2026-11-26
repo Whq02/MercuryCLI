@@ -529,8 +529,10 @@ if (cap !== null) {
   }
 
   console.log('\n— H6 no row of the frame moves —')
-  const statusRows = new Set(chatFrames.map(s => statusIndex(m[s])))
-  check(`H6 the bottom row keeps one row index across every frame (row ${[...statusRows].join('/')})`, statusRows.size === 1, 'the bottom row moved between frames; read the dumped frames above and ' + HINT_ROW)
+  const idleFooter = (frame: string | undefined): boolean => (rows(frame)[ROWS - 1] ?? '').includes('? for shortcuts')
+  const idleStatusRows = new Set(chatFrames.filter(s => idleFooter(m[s])).map(s => statusIndex(m[s])))
+  const activeStatusRows = new Set(chatFrames.filter(s => !idleFooter(m[s])).map(s => statusIndex(m[s])))
+  check(`H6 the bottom row keeps one row index per composer footer state (idle row ${[...idleStatusRows].join('/')}, active row ${[...activeStatusRows].join('/')})`, idleStatusRows.size === 1 && activeStatusRows.size === 1 && [...idleStatusRows][0] === ROWS - 5 && [...activeStatusRows][0] === ROWS - 6, 'the bottom row moved within a footer state; read the dumped frames above and ' + HINT_ROW)
 
   console.log('\n— thinking, two agents running —')
   const thinkingRow = statusRow(m['thinking'])

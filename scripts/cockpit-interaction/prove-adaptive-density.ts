@@ -240,10 +240,13 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
       const tally = { octopus: 0, crab: 0, cells: 0 }
       if (header < 0) return tally
       const left = (lines[header] ?? '').indexOf('╭') + 1
-      for (let r = header + 2; r < Math.min(lines.length, header + 12); r++) {
-        if ((lines[r] ?? '')[left] === '╰') break
-        for (const cell of grid[r] ?? []) {
-          if (cell.c !== '▀' && cell.c !== '▄' && cell.c !== '█') continue
+      const right = (lines[header] ?? '').indexOf('╮', left)
+      if (right <= left) return tally
+      for (let r = header + 1; r < Math.min(lines.length, header + 12); r++) {
+        if (/^ ─+ $/.test((lines[r] ?? '').slice(left, right))) break
+        for (let c = left; c < right; c++) {
+          const cell = (grid[r] ?? [])[c]
+          if (!cell || (cell.c !== '▀' && cell.c !== '▄' && cell.c !== '█')) continue
           tally.cells++
           if (octopusHues.has(cell.fg) || octopusHues.has(cell.bg)) tally.octopus++
           if (crabHues.has(cell.fg) || crabHues.has(cell.bg)) tally.crab++
