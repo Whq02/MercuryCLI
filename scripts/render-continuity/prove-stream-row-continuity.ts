@@ -188,13 +188,17 @@ const phaseOf = (f: Frame): string | null => {
   return null
 }
 const CARD_TOP_RE = /╭─{40,}╮/
-const CARD_BOTTOM_RE = /[▀▄]{9}.*╰─{40,}╯/
+const CARD_BOTTOM_RE = /│ ─{40,} │/
+const CRITTER_RE = /[▀▄]{9}/
 const cardSpanOf = (f: Frame): { top: number; bottom: number } | null => {
-  const bottom = f.rows.findIndex(r => CARD_BOTTOM_RE.test(r))
-  if (bottom === -1) return null
-  let top = bottom - 1
-  while (top >= 0 && !CARD_TOP_RE.test(f.rows[top]!)) top--
-  return top < 0 ? null : { top, bottom }
+  const top = f.rows.findIndex(r => CARD_TOP_RE.test(r))
+  if (top === -1) return null
+  const limit = Math.min(f.rows.length, top + 12)
+  for (let bottom = top + 1; bottom < limit; bottom++) {
+    if (!CARD_BOTTOM_RE.test(f.rows[bottom]!)) continue
+    return f.rows.slice(top + 1, bottom).some(r => CRITTER_RE.test(r)) ? { top, bottom } : null
+  }
+  return null
 }
 const cardRowsOf = (f: Frame): number | null => {
   const span = cardSpanOf(f)
