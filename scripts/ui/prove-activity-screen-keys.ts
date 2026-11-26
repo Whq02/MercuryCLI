@@ -156,7 +156,7 @@ const monitorAt = (lines: string[]): number | undefined => {
   return match === null || match === undefined ? undefined : Number(match[1])
 }
 const cursorPainted = (lines: string[]): boolean => lines.some(line => /^❯ .*monitor \d+ watching/.test(line))
-const hintPainted = (lines: string[]): boolean => lines.some(line => line.includes('↑/↓ select') && line.includes('esc close'))
+const hintPainted = (lines: string[]): boolean => lines.some(line => line.includes('↑↓ select') && line.includes('esc close'))
 const statsPainted = (lines: string[]): boolean => lines.some(line => line.startsWith(STATS))
 const shellFooterPainted = (lines: string[]): boolean => /esc close\s*$/.test(lines[lines.length - 1] ?? '')
 const describe = (lines: string[]): string => `cursor on ${monitorAt(lines) ?? 'nothing'} · rows ${lines.length} · last ${JSON.stringify(lines[lines.length - 1] ?? '')}`

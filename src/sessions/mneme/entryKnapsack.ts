@@ -247,11 +247,14 @@ function joinWords(parts: readonly string[]): string {
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
 }
 
-function rodeWords(status: Pick<MemoryAtStartStatus, 'facts' | 'rodeFacts' | 'notes' | 'rodeNotes' | 'pending' | 'rodePending' | 'pointers'>): string {
+function rodeWords(
+  status: Pick<MemoryAtStartStatus, 'facts' | 'rodeFacts' | 'notes' | 'rodeNotes' | 'pending' | 'rodePending' | 'pointers'>,
+  noteWord = 'earlier note',
+): string {
   const pointers = status.pointers ?? 0
   const facts = status.facts > 0 ? `${status.rodeFacts} of ${plural(status.facts, 'fact')}${pointers > 0 ? ` (${pointers} as ${pointers === 1 ? 'a pointer' : 'pointers'})` : ''}` : null
   const pending = (status.rodePending ?? 0) > 0 ? `${status.rodePending} of ${plural(status.pending, 'pending fact')}` : null
-  const notes = status.notes > 0 ? `${status.rodeNotes} of ${plural(status.notes, 'earlier note')}` : null
+  const notes = status.notes > 0 ? `${status.rodeNotes} of ${plural(status.notes, noteWord)}` : null
   return joinWords([facts, pending, notes].filter((part): part is string => part !== null))
 }
 
@@ -272,9 +275,9 @@ export function memoryAtStartRowWords(status: MemoryAtStartStatus): string {
   const pending = status.pending > 0 && !(status.rodePending ?? 0) ? ` (${plural(status.pending, 'fact')} pending)` : ''
   if (status.facts + status.notes === 0 && !(status.rodePending ?? 0)) {
     if (pins === null && status.pending === 0) return 'nothing on record yet'
-    return `${pins === null ? 'nothing' : `${pins}; nothing else`} rode at start${pending}; Recall finds them`
+    return `${pins === null ? 'nothing' : `${pins}; nothing else`} loaded${pending}`
   }
-  return `${pins === null ? '' : `${pins} and `}${rodeWords(status)} rode at start${pending}; Recall finds the rest`
+  return `${pins === null ? '' : `${pins} and `}${rodeWords(status, 'note')} loaded${pending}`
 }
 
 function renderMemoryAtStart(input: { task?: StartTask; choice: StartChoice; pinnedCount: number; facts: number; notes: number; pending: number; state: ProjectState }): string | null {

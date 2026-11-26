@@ -483,7 +483,6 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
       entries,
       selIdx: selected !== null ? entryIndexOf(list.selectedIndex) : -1,
       title: merged ? 'sessions · projects' : 'resume session',
-      summaryTitle: merged ? 'SESSIONS · PROJECTS' : 'SESSIONS',
       summaryRows: resumeSummaryRows({
         scope,
         count: flat.length,

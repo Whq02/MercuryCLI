@@ -44,9 +44,9 @@ export function pickerGeometry({ inner, lines, compact, i, panelWidth, focusedMo
     if (!line) return 0
     if (line.kind !== 'row') return 1
     if (compact || idx !== i) return 1
-    if (line.row.tensorfold !== undefined) return 3 + line.row.tensorfold.card(cardWidth).length
+    if (line.row.tensorfold !== undefined) return 1 + line.row.tensorfold.card(cardWidth).length
     const tag = line.row.tag
-    return tag === '' ? 3 : 3 + wrapText(tag, panelWidth - 8, 'wrap').split('\n').length
+    return tag === '' ? 1 : 1 + wrapText(tag, panelWidth - 8, 'wrap').split('\n').length
   }
   const reasonLines: string[] | null =
     focusedModel !== undefined && focusedModel.gated && focusedModel.gatedReason

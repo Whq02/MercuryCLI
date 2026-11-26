@@ -25,19 +25,32 @@ const core = createSplashCore({ nocolor: true, truecolor: false }) as {
 const FIX = 'fix wrapDetailLine and moreHint wrapping in composeBootMenuWide (assets/splash/splash-core.mjs) and moreHint strings in KitMenuScreen.tsx, bootAgents/menuModel.ts, bootLogins/menuModel.ts, bootSaturn/menu.tsx'
 const WHOLE_FIX = 'in composeBootMenuWide (assets/splash/splash-core.mjs) cut the detail rows above moreHint between whole lines: a line that wraps and does not fit above the trail line is not begun, and the trail line takes its place'
 
+function isWideFrame(lines: string[]): boolean {
+  return lines.some(l => l.includes('╭') && l.includes('╮'))
+}
+
 function detailInnerLines(lines: string[]): string[] {
-  const start = lines.findIndex(l => l.includes('SETTING DETAIL'))
-  if (start < 0) return []
-  const headerRight = lines[start]!.lastIndexOf('│')
-  const headerLeft = lines[start]!.lastIndexOf('│', headerRight - 1)
-  const out: string[] = []
-  for (let i = start + 1; i < lines.length; i++) {
+  const top = lines.findIndex(l => l.includes('╭') && l.includes('╮'))
+  if (top < 0) return []
+  const left = lines[top]!.indexOf('╭')
+  const right = lines[top]!.indexOf('╮')
+  const col: string[] = []
+  for (let i = top; i < lines.length; i++) {
     const line = lines[i]!
-    if (line[headerLeft] === '╰') break
-    if (line[headerLeft] !== '│' || line[headerRight] !== '│') break
-    out.push(line.slice(headerLeft + 1, headerRight))
+    const ch = line[left]
+    if (i > top && ch !== '│' && ch !== '╰' && line.slice(0, right + 1).trim() !== '') break
+    col.push(line.slice(right + 3))
   }
-  return out
+  let end = col.length
+  if (end >= 4 && /^\s*Mercury\s+/.test(col[end - 3]!) && /^\s*Critter\s+/.test(col[end - 2]!) && /^\s*Dir\s+/.test(col[end - 1]!)) {
+    end -= 4
+  }
+  const summaryKey = /^\s*(?:Saved|Harness|MCPs|Skills|Applies|Armed|Agents|Active|Disabled|Issues|Families|Signed in|Ready|Notice|Scope|Sessions|Repos|Loading|Opens|Verdict|Checks|Issued|Schedules|Held|Soonest|This one)\s+/
+  if (end >= 2 && summaryKey.test(col[end - 1]!)) {
+    while (end > 0 && summaryKey.test(col[end - 1]!)) end--
+    if (end > 0 && col[end - 1]!.trim() === '') end--
+  }
+  return col.slice(0, end)
 }
 
 function hasTrailingClip(line: string): boolean {
@@ -71,7 +84,7 @@ t.section('§1 — MORE HINT FITS WHOLE WITHOUT TRAILING ELLIPSIS AT 120×36 AND
     statusRight: '1 choice saved — applies to new sessions',
     legend: '↑↓ move · ↵ change (saved) · ⌫ default · esc back',
   }
-  for (const [cols, rows] of [[120, 36], [110, 36], [120, 40]] as const) {
+  for (const [cols, rows] of [[120, 36], [110, 36], [120, 39]] as const) {
     const inner = detailInnerLines(core.composeBootMenu(cols, rows, bootModel).lines)
     const hintRows = inner.filter(l => l.includes('the trail continues') || l.includes('terminal'))
     const ok = hintRows.length > 0 && hintRows.every(l => !hasTrailingClip(l)) && inner.join(' ').includes('the trail continues') && inner.join(' ').includes('terminal)')
@@ -83,13 +96,12 @@ t.section('§1 — MORE HINT FITS WHOLE WITHOUT TRAILING ELLIPSIS AT 120×36 AND
     entries: kitRows.map(r => kitEntryOf(r, kitRowView(r, SAMPLE_STATES))),
     selIdx: 4,
     title: 'mcps & skills',
-    summaryTitle: 'NEXT SESSION',
     summaryRows: kitSummaryRows(kitCounts(kitRows, SAMPLE_STATES)),
     environment: env,
     statusRight: '4 choices saved',
     legend: '↑↓ move · esc back',
   }
-  for (const [cols, rows] of [[120, 36], [120, 40]] as const) {
+  for (const [cols, rows] of [[120, 30], [120, 33]] as const) {
     const inner = detailInnerLines(core.composeBootMenu(cols, rows, kitModel).lines)
     const hintRows = inner.filter(l => l.includes('the trail continues') || l.includes('terminal'))
     const ok = hintRows.length > 0 && hintRows.every(l => !hasTrailingClip(l)) && inner.join(' ').includes('terminal)')
@@ -143,10 +155,10 @@ t.section('§2 — OVERLONG DETAIL LINES WRAP WHEN THE PANE HAS ROWS FREE (AGENT
     detailOverride: detailLines,
   }
 
-  const inner36 = detailInnerLines(core.composeBootMenu(120, 36, agentsM).lines)
+  const inner36 = detailInnerLines(core.composeBootMenu(120, 27, agentsM).lines)
   const clipped36 = inner36.filter(hasTrailingClip)
-  t.check('agents 120×36: neither moreHint nor the line above it ends in a trailing ellipsis', clipped36.length === 0 && inner36.map(l => l.trim()).join(' ').includes('the trail continues'), clipped36.length === 0 ? '' : `${FIX} | clipped=${JSON.stringify(clipped36)}`)
-  for (const rows of [37, 38] as const) {
+  t.check('agents 120×27: neither moreHint nor the line above it ends in a trailing ellipsis', clipped36.length === 0 && inner36.map(l => l.trim()).join(' ').includes('the trail continues'), clipped36.length === 0 ? '' : `${FIX} | clipped=${JSON.stringify(clipped36)}`)
+  for (const rows of [28, 29] as const) {
     const inner = detailInnerLines(core.composeBootMenu(120, rows, agentsM).lines)
     const clipped = inner.filter(hasTrailingClip)
     const joined = inner.map(l => l.trim()).join(' ')
@@ -172,7 +184,6 @@ t.section('§2 — OVERLONG DETAIL LINES WRAP WHEN THE PANE HAS ROWS FREE (AGENT
     entries: kitRows.map(r => kitEntryOf(r, kitRowView(r, SAMPLE_STATES))),
     selIdx: extSkillIdx,
     title: 'mcps & skills',
-    summaryTitle: 'NEXT SESSION',
     summaryRows: kitSummaryRows(kitCounts(kitRows, SAMPLE_STATES)),
     environment: env,
     statusRight: '4 choices saved',
@@ -225,7 +236,6 @@ t.section('§4 — BELOW 110 COLUMNS A NOTICE WORD LONGER THAN THE LINE WRAPS; W
     entries: [{ label: '1 · Profile 1', group: 'profiles', summary: 'this session runs in it', valueLabel: 'mercury · this one', valueIsDefault: false, pinnedVal: null, detail: null }],
     selIdx: 0,
     title: 'profiles',
-    summaryTitle: 'PROFILES',
     summaryRows: [],
     environment: env,
     statusRight: '1 profile',
@@ -259,7 +269,6 @@ t.section('§5 — AN OPEN CONFIRM IS ON THE SCREEN WHOLE AT EVERY SIZE: IN THE 
     entries: [{ label: 'alpha chat', group: 'sessions', summary: '2 months ago', valueLabel: '2 months ago', valueIsDefault: true, pinnedVal: null, detail: null }],
     selIdx: 0,
     title: 'resume session',
-    summaryTitle: 'SESSIONS',
     summaryRows: [],
     environment: env,
     statusRight: '1 session',
@@ -275,7 +284,7 @@ t.section('§5 — AN OPEN CONFIRM IS ON THE SCREEN WHOLE AT EVERY SIZE: IN THE 
     for (let rows = 2; rows <= 50; rows++) {
       const bare = core.composeBootMenu(cols, rows, bareM).lines
       const asked = core.composeBootMenu(cols, rows, { ...bareM, asking }).lines
-      const room = bare.some(l => l.includes('SETTING DETAIL')) ? detailInnerLines(bare) : bare
+      const room = isWideFrame(bare) ? detailInnerLines(bare) : bare
       if (squashed(room).includes(squashed(card))) {
         if (asked.join('\n') !== bare.join('\n')) moved.push(`${cols}×${rows}`)
         continue

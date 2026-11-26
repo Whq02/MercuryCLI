@@ -59,7 +59,7 @@ export const DEFAULT_MASKS = [
   'health [▲●◌◐✕✓·◓] \\S+( · \\d+[smhd])? *',
   'row:\\S+ ⌥ ?[^…\\s]\\S*',
   'row:│ \\S+ │ ⤳',
-  'FILES · [^│]*',
+  'files · [^│]*',
   '⌥ ?\\S+ *',
   'row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back',
   'row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back',
@@ -112,11 +112,11 @@ export function canonicalizeCheckoutRows(
     [`│ ${checkout.basename} │ ⤳`, '│ mercury │ ⤳'],
     [` · ${checkout.basename} · `, ' · mercury · '],
     [` ${checkout.basename} · `, ' mercury · '],
-    [`FILES · ${checkout.basename}`, 'FILES · mercury'],
+    [`files · ${checkout.basename}`, 'files · mercury'],
     [`  ${checkout.basename}  `, '  mercury  '],
     [`│ ${checkout.basename} ▸`, '│ mercury ▸'],
   ]
-  const clipped = new RegExp(`FILES · (${[...checkout.basename].map((_, i, all) => all.slice(0, i + 1).join('').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).reverse().join('|')})…`)
+  const clipped = new RegExp(`files · (${[...checkout.basename].map((_, i, all) => all.slice(0, i + 1).join('').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).reverse().join('|')})…`)
   const restoreAt = (row: string, start: number, end: number): number => {
     const before = / {2,}$/.exec(row.slice(0, start))
     const after = /^(?: {2,}|│)/.exec(row.slice(end))
@@ -219,8 +219,16 @@ export function canonicalizeCheckoutRows(
       styles.push(grid.styles[y] ?? [])
       return
     }
+    const chipClip = new RegExp(`(ctx [^·]*· )${checkout.basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} ⌥[^·]*…$`).exec(row)
+    if (chipClip && chipClip.index !== undefined && row.length - chipClip.index - chipClip[1]!.length <= 'mercury'.length + 1) {
+      const at = chipClip.index + chipClip[1]!.length
+      const width = row.length - at
+      text.push(row.slice(0, at) + 'mercury'.slice(0, width - 1) + '…')
+      styles.push(compress([...cells.slice(0, at), ...Array.from({ length: width }, () => cells[at] ?? null)]))
+      return
+    }
     const cut = clipped.exec(row)
-    if (cut && cut.index !== undefined && cut[0].length >= 'FILES · mercury'.length) return take(respell(row, cells, cut.index, cut[0], 'FILES · mercury'))
+    if (cut && cut.index !== undefined && cut[0].length >= 'files · mercury'.length) return take(respell(row, cells, cut.index, cut[0], 'files · mercury'))
     keep()
   })
   return { ...grid, text, styles }
@@ -348,7 +356,7 @@ export function readStoredGrid(entry: VisualBaselineEntry, root: string = LIVE_D
 export const SETTLE_LAW = { tickMs: 200, stillTicks: 8, ceilingTicks: 300 } as const
 
 export const COMPOSER_NEEDLE = 'Type a prompt'
-export const RAIL_SCAN_NEEDLES = ['RECENT', '○ '] as const
+export const RAIL_SCAN_NEEDLES = ['recent', '○ '] as const
 export const NARROW_COUNT_NEEDLE = 'concourse'
 
 export function cockpitReadyText(cols: number, wideMinCols: number): string[] {

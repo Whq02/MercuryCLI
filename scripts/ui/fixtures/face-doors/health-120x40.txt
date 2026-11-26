@@ -5,36 +5,36 @@
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                     ⌁ health check
+                                                      health check
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ NEXT                                                           │  │ ❯ Keybindings file                         │
-   │   open /logins to re-verify                            ◓ stale │  │                                            │
-   │   remove the unknown rows, or re-run the keyb…          ▲ warn │  │ ▲ warn                                     │
-   │                                                                │  │                                            │
-   │ RUNTIME                                                        │  │ evidence:                                  │
-   │   Node runtime                                            ✓ ok │  │ ~/.mercury/keybindings.json holds 2        │
-   │   Bundle integrity                                        ✓ ok │  │ unknown actions                            │
-   │ ❯ Keybindings file                                      ▲ warn │  │                                            │
-   │                                                                │  │ Unknown actions are ignored at load;       │
-   │ PROVIDERS                                                      │  │ the file keeps working.                    │
-   │   Anthropic credential                                 ◓ stale │  │ … (↵ opens the full trail)                 │
-   │                                                                │  ╰────────────────────────────────────────────╯
-   │ ESTATE                                                         │  ╭────────────────────────────────────────────╮
-   │   Daemon reachability                                ◌ unknown │  │ CERTIFICATE                                │
-   │   Certificate store                                      · off │  │ Verdict    ▲ caution                       │
-   ╰────────────────────────────────────────────────────────────────╯  │ Checks     6 · 1 stale · 1 warn · 1 unkno… │
-                                                                       │ Issued     2m ago · 830ms                  │
-                                                                       │ Build      1.0.0-beta.1 · main @ abcdef1   │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    Opus 5                          │
-                                                                       │ Critter    Octopus                         │
-                                                                       │ Dir        orchard-src                     │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  verdict caution · 6 checks · issued 2m ago · 830ms · read-only                              │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   Keybindings file
+   │ NEXT                                                           │
+   │   open /logins to re-verify                            ◓ stale │   ▲ warn
+   │   remove the unknown rows, or re-run the keyb…          ▲ warn │
+   │                                                                │   evidence:
+   │ RUNTIME                                                        │   ~/.mercury/keybindings.json holds 2
+   │   Node runtime                                            ✓ ok │   unknown actions
+   │   Bundle integrity                                        ✓ ok │
+   │ ❯ Keybindings file                                      ▲ warn │   Unknown actions are ignored at load;
+   │                                                                │   the file keeps working.
+   │ PROVIDERS                                                      │
+   │   Anthropic credential                                 ◓ stale │   → remove the unknown rows, or re-run
+   │                                                                │   the keybindings check
+   │ ESTATE                                                         │
+   │   Daemon reachability                                ◌ unknown │   f — apply the safe remedy
+   │   Certificate store                                      · off │
+   ╰────────────────────────────────────────────────────────────────╯
+
+
+
+
+                                                                        Verdict    ▲ caution
+                                                                        Checks     6 · 1 stale · 1 warn · 1 unknown…
+                                                                        Issued     2m ago · 830ms
+                                                                        Build      1.0.0-beta.1 · main @ abcdef1
+
+                                                                        Mercury    Opus 5
+                                                                        Critter    Octopus
+                                                                        Dir        orchard-src
+    verdict caution · 6 checks · issued 2m ago · 830ms · read-only
                                   ↑↓ move · ↵ evidence · d deep · r re-run · esc back

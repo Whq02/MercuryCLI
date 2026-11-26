@@ -118,7 +118,8 @@ function RailRow({
   const { accent } = useSessionAccent()
   const tok = useMercuryTokens()
   const indentW = 2
-  const dotW = 2
+  const hasGlyph = glyphLive || glyph !== ''
+  const dotW = hasGlyph ? 2 : 0
   const sep = ' · '
   const budgets = railRowBudgets(width - indentW - dotW, displayWidth(name), verb !== undefined && verb !== '' ? displayWidth(verb) : 0, displayWidth(sep))
   const verbT = verb !== undefined && budgets.verb > 0 ? fitRailVerb(verb, budgets.verb) : ''
@@ -156,11 +157,16 @@ function RailRow({
       <Text wrap="truncate-end">
         <Text color={selected ? accent : tok.textSecondary}>{selected ? `${GLYPH.prompt} ` : marked ? `${GLYPH.chevronRight} ` : '  '}</Text>
         {glyphLive ? (
-          <WorkingGlyph color={glyphColor} active />
-        ) : (
-          <Text color={glyphColor}>{glyph}</Text>
-        )}
-        <Text> </Text>
+          <>
+            <WorkingGlyph color={glyphColor} active />
+            <Text> </Text>
+          </>
+        ) : glyph !== '' ? (
+          <>
+            <Text color={glyphColor}>{glyph}</Text>
+            <Text> </Text>
+          </>
+        ) : null}
         <Text color={nameColor} bold={nameBold}>{nameT}</Text>
         {verbT ? (
           <Text>
@@ -219,7 +225,7 @@ function WorkbenchCardRow({
       {lines === null ? (
         <Text wrap="truncate-end">
           <Text color={accent}>{selected ? `${GLYPH.prompt} ` : '  '}</Text>
-          <Text color={tok.textMuted}>no prompts sent yet</Text>
+          <Text color={tok.textMuted}>no prompts yet</Text>
         </Text>
       ) : (
         lines.map((l, i) => (

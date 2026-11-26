@@ -1,4 +1,4 @@
-│  ⦿ Git commit                                                                                    │
+│  Git commit                                                                                      │
 │  Commit: two files via the git tool                                                              │
 │    calc.py, NOTES.md                                                                             │
 │    The calculator and the notes, nothing else.                                                   │

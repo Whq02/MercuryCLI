@@ -52,7 +52,7 @@
   "                                                                  ⇧→ concourse"
  ],
  "crew-empty": [
-  "  ▄▄▄▄▄▄▄▄▄   ✶ Mercury · ● ready · Opus 5.5 · effort high · ctx —",
+  "  ▄▄▄▄▄▄▄▄▄   ✶ Mercury · ready · Opus 5.5 · effort high · ctx —",
   "  ▄▄▄▄▄▄▄▄▄   fixture-cwd",
   "",
   " ╭────────────────────────────────────────────────────────────────────────────╮",
@@ -78,7 +78,7 @@
   "1 session on · 0 monitors here · 0 crewmates here                   ⇧← concourse"
  ],
  "chat": [
-  "  ▄▄▄▄▄▄▄▄▄   ✶ Mercury · ● ready · Opus 5.5 · effort high · ctx —",
+  "  ▄▄▄▄▄▄▄▄▄   ✶ Mercury · ready · Opus 5.5 · effort high · ctx —",
   "  ▄▄▄▄▄▄▄▄▄   fixture-cwd",
   "  ▀▄▄▄▀▄▄▄▀",
   "────────────────────────────────────────────────────────────────────────────────",
@@ -104,7 +104,7 @@
   "1 session on · 0 monitors here · 0 crewmates here                   ⇧← concourse"
  ],
  "help": [
-  "  ▄▄▄▄▄▄▄▄▄   ✶ Mercury · ● ready · Opus 5.5 · effort high · ctx —",
+  "  ▄▄▄▄▄▄▄▄▄   ✶ Mercury · ready · Opus 5.5 · effort high · ctx —",
   "  ▄▄▄▄▄▄▄▄▄   fixture-cwd",
   "  ▀▄▄▄▀▄▄▄▀",
   "────────────────────────────────────────────────────────────────────────────────",
@@ -248,6 +248,8 @@
   "45. the boot face paints the same cells",
   "46. the status row paints the same cells",
   "47. the footer keys paints the same cells",
+  "48. the pop-up frame paints the same cells",
+  "",
   "▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔",
   "Mercury — runs · 1 active",
   "1 running · 0 pending",
@@ -255,9 +257,7 @@
   "Crewmates (2) ──────────────────────────────────────────────────────────────────",
   "❯ ◐ atlas · running · claude-opus-5-5 · 940 context                          30s",
   "  ● fjord · landed · claude-opus-5-5 · 890 context                            4s",
-  "",
-  "↑/↓ select · ↵ view · x x stop · esc close",
-  "↑↓ move · pgup/pgdn page · ↵ open · esc close"
+  "↑↓ select · pgup/pgdn page · ↵ open · x x stop · esc close"
  ],
  "sessions": [
   "  ▄▄▄▄▄▄▄▄▄   ✶ Mercury · Opus 5.5 · effort high · ctx 0%",

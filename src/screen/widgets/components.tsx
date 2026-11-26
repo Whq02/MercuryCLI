@@ -10,7 +10,7 @@ import { lastClockTick, subscribeUiClock } from '../cockpit/uiClock.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 import { markTransitionEnd } from '../../platform/observability/frictionStopwatch.js'
 import { resolveMercuryTokens, spectralRampFor } from '../theme/mercuryTokens.js'
-import { Crab, Wordmark } from './assets.js'
+import { Wordmark } from './assets.js'
 import { rampSegments } from './focalRamp.js'
 import { useSessionAccent } from './sessionAccent.js'
 import { GLYPH, SPARK, displayWidth, padTo } from '../theme/glyphs.js'
@@ -53,8 +53,6 @@ export function ProductLockup({
   if (isCompact || plain) return <Box height={1} overflow="hidden"><Text bold color={t.textPrimary} wrap="truncate-end">{title}{subtitle ? ` · ${subtitle}` : ''}</Text></Box>
   return (
     <Box>
-      <Crab />
-      <Text> </Text>
       {ramp.length > 1 ? (
         <Text>
           {rampSegments(title, ramp).map((s, i) => (

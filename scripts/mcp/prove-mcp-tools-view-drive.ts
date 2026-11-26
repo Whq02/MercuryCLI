@@ -280,9 +280,9 @@ try {
   const allTexts = [...frames.map(f => f.text), step1Servers, step2Unfolded, step3ToolList, step4ToolDetail, step4ToolDetailEnd, step5BackToList, step6LongDetailTop, step7LongDetailEnd, step8BackToList, step6FilteredList, step7BackToServers].join('\n')
   const popupFrameOf = (screen: string): { rows: number; hintInside: boolean } => {
     const lines = screen.split('\n')
-    const at = lines.findIndex(line => line.includes('▖▟▆▙▗ Mercury · mcp'))
+    const at = lines.findIndex(line => line.includes('Mercury · mcp'))
     if (at < 1) return { rows: -1, hintInside: false }
-    const col = lines[at]!.indexOf('▖▟▆▙▗') - 2
+    const col = lines[at]!.indexOf('Mercury · mcp') - 2
     if (lines[at]![col] !== '│' || lines[at - 1]![col] !== '╭') return { rows: -1, hintInside: false }
     const bottom = lines.findIndex((line, row) => row > at && line[col] === '╰')
     if (bottom === -1) return { rows: -1, hintInside: false }

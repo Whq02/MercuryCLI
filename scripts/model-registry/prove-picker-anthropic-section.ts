@@ -213,7 +213,7 @@ const headingOf = (lines: string[], title: string): string => {
   if (at < 0) return ''
   return lines[at]!.replace(/^\s*│ ?/, '').replace(/\s*│\s*$/, '').trim()
 }
-const rowAt = (lines: string[], name: string): number => lines.findIndex(l => l.includes(`${name} `) && !l.includes(' · ') && /│ (?:│ | {2})/.test(l))
+const rowAt = (lines: string[], name: string): number => lines.findIndex(l => l.includes(`${name} `) && !l.includes(' · ') && /│ (?:❯ | {2})/.test(l))
 type Band = { columns: number; rows: number; pendingNext?: string; surface?: 'inline' | 'choice' | 'advisor' | 'agent' }
 async function mountModel(model: string, band: Band = { columns: 178, rows: 51 }): Promise<{ frame: () => string; press: (keys: string, expectChange?: boolean) => Promise<boolean>; picked: string[]; unmount: () => void }> {
   const stdout = Object.assign(new PassThrough(), { columns: band.columns, rows: band.rows })
@@ -341,7 +341,7 @@ section('§5 the box spans its band whatever the cursor\'s row: from the first s
   const meterOf = (lines: string[]): number => lines.findIndex(l => /^\s*│ context /.test(l))
   const markerOf = (lines: string[]): number => lines.findIndex(l => /│\s+↓ \d+ more/.test(l))
   const aboveOf = (lines: string[]): number => lines.findIndex(l => /│\s+↑ \d+ more/.test(l))
-  const focusOf = (lines: string[]): string => (lines.find(l => l.includes('│ │ ')) ?? '').split('│ │ ')[1]?.replace(/\s+│.*$/, '').trim() ?? ''
+  const focusOf = (lines: string[]): string => (lines.find(l => /│\s+❯ /.test(l)) ?? '').split('❯ ')[1]?.replace(/\s+│.*$/, '').trim() ?? ''
   const offerOf = (lines: string[]): number => lines.findIndex(l => l.includes('no local server · /localsetup sets one up'))
   type Stop = { row: number; lines: number; bottom: number; marker: number; above: number; meter: number; offer: number; focus: string }
   const walk: Stop[] = []

@@ -81,7 +81,6 @@ export interface BootMenuData {
   glowWord?: GlowPhase | null
   title?: string
   fitLabels?: boolean
-  summaryTitle?: string
   summaryRows?: readonly BootMenuSummaryRow[]
   noticeLine?: string | null
   moreHint?: string
@@ -167,7 +166,6 @@ export interface SplashCore {
   composeBootMenu(cols: number, rowsAvail: number, m: BootMenuData): BootMenuComposition
   composeBootMenuWide(cols: number, rowsAvail: number, m: BootMenuData, withHead?: boolean): BootMenuComposition | null
   composeBootMenuClassic(cols: number, rowsAvail: number, m: BootMenuData): BootMenuComposition
-  panelLines(title: string, contentLines: string[], w: number): string[]
   composeLockup(cols: number, rows: number, opts: SplashComposeOpts): SplashComposition
   composeCompactFace(cols: number, rows: number, opts: SplashCompactOpts): SplashCompactComposition
   placeBlock(block: string[], rows: number): { placed: string[]; top: number }

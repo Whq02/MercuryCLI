@@ -18,7 +18,6 @@ export function agentsFaceBase({ counts, mainModel, wordGlow, workspaceDir }: { 
   const environment = bootEnvironment(mainModel, workspaceDir);
   const base = {
     title: 'agents',
-    summaryTitle: 'AGENTS',
     summaryRows: agentFaceSummaryRows(counts),
     environment,
     glowWord: wordGlow,

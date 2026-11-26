@@ -5,36 +5,36 @@
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                    ⌁ mcps & skills
+                                                     mcps & skills
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ MCPs                                                           │  │ ❯ github                                   │
-   │ ❯ github                                                    on │  │                                            │
-   │   postgres                                                  on │  │ What it controls                           │
-   │   orchard-tools (extension)                                 on │  │ MCP server · user scope — on connects it   │
-   │   ext:orchard-tools:db                                      on │  │ for the next session; off leaves it out    │
-   │                                                                │  │ of that session's process entirely.        │
-   │ Skills                                                         │  │                                            │
-   │   deploy                                                    on │  │ Current value                              │
-   │   review                                                    on │  │ on                                         │
-   │   notes                                                     on │  │ on — connected for the next session        │
-   │   orchard-tools (extension)                                 on │  │ off — absent from that session's process   │
-   │   orchard-tools:prune                                       on │  │                                            │
-   │   orchard-tools:graft                                       on │  ╰────────────────────────────────────────────╯
-   │   skills from MCP servers appear once a session connects them  │  ╭────────────────────────────────────────────╮
-   ╰────────────────────────────────────────────────────────────────╯  │ NEXT SESSION                               │
-                                                                       │ MCPs       3 on · 0 off                    │
-                                                                       │ Skills     5 on · 0 invocable · 0 off      │
-                                                                       │ Applies    ● the next session              │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    Opus 5                          │
-                                                                       │ Critter    Octopus                         │
-                                                                       │ Dir        orchard-src                     │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  everything on; changes apply to new sessions only  ·  2 established sessions unchanged      │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   github
+   │ MCPs                                                           │
+   │ ❯ github                                                    on │   What it controls
+   │   postgres                                                  on │   MCP server · user scope — on connects it
+   │   orchard-tools (extension)                                 on │   for the next session; off leaves it out
+   │   ext:orchard-tools:db                                      on │   of that session's process entirely.
+   │                                                                │
+   │ Skills                                                         │   Current value
+   │   deploy                                                    on │   on
+   │   review                                                    on │   on — connected for the next session
+   │   notes                                                     on │   off — absent from that session's process
+   │   orchard-tools (extension)                                 on │
+   │   orchard-tools:prune                                       on │
+   │   orchard-tools:graft                                       on │
+   │   skills from MCP servers appear once a session connects them  │
+   ╰────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+                                                                        MCPs       3 on · 0 off
+                                                                        Skills     5 on · 0 invocable · 0 off
+                                                                        Applies    ● the next session
+
+                                                                        Mercury    Opus 5
+                                                                        Critter    Octopus
+                                                                        Dir        orchard-src
+    everything on; changes apply to new sessions only  ·  2 established sessions unchanged
           ↑↓ move · pgup/pgdn page · ↵ change (saved) · ⌫ default · p save as preset… · w presets… · esc back

@@ -249,7 +249,7 @@ if (!ONLY || ONLY.has('sovereign')) {
   const edited = existsSync(join(run.paths.cwd, '.mercury', 'guard.mjs')) ? readFileSync(join(run.paths.cwd, '.mercury', 'guard.mjs'), 'utf8') : ''
   check('sovereign: the turn settled (the fixture\'s closing text landed)', rowsHaving(rows, 'Done.'), run.driverOut.slice(-300))
   check('sovereign: NO consent card painted (no question row)', !rowsHaving(rows, 'Do you want to'))
-  check('sovereign: NO consent card painted (no card title)', !rowsHaving(rows, '⦿ Edit file'))
+  check('sovereign: NO consent card painted (no card title)', !rowsHaving(rows, 'Edit file'))
   check('sovereign: the edit landed on disk', edited.includes('gamma line two'))
   check('sovereign: the transcript row names the allowance with the posture\'s word', rowsHaving(rows, 'allowed by sovereign'))
   check('sovereign: …and nothing more (the road\'s own sentence is NOT painted)', !rowsHaving(rows, 'sensitive file'))
@@ -278,7 +278,7 @@ if (!ONLY || ONLY.has('sovereign')) {
   printFrame('sovereign tool-rule final', ruledRows)
   const ruledEdited = existsSync(join(ruled.paths.cwd, 'notes.md')) ? readFileSync(join(ruled.paths.cwd, 'notes.md'), 'utf8') : ''
   check('sovereign + tool ask rule: the turn settled', rowsHaving(ruledRows, 'Done.'), ruled.driverOut.slice(-300))
-  check('sovereign + tool ask rule: NO consent card painted', !rowsHaving(ruledRows, 'Do you want to') && !rowsHaving(ruledRows, '⦿ Edit file'))
+  check('sovereign + tool ask rule: NO consent card painted', !rowsHaving(ruledRows, 'Do you want to') && !rowsHaving(ruledRows, 'Edit file'))
   check('sovereign + tool ask rule: the edit landed on disk', ruledEdited.includes('gamma line two'))
   check('sovereign + tool ask rule: the allowance row names the posture and nothing more', rowsHaving(ruledRows, 'allowed by sovereign') && !rowsHaving(ruledRows, 'the rule Edit'))
   const persisted = sessionFiles(join(run.paths.home, '.mercury', 'projects'))

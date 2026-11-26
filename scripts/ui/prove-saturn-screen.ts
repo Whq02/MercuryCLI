@@ -161,7 +161,7 @@ t.section('§3 — THE TIERS AND THE STILLS (64×12 floor · classic · wide; by
 {
   const { STILLS, composeSaturn, readStill, renderStill } = await import('./saturn-screen-stills.js')
   const wide = composeSaturn(120, 40, { sel: 0 }).join('\n')
-  t.check('§3 the wide frame carries the title, the SATURN panel, the sections and the legend', wide.includes('saturn scheduler') && wide.includes('SATURN') && wide.includes('journey session') && wide.includes('box (machine)') && wide.includes('x delete'))
+  t.check('§3 the wide frame carries the title, the summary rows, the sections and the legend', wide.includes('saturn scheduler') && wide.includes('Schedules') && wide.includes('journey session') && wide.includes('box (machine)') && wide.includes('x delete'))
   t.check('§3 the wide frame paints ids and spellings on the rows', wide.includes('aaaa1111') && wide.includes('every day 09:00'))
   const classic = composeSaturn(80, 24, { sel: 0 }).join('\n')
   t.check('§3 the classic tier keeps the rows and the legend', classic.includes('aaaa1111') && classic.includes('x delete'))

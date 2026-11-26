@@ -1,19 +1,19 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH               │╭────────────────────────────────────────────────────────────────────────────────────────────╮│
-  say something settled ││  ▄▄▄▄▄▄▄▄▄                                                                                 ││
-                        ││  ▄▄▄▄▄▄▄▄▄                                                                                 ││
-NEXT                    ││  ▀▀▄▀▀▀▄▀▀                                                                                 ││
-  · /health — health…   │╰────────────────────────────────────────────────────────────────────────────────────────────╯│
-  · /memory — memory    │                                                                                              │
-  · /mission — set a…   │                                                                                              │
-                        │ hh:mm:ss [sam] ❯ say something settled                                                       │
-FILES · flux-arena-cwd-…│                                                                                              │
-  ↵ or click · browse   │ hh:mm:ss [Mercury] Settled and quiet.                                                        │
+workbench               │   ▄▄▄▄▄▄▄▄▄                                                                                  │
+  say something settled │   ▄▄▄▄▄▄▄▄▄                                                                                  │
+                        │   ▀▀▄▀▀▀▄▀▀                                                                                  │
+next                    │ ──────────────────────────────────────────────────────────────────────────────────────────── │
+  /health               │                                                                                              │
+  /memory               │                                                                                              │
+  /mission              │ hh:mm:ss [sam] ❯ say something settled                                                       │
                         │                                                                                              │
-VITALS                  │                                                                                              │
-  · spend $0.00         │                                                                                              │
-  · ctx 0% · 1000k      │                                                                                              │
-  · health — run /health│                                                                                              │
+files · flux-arena-cwd-…│ hh:mm:ss [Mercury] Settled and quiet.                                                        │
+  ↵ browse              │                                                                                              │
+                        │                                                                                              │
+vitals                  │                                                                                              │
+  spend $0.00           │                                                                                              │
+  ctx 0% · 1000k        │                                                                                              │
+  health — run /health  │                                                                                              │
                         │                                                                                              │
                         │                                                                                              │
                         │                                                                                              │

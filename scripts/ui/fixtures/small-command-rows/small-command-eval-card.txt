@@ -1,25 +1,25 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH               │╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│
-  run the cell          ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-                        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-NEXT                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
-  · /health — health…   │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
+workbench               │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+  run the cell          │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+                        │   ▀▄▄▄▀▄▄▄▀                                                                                                      │
+next                    │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+  /health               │                                                                                                                  │
                         │                                                                                                                  │
-FILES · project         │                                                                                                                  │
-  ↵ or click · browse   │ 22:58:10 [sam] ❯ start                                                                                           │
-                        │                                                                                                                  │
-VITALS                  │ 22:58:10 [Mercury] Command rows ready.                                                                           │
-  · spend $0.00         │                                                                                                                  │
-  · ctx 0% · 1000k      │ ❯ /crewmates off                                                                                                 │
-  · health — run /health│   └ crewmates off for this session                                                                               │
-                        │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
+files · project         │ 00:39:28 [sam] ❯ start                                                                                           │
+  ↵ browse              │                                                                                                                  │
+                        │ 00:39:28 [Mercury] Command rows ready.                                                                           │
+vitals                  │                                                                                                                  │
+  spend $0.00           │ ❯ /crewmates off                                                                                                 │
+  ctx 0% · 1000k        │   └ crewmates off for this session                                                                               │
+  health — run /health  │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
                         │     running finishes                                                                                             │
                         │ you turned crewmates off: the Crewmate tool has left the roster; reasoning restarts on the next turn             │
                         │                                                                                                                  │
-                        │ 22:58:27 [sam] ❯ run the cell                                                                                    │
+                        │ 00:39:45 [sam] ❯ run the cell                                                                                    │
                         │                                                                                                                  │
-                        │   22:58:27 [Mercury] ▰ Eval         js · Calculate the value                                                     │
+                        │   00:39:45 [Mercury] ▰ Eval         js · Calculate the value                                                     │
                         │     └ Starting kernel…                                                                                           │
+                        │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
@@ -35,7 +35,7 @@ VITALS                  │ 22:58:10 [Mercury] Command rows ready.              
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│  ⦿ Tool use                                                                                                                              │
+│  Tool use                                                                                                                                │
 │  Eval(js · Calculate the value                                                                                                           │
 │  console.log("CELL-CODE-UNDER-APPROVAL"))                                                                                                │
 │  Run one code cell in a retained Python or JavaScript runtime: state persists across cells, and code can call session tools, spawn       │

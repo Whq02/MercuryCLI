@@ -115,8 +115,8 @@ const title = (lines: string[]): string => inner(lineWith(lines, 'Mercury · mod
 const legend = (lines: string[]): string => inner(lineWith(lines, '↑↓ select')).trim()
 const box = (lines: string[]): string => inner(lineWith(lines, '/ ')).trim()
 const cursorRow = (lines: string[]): string => {
-  const at = lines.findIndex(line => /│ ╭/.test(line))
-  return at >= 0 ? inner(lines[at + 1] ?? '').replace(/^│ /, '').trim() : ''
+  const hit = lines.find(line => /│ ❯ /.test(line))
+  return hit !== undefined ? inner(hit).replace(/^❯ /, '').trim() : ''
 }
 
 section('§1 the words: the owner’s hint, the box at rest and in focus, the legends')

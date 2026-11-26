@@ -1,19 +1,19 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH               │╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│
-  private reasoning     ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-                        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-NEXT                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
-  · /health — health…   │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
-  · /memory — memory    │                                                                                                                  │
-  · /mission — set a…   │                                                                                                                  │
-                        │ 15:54:19 [sam] ❯ private reasoning                                                                               │
-FILES · project         │                                                                                                                  │
-  ↵ or click · browse   │ ✻ thinking… — the provider returned no thinking text for this model                                              │
+workbench               │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+  private reasoning     │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+                        │   ▀▄▄▄▀▄▄▄▀                                                                                                      │
+next                    │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+  /health               │                                                                                                                  │
+  /memory               │                                                                                                                  │
+  /mission              │ 00:41:14 [sam] ❯ private reasoning                                                                               │
                         │                                                                                                                  │
-VITALS                  │ 15:54:19 [Mercury] Private reasoning answer.                                                                     │
-  · spend $0.00         │                                                                                                                  │
-  · ctx 0% · 1000k      │                                                                                                                  │
-  · health — run /health│                                                                                                                  │
+files · project         │ ✻ thinking… — the provider returned no thinking text for this model                                              │
+  ↵ browse              │                                                                                                                  │
+                        │ 00:41:14 [Mercury] Private reasoning answer.                                                                     │
+vitals                  │                                                                                                                  │
+  spend $0.00           │                                                                                                                  │
+  ctx 0% · 1000k        │                                                                                                                  │
+  health — run /health  │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │

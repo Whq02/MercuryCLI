@@ -34,7 +34,7 @@ section('§8 the card-tier strip bill (field return F3) — real rows, not paddi
 {
   const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
   const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' })
-  const sevenRows = Array.from({ length: 7 }, (_, i) => ({ icon: 'x', label: `Row ${i}`, ctx: `ctx ${i}` }))
+  const sevenRows = Array.from({ length: 7 }, (_, i) => ({ label: `Row ${i}`, ctx: `ctx ${i}` }))
   const fiveRows = sevenRows.slice(0, 5)
   const chips = { model: 'Opus 5', critter: 'Jellyfish', critterHue: '#88ccdd', dir: 'projA', acct: { state: 'none' as const }, health: null }
   const compose = (cols: number, rows: number, cardRows: unknown[]) =>
@@ -58,7 +58,7 @@ section('§8 the card-tier strip bill (field return F3) — real rows, not paddi
   check('with the one-line strip, a seven-row card keeps head + card + strip down to 120x37', p120x37.cardShown && stripOf(p120x37) && headOf(p120x37) && p120x37.lines.length === 37, `lines=${p120x37.lines.length} — fix composeLockup() in assets/splash/splash-core.mjs (card, strip and head tiers by terminal size)`)
   const p80x24 = compose(80, 24, sevenRows)
   check('with the one-line strip, 80x24 keeps the headless card + strip and 80x23 sheds the strip', p80x24.cardShown && stripOf(p80x24) && !headOf(p80x24) && !stripOf(compose(80, 23, sevenRows)), 'fix composeLockup() in assets/splash/splash-core.mjs (card, strip and head tiers by terminal size)')
-  const eightRows = Array.from({ length: 8 }, (_, i) => ({ icon: 'x', label: `Row ${i}`, ctx: `ctx ${i}` }))
+  const eightRows = Array.from({ length: 8 }, (_, i) => ({ label: `Row ${i}`, ctx: `ctx ${i}` }))
   const e120x40 = compose(120, 40, eightRows)
   check('an eight-row card at 120x40 keeps head + card + one-line strip (38 lines)', e120x40.cardShown && stripOf(e120x40) && headOf(e120x40) && e120x40.lines.length === 38, `lines=${e120x40.lines.length} — fix composeLockup() in assets/splash/splash-core.mjs (card, strip and head tiers by terminal size)`)
   const e100x30 = compose(100, 30, eightRows)
@@ -100,8 +100,8 @@ section('§10 the boot card clips its ctx column in DISPLAY cells')
   const compose = (ctx: string): string[] =>
     (core.composeLockup(120, 40, {
       cardRows: [
-        { icon: '▸', label: 'New Session', ctx: 'fresh chat in this repo' },
-        { icon: '↻', label: 'Continue Last Session', ctx },
+        { label: 'New Session', ctx: 'fresh chat in this repo' },
+        { label: 'Continue Last Session', ctx },
       ],
       cardSel: 0,
       hintSegments: [{ key: '↵ ', label: 'start', tone: 'ivory' }],

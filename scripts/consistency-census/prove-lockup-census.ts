@@ -64,7 +64,7 @@ check('§A every file the role table classifies stands in the tree', classified.
     const centerOk = await waitFor(
       () => {
         const frame = centerMounted.screen()
-        return frame.includes('▟▆▙') && frame.includes('Mercury — sessions') && frame.includes('3 active')
+        return frame.includes('Mercury — sessions') && frame.includes('3 active')
       },
       4000,
     )

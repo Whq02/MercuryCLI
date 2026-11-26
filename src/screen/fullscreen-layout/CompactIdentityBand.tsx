@@ -5,7 +5,7 @@ import { useLoad } from '../effects/effects.js'
 import { useTerminalSize } from './useTerminalSize.js'
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
 import { compactBandForm } from '../widgets/geometry.js'
-import { AnimatedCritterArt, BreathingDot } from '../widgets/AnimatedCritterArt.js'
+import { AnimatedCritterArt } from '../widgets/AnimatedCritterArt.js'
 import { cycleSessionCritter, useSessionAccent } from '../widgets/sessionAccent.js'
 import { Wordmark } from '../widgets/assets.js'
 import { EffortChip } from '../widgets/EffortChip.js'
@@ -109,14 +109,13 @@ export function CompactIdentityBand(): React.ReactNode {
       <Box flexShrink={0}>
         <Text>
           <Text color={sa.accent}>{GLYPH.spark} </Text>
-          <Wordmark greeting={false} />
+          <Wordmark />
           {idle ? <Text color={tok.textMuted}> · </Text> : null}
         </Text>
       </Box>
-      {idle ? <Box flexShrink={0}><BreathingDot /></Box> : null}
       <Box flexShrink={1} minWidth={0}>
         <Text wrap="truncate-end">
-          {idle ? <Text color={tok.success}> ready</Text> : null}
+          {idle ? <Text color={tok.success}>ready</Text> : null}
           {tail}
         </Text>
       </Box>

@@ -20,7 +20,7 @@ type Grid = { grid: Cell[][] }
 const HOVER_BG = ASH_RAISED.slice(1).toLowerCase()
 const RAIL_COLS = railPlanAt(120, true).lanesW
 const WORKBENCH_ROW = '  second task —'
-const FILES_ROW = 'or click · browse'
+const FILES_ROW = '↵ browse'
 
 type Region = [number, number, number, number]
 type Send = {

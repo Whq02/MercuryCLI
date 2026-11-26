@@ -32,15 +32,21 @@ const FILE = join(HOME, '.mercury.json')
 const stored = (): unknown => (existsSync(FILE) ? (JSON.parse(readFileSync(FILE, 'utf8')) as Record<string, unknown>)[KEY_NAME] : undefined)
 const collapse = (text: string): string => text.replace(/\s+/g, ' ').trim()
 const has = (lines: string[], needle: string): boolean => lines.some(line => line.includes(needle))
-function paneLines(lines: string[], title: string, width: number): string[] {
-  const header = lines.find(line => line.includes(title))
-  if (header === undefined) return []
-  const left = header.indexOf(title) - 2
-  return lines.map(line => Array.from(line).slice(left + 1, left + width - 1).join('').trim())
+function paneLines(lines: string[]): string[] {
+  const top = lines.findIndex(line => line.includes('╭') && line.includes('╮'))
+  if (top < 0) return []
+  const left = lines[top]!.indexOf('╭')
+  const right = lines[top]!.indexOf('╮')
+  const out: string[] = []
+  for (let i = top; i < lines.length; i++) {
+    const line = lines[i]!
+    const ch = line[left]
+    if (i > top && ch !== '│' && ch !== '╰' && line.slice(0, right + 1).trim() !== '') break
+    out.push(line.slice(right + 1).trim())
+  }
+  return out
 }
-const paneText = (lines: string[], title: string, width: number): string => collapse(paneLines(lines, title, width).join(' '))
-const DETAIL_PANE = 'SETTING DETAIL'
-const DETAIL_PANE_WIDTH = 46
+const paneText = (lines: string[]): string => collapse(paneLines(lines).join(' '))
 const rowOf = (lines: string[]): string => lines.find(line => new RegExp(`❯ ${LABEL}\\s+(?:on|off)\\s`).test(line)) ?? ''
 
 async function openBootFace(): Promise<Mounted> {
@@ -50,7 +56,7 @@ async function openBootFace(): Promise<Mounted> {
     React.createElement(ThemeProvider as never, {}, React.createElement(boot.BootSettingsScreen as never, { fullScene: { columns: COLS, rows: ROWS }, onClose: () => {} })),
   )
   const m = await mountOffscreen(element, COLS, ROWS)
-  await waitFor(() => m.screen().includes('CONTROL PLANE'), 4000)
+  await waitFor(() => m.screen().includes('TRUST COMBO'), 4000)
   await settle(250)
   return m
 }
@@ -88,20 +94,20 @@ console.log('§2 the Boot Settings face: the row selected, its detail pane, ↵ 
   const rowAt = lines.indexOf(row)
   check('the row sits under AGENTS after Crewmates and before JEV', rowAt > 0 && /│\s+Crewmates\s/.test(lines[rowAt - 1] ?? '') && (lines[rowAt + 1] ?? '').includes('JEV'), `${lines[rowAt - 1] ?? ''} / ${row} / ${lines[rowAt + 1] ?? ''}`, 'withJevRow in src/screen/boot-face/BootSettingsScreen.tsx must keep the row directly after Crewmates and directly before JEV')
   check("the row's value column reads off", new RegExp(`❯ ${LABEL}\\s+off\\s`).test(row), row, 'the row value column must read off while the leaf is unset; see backgroundLaunchValueWords in src/daemon/switchboard/backgroundLaunch.ts')
-  const pane = paneText(lines, DETAIL_PANE, DETAIL_PANE_WIDTH)
+  const pane = paneText(lines)
   check('the detail pane names what it controls in the operator\'s words', pane.includes('What it controls') && pane.includes('Whether a session left in the background may launch crewmates when its brief says so, as a focused one does.'), pane, 'the detail pane must show the controls text of BACKGROUND_LAUNCH_MENU_ROW in src/daemon/switchboard/backgroundLaunch.ts')
   check('the pane carries the current value and the detail lines (now: off (default), the doors)', pane.includes('Current value off') && pane.includes('now: off (default)') && pane.includes('doors: /config · Boot Menu (one switch)'), pane, 'backgroundLaunchBootDetailLines in src/screen/boot-face/settings/detailLines.ts must show the current value, the now line and the doors line')
   check('the pane lists the on and off effects, whole', pane.includes('When on') && pane.includes('launches crewmates without your visit') && pane.includes('its own switch still rules first') && pane.includes('When off') && pane.includes('waits for your visit or the crewmates-allowed tag') && pane.includes('the launch refusal names this row'), pane, 'the detail pane must show the on and off lists of BACKGROUND_LAUNCH_MENU_ROW in src/daemon/switchboard/backgroundLaunch.ts')
-  check('no detail line is clipped with an ellipsis', !paneLines(lines, DETAIL_PANE, DETAIL_PANE_WIDTH).some(line => line.endsWith('…')), paneLines(lines, DETAIL_PANE, DETAIL_PANE_WIDTH).filter(line => line.endsWith('…')).join(' | '), 'shorten the detail lines in src/daemon/switchboard/backgroundLaunch.ts so none is clipped at the SETTING DETAIL width')
+  check('no detail line is clipped with an ellipsis', !paneLines(lines).some(line => line.endsWith('…')), paneLines(lines).filter(line => line.endsWith('…')).join(' | '), 'shorten the detail lines in src/daemon/switchboard/backgroundLaunch.ts so none is clipped at the detail width')
   await press(m, KEY.enter, 300)
   check('↵ turns it on through the one writer: the file carries the leaf true', stored() === true && setting.backgroundSessionsLaunchCrewmates() === true, String(stored()), 'commitBackgroundLaunchOf in src/screen/boot-face/settings/commits.ts must write the leaf true through setBackgroundSessionsLaunchCrewmates when enter is pressed on the row')
   const after = m.lines()
   check('the value column now reads on', new RegExp(`❯ ${LABEL}\\s+on\\s`).test(rowOf(after)), rowOf(after), 'the Boot Settings face in src/screen/boot-face/BootSettingsScreen.tsx must re-read backgroundSessionsLaunchCrewmates after the commit')
-  check("the status bar carries the owner's receipt", has(after, `${LABEL} on — backgrounded sessions launch as a focused one does`), after.filter(line => line.includes('System ready')).join(' | '), 'backgroundLaunchReceiptWords in src/daemon/switchboard/backgroundLaunch.ts and commitBackgroundLaunchOf in src/screen/boot-face/settings/commits.ts must produce the status bar receipt')
-  check('the pane now reads now: on', paneText(after, DETAIL_PANE, DETAIL_PANE_WIDTH).includes('now: on'), '', 'backgroundLaunchBootDetailLines in src/screen/boot-face/settings/detailLines.ts must be rebuilt with the new value after the commit')
+  check("the status bar carries the owner's receipt", has(after, `${LABEL} on — backgrounded sessions launch as a focused one does`), after.slice(-3).join(' | '), 'backgroundLaunchReceiptWords in src/daemon/switchboard/backgroundLaunch.ts and commitBackgroundLaunchOf in src/screen/boot-face/settings/commits.ts must produce the status bar receipt')
+  check('the pane now reads now: on', paneText(after).includes('now: on'), '', 'backgroundLaunchBootDetailLines in src/screen/boot-face/settings/detailLines.ts must be rebuilt with the new value after the commit')
   check('boot-env.json never carries the switch (the row is config-backed)', !existsSync(join(HOME, 'boot-env.json')) || !readFileSync(join(HOME, 'boot-env.json'), 'utf8').includes(KEY_NAME), '', 'the row is config-backed: its commit in src/screen/boot-face/settings/commits.ts must not write the key to boot-env.json')
   await press(m, KEY.enter, 300)
-  check('a second ↵ turns it off and the key leaves the file', stored() === undefined && setting.backgroundSessionsLaunchCrewmates() === false && has(m.lines(), `${LABEL} off — backgrounded sessions wait for a visit or the tag`), m.lines().filter(line => line.includes('System ready')).join(' | '), 'a second enter must turn the leaf off and remove the key through setBackgroundSessionsLaunchCrewmates in src/daemon/switchboard/backgroundLaunch.ts, with the off receipt in the status bar')
+  check('a second ↵ turns it off and the key leaves the file', stored() === undefined && setting.backgroundSessionsLaunchCrewmates() === false && has(m.lines(), `${LABEL} off — backgrounded sessions wait for a visit or the tag`), m.lines().slice(-3).join(' | '), 'a second enter must turn the leaf off and remove the key through setBackgroundSessionsLaunchCrewmates in src/daemon/switchboard/backgroundLaunch.ts, with the off receipt in the status bar')
   await press(m, KEY.right, 300)
   check('→ turns it on again', stored() === true, '', 'the right arrow on the row must commit on through commitBackgroundLaunchOf in src/screen/boot-face/settings/commits.ts')
   await press(m, '\x7f', 300)

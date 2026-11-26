@@ -1,19 +1,19 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH               │                                                                                              │
-  no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-                        │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-NEXT                    │ │ project · 84 settings · 2 set by you                                                     │ │
-  · /health — health…   │ │                                                                                          │ │
-  · /memory — memory    │ │ / think                                                                                  │ │
-  · /mission — set a…   │ │                                                                                          │ │
+workbench               │                                                                                              │
+  no prompts yet        │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+                        │ │ Mercury · config                                                                         │ │
+next                    │ │ project · 84 settings · 2 set by you                                                     │ │
+  /health               │ │                                                                                          │ │
+  /memory               │ │ / think                                                                                  │ │
+  /mission              │ │                                                                                          │ │
                         │ │ › Thinking                          n/a — Opus 5.5 keeps thinking on                     │ │
-FILES · project         │ │   This model thinks on every request; the setting cannot turn it off — /effort is the    │ │
-  ↵ or click · browse   │ │ lever.                                                                                   │ │
+files · project         │ │   This model thinks on every request; the setting cannot turn it off — /effort is the    │ │
+  ↵ browse              │ │ lever.                                                                                   │ │
                         │ │                                                                                          │ │
-VITALS                  │ │                                                                                          │ │
-  · spend —             │ │                                                                                          │ │
-  · ctx — · —           │ │                                                                                          │ │
-  · health — run /health│ │                                                                                          │ │
+vitals                  │ │                                                                                          │ │
+  spend —               │ │                                                                                          │ │
+  ctx — · —             │ │                                                                                          │ │
+  health — run /health  │ │                                                                                          │ │
                         │ │                                                                                          │ │
                         │ │                                                                                          │ │
                         │ │                                                                                          │ │

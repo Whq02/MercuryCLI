@@ -21,7 +21,7 @@ const CTRL_G = '\x07'
 const DOWN = '\x1b[B'
 const TITLE = 'Mercury · files'
 const HINT = '↑↓ move · ↵ open · → ← unfold · / filter'
-const FILES_BOX = ['╭────────────────────────────╮', '│ ▤ FILES · fixture-cwd      │', '│   ↵ or click · browse      │', '╰────────────────────────────╯']
+const FILES_BOX = ['╭────────────────────────────╮', '│ ▤ files · fixture-cwd      │', '│   ↵ browse                 │', '╰────────────────────────────╯']
 
 if (!existsSync(DIST)) {
   console.log(`  [SKIP] ${DIST} absent — build first`)
@@ -213,7 +213,7 @@ async function capture(name: string, cfg: Record<string, unknown>, env: NodeJS.P
 
 const gated = (data: string, awaitText: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ data, atTick: 999, awaitText, requireAwait: true, minTick: 1, awaitSettleTicks: 3, ...extra })
 const after = (data: string, ticks: number, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ data, afterPrevTicks: ticks, ...extra })
-const browseRowOpens = (): Record<string, unknown>[] => [gated(CLICK, 'or click', { awaitSettleTicks: 2, targetText: 'or click', targetDx: 2 }), after(CLICK, 4, { targetText: 'or click', targetDx: 2 })]
+const browseRowOpens = (): Record<string, unknown>[] => [gated(CLICK, '↵ browse', { awaitSettleTicks: 2, targetText: '↵ browse', targetDx: 2 }), after(CLICK, 4, { targetText: '↵ browse', targetDx: 2 })]
 const boot = (): Array<Record<string, unknown>> => [
   gated('\r', 'New Session', { minTick: 5, awaitStableTicks: 6, awaitSettleTicks: 4 }),
   gated('\x1b[I', 'shortcuts', { minTick: 2, awaitSettleTicks: 6 }),
@@ -221,11 +221,11 @@ const boot = (): Array<Record<string, unknown>> => [
 ]
 const railRoad = (): Array<Record<string, unknown>> => [
   after('\t', 2),
-  gated('\x1b[B', '❯ no prompts sent yet', { awaitSettleTicks: 4 }),
-  gated('\x1b[B', '❯ · /health', { awaitSettleTicks: 2 }),
-  gated('\x1b[B', '❯ · /memory', { awaitSettleTicks: 2 }),
-  gated('\x1b[B', '❯ · /mission', { awaitSettleTicks: 2 }),
-  gated('\r', '❯ ↵ or click · browse', { awaitSettleTicks: 2, mark: 'files-row' }),
+  gated('\x1b[B', '❯ no prompts yet', { awaitSettleTicks: 4 }),
+  gated('\x1b[B', '❯ /health', { awaitSettleTicks: 2 }),
+  gated('\x1b[B', '❯ /memory', { awaitSettleTicks: 2 }),
+  gated('\x1b[B', '❯ /mission', { awaitSettleTicks: 2 }),
+  gated('\r', '❯ ↵ browse', { awaitSettleTicks: 2, mark: 'files-row' }),
 ]
 const cfgFor = (cols: number, rows: number, cwd: string, sends: Array<Record<string, unknown>>): Record<string, unknown> => ({
   cols,
@@ -274,10 +274,10 @@ if (worlds.has('plain') || worlds.has('off')) {
     gated('\r', '❯ Alpha.tsx', { awaitSettleTicks: 2, mark: 'on-file' }),
     gated('\x1b', '@src/components/Alpha.tsx', { awaitSettleTicks: 4, mark: 'picked' }),
     after('\x1b', 2),
-    gated(CLICK, 'Type a prompt', { mark: 'draft-cleared', targetText: 'FILES · fixture-cwd' }),
+    gated(CLICK, 'Type a prompt', { mark: 'draft-cleared', targetText: 'files · fixture-cwd' }),
     gated('\x1b', TITLE, { awaitSettleTicks: 4, mark: 'command' }),
     after('', 6, { mark: 'esc-closed' }),
-    after(CLICK, 2, { targetText: 'FILES · fixture-cwd' }),
+    after(CLICK, 2, { targetText: 'files · fixture-cwd' }),
     gated(CLICK, TITLE, { awaitSettleTicks: 4, mark: 'click-open', targetText: 'lanes' }),
     after('', 6, { mark: 'click-closed' }),
     after('/model', 2),
@@ -295,12 +295,12 @@ if (worlds.has('plain') || worlds.has('off')) {
   const land = railRows(m.land)
   const boxAt = land.findIndex(r => r === FILES_BOX[1])
   tally.check('P2 the FILES box paints its four rows exactly, under the NEXT box', boxAt > 1 && [land[boxAt - 1], land[boxAt], land[boxAt + 1], land[boxAt + 2]].join('\n') === FILES_BOX.join('\n') && (land[boxAt - 2] ?? '').startsWith('╰') && (land[boxAt - 3] ?? '').includes('/mission'), land.slice(Math.max(0, boxAt - 3), boxAt + 3).join(' | '))
-  tally.check('P3 the rail row under the cursor reads the caret on the FILES row', railRows(m['files-row']).includes('│ ❯ ↵ or click · browse      │'), railRows(m['files-row']).filter(r => r.includes('browse')).join(' | '))
+  tally.check('P3 the rail row under the cursor reads the caret on the FILES row', railRows(m['files-row']).includes('│ ❯ ↵ browse                 │'), railRows(m['files-row']).filter(r => r.includes('browse')).join(' | '))
   const menu = menuRegion(m.menu)
   tally.check('P4 the menu opens over the chat at rows 5..20, columns 54..123, seventy wide', menu !== null && menu.top === 5 && menu.left === 54 && menu.right === 123 && menu.rows.length === 16, menu === null ? 'no menu' : `top ${menu.top} left ${menu.left} right ${menu.right} rows ${menu.rows.length}`)
   const expectedMenu = [
     '╭────────────────────────────────────────────────────────────────────╮',
-    '│ ▖▟▆▙▗ Mercury · files                                              │',
+    '│ Mercury · files                                                    │',
     '│ FIXTURE-CWD                                                        │',
     '│                                                                    │',
     '│ ❯ .mercury                                                         │',
@@ -331,8 +331,8 @@ if (worlds.has('plain') || worlds.has('off')) {
   tally.check('P13 a click on the FILES box opens the menu', menuRegion(m['click-open']) !== null)
   tally.check('P14 a click on the chat outside the menu closes it and nothing else moves', !(m['click-closed'] ?? '').includes(TITLE) && m['click-closed'] === m['esc-closed'], m['click-closed'] === m['esc-closed'] ? '' : 'the frame after the click differs from the frame after esc')
   tally.check('P15 the model picker opened over the chat', (m.picker ?? '').includes('Mercury · model'))
-  tally.check('P16 a click on the dimmed chat beside the picker closes it and the chat returns', !(m['picker-clicked'] ?? '').includes('Mercury · model') && (m['picker-clicked'] ?? '').includes('no prompts sent yet'), rowsOf(m['picker-clicked']).slice(0, 8).join('\n'))
-  tally.check('P17 the picker opens again and esc closes it', (m['picker-again'] ?? '').includes('Mercury · model') && !(m['picker-esc'] ?? '').includes('Mercury · model') && (m['picker-esc'] ?? '').includes('no prompts sent yet'), rowsOf(m['picker-esc']).slice(0, 8).join('\n'))
+  tally.check('P16 a click on the dimmed chat beside the picker closes it and the chat returns', !(m['picker-clicked'] ?? '').includes('Mercury · model') && (m['picker-clicked'] ?? '').includes('no prompts yet'), rowsOf(m['picker-clicked']).slice(0, 8).join('\n'))
+  tally.check('P17 the picker opens again and esc closes it', (m['picker-again'] ?? '').includes('Mercury · model') && !(m['picker-esc'] ?? '').includes('Mercury · model') && (m['picker-esc'] ?? '').includes('no prompts yet'), rowsOf(m['picker-esc']).slice(0, 8).join('\n'))
   if (KEEP) console.log(`world kept: ${home} ${cwd}`)
 }
 
@@ -370,7 +370,7 @@ if (worlds.has('off')) {
   const m = cap.marks
   tally.section('off · 178x51 · the setting off restores the rail as shipped')
   tally.check('O1 every send became due', cap.receipts === cap.sends && cap.status === 0, `${cap.receipts}/${cap.sends} · status ${cap.status} · end ${cap.endReason} · ${cap.stderr.slice(-300)}`)
-  tally.check('O2 no FILES box anywhere', !(m.land ?? '').includes('FILES'))
+  tally.check('O2 no FILES box anywhere', !(m.land ?? '').includes('files ·'))
   const plainLand = railRows(frames.plain?.marks.land)
   const boxAt = plainLand.findIndex(r => r === FILES_BOX[1])
   const plainWithoutBox = boxAt > 0 ? plainLand.map((row, i) => (i >= boxAt - 1 && i <= boxAt + 2 ? '' : row)) : []
@@ -409,7 +409,7 @@ if (worlds.has('small')) {
     const m = cap.marks
     tally.section(`plain · ${label} · the box and the menu fit`)
     tally.check(`${label} S1 every send became due`, cap.receipts === cap.sends && cap.status === 0, `${cap.receipts}/${cap.sends} · status ${cap.status} · end ${cap.endReason} · ${cap.stderr.slice(-300)}`)
-    tally.check(`${label} S2 the rail carries the FILES section and its row`, (m.land ?? '').includes('FILES · fixture-cwd') && /↵ or click(?: · browse|…)/.test(m.land ?? ''), rowWith(m.land, 'or click') ?? '(no row)')
+    tally.check(`${label} S2 the rail carries the FILES section and its row`, (m.land ?? '').includes('files · fixture-cwd') && /↵ browse/.test(m.land ?? ''), rowWith(m.land, 'browse') ?? '(no row)')
     const menu = menuRegion(m.menu)
     const composerAt = rowIndexWith(m.menu, 'Type a prompt')
     tally.check(`${label} S3 the menu fits inside the chat pane with its hint row and bottom border`, menu !== null && menu.rows[menu.rows.length - 1]?.startsWith('╰') === true && menu.rows.some(r => r.includes(HINT.slice(0, 20))) && menu.top + menu.rows.length < composerAt - 1, menu === null ? 'no menu' : `top ${menu.top} rows ${menu.rows.length} composer at ${composerAt}`)
@@ -433,7 +433,7 @@ if (worlds.has('hop')) {
       after('\r', 4),
       after('\r', 4),
       gated('', '← back', { awaitSettleTicks: 6, mark: 'hopped' }),
-      ...(cols >= 178 ? [gated(CLICK, 'FILES · fixture-cwd', { awaitSettleTicks: 2, targetText: 'FILES · fixture-cwd', targetDx: 1 })] : browseRowOpens()),
+      ...(cols >= 178 ? [gated(CLICK, 'files · fixture-cwd', { awaitSettleTicks: 2, targetText: 'files · fixture-cwd', targetDx: 1 })] : browseRowOpens()),
       gated('', TITLE, { awaitSettleTicks: 4, mark: 'hop-menu' }),
       after(DOWN, 2),
       after(DOWN, 2),
@@ -447,7 +447,7 @@ if (worlds.has('hop')) {
     tally.section(`hop · ${label} · the session of one project focused while the screen's ground is another: the FILES box and the tree follow the session`)
     tally.check(`${label} H1 every send became due`, cap.receipts === cap.sends && cap.status === 0, `${cap.receipts}/${cap.sends} · status ${cap.status} · end ${cap.endReason} · ${cap.stderr.slice(-300)}`)
     tally.check(`${label} H2 the board of the other folder carries the focused session of fixture-cwd as its selected row`, rowsOf(m['board-b']).some(r => r.includes('▸') && /✦.*fixture[-…]/.test(r)) && rowsOf(m['board-b']).some(r => r.includes('other-cwd ⌄')), rowsOf(m['board-b']).filter(r => r.includes('✦')).join(' | ') || '(no carried row)')
-    tally.check(`${label} H3 after the hop back into it, the FILES box names the session's folder, fixture-cwd, not the ground's`, /FILES · fixture-cwd/.test(m.hopped ?? '') && !/FILES · other-cwd/.test(m.hopped ?? ''), rowWith(m.hopped, 'FILES ·') ?? '(no FILES row)')
+    tally.check(`${label} H3 after the hop back into it, the FILES box names the session's folder, fixture-cwd, not the ground's`, /files · fixture-cwd/.test(m.hopped ?? '') && !/files · other-cwd/.test(m.hopped ?? ''), rowWith(m.hopped, 'files ·') ?? '(no FILES row)')
     const menu = menuRegion(m['hop-menu'])
     tally.check(`${label} H4 the tree opens on the session's folder: the folder line reads FIXTURE-CWD and the rows are its files`, menu !== null && menu.rows.some(r => r.startsWith('│ FIXTURE-CWD')) && menu.rows.some(r => r.includes('▸ src')) && menu.rows.some(r => r.includes('README.md')) && !menu.rows.some(r => r.includes('▸ lib') || r.includes('NOTES.md')), menu === null ? 'no menu' : menu.rows.slice(1, 8).join('\n'))
     tally.check(`${label} H5 ↵ on README.md puts the session folder's path in the composer`, rowsOf(m.picked).some(r => r.includes('│❯ @README.md')) && !(m.picked ?? '').includes(TITLE), rowWith(m.picked, '❯ @') ?? '(no @ in the composer)')

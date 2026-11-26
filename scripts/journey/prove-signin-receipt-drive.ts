@@ -251,7 +251,7 @@ function faceSends(): Send[] {
   return [
     { requireAwait: true, minTick: 3, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, data: '\x1b[B', mark: 'face-before' },
     { afterPrevTicks: 3, data: '\r' },
-    { requireAwait: true, awaitText: 'CONTROL PLANE', awaitSettleTicks: 4, data: '\r', mark: 'roster-before' },
+    { requireAwait: true, awaitText: 'Families', awaitSettleTicks: 4, data: '\r', mark: 'roster-before' },
     { requireAwait: true, awaitText: 'Claude subscription — browser sign-in', awaitSettleTicks: 3, data: '\r', mark: 'pick' },
     { requireAwait: true, awaitText: 'Signed in as', awaitSettleTicks: 5, data: '\r', mark: 'pane' },
     { afterPrevTicks: 8, data: '', mark: 'roster' },
