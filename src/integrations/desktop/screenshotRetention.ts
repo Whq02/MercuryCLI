@@ -40,17 +40,19 @@ function isScreenshotResult(
   return block.content.some(nested => nested.type === 'image')
 }
 
-const SCREENSHOT_LINE = /screenshot: (.+?) — display \d/
+const SCREENSHOT_LINE = /screenshot: (.+?) — display \d/g
 
-function screenshotPathOf(block: ToolResultBlockParam & { content: ResultBlock[] }): string {
-  const registered = screenshotPathForToolUse(block.tool_use_id)
-  if (registered !== null) return registered
+function screenshotPathsOf(block: ToolResultBlockParam & { content: ResultBlock[] }): string[] {
+  const found: string[] = []
   for (const nested of block.content) {
     if (nested.type !== 'text') continue
-    const match = SCREENSHOT_LINE.exec(nested.text)
-    if (match?.[1]) return match[1]
+    for (const match of nested.text.matchAll(SCREENSHOT_LINE)) {
+      if (match[1]) found.push(match[1])
+    }
   }
-  return ''
+  if (found.length > 0) return found
+  const registered = screenshotPathForToolUse(block.tool_use_id)
+  return [registered ?? '']
 }
 
 export function computerToolUseIdsBefore(transcript: readonly Message[], index: number): ReadonlySet<string> {
@@ -68,10 +70,17 @@ export function computerToolUseIdsBefore(transcript: readonly Message[], index: 
   return ids
 }
 
-function withImagesReplaced(block: ToolResultBlockParam & { content: ResultBlock[] }, text: string): ToolResultBlockParam {
+function withImagesReplaced(block: ToolResultBlockParam & { content: ResultBlock[] }, labelForPath: (filePath: string) => string): ToolResultBlockParam {
+  const paths = screenshotPathsOf(block)
+  let imageIndex = 0
   return {
     ...block,
-    content: block.content.map(nested => (nested.type === 'image' ? { type: 'text' as const, text } : nested)),
+    content: block.content.map(nested => {
+      if (nested.type !== 'image') return nested
+      const filePath = paths[imageIndex] ?? paths[paths.length - 1] ?? ''
+      imageIndex += 1
+      return { type: 'text' as const, text: labelForPath(filePath) }
+    }),
   }
 }
 
@@ -89,7 +98,7 @@ export function projectForTranscript<M extends Message>(message: M, transcript: 
   const projected = blocks.map(block => {
     if (!isScreenshotResult(block, paired)) return block
     touched = true
-    return withImagesReplaced(block, screenshotStubText(screenshotPathOf(block)))
+    return withImagesReplaced(block, screenshotStubText)
   })
   return touched ? rebuildUser(message, projected) : message
 }
@@ -124,14 +133,19 @@ export function rehydrateScreenshots<M extends Message>(messages: M[]): M[] {
     const rebuilt = blocks.map(block => {
       if (block.type !== 'tool_result' || !Array.isArray(block.content)) return block
       const parts = block.content as ResultBlock[]
-      const at = parts.findIndex(part => stubPathOf(part) !== null)
-      if (at === -1) return block
-      const file = stubPathOf(parts[at]!)!
-      const image = imageBlockFromFile(file)
-      if (image === null) return block
-      noteScreenshot(null, block.tool_use_id, file)
+      let blockTouched = false
+      const mapped = parts.map(part => {
+        const file = stubPathOf(part)
+        if (file === null) return part
+        const image = imageBlockFromFile(file)
+        if (image === null) return part
+        noteScreenshot(null, block.tool_use_id, file)
+        blockTouched = true
+        return image
+      })
+      if (!blockTouched) return block
       touched = true
-      return { ...block, content: parts.map((part, index) => (index === at ? image : part)) }
+      return { ...block, content: mapped }
     })
     if (!touched) return message
     changed = true
@@ -230,7 +244,7 @@ export function retireOlderScreenshots<M extends Message>(
     const rebuilt = blocks.map(block => {
       if (!isScreenshotResult(block) || !ids.has(block.tool_use_id)) return block
       edits.push({ index, key: `retired:${block.tool_use_id}` })
-      return withImagesReplaced(block, earlierScreenshotText(screenshotPathForToolUse(block.tool_use_id) ?? ''))
+      return withImagesReplaced(block, earlierScreenshotText)
     })
     return rebuildUser(message, rebuilt)
   })

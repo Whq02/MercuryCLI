@@ -7,17 +7,21 @@ import type { ScreenMap } from '../screenMap.js'
 import type { Input, Output } from '../call/schema.js'
 import type { Shot } from '../call/shot.js'
 
+interface AdoptedShot {
+  line: string
+  imagePath: string
+  inlinePath?: string
+  inlineMediaType?: string
+  screen: ScreenMap
+}
+
 export interface CallRun {
   result?: string
   outcome: ToolEffectOutcome
-  imagePath?: string
-  inlinePath?: string
-  inlineMediaType?: string
-  screen?: ScreenMap
+  shots: AdoptedShot[]
   claimedForAct: boolean
   contentShown: boolean
 }
-
 export type ComputerAnswer = { data: Output; effect: ToolEffect }
 
 export type ComputerDoor = {
@@ -38,7 +42,7 @@ export interface RoadNeeds {
   driver: DesktopDriver
   canUseTool: CanUseToolFn | undefined
   parentAssistantMessage: AssistantMessage | undefined
-  takeShot: (wanted: number | undefined, label: string | undefined, settleMs?: number, observe?: DesktopBounds) => Promise<Shot>
+  takeShot: (wanted: number | undefined, label: string | undefined, settleMs?: number, observe?: DesktopBounds, compareMap?: ScreenMap | null) => Promise<Shot>
   adoptShot: (shot: Extract<Shot, { ok: true }>) => void
   shotLines: Set<string>
   finish: () => ComputerAnswer

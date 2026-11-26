@@ -114,13 +114,14 @@ export async function withScreenshot(
   return { context, toolUseId: recorded, result: out.result, outcome: out.outcome, messages, screen: out.screen ?? {} }
 }
 
-export function resultOf(answer: unknown): { result: string; outcome: string; imagePath?: string; inlinePath?: string; screen?: Record<string, unknown> } {
+export function resultOf(answer: unknown): { result: string; outcome: string; imagePath?: string; inlinePath?: string; images?: Array<{ imagePath: string; inlinePath?: string; inlineMediaType?: string }>; screen?: Record<string, unknown> } {
   const data = (answer as { data?: Record<string, unknown> }).data ?? {}
   return {
     result: String(data.result ?? ''),
     outcome: String(data.outcome ?? ''),
     ...(typeof data.imagePath === 'string' ? { imagePath: data.imagePath } : {}),
     ...(typeof data.inlinePath === 'string' ? { inlinePath: data.inlinePath } : {}),
+    ...(Array.isArray(data.images) ? { images: data.images as Array<{ imagePath: string; inlinePath?: string; inlineMediaType?: string }> } : {}),
     ...(data.screen && typeof data.screen === 'object' ? { screen: data.screen as Record<string, unknown> } : {}),
   }
 }

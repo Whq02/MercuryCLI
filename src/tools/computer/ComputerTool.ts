@@ -21,7 +21,6 @@ import { modeBypassesPermissions } from '../../permissions/rules/permissionMode.
 import { getSessionId } from '../../boot/process-state/processState.js'
 import { COMPUTER_TOOL_NAME } from '../../integrations/desktop/toolName.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './rows.js'
-import { imageResultBlock } from '../browser/BrowserTool.js'
 import { COMPUTER_PROMPT } from './prompt.js'
 import type { OwnerKey } from '../../engine/run-owner/ownerKey.js'
 import type { PermissionDecision, ToolPermissionContext } from '../../permissions/rules/permissions.js'
@@ -44,7 +43,7 @@ import {
 } from './call/schema.js'
 import { challengeAction, challengeVerdict, isPlanRefusal, ownTerminalRefusal, planOf } from './call/plan.js'
 import { actDetail, faultText } from './call/act.js'
-import { denied, routeRefusal, ruleFor, ruleVerdict } from './call/shot.js'
+import { computerResultBlock, denied, routeRefusal, ruleFor, ruleVerdict } from './call/shot.js'
 import { computerCall } from './call/call.js'
 
 export { COMPUTER_TOOL_NAME }
@@ -195,7 +194,7 @@ export const ComputerTool = buildTool({
   call(input: Input, context: ToolUseContext, canUseTool?: CanUseToolFn, parentAssistantMessage?: AssistantMessage): Promise<{ data: Output; effect: ToolEffect }> {
     return computerCall(ComputerTool, input, context, canUseTool, parentAssistantMessage)
   },
-  mapToolResultToToolResultBlockParam: imageResultBlock,
+  mapToolResultToToolResultBlockParam: computerResultBlock,
   renderToolUseMessage,
   renderToolUseErrorMessage,
   renderToolResultMessage,

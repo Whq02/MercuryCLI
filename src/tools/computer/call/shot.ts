@@ -1,6 +1,8 @@
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { ToolUseContext } from '../../kit/tool.js'
+import { errorMessage } from '../../../platform/errors/errors.js'
+import { imageResultBlock } from '../../browser/BrowserTool.js'
 import { imageDimensionsFromHeader } from '../../../platform/images/imageProcessorJs.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../../platform/images/imageResizer.js'
 import { getImageProcessor } from '../../../platform/images/imageProcessor.js'
@@ -30,7 +32,7 @@ import { COMPUTER_TOOL_NAME } from '../../../integrations/desktop/toolName.js'
 import type { AssistantMessage, Message } from '../../../engine/message-shapes/message.js'
 import { type ScreenMap, isPixelOutside, pointOfPixel, screenMapOfCapture, screenMapSizeWords } from '../screenMap.js'
 import { type CaptureRegion, regionRefusal, sameWindow, settledCapture, windowOnDisplay } from '../fastRoad.js'
-import { NO_SCREENSHOT, SCREENSHOT_GONE, SCREENSHOT_UNSEEN } from './schema.js'
+import { NO_SCREENSHOT, type Output, SCREENSHOT_GONE, SCREENSHOT_UNSEEN } from './schema.js'
 import { faultText } from './act.js'
 import { factsLine } from './words.js'
 
@@ -81,6 +83,7 @@ export async function takeScreenshot(
   requestedScale?: number,
   publish = true,
   sameMessage: ReadonlySet<string> = new Set(),
+  compareMap?: ScreenMap | null,
 ): Promise<Shot> {
   const displays = await driver.displays()
   if (!displays.ok) return { ok: false, aborted: false, text: faultText('screenshot', displays.error) }
@@ -157,7 +160,8 @@ export async function takeScreenshot(
   }
   const screen = screenMapOfCapture(toolUseId, capture, captured.points, image)
   if (region || window) screen.region = true
-  const changedFrame = map !== null && ['displayId', 'originX', 'originY', 'pointWidth', 'pointHeight', 'imageWidth', 'imageHeight'].some(key => map[key as keyof ScreenMap] !== screen[key as keyof ScreenMap])
+  const priorMap = compareMap !== undefined ? compareMap : map
+  const changedFrame = priorMap !== null && ['displayId', 'originX', 'originY', 'pointWidth', 'pointHeight', 'imageWidth', 'imageHeight'].some(key => priorMap[key as keyof ScreenMap] !== screen[key as keyof ScreenMap])
   const scale = `scale ${(screen.imageWidth / screen.pointWidth).toFixed(3)} px/pt (native fraction ${factor}${image.width !== dimensions.width || image.height !== dimensions.height ? '; resized for the model route' : ''})`
   const frameWords = `${scale}${changedFrame ? '; frame changed: display, region or route image limits changed — previous coordinates do not apply' : ''}${region || window ? `; coordinates now refer to this ${region ? 'region' : 'window'} (origin ${screen.originX},${screen.originY} pt); full:true takes a full screenshot of the display` : ''}`
   if (publish) setScreen(owner, screen)
@@ -218,4 +222,36 @@ export function ruleVerdict(permissionContext: ToolPermissionContext | undefined
 
 export function denied(message: string, reason: string) {
   return { behavior: 'deny' as const, message, decisionReason: { type: 'other' as const, reason } }
+}
+
+export function computerResultBlock(output: Output, toolUseId: string) {
+  const list = output.images
+  if (!list || list.length <= 1) return imageResultBlock(output, toolUseId)
+  if (!modelReceivesImageBlocks(getEngineModel())) {
+    return {
+      tool_use_id: toolUseId,
+      type: 'tool_result' as const,
+      content: `${output.result}\n(images not inlined — this model takes no image input; open the files to view them)`,
+    }
+  }
+  const blocks: Array<{ type: 'text'; text: string } | { type: 'image'; source: { type: 'base64'; media_type: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'; data: string } }> = [
+    { type: 'text', text: output.result },
+  ]
+  const notes: string[] = []
+  for (const image of list) {
+    const filePath = image.inlinePath ?? image.imagePath
+    try {
+      const bytes = readFileSync(filePath)
+      const mediaType = (image.inlinePath ? (image.inlineMediaType ?? 'image/png') : 'image/png') as 'image/png'
+      blocks.push({ type: 'image', source: { type: 'base64', media_type: mediaType, data: bytes.toString('base64') } })
+    } catch (error) {
+      notes.push(`(image not inlined — could not read ${filePath} (${errorMessage(error)}))`)
+    }
+  }
+  if (notes.length > 0) blocks[0] = { type: 'text', text: `${output.result}\n${notes.join('\n')}` }
+  return {
+    tool_use_id: toolUseId,
+    type: 'tool_result' as const,
+    content: blocks,
+  }
 }
