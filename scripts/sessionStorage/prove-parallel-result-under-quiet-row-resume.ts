@@ -22,6 +22,10 @@ const { loadConversationForResume } = await import('../../src/sessions/resume/co
 const { loadTranscriptFile, pruneRecordBranchesBeforeParse } = await import('../../src/sessions/transcripts/loading.ts')
 const { SKIP_BEFORE_FOLD_BOUNDARY_THRESHOLD } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
 const { buildConversationChain, buildScreenConversation } = await import('../../src/sessions/transcripts/chain.ts')
+const { SNAPSHOT_SCHEMA, snapshotPathFor, tryLoadResumeSnapshot } = await import(
+  '../../src/sessions/transcripts/resumeSnapshot.ts'
+)
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
 const { _resetTranscriptReaderForTesting } = await import('../../src/sessions/transcripts/transcriptReader.ts')
 const { createTranscriptRows, transcriptRows } = await import('../../src/sessions/transcripts/rowGraph.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
@@ -733,6 +737,123 @@ try {
       gateBuf.length > SKIP_BEFORE_FOLD_BOUNDARY_THRESHOLD && gatePruned === gateBuf && sidGate.length > 0,
       `total=${gateBuf.length} pruned=${gatePruned.length}`,
     )
+  }
+
+  section('§7 stale 1.1.0 resume snapshot (schemaVersion 6) is discarded so the rebuilt fold keeps the quiet-row tool result')
+  {
+    const sidSnap = startFreshSession()
+    const askSnap = 'stale-snapshot: launch two calls'
+    const u1 = atNextTick(createUserMessage({ content: askSnap }))
+    const msgId = 'msg_stale_snap'
+    const callA = 'toolu_snap_a'
+    const callB = 'toolu_snap_b'
+    const aCall = toolUseRow(msgId, callA, 'Crewmate', { description: 'seat-a', prompt: 'a' })
+    const bCall = toolUseRow(msgId, callB, 'Crewmate', { description: 'seat-b', prompt: 'b' })
+    const q1 = atNextTick(createSystemMessage('Swarm launched', 'info'))
+    const q2 = atNextTick(createSystemMessage('seat-b joined', 'info'))
+    const bRes = toolResultRow(callB, bCall.uuid, 'report from seat-b')
+    const aRes = toolResultRow(callA, aCall.uuid, 'report from seat-a')
+    const reply = atNextTick(createAssistantMessage({ content: 'both landed.' }))
+    reply.message.stop_reason = 'end_turn'
+
+    await recordTranscript([u1, aCall, bCall])
+    await recordTranscript([q1])
+    await recordTranscript([q2])
+    await recordTranscript([bRes])
+    await recordTranscript([aRes])
+    await recordTranscript([reply])
+    await flushSessionStorage()
+
+    const srcLines = readFileSync(getTranscriptPath(), 'utf8').split('\n').filter(Boolean)
+    const promptAt = srcLines.findIndex(line => line.includes(askSnap))
+    const promptObj = JSON.parse(srcLines[promptAt]!) as {
+      recordId?: string
+      annotations?: Record<string, unknown>
+      payload?: Record<string, unknown>
+    }
+    const deadId = randomUUID()
+    const deadLine = JSON.stringify({
+      ...promptObj,
+      recordId: deadId,
+      annotations: { ...promptObj.annotations, uuid: deadId },
+      payload: { ...promptObj.payload, content: 'abandoned paste for stale snapshot. '.repeat(160_000) },
+    })
+    const bigSnapFile = join(home, `${sidSnap}-big-stale.jsonl`)
+    const paddedText = [...srcLines.slice(0, promptAt + 1), deadLine, ...srcLines.slice(promptAt + 1)].join('\n') + '\n'
+    writeFileSync(bigSnapFile, paddedText)
+
+    const prevSnap = process.env.MERCURY_RESUME_SNAPSHOT
+    delete process.env.MERCURY_RESUME_SNAPSHOT
+    try {
+      _resetTranscriptReaderForTesting()
+      await loadTranscriptFile(bigSnapFile)
+      const sidecar = snapshotPathFor(bigSnapFile)
+      const snapObj = JSON.parse(readFileSync(sidecar, 'utf8')) as {
+        schemaVersion: number
+        byteCursor: number
+        historyPart?: string
+        prefixDigest: string
+        fold: { messages: { '«map»': Array<[string, unknown]> } }
+        order: string[]
+      }
+      const droppedBy110 = new Set<string>([q2.uuid, bRes.uuid])
+      const stale110Snapshot = {
+        ...snapObj,
+        schemaVersion: 6,
+        fold: {
+          ...snapObj.fold,
+          messages: {
+            '«map»': snapObj.fold.messages['«map»'].filter(([id]) => !droppedBy110.has(id)),
+          },
+        },
+        order: snapObj.order.filter(id => !droppedBy110.has(id)),
+      }
+      writeFileSync(sidecar, JSON.stringify(stale110Snapshot))
+
+      check(
+        'SNAPSHOT_SCHEMA moved past 1.1.0 schema 6 and rejects the stale 1.1.0 snapshot',
+        SNAPSHOT_SCHEMA > 6 && (await tryLoadResumeSnapshot(bigSnapFile, true)) === null,
+        `SNAPSHOT_SCHEMA=${SNAPSHOT_SCHEMA}`,
+      )
+
+      _resetTranscriptReaderForTesting()
+      const rebuiltResume = await loadConversationForResume(sidSnap, bigSnapFile)
+      const rebuiltStats = extractCallsAndResults(rebuiltResume?.messages ?? [])
+      const rebuiltById = new Map(rebuiltStats.results.map(r => [r.id, r]))
+      check(
+        'resuming with a stale 1.1.0 snapshot on disk rebuilds from the file and restores both calls and reports',
+        rebuiltStats.calls.includes(callA) &&
+          rebuiltStats.calls.includes(callB) &&
+          rebuiltById.get(callB)?.content === 'report from seat-b',
+        JSON.stringify(rebuiltStats),
+      )
+
+      const uNext = atNextTick(createUserMessage({ content: 'one more turn after upgrade' }))
+      const aNext = atNextTick(createAssistantMessage({ content: 'next reply.' }))
+      aNext.message.stop_reason = 'end_turn'
+      const appendedLines = [
+        encodeTranscriptLine(bigSnapFile, { ...uNext, parentUuid: reply.uuid, isSidechain: false, cwd: workdir, sessionId: sidSnap, version: '1.1.1' }).line,
+        encodeTranscriptLine(bigSnapFile, { ...aNext, parentUuid: uNext.uuid, isSidechain: false, cwd: workdir, sessionId: sidSnap, version: '1.1.1' }).line,
+      ].join('')
+      writeFileSync(bigSnapFile, paddedText + appendedLines)
+
+      _resetTranscriptReaderForTesting()
+      const afterTurnResume = await loadConversationForResume(sidSnap, bigSnapFile)
+      const afterTurnStats = extractCallsAndResults(afterTurnResume?.messages ?? [])
+      const afterTurnById = new Map(afterTurnStats.results.map(r => [r.id, r]))
+      const renewed = JSON.parse(readFileSync(sidecar, 'utf8')) as { schemaVersion?: number }
+      check(
+        'after one more turn the session still holds both reports and a renewed snapshot stands under the new schema',
+        afterTurnStats.calls.includes(callB) &&
+          afterTurnById.get(callB)?.content === 'report from seat-b' &&
+          (afterTurnResume?.messages ?? []).some(m => m.uuid === aNext.uuid) &&
+          renewed.schemaVersion === SNAPSHOT_SCHEMA,
+        JSON.stringify({ schema: renewed.schemaVersion, results: afterTurnStats.results }),
+      )
+    } finally {
+      if (prevSnap === undefined) delete process.env.MERCURY_RESUME_SNAPSHOT
+      else process.env.MERCURY_RESUME_SNAPSHOT = prevSnap
+    }
   }
 } finally {
   rmSync(home, { recursive: true, force: true })
