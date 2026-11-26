@@ -46,11 +46,13 @@ export function registerScheduleSkill(): void {
       const cwd = getCwd()
       const trimmed = args.trim()
       const body = `Manage scheduled local agents. Schedules fire into this session (even when parked) via the local daemon under the user's own credentials with local tools — never cloud agents, and with no separate trigger object (to birth a brand-new scheduled session instead, the user presses \`a\` on \`/schedule\`).
+
 ${daemonLine}
 Project root: ${cwd}
 User time zone: ${timeZone}
 
 Tools: ${CRON_CREATE_TOOL_NAME} (\`cron\` + \`recurring\` for repeating, or \`at\` / \`delayMinutes\` for one-shot, plus optional \`title\` and \`onParked\`); ${CRON_LIST_TOOL_NAME}; ${CRON_DELETE_TOOL_NAME} (by id). Each schedule is a SESSION FACT on the durable session record, persisting across restarts.
+
 Cron format: 5-field expressions in local time (${timeZone}), never UTC-converted:
 - \`"0 9 * * 1-5"\` — 09:00 weekdays
 - \`"*/15 * * * *"\` — every 15 minutes

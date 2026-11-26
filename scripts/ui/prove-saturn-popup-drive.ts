@@ -263,7 +263,7 @@ for (const [cols, rows] of [[120, 40], [80, 24]] as Array<[number, number]>) {
     { requireAwait: true, awaitText: FACE_READY, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: ADMITTED, awaitSettleTicks: 2, data: DRAFT },
     { requireAwait: true, awaitText: DRAFT, awaitSettleTicks: 2, targetText: 'in 2h', targetDx: 1, data: CLICK },
-    { requireAwait: true, awaitText: '❯ lanes', awaitSettleTicks: 1, data: '\r' },
+    { requireAwait: true, awaitText: '❯ ◐', awaitSettleTicks: 1, data: '\r' },
     { requireAwait: true, awaitText: 'Mercury — saturn', awaitSettleTicks: 4, data: '', mark: 'open' },
     { requireAwait: true, awaitText: 'Mercury — saturn', awaitSettleTicks: 1, data: '\x1b' },
     { requireAwait: true, awaitText: DRAFT, awaitSettleTicks: 2, data: '', mark: 'closed' },

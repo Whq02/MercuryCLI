@@ -37,7 +37,9 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 
 const { initBundledSkills } = await import('../../src/integrations/skills/bundled/index.ts')
-const { builtinCommands, clearCommandsCache, findCommand, getCommands, getSkillToolCommands } = await import('../../src/commands/catalogue/commands.ts')
+const { builtinCommands, clearCommandsCache, findCommand, getCommands, getSkillToolCommands, getSlashCommandToolSkills } = await import('../../src/commands/catalogue/commands.ts')
+const { getInMemoryErrors } = await import('../../src/platform/logs/errorLog.ts')
+const { applyProcessSessionKitEdit, _resetSessionKitPinForTesting } = await import('../../src/integrations/mcp/sessionKitPin.ts')
 const { effectiveCatalogue } = await import('../../src/commands/catalogue/effectiveCatalogue.ts')
 const { SkillTool } = await import('../../src/tools/skill/SkillTool.ts')
 const { getSkillListingAttachments, resetSentSkillNames } = await import('../../src/engine/attachment-shapes/skillListing.ts')
@@ -92,17 +94,30 @@ try {
     `${JSON.stringify(surfaceSchedule)} — update COMMAND_DOMAINS in src/screen/help/commandDomains.ts and src/commands/saturn/index.ts`,
   )
 
+  const errsBefore = getInMemoryErrors().length
   const skillCommands = await getSkillToolCommands(cwd)
+  const slashSkills = await getSlashCommandToolSkills(cwd)
+  applyProcessSessionKitEdit({ skills: [{ name: 'loop', state: 'on' }] }, [])
+  try {
+    await getCommands(cwd)
+  } finally {
+    _resetSessionKitPinForTesting()
+  }
+  const newErrs = getInMemoryErrors().slice(errsBefore)
   const skillSchedule = findCommand('schedule', skillCommands)
+  const slashSchedule = findCommand('schedule', slashSkills)
   check(
-    'getSkillToolCommands still exposes the bundled schedule prompt skill for the model road',
-    skillSchedule !== undefined &&
+    'getSkillToolCommands and getSlashCommandToolSkills expose bundled schedule with zero collision errors (including getCommands under a kit)',
+    newErrs.length === 0 &&
+      skillSchedule !== undefined &&
       skillSchedule.type === 'prompt' &&
       skillSchedule.loadedFrom === 'bundled' &&
-      skillSchedule.description.startsWith('Use when '),
-    `${JSON.stringify(skillSchedule && { name: skillSchedule.name, type: skillSchedule.type, loadedFrom: skillSchedule.loadedFrom, desc: skillSchedule.description })} — keep bundled schedule visible in getSkillToolCommands (src/commands/catalogue/commands.ts)`,
+      skillSchedule.description.startsWith('Use when ') &&
+      slashSchedule !== undefined &&
+      slashSchedule.type === 'prompt' &&
+      slashSchedule.loadedFrom === 'bundled',
+    `errors=${newErrs.length} first=${JSON.stringify(newErrs[0]?.error.split('\n')[0])} schedule=${JSON.stringify(skillSchedule && { name: skillSchedule.name, type: skillSchedule.type, loadedFrom: skillSchedule.loadedFrom })} — add only built-in-displaced bundled skills in src/commands/catalogue/commands.ts`,
   )
-
   resetSentSkillNames()
   const listingCtx = {
     options: { tools: [SkillTool], engineModel: 'fixture-model' },

@@ -105,7 +105,7 @@ export type {
   PromptCommand,
   ResumeEntrypoint,
 } from './command.js'
-export { getCommandName } from './command.js'
+export { getCommandName, runsPromptWithArgs } from './command.js'
 export { commandOffInPlainWorld, isCommandEnabled } from './enablement.js'
 import { tellSessionStorageTheBuiltInCommands } from '../../sessions/transcripts/builtInCommands.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -323,9 +323,11 @@ function dedupeCommandsByName(commands: Command[]): Command[] {
   return deduped
 }
 
-function activeBundledSkills(): Command[] {
-  const kit = sessionKitOf()
-  return getBundledSkills()
+function readyCommands(
+  commands: readonly Command[],
+  kit: ReturnType<typeof sessionKitOf>,
+): Command[] {
+  return commands
     .filter(
       command =>
         meetsAvailabilityRequirement(command) &&
@@ -335,8 +337,16 @@ function activeBundledSkills(): Command[] {
     .map(command => withKitSkillMark(kit, command))
 }
 
+function displacedBundledSkills(): Command[] {
+  const builtinNames = builtInCommandNames()
+  return readyCommands(
+    getBundledSkills().filter(command => builtinNames.has(command.name)),
+    sessionKitOf(),
+  )
+}
+
 export function findBundledPromptSkill(name: string): PromptCommand | undefined {
-  const found = activeBundledSkills().find(command => command.name === name && command.type === 'prompt')
+  const found = displacedBundledSkills().find(command => command.name === name && command.type === 'prompt')
   return found !== undefined && found.type === 'prompt' ? found : undefined
 }
 
@@ -344,33 +354,19 @@ export async function getCommands(cwd: string): Promise<Command[]> {
   const allCommands = await loadAllCommands(cwd)
   const kit = sessionKitOf()
   if (kit !== undefined) {
-    const governed = dedupeCommandsByName([...getBundledSkills(), ...allCommands])
-    noteBootSkillRoster(governed.filter(isKitGovernedSkillCommand).map(command => command.name))
+    const builtinNames = builtInCommandNames()
+    const displaced = getBundledSkills().filter(command => builtinNames.has(command.name))
+    noteBootSkillRoster([...displaced, ...allCommands].filter(isKitGovernedSkillCommand).map(command => command.name))
   }
-  const base = dedupeCommandsByName(
-    allCommands
-      .filter(
-        command =>
-          meetsAvailabilityRequirement(command) &&
-          isCommandEnabled(command) &&
-          !kitDropsCommand(kit, command),
-      )
-      .map(command => withKitSkillMark(kit, command)),
-  )
+  const base = dedupeCommandsByName(readyCommands(allCommands, kit))
   const dynamicSkills = getDynamicSkills()
   if (dynamicSkills.length === 0) return base
   const baseNames = new Set(base.map(command => command.name))
   const builtinNames = builtInCommandNames()
-  const survivors = dynamicSkills
-    .filter(
-      command =>
-        !baseNames.has(command.name) &&
-        !builtinNames.has(command.name) &&
-        meetsAvailabilityRequirement(command) &&
-        isCommandEnabled(command) &&
-        !kitDropsCommand(kit, command),
-    )
-    .map(command => withKitSkillMark(kit, command))
+  const survivors = readyCommands(
+    dynamicSkills.filter(command => !baseNames.has(command.name) && !builtinNames.has(command.name)),
+    kit,
+  )
   if (survivors.length === 0) return base
   const firstBuiltinIndex = base.findIndex(command => command.source === 'builtin')
   if (firstBuiltinIndex === -1) return [...base, ...survivors]
@@ -398,7 +394,7 @@ export function getMcpSkillCommands(
 
 export const getSkillToolCommands = memoize(
   async (cwd: string): Promise<Command[]> => {
-    const commands = dedupeCommandsByName([...activeBundledSkills(), ...(await getCommands(cwd))])
+    const commands = [...displacedBundledSkills(), ...(await getCommands(cwd)).filter(command => command.type === 'prompt')]
     return commands.filter(
       command =>
         command.type === 'prompt' &&
@@ -415,7 +411,7 @@ export const getSkillToolCommands = memoize(
 export const getSlashCommandToolSkills = memoize(
   async (cwd: string): Promise<Command[]> => {
     try {
-      const commands = dedupeCommandsByName([...activeBundledSkills(), ...(await getCommands(cwd))])
+      const commands = [...displacedBundledSkills(), ...(await getCommands(cwd)).filter(command => command.type === 'prompt')]
       return commands.filter(
         command =>
           command.type === 'prompt' &&

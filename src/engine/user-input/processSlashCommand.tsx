@@ -7,7 +7,7 @@ import { Box, Text } from '../../screen/themedRenderer.js'
 import type { CanUseToolFn, SetToolJSXFn, ToolUseContext } from '../../tools/kit/tool.js'
 import type { Command } from '../../commands/catalogue/commands.js'
 import type { LocalJSXCommandOnDone } from '../../commands/catalogue/command.js'
-import { builtinCommands, commandOffInPlainWorld, commandSeat, findBundledPromptSkill, findCommand, getCommandName, isCommandEnabled, meetsAvailabilityRequirement } from '../../commands/catalogue/commands.js'
+import { builtinCommands, commandOffInPlainWorld, commandSeat, findBundledPromptSkill, findCommand, getCommandName, isCommandEnabled, meetsAvailabilityRequirement, runsPromptWithArgs } from '../../commands/catalogue/commands.js'
 import samples, { SAMPLES_OFF_SENTENCE } from '../../commands/samples/index.js'
 import { bareUsageLine, requiresArgument } from '../../integrations/skills/argumentHint.js'
 import { generateCommandSuggestions } from '../../screen/suggestions/commandSuggestions.js'
@@ -535,7 +535,7 @@ export async function processSlashCommand(
   try {
     let result: ProcessUserInputBaseResult
     if (command.type === 'local-jsx') {
-      if (command.promptWithArgs === true && args.trim() !== '') {
+      if (runsPromptWithArgs(command, args)) {
         const promptSkill = findBundledPromptSkill(command.name)
         if (promptSkill === undefined) {
           return availabilityAnswer(`The /${getCommandName(command)} command exists but is not enabled in this session.`)

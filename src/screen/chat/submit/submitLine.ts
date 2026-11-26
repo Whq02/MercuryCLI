@@ -1,4 +1,5 @@
-import { commandOffInPlainWorld, commandSeat, getCommandName, isCommandEnabled, type Command } from '../../../commands/catalogue/commands.js';
+import { commandOffInPlainWorld, commandSeat, getCommandName, isCommandEnabled, runsPromptWithArgs, type Command } from '../../../commands/catalogue/commands.js';
+import { parseSlashCommand } from '../../../commands/catalogue/slashCommandParsing.js';
 import { addToHistory, expandPastedTextRefs } from '../../../sessions/promptHistory.js';
 import * as pendingInput from '../../composer/input-core/pending-input.js';
 import { getFocusedSessionConnector } from '../../../engine/connector/focusedConnector.js';
@@ -62,9 +63,9 @@ export function readSubmitLine({ commandsRef }: SubmitDeps, input: string, helpe
   const seatMode = options?.armedMode ?? pendingInput.mode();
   const seatPastes = options?.pastedContents ?? pendingInput.pastedContents();
   const seatCommand = text.startsWith('/') && seatMode !== 'bash' ? resolveSlashCommand(text, commandsRef.current) : undefined;
-  const expanded = seatCommand !== undefined && seatCommand.type === 'local-jsx' && seatCommand.promptWithArgs === true ? expandPastedTextRefs(text, seatPastes).trim() : '';
-  const spaceAt = expanded.search(/\s/);
-  const promptArgs = spaceAt !== -1 && expanded.slice(spaceAt).trim() !== '';
+  const promptArgs =
+    seatCommand !== undefined &&
+    runsPromptWithArgs(seatCommand, parseSlashCommand(expandPastedTextRefs(text, seatPastes).trim())?.args ?? '');
   const seat = seatCommand === undefined || promptArgs ? 'session' : commandSeat(seatCommand);
   return { input, helpers, options, submittedAt, text, focusedNow, seatMode, seatPastes, seatCommand, seat };
 }
