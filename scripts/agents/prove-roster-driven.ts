@@ -389,7 +389,7 @@ section('§5 the docs skill in a fresh chat: how do I schedule a prompt — answ
 {
   const question = 'how do i schedule a prompt in mercury'
   const ask = `roster-drive docs: ${question}`
-  const answer = 'roster-drive docs: the docs say — /saturn opens the schedule board; inside a session the model schedules with CronCreate (a prompt on a recurrence or a one-shot), and the /loop skill repeats a prompt on a cadence (docs/SATURN.md).'
+  const answer = 'roster-drive docs: the docs say — /schedule opens the schedule board; inside a session the model schedules with CronCreate (a prompt on a recurrence or a one-shot), and the /loop skill repeats a prompt on a cadence (docs/SATURN.md).'
   const captured: Array<Record<string, unknown>> = []
   let seq = 0
   const server = createServer((req, res) => {
@@ -438,10 +438,10 @@ section('§5 the docs skill in a fresh chat: how do I schedule a prompt — answ
   const base = /Base directory for this skill: (\S+) /.exec(JSON.stringify(skillTurn ?? {}))?.[1]?.replace(/\\\\/g, '\\')
   check('the pages stand extracted under a per-process temp root, not the config home', base !== undefined && !base.startsWith(world.home) && existsSync(join(base, 'docs', 'SATURN.md')), String(base))
   const saturnRead = all.flatMap(toolResultsOf).find(t => t.includes('## In-session schedules'))
-  check('the model read the Saturn page from the extracted copy', saturnRead !== undefined && saturnRead.includes('CronCreate') && saturnRead.includes('`/saturn`'))
+  check('the model read the Saturn page from the extracted copy', saturnRead !== undefined && saturnRead.includes('CronCreate') && saturnRead.includes('`/schedule`'))
   const toolUses = all.flatMap(body => ((body.messages as Array<{ content?: unknown }> | undefined) ?? []).flatMap(m => (Array.isArray(m.content) ? (m.content as Array<{ type?: string; name?: string }>).filter(b => b.type === 'tool_use').map(b => b.name ?? '') : [])))
   check('no WebFetch and no WebSearch anywhere in the run', toolUses.length > 0 && !toolUses.includes('WebFetch') && !toolUses.includes('WebSearch'), toolUses.join(','))
-  check('the answer names the real command and tool the docs name', /\/saturn/.test(resultText(run)) && /CronCreate/.test(resultText(run)), resultText(run))
+  check('the answer names the real command and tool the docs name', /\/schedule/.test(resultText(run)) && /CronCreate/.test(resultText(run)), resultText(run))
   const firstRequestText = JSON.stringify(all[0] ?? {})
   check("the session is told, in the docs skill's own listing line, that a question about using Mercury goes to the docs skill", firstRequestText.includes('mercury-docs') && firstRequestText.includes('Use when the user asks how to use Mercury itself'))
   drop(world)

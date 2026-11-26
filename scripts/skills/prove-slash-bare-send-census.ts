@@ -94,9 +94,10 @@ initBundledSkills()
 const bundled = getBundledSkills().map(command => builtGenerated.get(command.name) ?? command)
 const disk = (await getCommands(PROJ)).filter(command => command.loadedFrom !== 'bundled' && command.source !== 'builtin' && ['needs-thing', 'takes-nothing', 'optional-only'].includes(command.name))
 const builtins = [...builtinCommands()]
+const builtinNames = new Set(builtins.map(command => command.name))
 const seen = new Set<string>()
 const roster: Command[] = []
-for (const command of [...bundled, ...disk, ...builtins]) {
+for (const command of [...bundled.filter(c => !builtinNames.has(c.name)), ...disk, ...builtins]) {
   if (seen.has(command.name)) continue
   seen.add(command.name)
   roster.push(command)
@@ -144,7 +145,7 @@ section('§2 THE LAW OF THE HINT — a required first token <…> answers bare; 
 {
   const byName = new Map(roster.map(command => [command.name, command]))
   const expectRequired = ['update-config', 'debug', 'mcp-smithy', 'skill-forge', 'image-generation', 'deep-research', 'needs-thing']
-  const expectBare = ['schedule', 'skillify', 'provider-apis', 'loop', 'extension-maker', 'code-review', 'takes-nothing', 'optional-only', 'verify', 'review', 'orient']
+  const expectBare = ['skillify', 'provider-apis', 'loop', 'extension-maker', 'code-review', 'takes-nothing', 'optional-only', 'verify', 'review', 'orient']
   for (const name of expectRequired) {
     const command = byName.get(name)
     check(`/${name} declares a required argument (RED on the base for update-config and debug: no hint / [issue description])`, command !== undefined && requiresArgument(command), `hint=${command === undefined ? 'absent' : argumentHintOf(command) ?? 'none'}`)
@@ -156,6 +157,7 @@ section('§2 THE LAW OF THE HINT — a required first token <…> answers bare; 
   check('the discriminator reads the first token only: "[interval] <prompt>" runs bare, "<x> [y]" answers', !requiresArgument({ type: 'prompt', argumentHint: '[interval] <prompt or /slash-command>' }) && requiresArgument({ type: 'prompt', argumentHint: '<x> [y]' }) && !requiresArgument({ type: 'local', argumentHint: '<path>' }))
   const updateConfig = byName.get('update-config')
   check('/keybindings is the built-in local command (a bare send opens the bindings file, no turn) and keybindings-help is the hidden skill', byName.get('keybindings')?.type === 'local' && byName.get('keybindings-help')?.type === 'prompt' && byName.get('keybindings-help')?.userInvocable === false)
+  check('/schedule is the built-in local-jsx board command (a bare send opens the board, no turn)', byName.get('schedule')?.type === 'local-jsx')
   check('the usage row of /update-config fits its width and carries the description and the hint', updateConfig !== undefined && bareUsageLine(updateConfig).length <= 178 && bareUsageLine(updateConfig).startsWith('/update-config — ') && bareUsageLine(updateConfig).includes(' · usage: /update-config <'), updateConfig === undefined ? 'absent' : bareUsageLine(updateConfig))
 }
 
@@ -213,7 +215,7 @@ section('§3 THE DISPATCHER — a bare send of every user-invocable prompt comma
     }
   }
   console.log(`\n  ${prompts.length} user-invocable prompt commands: ${usage} answer bare, ${turns} run bare`)
-  check('the dispatcher was exercised over the whole prompt roster', prompts.length === 20 && usage === 8 && turns === 12, `prompts=${prompts.length} usage=${usage} turns=${turns}`)
+  check('the dispatcher was exercised over the whole prompt roster', prompts.length === 19 && usage === 8 && turns === 11, `prompts=${prompts.length} usage=${usage} turns=${turns}`)
 }
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)

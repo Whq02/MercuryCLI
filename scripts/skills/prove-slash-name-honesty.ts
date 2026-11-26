@@ -37,7 +37,9 @@ const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool
 type Command = import('../../src/commands/catalogue/command.ts').Command
 
 initBundledSkills()
-const roster: Command[] = [...getBundledSkills(), ...builtinCommands()].filter(command => isCommandEnabled(command))
+const builtins = [...builtinCommands()]
+const builtinNames = new Set(builtins.map(command => command.name))
+const roster: Command[] = [...getBundledSkills().filter(c => !builtinNames.has(c.name)), ...builtins].filter(command => isCommandEnabled(command))
 const samplesCommand = builtinCommands().find(command => command.name === 'samples')
 const makeContext = (commands: Command[]): unknown => ({
   options: { commands, tools: [], mcpClients: [], mcpResources: {}, engineModel: 'fixture-model', agentDefinitions: { activeAgents: [], allAgents: [] }, debug: false, verbose: false, isNonInteractiveSession: false },

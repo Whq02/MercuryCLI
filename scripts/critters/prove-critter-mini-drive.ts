@@ -268,7 +268,7 @@ try {
   console.log('§3 the landing form sits under the band')
   check('the wordmark starts three rows under the band', text(boot)[bx.bottom + 3]!.includes('█▄▄▄█'))
   check('model · dir · memory sit seven, eight and nine rows under the band (no critter row)', text(boot)[bx.bottom + 7]!.includes('model') && text(boot)[bx.bottom + 8]!.includes('dir') && text(boot)[bx.bottom + 9]!.includes('memory') && !text(boot).slice(bx.bottom + 1, bx.bottom + 12).some(row => row.includes('critter')))
-  check('the command hints follow their blank line', text(boot)[bx.bottom + 11]!.includes('/crewmates  /saturn  /health  /trace'))
+  check('the command hints follow their blank line', text(boot)[bx.bottom + 11]!.includes('/crewmates  /schedule  /health  /trace'))
 
   console.log('§4 /view is an unknown command like any other')
   check('typed, /view on answers the ordinary unknown-command line', rowWith(typed, 'Unknown command: /view') >= 0)
