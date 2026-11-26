@@ -220,7 +220,6 @@ async function leg(cols: number, rows: number): Promise<void> {
   console.log(`  the view header: "${flat(header).slice(0, 120)}"`)
   check(`${tag}: the status row says main chat for the sleeper`, /main chat: sleeper ·/.test(header), flat(header).slice(0, 160))
   check(`${tag}: the composer placeholder reads "message sleeper"`, (composerRow(main) ?? '').includes('message sleeper'), (composerRow(main) ?? '').slice(0, 80))
-  check(`${tag}: the footer says ↵ sends to sleeper · m on Mercury Lead returns the main chat`, main.includes('sends to sleeper') && main.includes('m on Mercury Lead returns the main chat'), flat(main).slice(-400))
   const handed = marks['handed-back'] ?? ''
   check(`${tag}: m on Mercury Lead hands the main chat back (no ★ row)`, railRow(handed, '★') === undefined, railRow(handed, '★') ?? '')
   const view = marks['view'] ?? ''

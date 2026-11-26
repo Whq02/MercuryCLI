@@ -11,6 +11,7 @@ import {
   firstNavigation,
   isBrowserErrorPage,
   noteEmulatedPage,
+  originApproved,
   originOf,
 } from '../../../integrations/browser/browserSession.js'
 import { carryEmulation, emulationActive, emulationSummary } from '../../../integrations/browser/browserEmulation.js'
@@ -135,7 +136,7 @@ export async function openOp({ input, owner, tab, context, sessionAtEntry, crash
         }`
   result = `open: ${s.page.url()}${statusBit} — ${await s.page.title()} (${s.resolution.source}: ${s.resolution.label})${environment}${
     landed !== target && landed.startsWith('http')
-      ? `\n  note: landed on ${landed} (a redirect crossed origins — acts there will ask)`
+      ? `\n  note: landed on ${landed} (a redirect crossed origins${originApproved(owner, landed) ? '' : ' — acts there will ask'})`
       : ''
   }${census}${lease}${crashedAtEntry && s === sessionAtEntry ? RECOVERED_NOTE : ''}`
   if (s === sessionAtEntry) s.crashed = false

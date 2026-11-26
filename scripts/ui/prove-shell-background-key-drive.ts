@@ -170,7 +170,7 @@ console.log(`shell background key artifacts: ${scratch} (dist: ${DIST})`)
       printFrame('on · a shell command running', rows)
       check('on · shell running: the ready line ends with esc interrupts · ⇧b backgrounds · ⇧← back', tailRow(rows).endsWith(TAIL_RUNNING), `with a shell running the ready line must name ⇧b: see escBackHint in src/screen/chat/SwitchboardTagBar.tsx; ready line: ${JSON.stringify(tailRow(rows))}`)
       const at = rows.indexOf(HINT_ROW)
-      check('on · shell running: the hint row reads esc interrupt · ⇧b background the command, directly under the composer and above the newline row', at > 0 && (rows[at - 1] ?? '').startsWith('╰') && (rows[at + 1] ?? '').includes('for a new line'), `the background hint row is built in src/screen/composer/ComposerFooterLeftSide.tsx and must sit between the composer border and the newline row; rows: ${JSON.stringify(rows.slice(Math.max(0, at - 1), at + 2))}`)
+      check('on · shell running: the hint row reads esc interrupt · ⇧b background the command, directly under the composer on the one footer row', at === rows.length - 1 && (rows[at - 1] ?? '').startsWith('╰'), `the background hint row is built in src/screen/composer/ComposerFooterLeftSide.tsx and must sit directly under the composer border on the single footer row; rows: ${JSON.stringify(rows.slice(Math.max(0, at - 1), at + 2))}`)
       check('on · shell running: ⇧b is named on exactly those two rows', rows.filter(r => r.includes(SHIFT_B)).length === 2, `only the ready line and the hint row may name ⇧b (src/screen/chat/SwitchboardTagBar.tsx, src/screen/composer/ComposerFooterLeftSide.tsx); rows naming it: ${rows.filter(r => r.includes(SHIFT_B)).length}`)
     }
     if (done !== undefined) {
@@ -239,7 +239,7 @@ console.log(`shell background key artifacts: ${scratch} (dist: ${DIST})`)
       const rows = textRows(refused.grid)
       printFrame('refused · the seat\'s answer on the notice row', rows)
       const at = rows.findIndex(r => r.includes(REFUSAL))
-      check('refused: the seat\'s own sentence reaches the operator on the row under the composer', at > 0 && (rows[at - 1] ?? '').startsWith('╰') && (rows[at + 1] ?? '').includes('for a new line'), `the seat refusal sentence must paint on the notice row under the composer; rows: ${JSON.stringify(rows.slice(Math.max(0, at - 1), at + 2))}`)
+      check('refused: the seat\'s own sentence reaches the operator on the one row under the composer', at === rows.length - 1 && (rows[at - 1] ?? '').startsWith('╰'), `the seat refusal sentence must paint on the single footer row under the composer; rows: ${JSON.stringify(rows.slice(Math.max(0, at - 1), at + 2))}`)
       check('refused: the command was not moved — the turn is still open and the ready line still names ⇧b', !joined(rows).includes(FINISHED) && tailRow(rows).endsWith(TAIL_RUNNING), `a refused move must leave the turn open with ⇧b still offered: see escBackHint in src/screen/chat/SwitchboardTagBar.tsx; ready line: ${JSON.stringify(tailRow(rows))}`)
     }
     if (later !== undefined) {
