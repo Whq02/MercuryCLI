@@ -366,7 +366,7 @@ function scanWorkedInProjects(excludeSessionId?: string): BootProjectFact[] {
     perDir.push({
       facts,
       mtime: Math.max(facts.newest?.mtime ?? 0, facts.card?.firstChatAt ?? 0),
-      lastUsedMs: facts.newest !== null ? facts.newest.lastUsedMs : (facts.card?.firstChatAt ?? null),
+      lastUsedMs: facts.newest?.lastUsedMs ?? (facts.card?.firstChatAt ?? null),
     })
   }
   perDir.sort((a, b) => compareSessionRecency({ lastUsedMs: a.lastUsedMs, mtimeMs: a.mtime }, { lastUsedMs: b.lastUsedMs, mtimeMs: b.mtime }))
