@@ -162,7 +162,7 @@ if (process.platform === 'win32') {
   const earlyExitCompound = await drive("F=$(printf 'alpha\\n'); exit 1; printf '%s\\n' \"$F\" | grep nomatch")
   check('compound script with earlier exit 1 before closing grep stays an error', !earlyExitCompound.ok && /Exited with code 1/.test(earlyExitCompound.error), earlyExitCompound.ok ? JSON.stringify(earlyExitCompound.out) : earlyExitCompound.error.slice(-160))
 
-  const quotedToken = await drive('cat /mercury-no-such-file-0x "foo; grep x"')
+  const quotedToken = await drive('cat "/mercury-no-such-file-0x; grep x"')
   check('a grep token inside quotes never turns a failing command into no matches', !quotedToken.ok && /Exited with code 1/.test(quotedToken.error), quotedToken.ok ? JSON.stringify(quotedToken.out) : quotedToken.error.slice(-160))
 
   const heredocToken = await drive("cat /mercury-no-such-file-0x <<EOF\ngrep nomatch /dev/null\nEOF")
