@@ -10,6 +10,7 @@ const foldBoundaryRow = (row: TranscriptMessage): row is BoundaryRow => row.type
 const snipped = (row: TranscriptMessage): UUID[] | undefined => (row as { snipMetadata?: { removedUuids?: UUID[] } }).snipMetadata?.removedUuids
 
 export const sideNote = (row: { type: string; subtype?: string } | null | undefined): boolean => row?.type === 'system' && row.subtype !== 'local_command' && row.subtype?.endsWith('_boundary') !== true
+export const virtualNote = (row: { type: string; isVirtual?: boolean } | null | undefined): boolean => row?.type === 'user' && row.isVirtual === true
 
 export function keptLine<Id>(listed: readonly Id[], parentOf: (id: Id) => Id | null | undefined, notesUnder: (id: Id) => Iterable<Id>, isNote: (id: Id) => boolean): Id[] {
   const named = new Set(listed)
@@ -202,7 +203,8 @@ class TranscriptRows {
       const folds = this.boundariesOldestFirst()
       const fold = folds.findIndex(row => row.compactMetadata?.preservedSegment === segment)
       const floor = fold < 1 ? -1 : this.positionOf(folds[fold - 1]!.uuid), end = fold < 0 ? Infinity : this.positionOf(folds[fold]!.uuid)
-      const line = keptLine(ids, id => this.get(id)?.parentUuid, id => [...this.children.get(id) ?? []].filter(note => this.positionOf(note) > floor && this.positionOf(note) < end && sideNote(this.get(note))), id => sideNote(this.get(id)))
+      const listed = new Set(ids)
+      const line = keptLine(ids, id => this.get(id)?.parentUuid, id => [...this.children.get(id) ?? []].filter(note => this.positionOf(note) > floor && this.positionOf(note) < end && (sideNote(this.get(note)) || (listed.has(note) && virtualNote(this.get(note))))), id => sideNote(this.get(id)) || virtualNote(this.get(id)))
       const kept = new Set(line)
       return kept.size === line.length && !kept.has(segment.anchorUuid) ? kept : null
     }
