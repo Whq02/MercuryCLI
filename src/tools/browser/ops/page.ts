@@ -154,9 +154,9 @@ export function deepTextOf(root: Element): string {
   const own = (root as HTMLElement).innerText ?? ''
   const parts: string[] = []
   const seen = new Set<ShadowRoot>()
-  const rendered = (node: Node): boolean => {
+  const rendered = (node: Node, ownerEl: Element): boolean => {
     if (node.nodeType === Node.TEXT_NODE) {
-      if ((node.textContent ?? '').trim() === '') return false
+      if ((node.textContent ?? '').trim() === '' || getComputedStyle(ownerEl).visibility !== 'visible') return false
       const range = document.createRange()
       range.selectNodeContents(node)
       return range.getClientRects().length > 0
@@ -164,7 +164,7 @@ export function deepTextOf(root: Element): string {
     if (node.nodeType !== Node.ELEMENT_NODE) return false
     const el = node as Element
     if (el.getClientRects().length > 0) return true
-    return getComputedStyle(el).display === 'contents' && Array.from(el.childNodes).some(rendered)
+    return getComputedStyle(el).display === 'contents' && Array.from(el.childNodes).some(child => rendered(child, el))
   }
   const visitHost = (el: Element, scopeRange: Range): void => {
     const shadow = el.shadowRoot
@@ -174,7 +174,7 @@ export function deepTextOf(root: Element): string {
     seen.add(shadow)
     const text = nodes
       .map(n =>
-        !rendered(n)
+        !rendered(n, el)
           ? ''
           : n.nodeType === Node.TEXT_NODE
             ? (n.textContent ?? '').trim()

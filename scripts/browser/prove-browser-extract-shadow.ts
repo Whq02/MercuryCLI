@@ -38,6 +38,8 @@ sr.innerHTML = '<p>TAIL-SHADOW-MARKER-99</p>';
     </div>
   </div>
   <div id="shadow-only-host"></div>
+  <div id="direct-visible-host"></div>
+  <div id="direct-hidden-host" style="visibility:hidden"></div>
   <div style="display:none"><div id="hidden-host"></div></div>
   <div id="synth-l1">
     <div id="synth-l2">
@@ -59,6 +61,16 @@ i.innerHTML = '<p>SHADOW-INNER-FRAGMENT</p><p>${SHARED_PHRASE}</p><p style="visi
 
 const so = document.getElementById('shadow-only-host').attachShadow({ mode: 'open' });
 so.innerHTML = '<style>.host-only-css{margin:0}</style><p hidden>HOST-ONLY-HIDDEN</p><p>HOST-ONLY-VISIBLE-88</p>';
+
+const dv = document.getElementById('direct-visible-host').attachShadow({ mode: 'open' });
+dv.append('VISIBLE-DIRECT-TEXT');
+
+const dh = document.getElementById('direct-hidden-host').attachShadow({ mode: 'open' });
+dh.append('HIDDEN-DIRECT-TEXT');
+const dhVis = document.createElement('p');
+dhVis.style.visibility = 'visible';
+dhVis.textContent = 'VISIBLE-OVERRIDE-UNDER-HIDDEN-HOST';
+dh.append(dhVis);
 
 const hh = document.getElementById('hidden-host').attachShadow({ mode: 'open' });
 hh.innerHTML = '<p>HIDDEN-HOST-SHADOW-LEAK</p>';
@@ -99,6 +111,8 @@ section('S1 body extract keeps every visible fragment once, preserves legitimate
     'SHADOW-MID-FRAGMENT',
     'SHADOW-INNER-FRAGMENT',
     'HOST-ONLY-VISIBLE-88',
+    'VISIBLE-DIRECT-TEXT',
+    'VISIBLE-OVERRIDE-UNDER-HIDDEN-HOST',
     'SYNTH-LINE-01',
     'SYNTH-LINE-45',
   ]) {
@@ -112,6 +126,7 @@ section('S1 body extract keeps every visible fragment once, preserves legitimate
     'css-leak-token',
     'scriptLeakToken',
     'HIDDEN-DIRECT-SHADOW',
+    'HIDDEN-DIRECT-TEXT',
     'HIDDEN-IN-DC',
     'VIS-HIDDEN-ONLY',
     'host-only-css',
