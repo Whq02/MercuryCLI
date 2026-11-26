@@ -187,7 +187,7 @@ export function ConcourseComposer({
           <Box flexGrow={1} overflow="hidden">
             <Text color={t.textMuted} wrap="truncate-end">
               {}
-              {focused ? keyHintLabel(keysHint ?? `↵ send · ${getShortNewlineInstructions().startsWith('shift') ? '⇧↵' : '⌃j'} newline · tab panes`) : 'tab or click to type'}
+              {focused ? keyHintLabel(keysHint ?? `↵ send · ${getShortNewlineInstructions().startsWith('shift') ? '⇧↵' : '⌃j'} newline · tab panes`) : ''}
             </Text>
           </Box>
         )}

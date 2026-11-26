@@ -187,7 +187,7 @@ console.log(`the board notices (${COLS}×${ROWS}, two panes, the list focused): 
     ],
   }, boardEnv(home, boardFixture(home), 'notes-off'))
   const split = markOf('notes-off', 'split')
-  check('the board is two panes with the list focused and no coordinator pane', split.some(l => l.includes('+ new session · n')) && split.some(l => l.includes('status & title')) && !split.some(l => l.includes('COORDINATOR')), split.filter(l => /new session|COORDINATOR/.test(l)).map(l => l.trim().slice(0, 100)).join(' | ') + ' — the board must open as the list pane and the live pane with no coordinator pane: see src/screen/concourse/ConcourseLayout.tsx')
+  check('the board is two panes with the list focused and no coordinator pane', split.some(l => l.includes('+ new · n')) && split.some(l => l.includes('status & title')) && !split.some(l => l.includes('COORDINATOR')), split.filter(l => /\+ new|COORDINATOR/.test(l)).map(l => l.trim().slice(0, 100)).join(' | ') + ' — the board must open as the list pane and the live pane with no coordinator pane: see src/screen/concourse/ConcourseLayout.tsx')
   noteLaw('split', split, 's where the frame is too narrow for the split view (the refusal)', SPLIT_REFUSED)
   noteLaw('queued', markOf('notes-off', 'queued'), '↵ on a queued row (the in-place disclaimer with the seat count and the m door)', QUEUED_NOTE)
   noteLaw('parked', markOf('notes-off', 'parked'), '⌃x ⌃x on a parked row (the arm before the delete)', ARMED_NOTE)
