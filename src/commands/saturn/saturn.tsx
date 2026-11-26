@@ -67,11 +67,11 @@ function SaturnPopup({ onClose }: { onClose: (value?: string) => void }): React.
                   </>
                 )
                 return target !== null ? (
-                  <InteractiveRow key={target.props.id} {...target.props} flexDirection="row" flexGrow={1}>
+                  <InteractiveRow key={target.props.id} {...target.props} flexGrow={1}>
                     {content}
                   </InteractiveRow>
                 ) : (
-                  <Box key={`saturn-${index}`} flexDirection="row" flexGrow={1} minWidth={0}>
+                  <Box key={`saturn-${index}`} flexGrow={1} minWidth={0}>
                     {content}
                   </Box>
                 )
