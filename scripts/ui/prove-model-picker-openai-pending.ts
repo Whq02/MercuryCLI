@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, painted, pinScratchHome, releaseScratchHome, waitFor } from '../lib/settingsPopupHarness.ts'
 
@@ -488,7 +488,6 @@ try {
   globalThis.fetch = realFetch
   releaseFocusedSessionConnector()
   await releaseScratchHome(HOME)
-  rmSync(HOME, { recursive: true, force: true })
 }
 
 console.log(`\nprove-model-picker-openai-pending: ${checks} checks, ${failures} failures`)
