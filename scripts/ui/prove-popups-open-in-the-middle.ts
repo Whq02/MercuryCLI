@@ -142,12 +142,7 @@ function judge(label: string, { scene, before, host, columns }: Scene, lines: st
   const lostUnder = under.filter(y => text(lines, y, host.left, host.right) !== text(before, y, host.left, host.right))
   check(`${label}: the transcript's rows stay drawn around it (${beside.length} rows beside it, ${under.length} under it)`, beside.length + under.length > 0 && lost.length === 0 && lostUnder.length === 0, `rows ${[...lost, ...lostUnder].slice(0, 6).join(',')} of the transcript changed outside the popup and its one-cell gutter`)
   const asWide = frame.left === crewFrame.left && frame.right === crewFrame.right
-  const gutterRow = (y: number): boolean =>
-    y === frame.top - 1 &&
-    text(lines, y, frame.left - 1, frame.right + 1).trim() === '' &&
-    (frame.left - 2 < host.left || text(lines, y, host.left, frame.left - 2) === text(before, y, host.left, frame.left - 2)) &&
-    (frame.right + 2 > host.right || text(lines, y, frame.right + 2, host.right) === text(before, y, frame.right + 2, host.right))
-  const above = [...Array(frame.top).keys()].filter(y => asWide ? text(lines, y, host.left, host.right) !== text(crewShot.lines, y, host.left, host.right) : text(lines, y, host.left, host.right) !== text(before, y, host.left, host.right) && text(lines, y, host.left, host.right).trim() !== '' && !gutterRow(y))
+  const above = [...Array(frame.top).keys()].filter(y => asWide ? text(lines, y, host.left, host.right) !== text(crewShot.lines, y, host.left, host.right) : text(lines, y, host.left, host.right) !== text(before, y, host.left, host.right) && text(lines, y, host.left, host.right).trim() !== '')
   check(`${label}: what stands above it is ${asWide ? 'what stands above the crew popup' : 'the screen\'s own rows, or the blank cover the door lays over the status band for a popup as wide as the view'}`, above.length === 0, `rows ${above.join(',')} above the popup are neither`)
   const typing = before.findIndex(line => line.includes('Type a prompt'))
   check(`${label}: the typing box, the side boxes and the status row stay where they were`, typing > 0 && lines[typing] === before[typing] && lines.every((line, y) => text(lines, y, 0, host.left - 2) === text(before, y, 0, host.left - 2) && text(lines, y, host.right + 2, columns - 1) === text(before, y, host.right + 2, columns - 1)), `the typing box was on row ${typing}; rows ${lines.map((_, y) => y).filter(y => text(lines, y, 0, host.left - 2) !== text(before, y, 0, host.left - 2) || text(lines, y, host.right + 2, columns - 1) !== text(before, y, host.right + 2, columns - 1)).slice(0, 6).join(',')} changed beside the view`)

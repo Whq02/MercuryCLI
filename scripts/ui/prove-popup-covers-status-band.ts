@@ -196,12 +196,7 @@ for (const [columns, rows] of SIZES) {
       const band = bandAbove(screen, host, panel)
       const pasted = band.rows.map((row, i) => `row ${host.top + i}: ${row.trimEnd()}`).join('\n')
       console.log(`${surface.name} ${columns}x${rows}: popup at columns ${panel.left}..${panel.right}, rows ${panel.top}..${panel.bottom}; centre pane ${host.left}..${host.right} from row ${host.top}; the popup ${spans ? `spans the pane (${slack} column${slack === 1 ? '' : 's'} of slack)` : 'floats inside the pane'}; the band above it is ${band.state}`)
-      if (spans) {
-        check(`${surface.name} ${columns}x${rows}: the rows between the pane's top and the popup carry the status band whole or nothing of it — never its top border alone (nor a few columns of it)`, band.state !== 'torn', `the band is ${band.state}:\n${pasted}`)
-      } else {
-        const above = Array.from({ length: Math.max(0, panel.top - host.top) }, (_, i) => screen[host.top + i]!.slice(host.left, host.right + 1).join(''))
-        check(`${surface.name} ${columns}x${rows}: a popup narrower than the pane floats over the band and leaves its top row in place`, above.some(row => CRITTER_RUN.test(row)), above.map((row, i) => `row ${host.top + i}: ${row.trimEnd()}`).join('\n'))
-      }
+      check(`${surface.name} ${columns}x${rows}: the rows between the pane's top and the popup carry the status band whole or nothing of it — never its top border alone (nor a few columns of it)`, band.state !== 'torn', `the band is ${band.state}:\n${pasted}`)
     } finally {
       scene.unmount()
       resetOverlayStackForTests()

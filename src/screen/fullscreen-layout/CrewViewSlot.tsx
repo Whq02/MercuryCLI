@@ -54,7 +54,7 @@ export function CrewViewSlot({ hostRef, bandRef, framed, modal }: { hostRef: Rea
   const geometry = crewPopupGeometry(host, terminalRows, carried === null ? null : carried.shape)
   const cover = popupCover(host, { left: host.left + geometry.left, top: host.top + geometry.top, width: geometry.width }, band)
   return (
-    <PopupGutter {...geometry} contentRef={carried?.surfaceRef} cover={cover === undefined ? undefined : { left: cover.left - host.left, top: cover.top - host.top, width: cover.width }}>
+    <PopupGutter {...geometry} contentRef={carried?.surfaceRef} cover={cover === undefined ? undefined : { left: cover.left - host.left, top: cover.top - host.top, width: cover.width, rows: cover.rows }}>
       <ModalContext.Provider value={{ columns: geometry.width, rows: geometry.rows, scrollRef: carried?.scrollRef ?? null }}>
         <TerminalSizeContext.Provider value={{ columns: geometry.width - (carried === null ? CREW_VIEW_CHROME : 0), rows: geometry.rows }}>
           {carried === null ? <CrewView onClose={closeCrewView} popup /> : carried.node}
