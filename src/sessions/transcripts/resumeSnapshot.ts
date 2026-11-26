@@ -10,7 +10,7 @@ import { emptyFoldState, type TranscriptFoldState } from './fold.js'
 import { createTranscriptRows, transcriptRowOrder } from './rowGraph.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
-export const SNAPSHOT_SCHEMA = 8
+export const SNAPSHOT_SCHEMA = 9
 const DIGEST_TAIL_BYTES = 4096
 export const SNAPSHOT_MIN_BYTES = 256 * 1024
 
