@@ -149,6 +149,114 @@ export function switchboardGeometry(
   }
 }
 
+function boardHelpLegend({
+  region,
+  olderRows,
+  sessionRows,
+  boardSelectedId,
+  liveDraftEmpty,
+  armedSelected,
+  closeChordStaged,
+  rowPeekOpen,
+  browseKeys,
+  newSession,
+  door,
+  chat,
+  splitOn,
+  tilesDegraded,
+  interior,
+}: {
+  region: ConcourseRegion
+  olderRows: number
+  sessionRows: ConcourseRowV1[]
+  boardSelectedId: string | null
+  liveDraftEmpty: boolean
+  armedSelected: boolean
+  closeChordStaged: boolean
+  rowPeekOpen: boolean
+  browseKeys: ReadonlyArray<{ keys: string; label: string }>
+  newSession: boolean
+  door: boolean
+  chat: boolean
+  splitOn: boolean
+  tilesDegraded: boolean
+  interior: number
+}): string {
+  const prio = (keys: string): number => legendPriorityOf(keys, { splitOn })
+  const olderBrowse = olderRows > 0
+  const selectionClass = boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId))
+  const composerEnter =
+    region === 'live' && !olderBrowse
+      ? !liveDraftEmpty
+        ? [{ keys: '↵', label: 'send' }]
+        : armedSelected
+          ? [
+              { keys: '↵', label: 'enters (armed)' },
+              { keys: '→', label: 'enter' },
+            ]
+          : [
+              selectionClass === 'parked'
+                ? { keys: '↵', label: 'brings it back' }
+                : selectionClass === 'door'
+                  ? { keys: '↵', label: 'open' }
+                  : { keys: '↵↵', label: 'enter session' },
+              { keys: '→', label: rowPeekOpen ? 'close peek' : 'peek' },
+            ]
+      : []
+  const regionParts = [
+    ...browseKeys.filter(k => k.keys !== 'esc'),
+    ...composerEnter,
+    ...withSplitViewTruth(
+      regionKeysFor(region, {
+        newSession,
+        olderBrowse,
+        ...(region === 'list'
+          ? { selection: selectionClass, armed: armedSelected, liveDraftHeld: !liveDraftEmpty, chordStaged: closeChordStaged, modelDefault: door }
+          : {}),
+        ...(region === 'chat' ? { chatSession: chat, landing: landingInFlight() } : {}),
+      }),
+      { splitOn },
+    ),
+  ]
+  const paneTwinsDropped = region === 'list' && !olderBrowse
+  const restingList =
+    paneTwinsDropped &&
+    !armedSelected &&
+    !closeChordStaged &&
+    !splitOn &&
+    (selectionClass === 'live' || selectionClass === 'paused' || selectionClass === 'attached')
+  const browseKeySet = new Set(browseKeys.map(k => k.keys))
+  const parts = (restingList
+    ? [
+        browseKeys.find(k => k.keys === 'tab')!,
+        { keys: '/', label: 'filter' },
+        ...(helpKeyFiresFor(region, liveDraftEmpty) ? [CONCOURSE_HELP_KEY] : []),
+        browseKeys.find(k => k.keys === 'esc')!,
+      ]
+    : [
+        ...(paneTwinsDropped ? withoutManagerPaneKeys(regionParts) : regionParts),
+        ...(helpKeyFiresFor(region, liveDraftEmpty) ? [CONCOURSE_HELP_KEY] : []),
+        browseKeys.find(k => k.keys === 'esc')!,
+      ])
+    .map(k =>
+      olderBrowse && k.keys === '↑↓'
+        ? { keys: k.keys, label: 'choose' }
+        : olderBrowse && k.keys === 'esc'
+          ? { keys: k.keys, label: 'fold the list' }
+          : armedSelected && k.keys === 'esc'
+            ? { keys: k.keys, label: 'disarm' }
+            : k,
+    )
+    .map(k => ({
+      text: `${keyHintLabel(k.keys)} ${k.label}`,
+      priority: paneTwinsDropped && !browseKeySet.has(k.keys) && prio(k.keys) <= 3 ? 0.9 : prio(k.keys),
+    }))
+  if (tilesDegraded)
+    parts.unshift({ text: '· tiles show summaries — the machine is busy', priority: 5 })
+  return shedToFit(parts, interior, ' · ')
+    .map(p => p.text)
+    .join(' · ')
+}
 export function ConcourseLayout({
   snapshot,
   boardGroups,
@@ -370,69 +478,23 @@ export function ConcourseLayout({
             <Text color={t.textInstruction} wrap="truncate-end">
               {filtering
                 ? 'type to filter · ↵ apply · esc clear'
-                : (() => {
-                    const prio = (keys: string): number => legendPriorityOf(keys, { splitOn })
-                    const olderBrowse = olderRows > 0
-                    const selectionClass = boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId))
-                    const composerEnter =
-                      region === 'live' && !olderBrowse
-                        ? !liveDraftEmpty
-                          ? [{ keys: '↵', label: 'send' }]
-                          : armedSelected
-                            ? [
-                                { keys: '↵', label: 'enters (armed)' },
-                                { keys: '→', label: 'enter' },
-                              ]
-                            : [
-                                selectionClass === 'parked'
-                                  ? { keys: '↵', label: 'brings it back' }
-                                  : selectionClass === 'door'
-                                    ? { keys: '↵', label: 'open' }
-                                    : { keys: '↵↵', label: 'enter session' },
-                                { keys: '→', label: rowPeekOpen ? 'close peek' : 'peek' },
-                              ]
-                        : []
-                    const regionParts = [
-                      ...browseKeys.filter(k => k.keys !== 'esc'),
-                      ...composerEnter,
-                      ...withSplitViewTruth(
-                        regionKeysFor(region, {
-                        newSession: wiring.newSession !== undefined,
-                        olderBrowse,
-                        ...(region === 'list'
-                          ? { selection: boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId)), armed: armedSelected, liveDraftHeld: !liveDraftEmpty, chordStaged: closeChordStaged, modelDefault: door !== undefined }
-                          : {}),
-                        ...(region === 'chat' ? { chatSession: chat, landing: landingInFlight() } : {}),
-                        }),
-                        { splitOn },
-                      ),
-                    ]
-                    const paneTwinsDropped = region === 'list' && !olderBrowse
-                    const browseKeySet = new Set(browseKeys.map(k => k.keys))
-                    const parts = [
-                      ...(paneTwinsDropped ? withoutManagerPaneKeys(regionParts) : regionParts),
-                      ...(helpKeyFiresFor(region, liveDraftEmpty) ? [CONCOURSE_HELP_KEY] : []),
-                      browseKeys.find(k => k.keys === 'esc')!,
-                    ]
-                      .map(k =>
-                        olderBrowse && k.keys === '↑↓'
-                          ? { keys: k.keys, label: 'choose' }
-                          : olderBrowse && k.keys === 'esc'
-                            ? { keys: k.keys, label: 'fold the list' }
-                            : armedSelected && k.keys === 'esc'
-                              ? { keys: k.keys, label: 'disarm' }
-                              : k,
-                      )
-                      .map(k => ({
-                        text: `${keyHintLabel(k.keys)} ${k.label}`,
-                        priority: paneTwinsDropped && !browseKeySet.has(k.keys) && prio(k.keys) <= 3 ? 0.9 : prio(k.keys),
-                      }))
-                    if (tilesDegraded)
-                      parts.unshift({ text: '· tiles show summaries — the machine is busy', priority: 5 })
-                    return shedToFit(parts, interior, ' · ')
-                      .map(p => p.text)
-                      .join(' · ')
-                  })()}
+                : boardHelpLegend({
+                    region,
+                    olderRows,
+                    sessionRows,
+                    boardSelectedId,
+                    liveDraftEmpty,
+                    armedSelected,
+                    closeChordStaged,
+                    rowPeekOpen,
+                    browseKeys,
+                    newSession: wiring.newSession !== undefined,
+                    door: door !== undefined,
+                    chat,
+                    splitOn,
+                    tilesDegraded,
+                    interior,
+                  })}
             </Text>
           )}
         </Box>

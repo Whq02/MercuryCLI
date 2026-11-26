@@ -492,15 +492,15 @@
   "  │ 47. the footer keys paints the same cells                            │ │                                         │",
   "  │ 48. the pop-up frame paints the same cells                           │ │                                         │",
   "  │                                                                      │ │                                         │",
-  "  │ 23:06:37 ● [Crewmate] fjord · completed · 1 line ›                   │ │                                         │",
+  "  │ 01:07:40 ● [Crewmate] fjord · completed · 1 line ›                   │ │                                         │",
   "  │                                                                      │ │                                         │",
-  "  │ 23:06:37 [Mercury] noted — the crewmate is in.                       │ │                                         │",
+  "  │ 01:07:41 [Mercury] noted — the crewmate is in.                       │ │                                         │",
   "  │ ╭──────────────────────────────────────────────────────────────────╮ │ │                                         │",
   "  │ │ ❯ message crew-screens: launch the crew · queued for its next t… │ │ │                                         │",
   "  │ │ tab or click to type                                             │ │ │ needs you · 0                           │",
   "  │ ╰──────────────────────────────────────────────────────────────────╯ │ │ ↑↓ choose · ↵ enter · n new · p pause   │",
   "  ╰──────────────────────────────────────────────────────────────────────╯ ╰─────────────────────────────────────────╯",
   "  fixture-cwd ⌄                                                                                              1/5 seats",
-  "  tab panes · ⌃g ground · i interrupt · m model · e effort · r rename · → peek · / filter · ? keys · esc focused chat"
+  "  tab panes · / filter · ? keys · esc focused chat"
  ]
 }
