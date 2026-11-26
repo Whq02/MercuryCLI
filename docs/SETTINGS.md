@@ -39,7 +39,9 @@ config home beside the first (`~/.mercury2`) and a `mercury2` command that
 starts Mercury in it. A profile has its own logins, settings, history and
 memory; the program and your project folders, their instruction files among
 them, are shared, and every profile reads your own `MERCURY.md` and `rules`
-folder from the first home. Removing a profile there deletes its command; its
+folder from the first home. Each new profile starts on the next critter
+(crab, octopus, jellyfish, clam, then round again) until you pick one with
+`/critter`. Removing a profile there deletes its command; its
 folder, logins included, stays on disk until you delete it. Each profile
 command carries a managed marker so updates can refresh it; remove that marker
 line to keep a hand edit.

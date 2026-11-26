@@ -299,7 +299,7 @@ function MessageRowInner({
   )
 
   const framed =
-    isGroupish || singleToolId !== null ? (
+    message.type !== 'assistant' && singleToolId !== null ? (
       <Box paddingLeft={2}>
         {body}
       </Box>

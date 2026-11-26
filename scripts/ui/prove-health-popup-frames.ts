@@ -274,7 +274,7 @@ for (const [cols, rows] of SIZES) {
   if (window !== null) {
     const first = checkRows(window)[0]
     check(`${cols}x${rows}: the cursor opens on the first check row`, first !== undefined && first.startsWith('▸ '), first ?? '(no rows)', 'the cursor must open on the first check row; see the cursor state in src/commands/health/HealthCertificate.tsx')
-    if (cols >= 100) check(`${cols}x${rows}: the lanes rail stays visible left of the window`, frame.findIndex(line => line.includes('lanes')) >= 0 && Array.from(frame[window.top + 2] ?? '').slice(0, window.left).join('').trim() !== '')
+    if (cols >= 100) check(`${cols}x${rows}: the lanes rail stays visible left of the window`, frame.findIndex(line => line.includes('workbench')) >= 0 && Array.from(frame[window.top + 2] ?? '').slice(0, window.left).join('').trim() !== '')
   }
   await scene.close()
 }

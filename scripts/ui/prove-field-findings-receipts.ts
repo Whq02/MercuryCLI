@@ -242,7 +242,7 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
 const COLS = 160
 const ROWS = 44
 const flat = (s: string): string => s.replace(/\s+/g, ' ')
-const SPLASH_READY = '/crewmates  /saturn  /health  /trace'
+const SPLASH_READY = '/crewmates  /schedule  /health  /trace'
 const SHIFT_LEFT = '\x1b[1;2D'
 const BOARD = '│ sessions  '
 

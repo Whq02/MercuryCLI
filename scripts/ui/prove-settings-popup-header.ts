@@ -88,7 +88,8 @@ const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/scre
 const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 const { railPlanAt } = await import('../../src/screen/fullscreen-layout/helmGeometry.ts')
-const { settingsPopupGeometry, settingsPopupHost } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+const { popupHostBounds } = await import('../../src/screen/overlays/PopupHost.js')
+const { settingsPopupGeometry } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
 const store = await import('../../src/screen/cockpit/settingsPopup.ts')
 const config = await import('../../src/commands/config/config.tsx')
 const usage = await import('../../src/commands/usage/usage.tsx')
@@ -123,7 +124,7 @@ const surfaces = [
   { view: 'logins', open: () => logins.call(() => {}, context) },
 ]
 const cell = (lines: string[], x: number, y: number): string => Array.from(lines[y] ?? '')[x] ?? ' '
-const header = /^\s*(?:❯ )?lanes\b.*╭/
+const header = /^workbench\b.*╭/
 for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
   for (const surface of surfaces) {
     initializeSurfaceRoute(ROOT_CHAT_ROUTE)
@@ -151,7 +152,7 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
       stable = now === last && now.includes(title) ? stable + 1 : 0
       last = now
       return stable >= 3
-    }, 8000), '', `the popup titled ${title} never painted and held still; check settingsPopupHost and the popup open path in src/screen/overlays/SettingsPopupSlot.tsx and src/screen/cockpit/settingsPopup.ts`)
+    }, 8000), '', `the popup titled ${title} never painted and held still; check the measured host and the popup open path in src/screen/overlays/SettingsPopupSlot.tsx and src/screen/cockpit/settingsPopup.ts`)
     const after = scene.lines()
     const titleRow = after.findIndex(line => line.includes(title))
     const popupLeft = after[titleRow]?.lastIndexOf('│', after[titleRow]!.indexOf(title)) ?? -1
@@ -198,10 +199,10 @@ for (const framed of [true, false]) {
     const ref = React.createRef<import('../../src/screen/themedRenderer.ts').DOMElement>()
     const scene = await mountOffscreen(h(Box, { width: 80, height: 40 }, h(Box, { ref, width: 60, height, ...(framed ? { borderStyle: 'round' } : {}) })), 80, 40)
     check(`${height}-row host: the measured element settled`, await waitFor(() => ref.current !== null && measureElement(ref.current).height === height, 4000), '', 'the fixture box never measured at its set height; look at measureElement in src/screen/themedRenderer.ts')
-    const band = ref.current === null ? null : settingsPopupHost(ref.current, framed)
+    const band = ref.current === null ? null : popupHostBounds(ref.current, framed)
     const top = framed ? 1 : 0
     const available = Math.max(0, height - (framed ? 2 : 0))
-    check(`${height}-row ${framed ? 'framed' : 'unframed'} host: the measured band is the whole interior (the border alone, no header row reserved)`, band?.top === top && band?.rows === available, JSON.stringify(band), `settingsPopupHost in src/screen/overlays/SettingsPopupSlot.tsx must return the whole interior of the host`)
+    check(`${height}-row ${framed ? 'framed' : 'unframed'} host: the measured band is the whole interior (the border alone, no header row reserved)`, band?.top === top && band?.rows === available, JSON.stringify(band), `popupHostBounds in src/screen/overlays/PopupHost.tsx must return the whole interior of the host`)
     if (band?.top !== undefined && band.rows !== undefined) {
       const geometry = settingsPopupGeometry({ width: 110, rows: 44 }, band.columns, 40, band.left, { top: band.top, rows: band.rows })
       const expected = Math.max(0, available - 2)

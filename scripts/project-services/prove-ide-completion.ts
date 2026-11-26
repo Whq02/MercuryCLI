@@ -61,6 +61,7 @@ const state = {
 }
 const fakeServer = {
   name: 'fake-ts',
+  config: {},
   state: 'running',
   start: async () => {},
   sendRequest: async (method: string, params: unknown) => {

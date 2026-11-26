@@ -13,7 +13,7 @@ Mercury CLI（mercury-cli.ai，npm 包 `mercury-tech-cli`）在终端里运行 A
 - **Mneme 混合 RAG 项目记忆：** 使用设备端的 118 MB BGE 语义嵌入模型（`bge-base-en-v1.5`），并包含 BM25 词语排序与引用追踪、逐字保留的置顶规则、感知分支的启动上下文、写入时的矛盾检查、会话交接笔记，以及 `/memory page` 浏览器图谱。
 - **编译器、AST 与 DAP 调试工具：** 接入 LSP 代码智能和可预览的重构（`LspRead`、`LspRename`、`LspMoveSymbol`、`LspMoveFile`、`LspCodeAction`、`LspFormat`），支持 57 种语言的 tree-sitter AST 结构化搜索与改写（`AstSearch`、`AstEdit`），并提供内置的 Debug Adapter Protocol（`Debug`）调试器（`debugpy`、`js-debug`、`lldb`、`gdb`、`dlv`），用于单步进入失败的 Python、Node、Go 和 Rust 测试，另有可持久化的 Python 与 JavaScript `Eval` 单元格。
 - **无需密钥的 `WebSearch` 与 Markdown 格式的 `WebFetch`：** 通过服务商原生搜索、Brave 或 Tavily 密钥、官方 API（Stack Exchange、npm、PyPI、crates.io、GitHub、Hacker News、Wikipedia）、SearXNG 以及无需密钥的 DuckDuckGo 进行搜索，并在 38,000 字符的单次调用预算内，以 Markdown 形式抓取公开文档。
-- **桌面计算机操作、Whisper 语音、Saturn 调度与编辑器桥接：** 控制桌面应用（`Computer`），在设备端用 Whisper 转写按键说话的语音听写（`/voice`），借助 Saturn 调度周期性或一次性的会话（`/saturn`），并通过 Agent Client Protocol（`mercury acp`）连接 VS Code；Unity、Blender、Godot 和 Aseprite 也有对应的桥接。
+- **桌面计算机操作、Whisper 语音、Saturn 调度与编辑器桥接：** 控制桌面应用（`Computer`），在设备端用 Whisper 转写按键说话的语音听写（`/voice`），借助 Saturn 调度周期性或一次性的会话（`/schedule`），并通过 Agent Client Protocol（`mercury acp`）连接 VS Code；Unity、Blender、Godot 和 Aseprite 也有对应的桥接。
 - **视频生成（`Video`）：** 将提示词和项目参考文件发送给已配置的 MiniMax 生成器（[docs/VIDEO.md](../VIDEO.md)），并把生成的 MP4 以及可选的 1 秒 PNG 预览帧保存到你的项目中。
 
 Mercury 被用来构建 Mercury 本身，同时运行多个会话和模型来完成长时间任务。难点在于跟踪这些工作：哪些仍在运行，哪些已经改动，哪些需要决定。每个会话结束时都会写下自己的交接笔记；下一个会话启动时会读取一次该笔记，并与我的置顶规则一起加载，从而防止会话之间的上下文污染。
@@ -365,7 +365,7 @@ docker run --rm mercury --version
 - **智能体、跨服务商 crewmate（`Crewmate`）、工作树与文件租约。** 内置两个智能体：`mercury-crew` 用于各类委派工作，`mercury-scout` 用于只读侦察；它们与你在 `/agents` 中创建的智能体定义并存。可以在任何已登录的服务商上启动 crewmate，将并行工作隔离在 `git worktree` 检出副本中（`isolation: "worktree"`），并通过进程内的项目文件租约协调共享文件（`mcp__mercury__lease_take`、`mcp__mercury__lease_release`、`mcp__mercury__lease_list`），还可以借助 `SendMessage` 和 `ResumeCrewmate` 按名称或 ID 引导或恢复 crewmate。在 `/crewmates` 和 `/runs` 中可以跟踪 crewmate。参见 [docs/CREW.md](../CREW.md)。
 - **桌面计算机操作。** 在原生桌面驱动可用时默认启用。`Computer` 工具会截取屏幕截图，并控制前台应用中的鼠标和键盘。Mercury 在操作之前会按名称和身份核对应用；除非你的权限规则、会话授权、访问设置或权限模式已允许该操作，否则会请求批准；按 `Esc` 即可停止；同一时间只允许一个会话控制桌面；屏幕截图也不会写入已保存的对话文件。设置 `MERCURY_COMPUTER_USE=0` 可移除该工具。参见 [docs/COMPUTER-USE.md](../COMPUTER-USE.md)。
 - **设备端 Whisper 语音输入（`/voice`）。** `/voice on` 会在首次使用时下载 60 MB 的英语语音模型（`base.en-q5_1`），校验其 SHA-256 摘要，并启用听写；`/voice off` 则将其关闭。按住空格键 1 秒后开始说话，松开即停止；或者在语音已开启时直接运行 `/voice`，以开始和停止一段录音（take）。Whisper 在设备端完成转写，语音音频绝不会离开你的机器。`MERCURY_WHISPER_MODEL` 可选择 `tiny.en-q5_1`、`small.en-q5_1`、多语言的 `base-q5_1`，或本地的 `.gguf` 文件。参见 [docs/VOICE.md](../VOICE.md)。
-- **Saturn 定时任务与会话调度器（`/saturn`）。** 可以为现有会话安排提示词（`CronCreate`、`CronList`、`CronDelete`、`ScheduleWakeup`、`/loop`），也可以安排一个新会话在设定时间启动。调度可以只运行一次，也可以周期性重复。参见 [docs/SATURN.md](../SATURN.md)。
+- **Saturn 定时任务与会话调度器（`/schedule`）。** 可以为现有会话安排提示词（`CronCreate`、`CronList`、`CronDelete`、`ScheduleWakeup`、`/loop`），也可以安排一个新会话在设定时间启动。调度可以只运行一次，也可以周期性重复。参见 [docs/SATURN.md](../SATURN.md)。
 - **VS Code（ACP）、Unity、Blender、Godot 和 Aseprite 桥接。** `mercury acp` 可连接支持 Agent Client Protocol 的编辑器。VS Code 扩展（`mercury bridge install`）通过该协议在编辑器中运行 Mercury：包括对话、会话、智能体、产物（artifacts）和审阅，并且编辑器的选中内容与诊断信息会随每条提示词一并发送。另有需要主动开启的独立集成，可连接正在运行的 Unity（`MERCURY_UNITY=1`）、Blender（`MERCURY_BLENDER=1`）和 Godot（`MERCURY_GODOT_TOOLS=1`）编辑器，并提供对 Aseprite 的批处理访问（`MERCURY_ASEPRITE=1`）。参见 [Unity](../UNITY-BRIDGE.md)、[Blender](../BLENDER-BRIDGE.md)、[Godot](../VULCAN-GODOT-TOOLS.md) 和 [Aseprite](../ASEPRITE-BRIDGE.md)。
 - **扩展。** 每个扩展都只有一个清单（manifest）。可从 git URL、本地文件夹或压缩包添加来源；来源需经其贡献内容哈希（contributions hash）确认后方可使用。参见 [docs/EXTENSIONS.md](../EXTENSIONS.md)。
 - **MCPs & Skills。** 按仓库配置会话加载的内容，提供具名预设，并可在会话期间调整控制项。参见 [docs/KIT.md](../KIT.md)。
@@ -382,8 +382,8 @@ docker run --rm mercury --version
 
 | 类别 | 命令 |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
-| crew & delegation | `/agents` `/crewmates` `/crew` `/swarm` `/swarmchat` `/general` `/team` `/whisper` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/goal` |
+| crew & delegation | `/agents` `/crewmates` `/crew` `/swarm` `/swarmchat` `/general` `/team` `/whisper` `/daemon` `/schedule` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/export` `/copy` `/usage` `/restart` |
 | memory & goals | `/memory` |
 | model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |

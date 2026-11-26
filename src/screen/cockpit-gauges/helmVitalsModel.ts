@@ -228,7 +228,7 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
   const { availRows, termRows } = input
   const sectionRows = (children: number): number => children + RAIL_PANEL_CHROME
   const shedCeiling = availRows ?? termRows - CHROME_ROWS
-  let spentRows = 1 + sectionRows(usageRows.length)
+  let spentRows = sectionRows(usageRows.length)
   const fitsSection = (children: number): boolean => spentRows + sectionRows(children) <= shedCeiling
   const healthShed = !fitsSection(healthRows.length)
   if (!healthShed) spentRows += sectionRows(healthRows.length)
@@ -250,7 +250,7 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
           },
         ]),
   ]
-  let paintedRows = 1
+  let paintedRows = 0
   const firstClipped = sections.findIndex(section => {
     const cost = sectionRows(section.rows.length)
     if (paintedRows + cost > shedCeiling) return true

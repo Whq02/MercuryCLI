@@ -22,8 +22,10 @@ value, as the candidate lines print it); text matches a substring of the title
 or value. Supply only the fields needed
 to identify one element. An ambiguous match lists up to eight numbered
 candidates and `nth: 2` on the target picks the second of them; a missing match
-names the three nearest by text; a truncated match or an element without
-bounds refuses with a remedy. Targets, `find` and `wait` with `until`
+names the three nearest by text; a single match by name on a truncated tree
+answers with its `ref` (and an act or `root` by `ref` runs on a truncated tree
+while its row still reads the same); an element without bounds refuses with a
+remedy. Targets, `find` and `wait` with `until`
 are resolved afresh before the act at depth 32 and 2000 elements unless you
 pass smaller `depth` or `limit` values; larger values clamp to those caps with
 a note in the result. `find` accepts the same target and
@@ -209,14 +211,15 @@ the observation is still read in any application an earlier step of the
 sequence was allowed in, so that line names the focused control instead of
 `focus not read`.
 A `screenshot` step inside a sequence is an image the model has not seen when
-the next step runs, so a step after it that takes pixel coordinates (`x` and
-`y`, `toX` and `toY`, or a `region`) is refused with that reason and the
-sequence stops there;
+the next step runs, so a sequence with a pixel-coordinate step (`x` and `y`,
+`toX` and `toY`, or a `region`) after a screenshot step is refused up front
+before any step runs;
 take the screenshot alone, read it, then act. Targets and refs stay fine after
 a screenshot step. Set `capture: false` on the sequence to keep the interaction
 image-free. Set
 `capture`, `region` and `settleMs` on the sequence itself; steps do not take
-them, except that a `screenshot` step takes its own `region` and `scale`.
+them, except that a `screenshot` step takes its own `region`, `scale`, `full`
+and `pixels`.
 Nested sequences are refused.
 
 `find`, `read` and `wait` with `until` read the tree and therefore ask like `tree`.
@@ -429,8 +432,9 @@ ends where the last hand left it.
 ## What the model sees and what is kept
 
 A screenshot taken while a terminal is in front returns the terminal's text
-instead of an image, and its first line says that the terminal is frontmost
-and that `focusApp` brings the application you mean forward first. A
+instead of an image unless `pixels: true` is passed, and its first line says
+that the terminal is frontmost and that `focusApp` brings the application you
+mean forward first. A
 screenshot taken earlier in the same message is not yet seen by the model,
 so an act or a region in that message is refused with
 “taken in this same message — you have not seen it; take the screenshot alone, then the region or the act”;

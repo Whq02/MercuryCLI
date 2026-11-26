@@ -56,7 +56,7 @@ type MissionCardWriteResult =
 
 export function missionCardUnwrittenWords(path: string, error: string): string {
   logForDebugging(`missionCard: could not save ${path}: ${error}`, { level: 'error' })
-  return 'the mission could not be saved, so it will not survive this session'
+  return 'the goal could not be saved, so it will not survive this session'
 }
 
 export function writeMissionCard(card: MissionCard, cwd?: string): MissionCardWriteResult {
@@ -79,7 +79,7 @@ type MissionCardRead =
 
 export function missionCardUnreadWords(path: string, error: unknown): string {
   const detail = error instanceof Error ? error.message : String(error)
-  return `${path} could not be read (${detail}) — the mission is not shown`
+  return `${path} could not be read (${detail}) — the goal is not shown`
 }
 
 function inspectCard(path: string): MissionCardRead {
@@ -95,7 +95,7 @@ function inspectCard(path: string): MissionCardRead {
     if (parsed && parsed.schema === 1 && typeof parsed.goal === 'string') {
       return { state: 'ok', card: parsed }
     }
-    return { state: 'unreadable', path, error: new Error(`invalid mission card at ${path}`) }
+    return { state: 'unreadable', path, error: new Error(`invalid goal card at ${path}`) }
   } catch (error) {
     return { state: 'unreadable', path, error }
   }

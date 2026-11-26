@@ -9,7 +9,7 @@ import { clampCaret, draftWindow, type LineDraft } from '../lineDraft.js'
 import { OLDER_CHATS_ROW_PREFIX } from '../../concourse-model/concourseSnapshot.js'
 import { SessionMirror } from '../SessionMirror.js'
 import { GLYPH } from '../../theme/glyphs.js'
-import { ConcourseComposer } from '../ConcourseStrips.js'
+import { ConcourseComposer, composerSendKeysHint } from '../ConcourseStrips.js'
 import type { CompactFootNote } from '../CompactConcourse.js'
 import { COMPACT_DOOR_REST_HINT } from '../compactBoard.js'
 import { NL } from './useConcourseDraft.js'
@@ -123,12 +123,15 @@ export function useConcourseFaces({ snapshot, controlNotes, reducedStage, boardS
     )
   }
 
+  const selectedRow = sessionRows.find(r => r.sessionId === boardSel)
   const liveKeysHint =
     liveDraft.text.length === 0
       ? reducedStage
         ? '↵ enter session · tab panes'
         : '↵↵ enter session · tab panes'
-      : undefined
+      : selectedRow?.state === 'working'
+        ? composerSendKeysHint(true)
+        : undefined
   const contextLine =
     composeContext.kind === 'answer'
       ? { tone: 'warning' as const, text: `answer · ${composeContext.title} · ↵ delivers & resumes · esc cancels` }
@@ -158,12 +161,12 @@ export function useConcourseFaces({ snapshot, controlNotes, reducedStage, boardS
     editLiveDraft(dd => ({ text: dd.text, caret: clampCaret(dd.text, caret) }))
   }
 
-  const compactDoorSelected = compact && sessionRows.find(r => r.sessionId === boardSel)?.door !== undefined
+  const compactDoorSelected = compact && selectedRow?.door !== undefined
   const liveComposerFace = (bandRows: number, width: number): React.ReactNode => {
     const face = broadcastFaceOf(markedRows.length)
     const g = compactDoorSelected
       ? { ok: true as const, placeholder: COMPACT_DOOR_REST_HINT }
-      : liveComposerGate(sessionRows.find(r => r.sessionId === boardSel), region)
+      : liveComposerGate(selectedRow, region)
     const boardNote = compact ? null : note
     const paint = liveComposerPaintOf(g, liveNote ?? boardNote)
     return (

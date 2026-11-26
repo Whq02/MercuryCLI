@@ -237,7 +237,7 @@ try {
       ? [
           ...FACE_THEN_COMPOSER,
           { data: '', atTick: 999, awaitText: '1050k', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'boot' },
-          { data: 'hello\r', atTick: 999, awaitText: '/crewmates  /saturn  /health  /trace', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
+          { data: 'hello\r', atTick: 999, awaitText: '/crewmates  /schedule  /health  /trace', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
           { data: '', atTick: 999, awaitText: '· 872k', requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'landed' },
           { data: '/model\r', atTick: 999, awaitText: readyText, requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
           { data: '\x1b', atTick: 999, awaitText: MODEL_PICKER_TITLE, requireAwait: true, minTick: 3, awaitSettleTicks: 2 },
