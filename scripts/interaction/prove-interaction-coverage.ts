@@ -81,6 +81,7 @@ reg(
   [
     'src/screen/boot-face/BootSaturnScreen.tsx',
     'src/screen/boot-face/saturn/menu.tsx',
+    'src/commands/saturn/saturn.tsx',
     'src/screen/boot-face/BootAgentsScreen.tsx',
     'src/screen/boot-face/agents/rows.tsx',
     'src/screen/boot-face/BootLoginsScreen.tsx',

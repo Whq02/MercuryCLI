@@ -48,6 +48,10 @@ saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
 const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
 const { default: instances } = await import('../../src/screen/renderer/instances.ts')
 const modelCommand = await import('../../src/commands/model/mercuryModel.tsx')
+const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.tsx')
+const { pickerGeometry } = await import('../../src/screen/model-picker/geometry.ts')
+const { panelWidth: panelWidthFor } = await import('../../src/screen/widgets/geometry.ts')
+const { composePickerLines, groupPickerRows, initialPickerFolds, MODEL_PICKER_PANEL } = await import('../../src/models/facts/modelPickerGroups.ts')
 const h = React.createElement
 
 const COLS = 178
@@ -85,8 +89,13 @@ async function until(predicate: () => boolean, ms = 15000): Promise<boolean> {
 }
 class Output extends EventEmitter {
   isTTY = true
-  columns = COLS
-  rows = ROWS
+  columns: number
+  rows: number
+  constructor(columns = COLS, rows = ROWS) {
+    super()
+    this.columns = columns
+    this.rows = rows
+  }
   write(): boolean { return true }
 }
 class Input extends EventEmitter {
@@ -141,10 +150,10 @@ const cellsOf = (line: string): string[] => Array.from(line)
 
 type Scene = { lines: () => string[]; push: (data: string) => void; close: () => Promise<void> }
 
-async function mount(tree: React.ReactNode, ready: () => boolean): Promise<Scene> {
-  const stdout = new Output()
+async function mount(tree: React.ReactNode, ready: () => boolean, cols = COLS, rows = ROWS): Promise<Scene> {
+  const stdout = new Output(cols, rows)
   const stdin = new Input()
-  const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(cols, rows) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, tree))
   const painted = await until(() => ready() && ink.lastFrameText() !== '')
@@ -282,6 +291,102 @@ if (sessionWindow !== null) {
   check('esc closes the picker', closed, 'esc did not close the picker or call its done callback: see the esc handling in src/commands/model/picker/MercuryModelPicker.tsx and src/commands/model/mercuryModel.tsx')
 }
 await session.scene.close()
+
+section('§3 focused row description at 80x30 and 120x40: painted rows match counted rows and wrapped lines keep one start column')
+const WRAP_GROUP = 'Mercury — Gemini models'
+const WRAP_TAG = 'connect Gemini to browse its models (Sign in with Google, an API key, or your own OAuth client) — ↵ runs /logins'
+const exactWidthTag = (width: number): string => {
+  const base = 'connect Gemini to browse its models — '
+  const tail = ' ↵ runs /logins'
+  const fill = 'a'.repeat(Math.max(1, width - base.length - tail.length))
+  return `${base}${fill}${tail}`
+}
+const descMeasure = (frame: string[], name: string): { nameCol: number; descCols: number[]; descRows: string[] } => {
+  const win = windowOf(frame)
+  if (win === null) return { nameCol: -1, descCols: [], descRows: [] }
+  const focusIdx = win.rows.findIndex(row => row.includes('❯') && row.includes(name))
+  if (focusIdx < 0) return { nameCol: -1, descCols: [], descRows: [] }
+  const inside = (row: string): string => Array.from(row).slice(1, -1).join('')
+  const focusInside = inside(win.rows[focusIdx]!)
+  const nameCol = focusInside.indexOf(name)
+  const descCols: number[] = []
+  const descRows: string[] = []
+  for (let r = focusIdx + 1; r < win.rows.length - 1; r++) {
+    const body = inside(win.rows[r]!)
+    const trimmed = body.trim()
+    if (trimmed === '' || trimmed.startsWith('context ') || trimmed.startsWith('↑↓') || trimmed.startsWith('↓ ') || trimmed.includes('Filler')) break
+    descCols.push(Array.from(body).findIndex(ch => ch !== ' '))
+    descRows.push(body.trimEnd())
+  }
+  return { nameCol, descCols, descRows }
+}
+for (const [cols, rows] of [[80, 30], [120, 40]] as const) {
+  const pw = panelWidthFor(cols, MODEL_PICKER_PANEL)
+  const innerWidth = pw - 4
+  const cases = [
+    { label: 'wrapping description', id: '__mercury_gemini_connect__', name: 'Gemini — sign in', tag: WRAP_TAG, mustWrap: true },
+    { label: `boundary-length (${innerWidth - 3}ch) description`, id: '__mercury_gemini_boundary__', name: 'Gemini — boundary', tag: exactWidthTag(innerWidth - 3), mustWrap: false },
+  ]
+  for (const spec of cases) {
+    const fillers = Array.from({ length: 14 }, (_, k) => ({ id: `gemini-filler-${k}`, name: `Filler ${k}`, ctx: '1M ctx', tag: '', group: WRAP_GROUP }))
+    const target = { id: spec.id, name: spec.name, ctx: '', tag: spec.tag, group: WRAP_GROUP, action: true }
+    const models = [target, ...fillers]
+    const groups = groupPickerRows(models)
+    const folds = initialPickerFolds(groups, WRAP_GROUP, undefined)
+    const pickerLines = composePickerLines(groups, folds, '')
+    const focusLineIdx = pickerLines.findIndex(line => line.kind === 'row' && line.row.id === target.id)
+    const geo = pickerGeometry({
+      inner: innerWidth,
+      lines: pickerLines,
+      compact: false,
+      i: focusLineIdx,
+      panelWidth: pw,
+      focusedModel: target,
+      listed: models,
+      currentRow: target.id,
+      current: target.id,
+      pendingNext: undefined,
+      focusedLocal: undefined,
+      windowTyping: null,
+      tokens: { warning: 'yellow', failureText: 'red', info: 'cyan', borderStrong: 'gray', textSecondary: 'gray' } as never,
+      ctxNotice: null,
+      notice: undefined,
+      panelView: false,
+      live: undefined,
+      shedMeters: false,
+      hasEffort: false,
+      efforts: undefined,
+      effort: undefined,
+      availRows: rows,
+      localOffer: false,
+      totalLines: pickerLines.length,
+    } as Parameters<typeof pickerGeometry>[0])
+    const countedRows = geo.windowPaint({ start: focusLineIdx, end: focusLineIdx + 1, above: 0, below: 0 })
+    const scene = await mount(
+      h(KeybindingSetup, null, h(MercuryModelPicker, { models, current: target.id, ctxPct: 62, onSelect: () => {}, onClose: () => {} })),
+      () => true,
+      cols,
+      rows,
+    )
+    const painted = await until(() => scene.lines().some(line => line.includes(spec.name) && line.includes('❯')), 5000)
+    await sleep(150)
+    const frame = scene.lines()
+    if (frameDir !== undefined) writeFileSync(join(frameDir, `desc-${spec.mustWrap ? 'wrap' : 'boundary'}-${cols}x${rows}.txt`), `${frame.join('\n')}\n`)
+    const { nameCol, descCols, descRows } = descMeasure(frame, spec.name)
+    const paintedRows = 1 + descRows.length
+    check(
+      `${cols}x${rows} ${spec.label}: painted rows (${paintedRows}) equal linePaint counted rows (${countedRows})`,
+      painted && (!spec.mustWrap || descRows.length >= 2) && paintedRows === countedRows,
+      `painted=${paintedRows} (1+${descRows.length} desc) counted=${countedRows} rows=${JSON.stringify(descRows)} · keep description count and paint on one shared width in src/screen/model-picker/geometry.ts and src/screen/model-picker/renderLine.tsx`,
+    )
+    check(
+      `${cols}x${rows} ${spec.label}: every description line starts at the focused name column (${nameCol})`,
+      painted && descCols.length >= 1 && descCols.every(col => col === nameCol),
+      `nameCol=${nameCol} descCols=[${descCols.join(', ')}] rows=${JSON.stringify(descRows)} · indent every wrapped line of the focused description under its first line in src/screen/model-picker/renderLine.tsx`,
+    )
+    await scene.close()
+  }
+}
 
 console.error = originalError
 clearTimeout(hardLimit)

@@ -27,6 +27,7 @@ command	export	none	none
 command	extensions	none	none
 command	feedback	scripts/command-catalogue/prove-feedback-issue-road.ts	terminal
 command	general	scripts/crew/prove-swarm-switch-waits-for-the-landing.ts	source
+command	goal	scripts/ui/prove-rail-mission-birth.ts	terminal
 command	health	scripts/ui/prove-bang-clear-leaves-shell-mode.ts	source
 command	help	none	none
 command	hooks	none	none
@@ -43,7 +44,6 @@ command	logout	none	none
 command	lsp	scripts/switchboard/prove-command-table.ts	bundle
 command	mcp	none	none
 command	memory	none	none
-command	mission	scripts/ui/prove-chat-recording.ts	source
 command	model	scripts/ui/prove-chat-recording.ts	source
 command	mouse	none	none
 command	orient	scripts/skills/prove-slash-bare-send-census.ts	source
@@ -56,7 +56,7 @@ command	rewind	scripts/ui/prove-chat-recording.ts	source
 command	run	none	none
 command	runs	none	none
 command	samples	scripts/skills/prove-slash-name-honesty.ts	source
-command	saturn	none	none
+command	schedule	scripts/ui/prove-saturn-popup-drive.ts	terminal
 command	seats	scripts/daemon/prove-midturn-line.ts	bundle
 command	sessions	scripts/command-catalogue/prove-beta-journey-matrix.ts	terminal
 command	skills	none	none
