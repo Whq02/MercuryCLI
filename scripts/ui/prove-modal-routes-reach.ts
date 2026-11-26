@@ -72,7 +72,7 @@ const RESIZE_STOPS: Array<[number, number]> = [[64, 20], [100, 30], [177, 49]]
 const NOT_A_VIEW = new Set(['exit', 'logout', 'zen', 'keysetup', 'rename', 'title', 'crewmates', 'browse', 'mission', 'copy'])
 const TEXT_ROUTES = ['mission', 'copy']
 const MARK: Readonly<Record<string, string>> = {
-  defaultprovider: 'Default provider', hooks: 'configured hook', permissions: 'Permissions:', export: 'Export conversation', saturn: 'saturn scheduler',
+  defaultprovider: 'Default provider', hooks: 'configured hook', permissions: 'Permissions:', export: 'Export conversation',
   keys: 'input atlas', workbench: 'Mercury — prompts', console: 'Mercury — console', sessions: 'Mercury · resume', mcp: 'Mercury · mcp', mission: 'Mission',
   context: 'Mercury — context', feedback: 'Feedback — which kind', samples: 'SAMPLES · this session',
 }
