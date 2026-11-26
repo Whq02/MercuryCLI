@@ -26,7 +26,6 @@ import {
 } from '../../engine/connector/shellRunning.js'
 import { KeyboardShortcutHint } from '../theme/KeyboardShortcutHint.js'
 import { useNowTick } from '../widgets/components.js'
-import { toolFamilyFor } from '../widgets/toolGlyphs.js'
 import { MessageResponse } from '../../tools/kit/MessageResponse.js'
 import { HookProgressMessage } from './HookProgressMessage.js'
 import { ToolRowLead, toolRowStateOf } from './ToolRowLead.js'
@@ -378,7 +377,7 @@ export function AssistantToolUseMessage({
           </Box>
         ) : null}
         <Text wrap="truncate-middle">
-          <ToolRowLead family={toolFamilyFor(tool.name)} state={rowState} />
+          <ToolRowLead state={rowState} />
           {nameBgColor !== undefined ? (
             <Text bold backgroundColor={nameBgColor} color="inverseText">
               {displayName}

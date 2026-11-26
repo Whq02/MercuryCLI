@@ -21,7 +21,6 @@ setIsInteractive(false)
 const { findToolByName, getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { getAllBaseTools, getTools } = await import('../../src/tools/kit/toolList.ts')
 const { buildToolCensus, censusGapLines } = await import('../../src/permissions/capability-census/census.ts')
-const { toolFamilyFor } = await import('../../src/screen/widgets/toolGlyphs.ts')
 const { resolveAgentTools } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
 const { gateToolCall, toolCallRefusalNote } = await import('../../src/models/roads/toolCallGate.ts')
@@ -45,7 +44,6 @@ for (const interactive of [false, true]) {
 }
 setIsInteractive(false)
 check('A4 neither the census nor its gap lines name the courier', !census.rows.some(row => row.name === name) && !json(censusGapLines(census)).includes(name), 'remove the courier name from buildToolCensus in src/permissions/capability-census/census.ts')
-check('A5 a recorded courier uses the ordinary unknown family', toolFamilyFor(name) === toolFamilyFor(nonsense) && toolFamilyFor(name) === 'system', 'drop any courier-specific family entry in toolFamilyFor in src/screen/widgets/toolGlyphs.ts')
 const agent = (toolName: string, tools = catalogue) => resolveAgentTools({ tools: ['Read', toolName], source: 'userSettings' }, tools)
 for (const [label, tools] of [['catalogue', catalogue], ['session', pool]] as const) {
   const result = agent(name, tools)

@@ -819,7 +819,6 @@ export function renderGroupedCrewmateToolUse(
     <Box flexDirection="column">
       <Box>
         <ToolRowLead
-          family="agent"
           state={toolRowStateOf({
             resolved: allResolved,
             errored: anyErrored,

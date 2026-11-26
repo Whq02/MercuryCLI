@@ -123,7 +123,7 @@ if (process.env.MEASURE_CHILD) {
         h(
           Text as never,
           { key: `t${i}` },
-          h(ToolRowLead as never, { family: 'shell', state: 'pending' }),
+          h(ToolRowLead as never, { state: 'pending' }),
           `Bash(sleep ${i + 1}) — running`,
         ),
       ),

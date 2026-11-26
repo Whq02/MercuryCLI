@@ -167,8 +167,6 @@ const toolNames = messages
   .filter(m => m.type === 'assistant')
   .flatMap(m => ((m.message as { content: Array<{ type: string; name?: string }> }).content ?? []).filter(c => c.type === 'tool_use').map(c => c.name))
 check('the tool names on tool_use rows read as themselves', JSON.stringify(toolNames) === JSON.stringify(['TeamCreate', 'Agent', 'TeamBrief']), JSON.stringify(toolNames))
-const glyphs = await import('../../src/screen/widgets/toolGlyphs.ts')
-check('a tool name no build of Mercury ships paints as any unknown tool does — no family remembers it', glyphs.toolFamilyFor('TeamCreate') === glyphs.toolFamilyFor('FrobnicateTool') && glyphs.toolFamilyFor('TeamBrief') === glyphs.toolFamilyFor('FrobnicateTool'), `${glyphs.toolFamilyFor('TeamCreate')} / ${glyphs.toolFamilyFor('FrobnicateTool')}`)
 check('no crew_context row is read from the old context kind', messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'crew_context') === undefined)
 const oldContextRow = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'team_context')?.attachment as Record<string, unknown> | undefined
 check('the old context row keeps its keys as written', oldContextRow !== undefined && oldContextRow.teamName === TEAM && typeof oldContextRow.teamConfigPath === 'string' && !('crewName' in oldContextRow) && !('crewConfigPath' in oldContextRow), JSON.stringify(oldContextRow))
