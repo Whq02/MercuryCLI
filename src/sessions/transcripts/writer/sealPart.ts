@@ -1,6 +1,7 @@
-import { randomUUID } from 'node:crypto'
+import { randomUUID, type UUID } from 'node:crypto'
 import { closeSync, fsyncSync, linkSync, mkdirSync, openSync, readSync, rmSync, statSync, writeSync } from 'node:fs'
 import { dirname } from 'node:path'
+import type { FoldMetadata } from '../../../engine/message-shapes/message.js'
 import { dirFsyncErrorIsFatal } from '../../../platform/host-os/files.js'
 import { sleep } from '../../../platform/async/sleep.js'
 import { asRecordId } from '../../fabric/ids.js'
@@ -9,12 +10,13 @@ import type { MercuryRecord } from '../../fabric/record.js'
 import { faultPoint, fsyncEnabled, publishAtomicSync } from '../../../platform/substrate/fileStore.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { foldWorkerRecord } from '../mirrorRecord.js'
-import { historyHead, historyPartDir, sealedFile, type HistoryIndexRow } from '../historyParts.js'
+import { carriedSegment } from '../rowGraph.js'
+import { historyHead, historyIndex, historyPartDir, sealedExtents, sealedFile, type HistoryIndexRow } from '../historyParts.js'
 import { rangeFromFd, transcriptLineBytes } from '../transcriptBytes.js'
 
-type Range = { at: number; len: number; torn: boolean; relinkTo?: string }
-type ChainRow = Range & { parent?: string; originalParent?: string }
-type Segment = { headUuid: string; tailUuid: string; anchorUuid: string }
+type Range = { at: number; len: number; torn: boolean; relinkTo?: string; innerSegment?: Segment }
+type ChainRow = Range & { parent?: string; originalParent?: string; keptParent?: UUID }
+type Segment = NonNullable<FoldMetadata['preservedSegment']>
 const sticky = new Set(['summary', 'custom-title', 'ai-title', 'last-prompt', 'tag', 'agent-name', 'agent-color', 'agent-setting', 'session-brief', 'session-brief-add', 'mode', 'advisor-switch', 'swarm-switch', 'model', 'worktree-state', 'pr-link'])
 
 function linkedCopy(fd: number, row: Range, parent: string, file: string): Buffer {
@@ -23,7 +25,10 @@ function linkedCopy(fd: number, row: Range, parent: string, file: string): Buffe
   const record = JSON.parse(bytes.toString('utf8')) as MercuryRecord
   record.parentId = asRecordId(parent)
   const payload = record.payload
-  if (payload.kind === 'boundary' || payload.kind === 'notice') payload.fields = { ...payload.fields, parentUuid: parent }
+  if (payload.kind === 'boundary' || payload.kind === 'notice') {
+    payload.fields = { ...payload.fields, parentUuid: parent }
+    if (row.innerSegment) payload.fields.compactMetadata = { ...payload.fields.compactMetadata as FoldMetadata, preservedSegment: row.innerSegment }
+  }
   else if (payload.kind === 'unknown-retained') {
     const line = payload.fields.line
     if (line && typeof line === 'object') (line as Record<string, unknown>).parentUuid = parent
@@ -63,6 +68,21 @@ function archive(file: string, path: string): void {
   }
 }
 
+async function alreadyArchived(head: ReturnType<typeof historyHead>, missing: Set<string>): Promise<boolean> {
+  if (!missing.size) return true
+  let count = 0
+  try {
+    for (const extent of sealedExtents(head)) {
+      for (const [id] of historyIndex(extent)) {
+        missing.delete(id)
+        if (!missing.size) return true
+        if (++count % 4096 === 0) await sleep(0)
+      }
+    }
+  } catch (error) { passedOver(error) }
+  return false
+}
+
 export async function sealHistoryPart(file: string, line: string, boundary: MercuryRecord): Promise<boolean> {
   const head = historyHead(file)
   if (head.boundary === boundary.recordId) return true
@@ -70,14 +90,20 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
   const before = statSync(file)
   if (head.end !== before.size || head.ino !== before.ino) throw new Error(`History changed while sealing ${file}`)
   const end = head.before + head.end - head.start
+  const segment = (recordToEntry(boundary).compactMetadata as { preservedSegment?: Segment } | undefined)?.preservedSegment
+  const ids = segment?.keptUuids
+  if (ids !== undefined && !Array.isArray(ids)) return false
+  const selected = ids && new Set<string>(ids)
+  if (segment && selected && (selected.size !== ids!.length || selected.has(segment.anchorUuid))) return false
   const part = sealedFile(file, end)
   mkdirSync(historyPartDir(file), { recursive: true, mode: 0o700 })
   const staging = `${part}.${randomUUID()}.tmp`
   const index = openSync(staging, 'wx', 0o600)
   const metadata = new Map<string, Range>()
+  const preservedMeta = new Map<string, Range>()
   const nodes = new Map<string, ChainRow>()
-  const segments: Segment[] = []
-  const segment = (recordToEntry(boundary).compactMetadata as { preservedSegment?: Segment } | undefined)?.preservedSegment
+  const segments = new Map<string, Segment>()
+  const missing = selected && new Set(selected)
   let at = 0, lastYield = 0, batch = ''
   try {
     try {
@@ -101,23 +127,51 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
           const row: HistoryIndexRow = [id, typeof uid === 'string' ? uid : null, range.at, bytes.length, mirror]
           batch += JSON.stringify(row) + '\n'
         }
+        missing?.delete(id)
         if (payload.kind === 'session-meta') {
           if (sticky.has(payload.metaKind)) metadata.set(JSON.stringify([payload.metaKind, payload.metaKind === 'summary' ? payload.fields.leafUuid : record.sessionId]), range)
-          else if (segment && (payload.metaKind === 'file-history-snapshot' || payload.metaKind === 'attribution-snapshot')) metadata.set(JSON.stringify([payload.metaKind, payload.fields.messageId]), range)
-          else if (segment && payload.metaKind === 'content-replacement') metadata.set(id, range)
-        } else if (segment) {
+          else if (segment && (payload.metaKind === 'file-history-snapshot' || payload.metaKind === 'attribution-snapshot')) preservedMeta.set(JSON.stringify([payload.metaKind, payload.fields.messageId]), range)
+          else if (segment && payload.metaKind === 'content-replacement') preservedMeta.set(id, range)
+        } else if (segment && (!selected || (selected.has(id) && (mirror !== null || payload.kind === 'attachment')))) {
           nodes.set(id, { ...range, parent: record.parentId, originalParent: record.parentId })
           if (payload.kind === 'boundary' && payload.boundaryKind === 'compact') {
             const prior = (payload.fields?.compactMetadata as { preservedSegment?: Segment } | undefined)?.preservedSegment
-            if (prior) segments.push(prior)
+            if (prior) segments.set(id, prior)
           }
         }
       }
       if (batch) writeAll(index, Buffer.from(batch))
     } finally { closeSync(index) }
-    const carry = [...metadata.values()]
-    if (segment) {
-      for (const prior of segments) {
+    const carry = [...metadata.values(), ...(!selected || nodes.size ? preservedMeta.values() : [])]
+    if (selected) carry.sort((a, b) => a.at - b.at)
+    if (segment?.keptUuids && selected && missing) {
+      if (!await alreadyArchived(head, missing)) return false
+      const keptUuids = segment.keptUuids.filter(id => nodes.has(id))
+      if (keptUuids.length !== segment.keptUuids.length && boundary.payload.kind === 'boundary') {
+        const { fields } = boundary.payload
+        const headUuid = keptUuids[0], tailUuid = keptUuids.at(-1)
+        const preservedSegment = headUuid && tailUuid ? { ...segment, headUuid, tailUuid, keptUuids } : undefined
+        const compactMetadata = { ...fields.compactMetadata as FoldMetadata, preservedSegment }
+        const stored = { ...boundary, payload: { ...boundary.payload, fields: { ...fields, compactMetadata } } }
+        line = line.slice(0, line.lastIndexOf('\n', line.length - 2) + 1) + JSON.stringify(stored) + '\n'
+      }
+      let parent = segment.anchorUuid
+      for (const id of keptUuids) {
+        const row = nodes.get(id)!
+        row.keptParent = parent
+        if (row.parent !== parent) row.relinkTo = parent
+        carry.push(row)
+        parent = id
+      }
+      for (const [id, prior] of segments) {
+        const inner = carriedSegment(prior, uuid => nodes.get(uuid)?.keptParent)
+        if (inner === prior) continue
+        const row = nodes.get(id)!
+        row.relinkTo = row.keptParent
+        row.innerSegment = inner
+      }
+    } else if (segment) {
+      for (const prior of segments.values()) {
         const first = nodes.get(prior.headUuid)
         if (first && nodes.has(prior.tailUuid)) {
           first.parent = prior.anchorUuid
@@ -136,7 +190,7 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
         id = row.parent
       }
     }
-    carry.sort((a, b) => a.at - b.at)
+    if (!selected) carry.sort((a, b) => a.at - b.at)
     const source = openSync(file, 'r')
     let carrySize = 0
     try {

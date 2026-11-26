@@ -13,6 +13,12 @@ const stampOf = (row: TranscriptMessage): number => {
   return Number.isNaN(at) ? -1 : at
 }
 
+export function carriedSegment(segment: Segment | undefined, parentOf: (id: UUID) => UUID | null | undefined): Segment | undefined {
+  if (!segment) return undefined
+  const anchorUuid = parentOf(segment.headUuid)
+  return anchorUuid && anchorUuid !== segment.anchorUuid && parentOf(segment.tailUuid) ? { ...segment, anchorUuid } : segment
+}
+
 class TranscriptRows {
   private positions = new Map<UUID, number>()
   private ordinal = 0
@@ -146,6 +152,12 @@ class TranscriptRows {
   }
 
   private keptBySegment(segment: Segment): Set<UUID> | null {
+    if (segment.keptUuids !== undefined) {
+      const ids = segment.keptUuids
+      if (!Array.isArray(ids) || ids[0] !== segment.headUuid || ids.at(-1) !== segment.tailUuid || !ids.every(id => this.has(id))) return null
+      const kept = new Set(ids)
+      return kept.size === ids.length && !kept.has(segment.anchorUuid) ? kept : null
+    }
     const kept = new Set<UUID>()
     let cursor = this.get(segment.tailUuid)
     while (cursor && !kept.has(cursor.uuid)) {
@@ -157,8 +169,12 @@ class TranscriptRows {
   }
 
   private relinkSegment(segment: Segment, kept: Set<UUID>): void {
-    const first = this.get(segment.headUuid)!
-    if (first.parentUuid !== segment.anchorUuid) this.set(first.uuid, { ...first, parentUuid: segment.anchorUuid })
+    let parentUuid = segment.anchorUuid
+    for (const id of segment.keptUuids ?? [segment.headUuid]) {
+      const row = this.get(id)!
+      if (row.parentUuid !== parentUuid) this.set(id, { ...row, parentUuid })
+      parentUuid = id
+    }
     for (const id of [...(this.children.get(segment.anchorUuid) ?? [])]) {
       if (id === segment.headUuid) continue
       const child = this.get(id)!
@@ -166,6 +182,11 @@ class TranscriptRows {
     }
     for (const id of kept) {
       const row = this.get(id)
+      if (segment.keptUuids && row && foldBoundaryRow(row)) {
+        const prior = row.compactMetadata.preservedSegment
+        const preservedSegment = carriedSegment(prior, id => kept.has(id) ? this.get(id)?.parentUuid : undefined)
+        if (preservedSegment !== prior) this.set(id, { ...row, compactMetadata: { ...row.compactMetadata, preservedSegment } })
+      }
       if (row?.type !== 'assistant') continue
       const usage = row.message.usage
       if (usage !== undefined && usage.input_tokens === 0 && usage.output_tokens === 0 && usage.cache_creation_input_tokens === 0 && usage.cache_read_input_tokens === 0) continue
