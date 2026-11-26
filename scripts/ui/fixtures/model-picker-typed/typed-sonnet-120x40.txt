@@ -6,17 +6,18 @@ next                    │ │ Mercury · model · 3 of 24 match               
   /health               │ │ / sonnet                                                                                 │ │
   /memory               │ │                                                                                          │ │
   /mission              │ │ ▾ ANTHROPIC · API key · …-key · 3 of 13                                                  │ │
-                        │ │ ❯ Sonnet 5.5          claude-sonnet-5-5                      1M ctx                      │ │
-files · project         │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
-  ↵ browse              │ │   Sonnet 4.6          claude-sonnet-4-6                      1M ctx                      │ │
-                        │ │                                                                                          │ │
-vitals                  │ │ context —                                                                                │ │
-  spend —               │ │ effort  low medium [high] xhigh max · ctrl+e changes it                                  │ │
-  ctx — · —             │ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │
-  health — run /health  │ │ pgup/pgdn page                                                                           │ │
+                        │ │ ╭──────────────────────────────────────────────────────────────────────────────────────╮ │ │
+files · project         │ │ │ Sonnet 5.5          claude-sonnet-5-5                      1M ctx                    │ │ │
+  ↵ browse              │ │ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │ │
+                        │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
+vitals                  │ │   Sonnet 4.6          claude-sonnet-4-6                      1M ctx                      │ │
+  spend —               │ │                                                                                          │ │
+  ctx — · —             │ │ context —                                                                                │ │
+  health — run /health  │ │ effort  low medium [high] xhigh max · ctrl+e changes it                                  │ │
+                        │ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │
+                        │ │ pgup/pgdn page                                                                           │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
                         │                                                                                              │
-                        │ transcript row 45 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 46 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 47 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 48 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
@@ -34,7 +35,6 @@ vitals                  │ │ context —                                     
                         │ transcript row 60 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │
+│❯ Type a prompt, or / for commands                                                                                    │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

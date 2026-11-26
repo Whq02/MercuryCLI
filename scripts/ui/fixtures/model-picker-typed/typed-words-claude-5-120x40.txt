@@ -11,9 +11,11 @@ files · project         │ │   Fable 5.1           claude-fable-5-1         
   ↵ browse              │ │   Fable 5             claude-fable-5                         1M ctx                      │ │
                         │ │   Sonnet 5.5          claude-sonnet-5-5                      1M ctx                      │ │
 vitals                  │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
-  spend —               │ │ ❯ Opus 5.5            claude-opus-5-5           current      1M ctx                      │ │
-  ctx — · —             │ │   Opus 5              claude-opus-5                          1M ctx                      │ │
-  health — run /health  │ │   Haiku 5.5           claude-haiku-5-5                       1M ctx                      │ │
+  spend —               │ │ ╭──────────────────────────────────────────────────────────────────────────────────────╮ │ │
+  ctx — · —             │ │ │ Opus 5.5            claude-opus-5-5           current      1M ctx                    │ │ │
+  health — run /health  │ │ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │ │
+                        │ │   Opus 5              claude-opus-5                          1M ctx                      │ │
+                        │ │   Haiku 5.5           claude-haiku-5-5                       1M ctx                      │ │
                         │ │   Haiku 4.5           claude-haiku-4-5-20251001              200k ctx                    │ │
                         │ │ ▾ Z.AI · no Z.AI API key — /logins zai (or ZAI_API_KEY) · 3 of 3                         │ │
                         │ │   GLM-5.3             glm-5.3                   unavailable  1M ctx                      │ │
@@ -22,8 +24,7 @@ vitals                  │ │   Sonnet 5            claude-sonnet-5           
                         │ │ ▾ RUN A MODEL · 0 of 0                                                                   │ │
                         │ │   Beam 1.0 501B-A23B                                                                     │ │
                         │ │   GLM-5.3                                                                                │ │
-                        │ │   GLM-5.3-Flash                                                                          │ │
-                        │ │   ↓ 8 more                                                                               │ │
+                        │ │   ↓ 9 more                                                                               │ │
                         │ │                                                                                          │ │
                         │ │ context —                                                                                │ │
                         │ │ effort  low [medium] high xhigh max · ctrl+e changes it                                  │ │
@@ -34,7 +35,6 @@ vitals                  │ │   Sonnet 5            claude-sonnet-5           
                         │                                                                                              │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │
+│❯ Type a prompt, or / for commands                                                                                    │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

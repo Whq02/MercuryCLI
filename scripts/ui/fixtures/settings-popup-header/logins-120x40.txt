@@ -1,19 +1,20 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-workbench               │ transcript row 48 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
-  no prompts yet        │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
-                        │                                                                                              │
-next                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-  /health               │ │ Mercury · logins                                                                         │ │
-  /memory               │ │                                                                                          │ │
+workbench               │ transcript row 47 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+  no prompts yet        │ transcript row 48 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+                        │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+next                    │                                                                                              │
+  /health               │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+  /memory               │ │ ▖▟▆▙▗ Mercury · logins                                                                   │ │
   /mission              │ │                                                                                          │ │
-                        │ │ Sign in                                                                                  │ │
-files · orchard         │ │                                                                                          │ │
-  ↵ browse              │ │ Choose a provider to sign in.                                                            │ │
                         │ │                                                                                          │ │
-vitals                  │ │   OpenAI — ChatGPT subscription or API key                                               │ │
-  spend —               │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key                           │ │
-  ctx — · —             │ │     ANTHROPIC_API_KEY (env) …-key                                                        │ │
-  health — run /health  │ │   OpenRouter — browser sign-in or API key                                                │ │
+files · orchard         │ │ Sign in                                                                                  │ │
+  ↵ browse              │ │                                                                                          │ │
+                        │ │ Choose a provider to sign in.                                                            │ │
+vitals                  │ │                                                                                          │ │
+  spend —               │ │   OpenAI — ChatGPT subscription or API key                                               │ │
+  ctx — · —             │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key                           │ │
+  health — run /health  │ │     ANTHROPIC_API_KEY (env) …-key                                                        │ │
+                        │ │   OpenRouter — browser sign-in or API key                                                │ │
                         │ │   Google Gemini — Google sign-in, API key                                                │ │
                         │ │   Hugging Face — sign-in or Hub token                                                    │ │
                         │ │   Kimi (Moonshot) — device-code sign-in or API key                                       │ │
@@ -34,7 +35,6 @@ vitals                  │ │   OpenAI — ChatGPT subscription or API key    
                         │                                                                                              │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │
+│❯ Type a prompt, or / for commands                                                                                    │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

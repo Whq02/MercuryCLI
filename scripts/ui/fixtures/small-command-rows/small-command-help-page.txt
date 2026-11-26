@@ -1,26 +1,26 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-workbench               │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
-  /crewmates off        │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
-                        │   ▀▄▄▄▀▄▄▄▀                                                                                                      │
-next                    │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
-  /health               │                                                                                                                  │
+workbench               │╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│
+  /crewmates off        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
+                        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
+next                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
+  /health               │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
   /memory               │                                                                                                                  │
-  /mission              │ 00:39:28 [sam] ❯ start                                                                                           │
+  /mission              │                                                                                                                  │
+                        │ 00:31:28 [sam] ❯ start                                                                                           │
+files · project         │                                                                                                                  │
+  ↵ browse              │ 00:31:28 [Mercury] Command rows ready.                                                                           │
                         │                                                                                                                  │
-files · project         │ 00:39:28 [Mercury] Command rows ready.                                                                           │
-  ↵ browse              │                                                                                                                  │
-                        │ ❯ /crewmates off                                                                                                 │
-vitals                  │   └ crewmates off for this session                                                                               │
-  spend $0.00           │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
-  ctx 0% · 1000k        │     running finishes                                                                                             │
-  health — run /health  │                                                                                                                  │
+vitals                  │ ❯ /crewmates off                                                                                                 │
+  spend $0.00           │   └ crewmates off for this session                                                                               │
+  ctx 0% · 1000k        │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
+  health — run /health  │     running finishes                                                                                             │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
 ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│ Mercury — help                                                                                                                           │
+│ ▖▟▆▙▗ Mercury — help                                                                                                                     │
 │  general   commands   custom-commands   shortcuts                                                                                        │
 │                                                                                                                                          │
 │                                                                                                                                          │

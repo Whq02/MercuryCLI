@@ -57,7 +57,6 @@ const doors = [
   ['CREW_CLEAR_DOOR', words.CREW_CLEAR_DOOR],
   ['crewmateSendClause (a stopped local crewmate)', words.crewmateSendClause({ name: 'atlas', pinned: false, live: false, local: true })],
   ['CREWMATE_BETWEEN_TURNS_DETAIL', words.CREWMATE_BETWEEN_TURNS_DETAIL],
-  ['crewmateStatusRightHint (viewing, live)', words.crewmateStatusRightHint(false, true)],
   ['crewmateCardKeys (viewing, landed)', words.crewmateCardKeys(false, false)],
 ] as const
 for (const [label, text] of doors) {
