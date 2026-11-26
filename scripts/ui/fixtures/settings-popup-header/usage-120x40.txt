@@ -1,19 +1,19 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH               │ transcript row 48 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
-  no prompts sent yet   │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+workbench               │ transcript row 48 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+  no prompts yet        │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │                                                                                              │
-NEXT                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-  · /health — health…   │ │ Mercury · usage                                                                          │ │
-  · /memory — memory    │ │ API usage session on · 0 subscriptions signed in                                         │ │
-  · /mission — set a…   │ │                                                                                          │ │
+next                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+  /health               │ │ ▖▟▆▙▗ Mercury · usage                                                                    │ │
+  /memory               │ │ API usage session on · 0 subscriptions signed in                                         │ │
+  /mission              │ │                                                                                          │ │
                         │ │ Anthropic usage                                                                          │ │
-FILES · orchard         │ │ API key · …-key                                                                          │ │
-  ↵ or click · browse   │ │ credits: not reported by the provider                                                    │ │
+files · orchard         │ │ API key · …-key                                                                          │ │
+  ↵ browse              │ │ credits: not reported by the provider                                                    │ │
                         │ │                                                                                          │ │
-VITALS                  │ │ Subscription                                                                             │ │
-  · spend —             │ │ none — /logins anthropic connects a subscription account · n/a                           │ │
-  · ctx — · —           │ │                                                                                          │ │
-  · health — run /health│ │ API key                                                                                  │ │
+vitals                  │ │ Subscription                                                                             │ │
+  spend —               │ │ none — /logins anthropic connects a subscription account · n/a                           │ │
+  ctx — · —             │ │                                                                                          │ │
+  health — run /health  │ │ API key                                                                                  │ │
                         │ │ Anthropic API key (ANTHROPIC_API_KEY)                                                    │ │
                         │ │ no usage endpoint is read for an API key on this lane — the provider console is the view │ │
                         │ │                                                                                          │ │

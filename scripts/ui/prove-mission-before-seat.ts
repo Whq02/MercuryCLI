@@ -84,7 +84,7 @@ async function drive(cols: number, rows: number): Promise<ArenaRun> {
       { kind: 'text', text: `1. ${MISSION} — the mission is met now, the relay answered the probe\n${MISSION_MET_SENTINEL}` },
       { kind: 'text', text: 'hello back' },
     ],
-    sends: [`after:no prompts sent yet:0:/mission ${MISSION}\\r`, `after:relay probe:${CARD_LOOK_AFTER_MS + 400}:hello\\r`],
+    sends: [`after:no prompts yet:0:/mission ${MISSION}\\r`, `after:relay probe:${CARD_LOOK_AFTER_MS + 400}:hello\\r`],
     seconds: 24,
     cols,
     rows,

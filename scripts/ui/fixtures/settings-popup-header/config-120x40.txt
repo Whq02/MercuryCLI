@@ -1,26 +1,26 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH               │                                                                                              │
-  no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-                        │ │ Mercury · config                                                                         │ │
-NEXT                    │ │ orchard · 84 settings · 1 set by you                                                     │ │
-  · /health — health…   │ │                                                                                          │ │
-  · /memory — memory    │ │ / Search settings…                                                                       │ │
-  · /mission — set a…   │ │                                                                                          │ │
+workbench               │                                                                                              │
+  no prompts yet        │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+                        │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
+next                    │ │ orchard · 84 settings · 1 set by you                                                     │ │
+  /health               │ │                                                                                          │ │
+  /memory               │ │ / Search settings…                                                                       │ │
+  /mission              │ │                                                                                          │ │
                         │ │ › Auto-compact                      on                                                   │ │
-FILES · orchard         │ │   Auto-compact window               auto                                                 │ │
-  ↵ or click · browse   │ │   Session concourse                 on                                                   │ │
+files · orchard         │ │   Auto-compact window               auto                                                 │ │
+  ↵ browse              │ │   Session concourse                 on                                                   │ │
                         │ │   Seats                             17 · this machine's reading                          │ │
-VITALS                  │ │   Tips                              on                                                   │ │
-  · spend —             │ │   Reduced motion                    off                                                  │ │
-  · ctx — · —           │ │   Ping                              on                                                   │ │
-  · health — run /health│ │   Account identity                  shown                                                │ │
+vitals                  │ │   Tips                              on                                                   │ │
+  spend —               │ │   Reduced motion                    off                                                  │ │
+  ctx — · —             │ │   Ping                              on                                                   │ │
+  health — run /health  │ │   Account identity                  shown                                                │ │
                         │ │   Zen mode — rails hidden           off                                                  │ │
                         │ │   Motion                            auto · off                                           │ │
                         │ │   DuckDuckGo page scraping          on                                                   │ │
                         │ │   JEV                               off · official                                       │ │
                         │ │   Instruction profile               auto                                                 │ │
                         │ │   Shell engine                      system                                               │ │
-                        │ │   Stream idle patience              normal · idle 6m (silent 15m) · fallback 15m · ret…  │ │
+                        │ │   Patience with a quiet model       normal · idle 6m (quiet 15m) · fallback 15m · retr…  │ │
                         │ │   OpenRouter routing policy         n/a — applies to OpenRouter models (Anthropic is a…  │ │
                         │ │   Shell engine sessions             8 · the conversation + 7 crewmates                   │ │
                         │ │   Thinking                          n/a — Opus 5.5 keeps thinking on                     │ │

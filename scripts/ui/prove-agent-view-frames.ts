@@ -287,7 +287,7 @@ async function mount(size?: Size): Promise<Scene> {
   const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(size) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Harness)))
-  const painted = await until(() => ink.lastFrameText() !== '' && stripAnsi(ink.lastFrameText()).includes('CREW'))
+  const painted = await until(() => ink.lastFrameText() !== '' && stripAnsi(ink.lastFrameText()).includes('crew ·'))
   check(`the cockpit painted with the crew lane${size === undefined ? '' : ` at ${size.columns}x${size.rows}`}`, painted, `${stripAnsi(ink.lastFrameText()).slice(0, 300)} — the cockpit never painted a CREW lane; look at src/screen/fullscreen-layout/HelmLanesRail.tsx and the harness mount`)
   await sleep(400)
   return {
@@ -379,7 +379,7 @@ const scene = await mount()
 section(`§1 screen 1 at ${COLS}x${ROWS}: Mercury Lead, the default`)
 let frame = scene.lines()
 save('screen-1-lead', frame)
-const crewHeader = railRow(frame, 'CREW')
+const crewHeader = railRow(frame, 'crew ·')
 const leadRow = crewHeader >= 0 ? railText(frame[crewHeader + 1] ?? '').trim() : ''
 console.log(`the CREW lane's first row: "${leadRow}"`)
 check(`the lead's CREW row is first and reads "${LEAD_ROW}"`, crewHeader >= 0 && leadRow.includes(LEAD_ROW), `the row reads "${leadRow}"`)
@@ -488,7 +488,7 @@ if (crewWindow !== null) {
   check('the transcript still paints beside the window (the cockpit is dimmed, not blanked)', frame.some(line => line.includes(TRANSCRIPT_NEEDLE)), 'no transcript row on the frame')
 }
 check('the composer stays on screen around the pop-up', composerRow(frame) > 0, 'no composer row')
-check('the lanes rail stays on screen beside the pop-up', railRow(frame, 'CREW') >= 0, 'no CREW lane')
+check('the lanes rail stays on screen beside the pop-up', railRow(frame, 'crew ·') >= 0, 'no CREW lane')
 
 section('§4 screen 4: m on a crewmate makes it the main chat')
 for (let step = 0; step < 5; step++) {

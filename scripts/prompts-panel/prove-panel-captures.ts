@@ -378,23 +378,23 @@ for (const [cols, rows, screenCols, screenRows] of SIZES) {
     const band = (s: string): string => s.split('\n').map(l => l.slice(0, 26)).join('\n')
     const berth = cols >= 120
     const gp = band(text(capture('L11-rail-populated', cols, rows, { transcript: POPULATED, sends: [], readyText: 'ship it', total: 90 })))
-    const cardShown = /WORKBENCH/.test(gp) && /ship it/.test(gp)
+    const cardShown = /workbench/.test(gp) && /ship it/.test(gp)
     const pointerShown = /more: [^\n]*\/workbench/.test(gp)
     if (berth) {
-      check(`[${size}] L11 the card paints at the ruled berth and carries the LAST sent prompt`, cardShown, gp.includes('WORKBENCH') ? 'header without content' : pointerShown ? 'only the shed pointer — the card is missing at the berth' : 'no WORKBENCH in the rail band')
+      check(`[${size}] L11 the card paints at the ruled berth and carries the LAST sent prompt`, cardShown, gp.includes('workbench') ? 'header without content' : pointerShown ? 'only the shed pointer — the card is missing at the berth' : 'no workbench in the rail band')
     } else {
-      check(`[${size}] L11 the card carries the LAST sent prompt (or the honest shed pointer names /workbench)`, cardShown || pointerShown, gp.includes('WORKBENCH') ? 'header without content' : 'no WORKBENCH in the rail band')
+      check(`[${size}] L11 the card carries the LAST sent prompt (or the honest shed pointer names /workbench)`, cardShown || pointerShown, gp.includes('workbench') ? 'header without content' : 'no workbench in the rail band')
     }
     if (cardShown) {
       check(`[${size}] L11 the card stands without the retired notepad or the retired SEAT box`, !/TABULA/.test(gp) && !/SEAT ·/.test(gp))
     }
     const ge = band(text(capture('L11-rail-empty', cols, rows, { transcript: 'none', sends: [then('New Session', ENTER)], readyText: 'type a prompt', total: 110 })))
-    const emptyShown = /WORKBENCH/.test(ge) && /no prompts sent/.test(ge)
+    const emptyShown = /workbench/.test(ge) && /no prompts yet/.test(ge)
     const emptyPointer = /more: [^\n]*\/workbench/.test(ge)
     if (berth) {
-      check(`[${size}] L11e before any prompt the card says so honestly at the ruled berth`, emptyShown, ge.includes('WORKBENCH') ? 'header without placeholder' : emptyPointer ? 'only the shed pointer — the card is missing at the berth' : 'no WORKBENCH in the rail band')
+      check(`[${size}] L11e before any prompt the card says so honestly at the ruled berth`, emptyShown, ge.includes('workbench') ? 'header without placeholder' : emptyPointer ? 'only the shed pointer — the card is missing at the berth' : 'no workbench in the rail band')
     } else {
-      check(`[${size}] L11e before any prompt the card says so honestly (or the shed pointer names /workbench)`, emptyShown || emptyPointer, ge.includes('WORKBENCH') ? 'header without placeholder' : 'no WORKBENCH in the rail band')
+      check(`[${size}] L11e before any prompt the card says so honestly (or the shed pointer names /workbench)`, emptyShown || emptyPointer, ge.includes('workbench') ? 'header without placeholder' : 'no workbench in the rail band')
     }
   }
 }

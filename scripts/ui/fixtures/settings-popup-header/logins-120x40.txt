@@ -1,19 +1,19 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH               │ transcript row 48 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
-  no prompts sent yet   │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+workbench               │ transcript row 48 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+  no prompts yet        │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │                                                                                              │
-NEXT                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-  · /health — health…   │ │ Mercury · logins                                                                         │ │
-  · /memory — memory    │ │                                                                                          │ │
-  · /mission — set a…   │ │                                                                                          │ │
+next                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+  /health               │ │ ▖▟▆▙▗ Mercury · logins                                                                   │ │
+  /memory               │ │                                                                                          │ │
+  /mission              │ │                                                                                          │ │
                         │ │ Sign in                                                                                  │ │
-FILES · orchard         │ │                                                                                          │ │
-  ↵ or click · browse   │ │ Choose a provider to sign in.                                                            │ │
+files · orchard         │ │                                                                                          │ │
+  ↵ browse              │ │ Choose a provider to sign in.                                                            │ │
                         │ │                                                                                          │ │
-VITALS                  │ │   OpenAI — ChatGPT subscription or API key                                               │ │
-  · spend —             │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key                           │ │
-  · ctx — · —           │ │     ANTHROPIC_API_KEY (env) …-key                                                        │ │
-  · health — run /health│ │   OpenRouter — browser sign-in or API key                                                │ │
+vitals                  │ │   OpenAI — ChatGPT subscription or API key                                               │ │
+  spend —               │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key                           │ │
+  ctx — · —             │ │     ANTHROPIC_API_KEY (env) …-key                                                        │ │
+  health — run /health  │ │   OpenRouter — browser sign-in or API key                                                │ │
                         │ │   Google Gemini — Google sign-in, API key                                                │ │
                         │ │   Hugging Face — sign-in or Hub token                                                    │ │
                         │ │   Kimi (Moonshot) — device-code sign-in or API key                                       │ │

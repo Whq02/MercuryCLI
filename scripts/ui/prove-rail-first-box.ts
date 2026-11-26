@@ -206,7 +206,7 @@ async function renderAt(columns: number, rows: number): Promise<string[]> {
 const railHeaders = (lines: string[], width: number): string[] =>
   lines
     .map(line => line.slice(0, width))
-    .map(slice => /^[│ ]\s*\S\s([A-Z]+)(?:\s·\s|\s*│)/.exec(slice)?.[1] ?? null)
+    .map(slice => /^│ \S ([a-z]+)(?:\s·\s|\s*│)/.exec(slice)?.[1] ?? null)
     .filter((label): label is string => label !== null)
 
 for (const [columns, rows] of SIZES) {
@@ -219,7 +219,7 @@ for (const [columns, rows] of SIZES) {
     const lanesW = railPlanAt(columns, true).lanesW
     const headers = railHeaders(lines, lanesW)
     check(`${columns}x${rows}: the lanes rail paints with its banner on the first row`, (lines[0] ?? '').includes('lanes'), (lines[0] ?? '') + ' | the first row has no lanes banner; check that railPlanAt in src/screen/fullscreen-layout/helmGeometry.ts gives a lanes width at this size and that the rail is mounted in FullscreenLayout')
-    check(`${columns}x${rows}: the rail's first box is CREW`, headers[0] === 'CREW', `boxes: ${headers.join(' › ') || 'none'} | put the CREW section (crewSection area in src/screen/cockpit-gauges/helm-lanes-model/sections.ts) first in the rail order`)
+    check(`${columns}x${rows}: the rail's first box is CREW`, headers[0] === 'crew', `boxes: ${headers.join(' › ') || 'none'} | put the CREW section (crewSection area in src/screen/cockpit-gauges/helm-lanes-model/sections.ts) first in the rail order`)
     check(`${columns}x${rows}: the crew rows stand in the CREW box`, /✶ Mercury Lead/.test(frame) && /atlas/.test(frame) && /fjord/.test(frame), 'the roster rows (Mercury Lead, atlas, fjord) are missing from the CREW box; check the crew rows built in src/screen/cockpit-gauges/helm-lanes-model/sections.ts')
   } else {
     check(`${columns}x${rows}: the narrow layout paints no lanes rail`, !(lines[0] ?? '').includes('lanes'), (lines[0] ?? '') + ' | a lanes rail paints at this narrow width; check railPlanAt in src/screen/fullscreen-layout/helmGeometry.ts so it returns no lanes width below 150 columns')

@@ -1,18 +1,20 @@
   lanes                      ╭────────────────────────────────────────────────────────────────────────────────────────────────────╮  vitals
 ╭───────────────────────────╮│                                                                                                    │╭───────────────────────────╮
-│ ❯ WORKBENCH               ││                                                                                                    ││ ▆ USAGE                   │
-│   no prompts sent yet     ││ ╭────────────────────────────────────────────────────────────────────────────────────────────────╮ ││   API usage               │
+│ ❯ workbench               ││                                                                                                    ││ ▆ usage                   │
+│   no prompts yet          ││ ╭────────────────────────────────────────────────────────────────────────────────────────────────╮ ││   API usage               │
 ╰───────────────────────────╯│ │ Mercury · model                                                                                │ ││   API key · …-key         │
 ╭───────────────────────────╮│ │ / type to search by name or id                                                                 │ ││   spend none yet          │
-│ ▸ NEXT                    ││ │                                                                                                │ ││   credits not reported    │
-│   · /health — health cert ││ │ ▾ ANTHROPIC · API key · …-key · 13 live                                                        │ │╰───────────────────────────╯
-│   · /memory — memory      ││ │   Fable 5.2             claude-fable-5-2                           1M ctx                      │ │╭───────────────────────────╮
-│   · /mission — set a…     ││ │ ❯ Fable 5.1             claude-fable-5-1              current      1M ctx                      │ ││ ✓ HEALTH                  │
-╰───────────────────────────╯│ │   Fable 5               claude-fable-5                             1M ctx                      │ ││   ◌ no cert · /health     │
-╭───────────────────────────╮│ │   Sonnet 5.5            claude-sonnet-5-5                          1M ctx                      │ │╰───────────────────────────╯
-│ ▤ FILES · project         ││ │   Sonnet 5              claude-sonnet-5                            1M ctx                      │ │
-│   ↵ or click · browse     ││ │   Sonnet 4.6            claude-sonnet-4-6                          1M ctx                      │ │
-╰───────────────────────────╯│ │   Opus 5.5              claude-opus-5-5                            1M ctx                      │ │
+│ ▸ next                    ││ │                                                                                                │ ││   credits not reported    │
+│   /health                 ││ │ ▾ ANTHROPIC · API key · …-key · 13 live                                                        │ │╰───────────────────────────╯
+│   /memory                 ││ │   Fable 5.2             claude-fable-5-2                           1M ctx                      │ │╭───────────────────────────╮
+│   /mission                ││ │ ╭────────────────────────────────────────────────────────────────────────────────────────────╮ │ ││ ✓ health                  │
+╰───────────────────────────╯│ │ │ Fable 5.1             claude-fable-5-1              current      1M ctx                    │ │ ││   ◌ no cert · /health     │
+╭───────────────────────────╮│ │ ╰────────────────────────────────────────────────────────────────────────────────────────────╯ │ │╰───────────────────────────╯
+│ ▤ files · project         ││ │   Fable 5               claude-fable-5                             1M ctx                      │ │
+│   ↵ browse                ││ │   Sonnet 5.5            claude-sonnet-5-5                          1M ctx                      │ │
+╰───────────────────────────╯│ │   Sonnet 5              claude-sonnet-5                            1M ctx                      │ │
+                             │ │   Sonnet 4.6            claude-sonnet-4-6                          1M ctx                      │ │
+                             │ │   Opus 5.5              claude-opus-5-5                            1M ctx                      │ │
                              │ │   Opus 5                claude-opus-5                              1M ctx                      │ │
                              │ │   Opus 4.8              claude-opus-4-8                            1M ctx                      │ │
                              │ │   Opus 4.7              claude-opus-4-7                            1M ctx                      │ │
@@ -28,9 +30,7 @@
                              │ │ ▾ HUGGING FACE · connect Hugging Face to browse its models — /logins connects (or HF_TOKEN)    │ │
                              │ │   Hugging Face — sign in                                                                       │ │
                              │ │ ▾ Z.AI · no Z.AI API key — /logins zai (or ZAI_API_KEY)                                        │ │
-                             │ │   Z.AI — attach a key                                                                          │ │
-                             │ │   GLM-5.3               glm-5.3                       unavailable  1M ctx                      │ │
-                             │ │   ↓ 68 more                                                                                    │ │
+                             │ │   ↓ 70 more                                                                                    │ │
                              │ │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                                     │ │
                              │ │                                                                                                │ │
                              │ │ context —                                                                                      │ │

@@ -116,7 +116,7 @@ const live = await drive('live-exit', [
   { requireAwait: true, awaitText: composer, awaitSettleTicks: 2, data: '!' },
   { atTick: 210, awaitText: '! Type a prompt', requireAwait: true, data: 'sleep 300' },
   { requireAwait: true, awaitText: 'sleep 300', awaitSettleTicks: 2, data: '\r' },
-  { atTick: 280, awaitText: 'RUNS · 1 live', requireAwait: true, awaitSettleTicks: 3, data: '' },
+  { atTick: 280, awaitText: 'runs · 1 live', requireAwait: true, awaitSettleTicks: 3, data: '' },
   ...command('/exit'),
   { atTick: 380, awaitText: 'Leave Mercury?', requireAwait: true, awaitSettleTicks: 3, mark: 'first-card', data: 'n' },
   { requireAwait: true, awaitText: composer, awaitPattern: gone('Leave Mercury?'), awaitSettleTicks: 3, data: '' },

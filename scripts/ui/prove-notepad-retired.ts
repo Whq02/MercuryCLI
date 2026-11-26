@@ -98,7 +98,7 @@ try {
     while (Date.now() < until && stable < 10) {
       await new Promise<void>(resolve => setImmediate(resolve))
       const next = stripAnsi(ink.lastFrameText())
-      stable = next === frame && next.includes('WORKBENCH') ? stable + 1 : 0
+      stable = next === frame && next.includes('workbench') ? stable + 1 : 0
       frame = next
     }
     const name = `rail-${cols}x${rows}`
@@ -106,12 +106,12 @@ try {
       writeFileSync(join(frames, `${name}.txt`), frame + '\n')
       writeFileSync(join(frames, `${name}.ansi`), ink.lastFrameText() + '\n')
     }
-    check(`${cols}x${rows}: the real cockpit mounted`, frame.includes('lanes') && frame.includes('WORKBENCH'), '', 'the frame lacked the lanes rail or the WORKBENCH box; the box comes from workbenchSection in src/screen/cockpit-gauges/helm-lanes-model/sections.ts, so check that it is still added to the rail; rerun with --frames <dir> to read the rendered frame')
+    check(`${cols}x${rows}: the real cockpit mounted`, frame.includes('lanes') && frame.includes('workbench'), '', 'the frame lacked the lanes rail or the WORKBENCH box; the box comes from workbenchSection in src/screen/cockpit-gauges/helm-lanes-model/sections.ts, so check that it is still added to the rail; rerun with --frames <dir> to read the rendered frame')
     check(`${cols}x${rows}: no TABULA card or /note invitation`, !/TABULA|\/note\b/.test(frame), '', 'the rendered rail still prints TABULA or /note; remove that card or invitation from the rail in src/screen/cockpit-gauges/helm-lanes-model')
     const lines = frame.split('\n')
-    check(`${cols}x${rows}: WORKBENCH occupies the vacated card slot (the rail's first box since the SEAT box left)`, lines.findIndex(line => line.includes('WORKBENCH')) + 1 === (cols === 178 ? 3 : 2), '', 'WORKBENCH is not in the first rail box row; check the order of sections in src/screen/cockpit-gauges/helm-lanes-model (workbenchSection is in sections.ts) so no card sits before it')
+    check(`${cols}x${rows}: WORKBENCH occupies the vacated card slot (the rail's first box since the SEAT box left)`, lines.findIndex(line => line.includes('workbench')) + 1 === (cols === 178 ? 3 : 2), '', 'WORKBENCH is not in the first rail box row; check the order of sections in src/screen/cockpit-gauges/helm-lanes-model (workbenchSection is in sections.ts) so no card sits before it')
     check(`${cols}x${rows}: deep-row density matches the card-free tier`, lines.filter(line => (line.match(/│/g) ?? []).length >= 6).length === (cols === 178 ? 4 : 0), '', 'the count of rail rows with six or more box edges changed; check the card heights and row density in src/screen/cockpit-gauges/helm-lanes-model')
-    console.log(`MEASURE ${cols}x${rows}: workbench row ${lines.findIndex(line => line.includes('WORKBENCH')) + 1}; notepad row ${lines.findIndex(line => line.includes('TABULA')) + 1}; deep rows ${lines.filter(line => (line.match(/│/g) ?? []).length >= 6).length}`)
+    console.log(`MEASURE ${cols}x${rows}: workbench row ${lines.findIndex(line => line.includes('workbench')) + 1}; notepad row ${lines.findIndex(line => line.includes('TABULA')) + 1}; deep rows ${lines.filter(line => (line.match(/│/g) ?? []).length >= 6).length}`)
     ink.unmount()
     await ink.waitUntilExit()
     instances.delete(stdout as never)

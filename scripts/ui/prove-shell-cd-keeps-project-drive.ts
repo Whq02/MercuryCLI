@@ -71,7 +71,7 @@ try {
     const titleAt = editCard.findIndex(r => r.includes('Edit file'))
     const pathRow = (editCard[titleAt + 1] ?? '').replace(/│/g, '').trim()
     check(`after the cd the Edit card names the file from the project — "${FILE}", not a ../ path`, titleAt >= 0 && pathRow === FILE && !editText.includes(`../${FILE}`), `the Edit card must name the file from the project root after a cd; see src/permissions/cards/file-edit/FileEditPermissionRequest.tsx. path row ${JSON.stringify(pathRow)} · ${rowsWith(editCard, FILE)}`)
-    check('the FILES rail still names the project while the shell sits in scratch', editCard.some(r => r.includes('FILES ·') && r.includes(project.slice(0, 12))) && !editCard.some(r => r.includes('FILES · scratch')), 'a cd inside the Bash tool must not move the session folder shown by the FILES rail; see src/platform/shell/shellExec.ts. rows: ' + rowsWith(editCard, 'FILES'))
+    check('the FILES rail still names the project while the shell sits in scratch', editCard.some(r => r.includes('files ·') && r.includes(project.slice(0, 12))) && !editCard.some(r => r.includes('files · scratch')), 'a cd inside the Bash tool must not move the session folder shown by the FILES rail; see src/platform/shell/shellExec.ts. rows: ' + rowsWith(editCard, 'files'))
     const cwdAt = pwdCard.findIndex(row => /^\s*│\s+in /.test(row))
     const cwdEnd = pwdCard.findIndex((row, index) => index > cwdAt && row.includes('Do you want to proceed?'))
     const printedCwd = pwdCard.slice(cwdAt, cwdEnd).map(row => row.replace(/^\s*│\s*|\s*│\s*$/g, '')).join('').replace(/^in /, '')
@@ -84,7 +84,7 @@ try {
   check('the shell\'s folder persisted between the two commands: the marker landed in scratch, not in the project root', existsSync(join(run.paths.cwd, 'scratch', MARKER)) && !existsSync(join(run.paths.cwd, MARKER)), `the shell folder set by cd must persist to the next Bash command (src/platform/shell/shellExec.ts) without moving the session root. ${join(run.paths.cwd, 'scratch', MARKER)} exists=${existsSync(join(run.paths.cwd, 'scratch', MARKER))}`)
   const [final] = grabScreens(run, 120, 50, [-1])
   dump('final', final!.rows)
-  check('the session root never moved: the FILES rail reads the project at the end', final!.rows.some(r => r.includes('FILES ·') && r.includes(project.slice(0, 12))), 'a cd inside the Bash tool must not move the session folder shown by the FILES rail; see src/platform/shell/shellExec.ts. rows: ' + rowsWith(final!.rows, 'FILES'))
+  check('the session root never moved: the FILES rail reads the project at the end', final!.rows.some(r => r.includes('files ·') && r.includes(project.slice(0, 12))), 'a cd inside the Bash tool must not move the session folder shown by the FILES rail; see src/platform/shell/shellExec.ts. rows: ' + rowsWith(final!.rows, 'files'))
 } finally {
   run.cleanup()
 }
