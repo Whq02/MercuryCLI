@@ -158,7 +158,7 @@ try {
     check(
       RETAINS_ITS_CALLS.has(name) ? `${name}: each result is resumed once, behind its call and before the reply` : `${name}: the result of a call that was folded away is not resumed`,
       RETAINS_ITS_CALLS.has(name)
-        ? scene.reports.every(id => resumed.filter(seen => seen === id).length === 1 && resumed.indexOf(id) > resumed.indexOf(scene.calls[1]) && resumed.indexOf(id) < resumed.indexOf(scene.final))
+        ? scene.reports.every(id => resumed.includes(id) && resumed.filter(seen => seen === id).length === 1 && resumed.indexOf(id) > resumed.indexOf(scene.calls[1]) && resumed.indexOf(id) < resumed.indexOf(scene.final))
         : scene.reports.every(id => !resumed.includes(id)),
       shapeOf(rows, names),
     )
