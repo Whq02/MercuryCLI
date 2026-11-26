@@ -134,19 +134,36 @@ async function paint(node: React.ReactNode, width = 160): Promise<string> {
   const { renderToolResultMessage: renderCrewmateResult } = await import('../../src/tools/crewmate/rows.tsx')
   const withPrompt = await paint(
     renderCrewmateResult(
-      { status: 'async_launched', isAsync: true, agentId: 'a1', description: 'probe', prompt: 'check' } as never,
+      {
+        status: 'async_launched',
+        isAsync: true,
+        agentId: 'a1',
+        description: 'probe',
+        prompt: 'check',
+        outputFile: '/tmp/a1.out',
+      },
       [],
       { tools: [], verbose: false },
     ),
   )
   check(
-    'single background crewmate row drops ↓ manage when prompt is present',
-    withPrompt.includes('Crewmate launched in the background') && !withPrompt.includes('manage') && !withPrompt.includes('↓'),
+    'single background crewmate row keeps expand hint and drops ↓ manage when prompt is present',
+    withPrompt.includes('Crewmate launched in the background') &&
+      withPrompt.includes('expand') &&
+      !withPrompt.includes('manage') &&
+      !withPrompt.includes('↓'),
     JSON.stringify(withPrompt),
   )
   const noPrompt = (await paint(
     renderCrewmateResult(
-      { status: 'async_launched', isAsync: true, agentId: 'a2', description: 'probe' } as never,
+      {
+        status: 'async_launched',
+        isAsync: true,
+        agentId: 'a2',
+        description: 'probe',
+        prompt: '',
+        outputFile: '/tmp/a2.out',
+      },
       [],
       { tools: [], verbose: false },
     ),
