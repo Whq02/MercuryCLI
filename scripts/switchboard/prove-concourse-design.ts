@@ -181,7 +181,7 @@ console.log('§6 — the lock: an open ask ⇒ the live composer refuses with "n
   const byState = liveComposerGateOf(row({ state: 'needs-you' }), false)
   check('the needs-you state locks too (both truths — the row state and the obligation)', byState.ok === false && byState.line === 'needs you · ↵↵ to answer')
   const settled = liveComposerGateOf(row({}), false)
-  check('settle ⇒ unlocked on the derived beat, the placeholder naming the target', settled.ok === true && settled.placeholder === 'message the parser session · queued for its next turn')
+  check('settle ⇒ unlocked on the derived beat, the placeholder naming the target', settled.ok === true && settled.placeholder === 'message the parser session')
   check('every non-target class refuses in type (no silent dead box)', [
     liveComposerGateOf(undefined, false),
     liveComposerGateOf(row({ state: 'parked' }), false),

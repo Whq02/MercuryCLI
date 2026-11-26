@@ -347,7 +347,7 @@ export function legendPriorityOf(keys: string, opts: { splitOn: boolean }): numb
 }
 
 export function newSessionTabLabel(opts: { region: string; filtering: boolean }): string {
-  return opts.region === 'list' && !opts.filtering ? '+ new session · n' : '+ new session'
+  return opts.region === 'list' && !opts.filtering ? '+ new · n' : '+ new'
 }
 
 export function helpKeyFiresFor(region: string, focusedComposerEmpty: boolean): boolean {
