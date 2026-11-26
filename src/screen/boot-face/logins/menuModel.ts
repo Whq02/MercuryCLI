@@ -23,7 +23,7 @@ export function loginsMenuModelOf(
     opts.flow !== undefined
       ? {
           detailOverride: loginsFlowPaneLines(opts.flow),
-          ...(opts.flow.kind === 'key' && (opts.flow.leg === 'xai' || opts.flow.leg === 'xai-management' || opts.flow.leg === 'mistral' || opts.flow.leg === 'mistral-admin') ? { detailOverrideConfirms: true } : {}),
+          ...((opts.flow.kind === 'key' && (opts.flow.leg === 'xai' || opts.flow.leg === 'xai-management' || opts.flow.leg === 'mistral' || opts.flow.leg === 'mistral-admin')) || (opts.flow.kind === 'receipt' && opts.flow.external === true) ? { detailOverrideConfirms: true } : {}),
           legend: loginsFlowLegendOf(opts.flow),
           statusRight: loginsFlowStatusOf(opts.flow),
         }
