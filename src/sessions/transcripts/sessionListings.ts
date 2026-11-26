@@ -121,14 +121,13 @@ export async function loadTranscriptFromFile(
       throw new Error('No messages found in JSONL file')
     }
 
-    const leafMessage = findLatestMessage(messages.values(), msg =>
-      leafUuids.has(msg.uuid),
-    )
+    const elected = electConversationEnd(messages)
+    const leafMessage = elected === undefined ? findLatestMessage(messages.values(), msg => leafUuids.has(msg.uuid)) : (elected.rows.at(-1) ?? elected.primary)
     if (!leafMessage) {
       throw new Error('No valid conversation chain found in JSONL file')
     }
 
-    const transcript = buildConversationChain(messages, leafMessage)
+    const transcript = elected?.rows ?? buildConversationChain(messages, leafMessage)
     const sessionId = leafMessage.sessionId as UUID
     return {
       ...chainListing(transcript, transcript.at(-1)!, filePath),
