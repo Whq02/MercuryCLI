@@ -1016,18 +1016,6 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   ]
   const envBlock = ['', ...eRows]
 
-  const word = rasterHard(WORD, wordToneGlow(m.glowWord ?? null))
-  const headLines = withHead ? rasterHard(HEADSTD).lines : null
-  const chromeRows = (headLines ? 1 + headLines.length : 0) + word.lines.length + 8 + Math.max(0, legendLines.length - 1)
-  const geometryBudget =
-    rowsAvail - chromeRows - summaryBlock.length - envBlock.length
-  const maxDetailRows = Math.max(...m.entries.map(r2 => buildDetailItems(r2).length))
-  if (withHead && geometryBudget < maxDetailRows) return null
-  const detailBudget = Math.max(
-    8,
-    leftPanel.length - summaryBlock.length - envBlock.length,
-    geometryBudget,
-  )
   const expandDetailRows = items =>
     items.map(item =>
       item.fixed !== undefined
@@ -1036,6 +1024,20 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
     )
   const dLines = expandDetailRows(dItems)
   const dRows = dLines.flat()
+  const word = rasterHard(WORD, wordToneGlow(m.glowWord ?? null))
+  const headLines = withHead ? rasterHard(HEADSTD).lines : null
+  const chromeRows = (headLines ? 1 + headLines.length : 0) + word.lines.length + 8 + Math.max(0, legendLines.length - 1)
+  const geometryBudget =
+    rowsAvail - chromeRows - summaryBlock.length - envBlock.length
+  const neededDetailRows = m.detailOverride
+    ? dRows.length
+    : Math.max(dRows.length, ...m.entries.map(r2 => expandDetailRows(buildDetailItems(r2)).flat().length))
+  if (withHead && (cRows.length > leftInteriorBudget || geometryBudget < neededDetailRows)) return null
+  const detailBudget = Math.max(
+    8,
+    leftPanel.length - summaryBlock.length - envBlock.length,
+    geometryBudget,
+  )
   let effectiveDetailBudget = detailBudget
   let keepSummary = true
   let keepEnv = true
