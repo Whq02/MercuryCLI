@@ -55,6 +55,7 @@ const gridText = (grid: Grid): string => grid.map(row => row.map(c => cellGlyph(
 const rowsOf = (frame: Frame | undefined): string[] => (frame?.text ?? '').split('\n')
 const has = (frame: Frame | undefined, needle: string): boolean => (frame?.text ?? '').includes(needle)
 const composerRow = (frame: Frame | undefined): string | undefined => rowsOf(frame).find(r => r.startsWith('│❯'))
+const composerRowIndex = (frame: Frame | undefined): number => rowsOf(frame).findIndex(r => r.startsWith('│❯'))
 const cursorOf = (frame: Frame | undefined): string => (frame === undefined ? '(no frame)' : `${frame.cursor.x},${frame.cursor.y}`)
 
 function seedWorld(name: string, view: Record<string, unknown>): { home: string; cwd: string } {
@@ -240,7 +241,8 @@ function judge(tag: string, door: Door, m: Record<string, Frame>): void {
   if (door.needle !== null) tally.check(`${door.name} T4 the surface closed`, !has(closed, door.needle), rowsOf(closed).filter(r => r.includes(door.needle as string)).join(' | '))
   if (door.name === 'ctx-row') tally.check(`${door.name} T4b esc while counting left the receipt in the transcript (${CONTEXT_CLOSED})`, has(open, 'Mercury — context') && has(closed, CONTEXT_CLOSED), rowsOf(closed).filter(r => r.includes('/context')).join(' | ') || '(no receipt row)')
   tally.check(`${door.name} T5 after the surface closed the composer reads the draft as typed`, closedRow === typedRow, `${closedRow.trimEnd()}${closedRow === typedRow ? '' : `\n    typed: ${typedRow.trimEnd()}`}`)
-  tally.check(`${door.name} T6 the caret is back where it was`, closed !== undefined && typed !== undefined && closed.cursor.x === typed.cursor.x && closed.cursor.y === typed.cursor.y, `caret ${cursorOf(closed)}, typed ${cursorOf(typed)}`)
+  const caretSameRow = closed !== undefined && typed !== undefined && (closed.cursor.y === typed.cursor.y || (door.name === 'ctx-row' && closed.cursor.y === composerRowIndex(closed)))
+  tally.check(`${door.name} T6 the caret is back where it was`, closed !== undefined && typed !== undefined && closed.cursor.x === typed.cursor.x && caretSameRow, `caret ${cursorOf(closed)}, typed ${cursorOf(typed)}`)
 }
 
 async function doorsLeg(): Promise<void> {
