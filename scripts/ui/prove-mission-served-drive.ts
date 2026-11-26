@@ -35,13 +35,13 @@ const HOLD_HEAD = `Mission not completed: ${GOAL} — `
 const ASK_WORDS = 'one question to the operator'
 const STATUS_HEAD = 'Mission status —'
 const SECTION_HEADING = '# Mission'
-const PAUSE_NOTE = 'mission paused'
-const IDLE_NOTE = 'mission paused after 3 turns without a tool call — your next message resumes it'
+const PAUSE_NOTE = 'goal paused'
+const IDLE_NOTE = 'goal paused after 3 turns without a tool call — your next message resumes it'
 const COMPLETED_HEAD = 'Mission completed:'
 const BARE_CLAIM_REASON = 'no criterion lines'
-const INDICATOR_WORDS = ['/mission active', '/mission paused']
+const INDICATOR_WORDS = ['/goal active', '/goal paused']
 const ENDED_STATES = new Set(['needs-operator', 'stood-down'])
-const MISSION_VOCABULARY = ['GOAL-MET', STATUS_HEAD, 'Mission not completed', SECTION_HEADING, PAUSE_NOTE, '/mission clear', MISSION_JUDGE_MARK, 'hello.txt', 'without touching any other file']
+const MISSION_VOCABULARY = ['GOAL-MET', STATUS_HEAD, 'Mission not completed', SECTION_HEADING, PAUSE_NOTE, '/goal clear', MISSION_JUDGE_MARK, 'hello.txt', 'without touching any other file']
 const REMINDER_BLOCK = /<system-reminder>([\s\S]*?)<\/system-reminder>/g
 const CARD_SAMPLE_MS = 150
 const IDLE_TURNS = 3
@@ -255,12 +255,12 @@ const missionTurns = (cwd: string): ScriptedTurn[] => [
   ...Array.from({ length: 6 }, () => text(WORKING)),
 ]
 const missionSends = [
-  { awaitText: 'Type a prompt', settleMs: 1200, text: `/mission ${GOAL}\r` },
+  { awaitText: 'Type a prompt', settleMs: 1200, text: `/goal ${GOAL}\r` },
   { awaitText: ' ready · ', afterPrevMs: 4000, settleMs: 400, text: 'continue\r' },
   { awaitText: ' ready · ', afterPrevMs: 4000, settleMs: 400, text: 'continue\r' },
 ]
 const bareTurns: ScriptedTurn[] = [...Array.from({ length: 6 }, () => judgeTurn('met', 'the claim says done')), text(BARE_CLAIM), ...Array.from({ length: 6 }, () => text(WORKING))]
-const bareSends = [{ awaitText: 'Type a prompt', settleMs: 1200, text: `/mission ${GOAL}\r` }]
+const bareSends = [{ awaitText: 'Type a prompt', settleMs: 1200, text: `/goal ${GOAL}\r` }]
 const plainSends = [{ awaitText: 'Type a prompt', settleMs: 1200, text: 'hello\r' }]
 
 console.log('============================================================')
@@ -275,7 +275,7 @@ const cardTimeline = watch.stop()
 const configDir = join(run.paths.home, '.mercury')
 const continueEpochs = sendEpochs(run, 'continue')
 check('the capture ran to its end: complete, every step fired, three sends (/mission, continue, continue)', complete(run, 3) && continueEpochs.length === 2, runWords(run), 'the arena run did not finish all its steps: read the run line above, then scripts/streaming/artifactArena.ts runArtifactArena; rebuild with bun run build.ts if the bundle is stale')
-if (sendEpochs(run, '/mission the file').length === 0) {
+if (sendEpochs(run, '/goal the file').length === 0) {
   console.log(`\nmission served: RED (${failures}/${checks}) — the command never fired; read the run line above for which send did not fire, and the /mission command is src/commands/mission/mission-jsx.tsx`)
   process.exit(1)
 }
@@ -335,7 +335,7 @@ const beforeContinue = timeline.filter(s => s.atMs < firstContinueEpoch)
 const idlePause = beforeContinue.find(s => s.state === 'paused' && (s.nextStep ?? '').includes(`${IDLE_TURNS} turns without a tool call`))
 const idleNotes = rows.filter(r => r.type === 'system' && textOf(r).includes(IDLE_NOTE))
 check(`The only brake on the loop: ${IDLE_TURNS} consecutive turn ends without a tool call pause the goal — the persisted card reads paused at ${IDLE_TURNS} judged ends before the first continue, the note says what happened and what resumes it, and no sample ever reads an ended state`, idlePause !== undefined && idlePause.iterations === IDLE_TURNS && idleNotes.length === 1 && stampOf(idleNotes[0]!) < firstContinueEpoch && timeline.every(s => s.state === 'armed' || s.state === 'paused' || s.state === 'met') && !timeline.some(s => ENDED_STATES.has(s.state)), `idlePause=${JSON.stringify(idlePause ?? null)} notes=${idleNotes.map(r => textOf(r)).join(' | ')} timeline=${JSON.stringify(timeline.map(s => `${s.state}@${s.iterations}`))}`, 'three tool-less turn ends must pause the mission with the idle note: see MISSION_IDLE_TURNS, the idleTurns count, pauseMission and idleNote in src/permissions/guards/mission.ts')
-check("while the mission is paused the screen says so: the footer reads /mission paused and the rail keeps the goal's ◆ row", whilePaused !== undefined && findRows(whilePaused.rows, '/mission paused').length > 0 && findRows(whilePaused.rows, '◆ the file hello').length > 0, `at ${firstContinueOffset}ms: ${whilePaused?.rows.filter(r => r.includes('/mission') || r.includes('◆')).join(' | ') ?? 'no screen'}`, 'the footer reads /mission paused from src/screen/composer/MercuryMissionIndicator.tsx when the mission card state is paused; the card is written by pauseMission in src/permissions/guards/mission.ts')
+check("while the goal is paused the screen says so: the footer reads /goal paused and the rail keeps the goal's ◆ row", whilePaused !== undefined && findRows(whilePaused.rows, '/goal paused').length > 0 && findRows(whilePaused.rows, '◆ the file hello').length > 0, `at ${firstContinueOffset}ms: ${whilePaused?.rows.filter(r => r.includes('/goal') || r.includes('◆')).join(' | ') ?? 'no screen'}`, 'the footer reads /goal paused from src/screen/composer/MercuryMissionIndicator.tsx when the mission card state is paused; the card is written by pauseMission in src/permissions/guards/mission.ts')
 const betweenContinues = timeline.filter(s => s.atMs >= firstContinueEpoch && s.atMs < secondContinueEpoch)
 const pausedOnQuestion = betweenContinues.find(s => s.state === 'paused' && (s.nextStep ?? '').includes(QUESTION))
 const questionNote = pauseNotes.find(r => textOf(r).includes(QUESTION))
