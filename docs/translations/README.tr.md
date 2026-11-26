@@ -212,7 +212,7 @@ Tüm sohbetleri kapatmak sizi ana ekrana döndürür. Oturum listesi olmadan yal
 
 Ana ekrandan `/concourse` veya `Shift+→` ile oturum listesini açın. Önce geçerli projenin çalışan oturumlarını, ardından çalışmayan kayıtlı sohbetleri, en yenisi önce olacak biçimde gösterir.
 
-Çalışan her oturumun, güncel etkinliğini gösteren bir NOW hücresi vardır. Bir satır seçip `Enter` tuşuna basarak sohbete dönün; diğer oturumlar çalışmaya devam eder. Çöken bir oturum, nedeniyle birlikte oturum listesinde NEEDS YOU olarak görünür ve siz serbest bırakana kadar orada kalır.
+Çalışan her oturumun, güncel etkinliğini gösteren bir NOW hücresi vardır. Bir satır seçip `Enter` tuşuna basarak sohbete dönün; diğer oturumlar çalışmaya devam eder. Çöken bir oturum, nedeniyle birlikte oturum listesinde needs you olarak görünür ve siz serbest bırakana kadar orada kalır.
 
 Oturumların yaşam döngüsü [docs/SESSIONS.md](../SESSIONS.md) dosyasında ele alınır.
 

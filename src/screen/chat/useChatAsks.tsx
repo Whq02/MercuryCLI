@@ -75,12 +75,7 @@ export function useChatAsks({
       return;
     }
     const head = asks[0];
-    if (head !== undefined) {
-      focused.settleAsk(head.id);
-      return;
-    }
-    const externalHead = external[0];
-    if (externalHead !== undefined) settleExternalSeatAsk(externalHead.askId);
+    if (head !== undefined) focused.settleAsk(head.id);
   }, [consentStore]);
   const adoptRunnerMode = useCallback(() => {
     const held = getFocusedSessionConnector().permissionMode();
