@@ -20,8 +20,9 @@ view never stops its work.
 
 With a crewmate opened in its view, the slash commands that are about one
 agent act on that crewmate (when none is opened but one is pinned as the
-main chat, on the pinned one); the status row says `commands → <name>` either
-way. `/model` and `/effort` show and change its model and effort (a running
+main chat, on the pinned one); the status row says `viewing <name>` while a
+view is open and `main chat: <name>` when none is open and one is pinned.
+`/model` and `/effort` show and change its model and effort (a running
 crewmate switches at its next turn, a finished one at its next resume; the
 status row's chip keeps the running model and effort and appends
 `→ <model> · <effort> next turn` while a change waits), `/compact` compacts
