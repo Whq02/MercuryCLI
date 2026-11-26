@@ -360,7 +360,7 @@ const statusRowOf = (lines: string[]): string => {
   return row < 0 ? '' : lines[row]!.trim()
 }
 const statusOf = (lines: string[], railCols: number): string => (lines.find(line => line.includes('← back')) ?? '').trim()
-const viewedName = (lines: string[], railCols: number): string => (/viewing (.+?) · (?:commands|composer)|main chat: (.+?) · /.exec(statusOf(lines, railCols)) ?? [])[1] ?? (/main chat: (.+?) · /.exec(statusOf(lines, railCols)) ?? [])[1] ?? ''
+const viewedName = (lines: string[], railCols: number): string => /(?:viewing |main chat: )([^·]+) ·/.exec(statusOf(lines, railCols))?.[1]?.trim() ?? ''
 const centreOf = (lines: string[], railCols: number): string[] => lines.map(line => cells(line).slice(railCols, -railCols).join(''))
 const save = (name: string, cols: number, rows: number, lines: string[]): void => {
   if (frameDir === undefined) return
@@ -444,6 +444,25 @@ async function run(cols: number, rows: number): Promise<void> {
     resumeDelayMs = 0
   }
 
+  section(`§1b ${tag('idle is still a live run: Enter queues and Escape interrupts')}`)
+  {
+    const row = roster.rows.find(r => r.id === ATLAS.id)!
+    row.idle = true
+    pokeRoster()
+    const note = 'line to the idle live seat'
+    const before = resumes().length
+    await typeWords(scene, note)
+    scene.push(ENTER)
+    const sent = await waitForCall(() => resumes().length, before + 1)
+    check('Enter on an idle but running seat sends the line once to that run', sent && resumes().at(-1)?.agentId === ATLAS.id && resumes().at(-1)?.note === note, JSON.stringify(resumes().slice(before)))
+    const cuts = stops().length
+    scene.push(ESC)
+    const cut = await waitForCall(() => stops().length, cuts + 1)
+    check('Escape on an idle but running seat interrupts only that seat and does not leave', cut && stops().at(-1)?.agentId === ATLAS.id && scene.state().viewingCrewmateTaskId === ATLAS.id && leadInterrupts === 0, JSON.stringify(stops().slice(cuts)))
+    delete row.idle
+    pokeRoster()
+  }
+
   section(`§2 ${tag('a refusal hands the line back — in front of anything typed since')}`)
   {
     resumeDelayMs = 500
@@ -478,9 +497,7 @@ async function run(cols: number, rows: number): Promise<void> {
     check('the composer placeholder names the pinned target: message Lane atlas', composerText(frame).includes(`message ${ATLAS.name}`), composerText(frame).slice(0, 80))
     const status = statusRowOf(frame)
     console.log(`the status row: "${status}"`)
-    const painted = /viewing .*?(?=…|\s{2,}|$)/.exec(status)?.[0] ?? ''
-    const whole = `viewing ${BIRCH.name} · commands → ${BIRCH.name} · composer → ${ATLAS.name} (the main chat) · 2 crewmates running`
-    check('the status row names the commands target (birch, the viewed one) whole and ahead of the composer\'s (atlas, the main chat; a narrow row cuts that half) — never "composer → Lane birch"', painted.includes(`commands → ${BIRCH.name}`) && whole.startsWith(painted) && !/composer → Lane birch/.test(status), `the status row reads "${status}"`)
+    check('the status addresses the view once; the prompt names the separate pin', status.includes(`viewing ${BIRCH.name} · 2 crewmates running`) && status.split(BIRCH.name).length === 2 && !status.includes(ATLAS.name) && composerText(frame).includes(`message ${ATLAS.name}`), status)
     const TO_PIN = 'to the pin'
     await typeWords(scene, TO_PIN)
     scene.push(ENTER)
@@ -505,7 +522,7 @@ async function run(cols: number, rows: number): Promise<void> {
     check('the footer does NOT say esc interrupts Lane atlas — esc on the lead\'s screen is the lead\'s own interrupt', !/esc interrupts? Lane atlas/.test(footer), footer.slice(0, 260))
     const status = statusRowOf(frame)
     console.log(`the status row: "${status}"`)
-    check('the status row says main chat: Lane atlas · Mercury Lead waits in the rail', /main chat: Lane atlas/.test(status) && /Mercury Lead waits in the rail/.test(status), `the status row reads "${status}"`)
+    check('the status names the pin while the lead is viewed', status.includes('main chat: Lane atlas · 2 crewmates running') && !status.includes('waits in the rail'), status)
     const stopsBefore = stops().length
     scene.push(ESC)
     await sleep(400)

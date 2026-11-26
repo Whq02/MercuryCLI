@@ -1,3 +1,5 @@
+import { crewmateLive, useViewedCrewmate } from '../tasks/useCrewmateView.js'
+import { LEAD_ROW_NAME } from '../cockpit/crewmateWords.js'
 import * as React from 'react'
 import { Box, Text, elementScreenTop } from 'src/screen/themedRenderer.js'
 import type { DOMElement } from '../renderer/dom.js'
@@ -28,6 +30,7 @@ type Props = {
 export function ComposerHelpMenu(props: Props): React.ReactNode {
   const { dimColor, fixedWidth, gap, paddingX, availableColumns } = props
   const cockpitActive = React.useContext(CockpitActiveContext)
+  const viewed = useViewedCrewmate()
 
   const transcriptShortcut = formatShortcut(
     useShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o'),
@@ -86,7 +89,7 @@ export function ComposerHelpMenu(props: Props): React.ReactNode {
     { key: 'at', text: '@ for file paths' },
   ]
   const groupChat: HelpRow[] = [
-    { key: 'esc', text: 'double tap esc to clear input' },
+    { key: 'esc', text: viewed === null ? 'double tap esc to clear input' : crewmateLive(viewed) ? 'esc interrupts this crewmate' : 'esc closes this view' },
     { key: 'mode', text: `${cycleModeShortcut} to cycle the mode` },
     { key: 'tsc', text: `${transcriptShortcut} for the transcript` },
     { key: 'todos', text: `${tasksShortcut} to toggle tasks` },
@@ -149,6 +152,7 @@ export function ComposerHelpMenu(props: Props): React.ReactNode {
 
   return (
     <Box paddingX={paddingX} flexDirection="column" ref={gridRef}>
+      {viewed === null ? null : <Box height={1} flexShrink={0}><Text dimColor={dimColor} wrap="truncate-end">{cockpitActive ? `tab → ${LEAD_ROW_NAME} → ↵ · or click its rail row` : `${tasksShortcut} → ↵ → ${LEAD_ROW_NAME} → ↵ · or click viewing`}</Text></Box>}
       <Box flexDirection="row" gap={gap ?? 2} flexShrink={0}>
         {shownGroups.map((rows, i) => (
           <Box

@@ -1,32 +1,8 @@
 export const LEAD_ROW_NAME = 'Mercury Lead'
-const MAIN_CHAT_WORD = 'main chat'
-const VIEWING_WORD = 'viewing'
 export const CREW_MAIN_CHAT_KEY = 'm main chat'
 export const CREW_OPEN_IN_VIEW_KEY = '↵ open in the view'
-export const MAIN_CHAT_CARD_LINE = 'THE MAIN CHAT — what you type goes to this agent'
-const MAIN_CHAT_HAND_BACK_HINT = `m on ${LEAD_ROW_NAME} hands the ${MAIN_CHAT_WORD} back`
-export const BACK_HINT = `${LEAD_ROW_NAME} in the rail goes back`
-export const COMPACT_BACK_HINT = `${LEAD_ROW_NAME} in the activity screen goes back`
-const ESC_INTERRUPT_HINT = 'esc interrupts'
-const ESC_BACK_HINT = `esc back to ${LEAD_ROW_NAME}`
 export const CREW_CLEAR_KEY = 'c clear'
 export const CREW_VIEW_DOOR = '/crewmates'
-export const CREW_CLEAR_DOOR = `${CREW_CLEAR_KEY} in ${CREW_VIEW_DOOR}`
-
-type CrewmateWordsState = { name: string; pinned: boolean; live?: boolean; local?: boolean }
-
-const CREW_BOARD_STOP_PAUSE_KEYS = `x x stop · p pause in ${CREW_VIEW_DOOR}`
-
-const CREW_BOARD_KEYS_LIVE = `in ${CREW_VIEW_DOOR}: ${CREW_MAIN_CHAT_KEY} · x x stop · p pause`
-const CREW_BOARD_KEYS_LANDED = `in ${CREW_VIEW_DOOR}: ${CREW_MAIN_CHAT_KEY} · ${CREW_CLEAR_KEY}`
-
-export function crewmateCardKeys(pinned: boolean, live = true, back = BACK_HINT): string {
-  const compact = back === COMPACT_BACK_HINT
-  const esc = compact ? `${live ? ESC_INTERRUPT_HINT : ESC_BACK_HINT} · ` : ''
-  if (!live) return pinned ? `${esc}${MAIN_CHAT_HAND_BACK_HINT} · ${CREW_CLEAR_DOOR}` : `${esc}${CREW_BOARD_KEYS_LANDED}`
-  return pinned ? `${esc}${MAIN_CHAT_HAND_BACK_HINT} · ${CREW_BOARD_STOP_PAUSE_KEYS}` : `${esc}${CREW_BOARD_KEYS_LIVE}`
-}
-
 export function crewClearedWords(name: string): string {
   return `${name} cleared — its transcript stays on disk`
 }
@@ -39,18 +15,6 @@ export function crewClearRefusedWords(facts: { name: string; running: boolean })
 
 export function crewmateEscBackWords(name: string, state: string): string {
   return `${name} is ${state} — back on ${LEAD_ROW_NAME}; its row stays in the CREW box until you clear it`
-}
-
-type CrewmateViewedState = { name: string; live?: boolean } | null
-
-export function crewmateStatusWords(viewed: CrewmateViewedState, target: CrewmateWordsState, running: number): string {
-  const tail = ` · ${running} crewmate${running === 1 ? '' : 's'} running`
-  if (viewed === null || viewed.name === target.name) {
-    return target.pinned
-      ? `${MAIN_CHAT_WORD}: ${target.name} · commands → ${target.name} · ${LEAD_ROW_NAME} waits in the rail${tail}`
-      : `${VIEWING_WORD} ${target.name} · composer → ${target.name} · commands → ${target.name}${tail}`
-  }
-  return `${VIEWING_WORD} ${viewed.name} · commands → ${viewed.name} · composer → ${target.name} (the ${MAIN_CHAT_WORD})${tail}`
 }
 
 export function crewmateNextTurnWords(model: string | null, effort: string | null): string {

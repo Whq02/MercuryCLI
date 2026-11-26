@@ -26,7 +26,6 @@ import { PinnedCritterBerth } from './MercuryHome.js'
 import { CR_COLS } from '../cockpit/critterData.js'
 import { WorkCapsule } from '../widgets/WorkCapsule.js'
 import { CrewViewSlot } from './CrewViewSlot.js'
-import { CrewmateCard } from './CrewmateCard.js'
 import type { useViewedCrewmate } from '../tasks/useCrewmateView.js'
 import { ModalPaneBody, JumpPill, PromptOverlayStrip } from './panes.js'
 
@@ -180,16 +179,9 @@ export function fullscreenFrame({ bandFits, bottom, bottomFloat, centerFrame, ce
                           minWidth={0}
                           justifyContent="center"
                         >
-                          {viewedCrewmate !== null ? (
-                            <CrewmateCard crewmate={viewedCrewmate} width={sizeVal.columns - 4 - 1 - CR_COLS} />
-                          ) : (
-                            <WorkCapsule
-                              active={!!statusBandActive}
-                              width={sizeVal.columns - 4 - 1 - CR_COLS}
-                            >
-                              {statusBand}
-                            </WorkCapsule>
-                          )}
+                          <WorkCapsule active={!!statusBandActive} width={sizeVal.columns - 4 - 1 - CR_COLS}>
+                            {statusBand}
+                          </WorkCapsule>
                         </Box>
                       </Box>
                     ) : null}

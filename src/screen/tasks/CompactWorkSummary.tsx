@@ -1,3 +1,4 @@
+import { crewmateLive, useViewedCrewmate } from './useCrewmateView.js'
 import React, { useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Box, Text } from '../themedRenderer.js'
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
@@ -71,7 +72,9 @@ export function CompactWorkSummary({
 }): React.ReactNode {
   const counts = useCompactWorkCounts()
   const tokens = useMercuryTokens()
-  const rung = useSyncExternalStore(subscribeFocusedSeat, getFocusedEscRung, getFocusedEscRung)
+  const viewed = useViewedCrewmate()
+  const mainRung = useSyncExternalStore(subscribeFocusedSeat, getFocusedEscRung, getFocusedEscRung)
+  const rung = viewed === null ? mainRung : crewmateLive(viewed) ? 'in-flight' : 'idle'
   const escapeOwned = useEscapeOwned()
   const stripHint = useSyncExternalStore(subscribeSurfaceRoute, getStripHint, noHint)
   const currentNotice = useAppState((state: AppState) => state.notifications.current)

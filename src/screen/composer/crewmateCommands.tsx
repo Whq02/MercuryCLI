@@ -31,9 +31,8 @@ import { logError } from '../../platform/logs/errorLog.js'
 import { renderModelName } from '../../models/catalogue/engineModel.js'
 import type { CrewmateMetadata } from '../../sessions/transcripts/paths.js'
 import { formatSessionCost } from '../../models/roads/spendSpelling.js'
-import { crewmateMetadataFile } from '../tasks/useCrewmateModel.js'
+import { crewmateContextPercent, crewmateMetadataFile } from '../tasks/useCrewmateModel.js'
 import { crewmateInView, crewmateLive, type CrewmateInView } from '../tasks/useCrewmateView.js'
-import { passedOver } from '../../platform/errors/passedOver.js'
 
 const CREWMATE_COMMAND_RECEIPT_KEY = 'crewmate-command'
 const CREWMATE_FOLD_INSTRUCTIONS_NOTE = 'the instructions are not carried; a crewmate compacts with the standard summary'
@@ -115,18 +114,6 @@ async function recordModel(seat: CrewmateSeat, model: string): Promise<string> {
   }
   await writeRecord(seat.file, { ...(await latestRecord(seat)), model })
   return crewmateModelSwitchWords(seat.name, label, seat.running)
-}
-
-function contextPercentOf(crewmate: CrewmateInView, model: string): number | null {
-  const context = crewmate.facts?.tokens?.context ?? null
-  if (context === null) return null
-  try {
-    const window = getContextWindowForModel(crewmate.facts?.model ?? model)
-    return window > 0 ? Math.round((context / window) * 100) : null
-  } catch (error) {
-    passedOver(error)
-    return null
-  }
 }
 
 async function recordEffort(seat: CrewmateSeat, args: string): Promise<string> {
@@ -217,7 +204,7 @@ export async function crewmatePickerSeat(state: AppState, command: 'model' | 'ef
     effortStatus: seat.running
       ? `Effort is ${reported ?? 'unreported'}${serving === null ? '' : ` on ${renderModelName(serving)}`}${effort !== reported || seat.model !== serving ? ` · next turn: ${next}` : ''}`
       : `Next resume: ${next}`,
-    contextPercent: contextPercentOf(crew, seat.model),
+    contextPercent: crewmateContextPercent(crew, seat.model),
     modelStatus: () => {
       const running = runningModelOf(crew)
       const switching = seat.running && running !== null && running !== seat.model

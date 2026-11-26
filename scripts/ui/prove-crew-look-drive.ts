@@ -26,14 +26,14 @@ const USAGE_TITLE = 'Mercury · usage'
 const CONFIG_TITLE = 'Mercury · config'
 const USAGE_RECEIPT = String.raw`atlas · [^\n]* in · [^\n]* out|atlas has not reported its numbers yet`
 const CONFIG_HINT = '←/→ change'
-const CREWMATE_PICKER_HINT = '↵ picks · esc keeps'
+const MODEL_PICKER_HINT = '↵ switch'
 const LEAD_ROW = '✶ Mercury Lead'
 const HARBOUR_RUNNING = '◐ harbo'
 const ATLAS_RUNNING = '◐ atlas'
 const FJORD_RUNNING = '◐ fjord'
 const PILL = 'back to the bottom'
-const ATLAS_CARD = '◉ atlas · claude-'
-const FJORD_CARD = '◉ fjord · claude-'
+const ATLAS_VIEW = 'viewing atlas ·'
+const FJORD_VIEW = 'viewing fjord ·'
 const ESC = '\x1b'
 const TAB = '\t'
 const UP = '\x1b[A'
@@ -243,9 +243,9 @@ const describe = (window: Window | null): string => (window === null ? 'no close
 const centreOf = (rows: string[], cockpit: Cockpit): string[] => rows.map(line => cells(line).slice(cockpit.left + 1, cockpit.right).join(''))
 const railOf = (rows: string[], cockpit: Cockpit): string[] => rows.map(line => cells(line).slice(0, cockpit.railRight + 1).join(''))
 const statusOf = (rows: string[]): string => flat(rows.find(line => line.includes('← back')) ?? '')
-const cardName = (rows: string[]): string => (/◉ (atlas|fjord|harbour) · claude-/.exec(rows.find(line => /◉ (?:atlas|fjord|harbour) · claude-/.test(line)) ?? '') ?? [])[1] ?? ''
-const viewedName = (rows: string[]): string => (/viewing (.+?) · composer/.exec(statusOf(rows)) ?? [])[1] ?? (/main chat: (.+?) · /.exec(statusOf(rows)) ?? [])[1] ?? cardName(rows)
-const viewing = (rows: string[], name: string): boolean => new RegExp(`viewing ${name}`).test(statusOf(rows)) || (!/viewing |main chat: /.test(statusOf(rows)) && cardName(rows) === name)
+const railView = (rows: string[]): string => /^\s*› [◉★] (atlas|fjord|harbour)\b/.exec(rows.find(line => /^\s*› [◉★] /.test(line)) ?? '')?.[1] ?? ''
+const viewedName = (rows: string[]): string => /(?:viewing |main chat: )([^·]+) ·/.exec(statusOf(rows))?.[1]?.trim() ?? railView(rows)
+const viewing = (rows: string[], name: string): boolean => new RegExp(`viewing ${name}`).test(statusOf(rows)) || (!/viewing |main chat: /.test(statusOf(rows)) && railView(rows) === name)
 const railRow = (rows: string[], cockpit: Cockpit, needle: string): string | undefined => railOf(rows, cockpit).find(line => line.includes(needle))
 const composerRow = (rows: string[]): string | undefined => rows.find(line => /^│[❯›]/.test(line))
 const transcriptRows = (rows: string[], cockpit: Cockpit): string[] => centreOf(rows, cockpit).slice(cardBottomOf(rows, cockpit) + 1, cockpit.bottom).map(line => line.trimEnd())
@@ -332,7 +332,7 @@ async function leg(cols: number, rows: number): Promise<void> {
     type('\r', 3),
     see('atlas', 'usage-receipt', 4, { awaitPattern: USAGE_RECEIPT }),
     ...popup('/config', CONFIG_HINT, 'config'),
-    ...popup('/model', CREWMATE_PICKER_HINT, 'model'),
+    ...popup('/model', MODEL_PICKER_HINT, 'model'),
     ...(cols >= 178 ? [clickOn('files ·')] : [clickOn('↵ browse'), { data: CLICK, targetText: '↵ browse', afterPrevTicks: 4 }]),
     seePopup(FILES_TITLE, '↑↓ move · ↵ open', 'files-open'),
     type(ESC, 3),
@@ -348,16 +348,16 @@ async function leg(cols: number, rows: number): Promise<void> {
     later(5, 'fjord-pgup'),
     clickOn(ATLAS_RUNNING),
     see('ledger row', 'view-atlas-again', 6),
-    swap(FJORD_RUNNING, ATLAS_CARD),
-    swap(ATLAS_RUNNING, FJORD_CARD),
-    swap(FJORD_RUNNING, ATLAS_CARD),
-    swap(LEAD_ROW, FJORD_CARD),
+    swap(FJORD_RUNNING, ATLAS_VIEW),
+    swap(ATLAS_RUNNING, FJORD_VIEW),
+    swap(FJORD_RUNNING, ATLAS_VIEW),
+    swap(LEAD_ROW, FJORD_VIEW),
     later(10, 'rapid'),
     type('/crewmates', 3),
     type('\r', 3),
     seePopup(CREW_TITLE, 'm main chat', 'crew-over-lead'),
     type('m', 3),
-    see('THE MAIN CHAT', 'pinned', 6),
+    see('★', 'pinned', 6),
     ...popup('/config', CONFIG_HINT, 'config-pinned'),
     ...popup('/crewmates', CREW_TITLE, 'crew-pinned'),
     clickOn(LEAD_ROW),
@@ -392,7 +392,7 @@ async function leg(cols: number, rows: number): Promise<void> {
     console.log(`  the view: columns ${cockpit.left}..${cockpit.right} · rows 0..${cockpit.bottom} · composer rows ${cockpit.composerTop}..${cockpit.composerBottom} · rail 0..${cockpit.railRight}${cockpit.vitalsLeft === null ? '' : ` · vitals from ${cockpit.vitalsLeft}`}`)
     check(`${tag}: the lead's view paints whole with the three crewmates in the rail`, integrity(lead!.rows).length === 0 && [ATLAS_RUNNING, FJORD_RUNNING, HARBOUR_RUNNING].every(needle => railRow(lead!.rows, cockpit, needle) !== undefined), integrity(lead!.rows).slice(0, 3).join(' · ') || railOf(lead!.rows, cockpit).filter(line => line.includes('·')).map(flat).join(' | '))
     const harbour = marks['view-harbour']
-    check(`${tag}: one click on harbour's row opens it in the view (the status row, the card, its own rows)`, harbour !== undefined && viewedName(harbour.rows) === 'harbour' && viewing(harbour.rows, 'harbour') && cardRows(harbour.rows, cockpit).includes('◉ harbour') && transcriptRows(harbour.rows, cockpit).some(line => line.includes('[harbour]')), harbour === undefined ? 'no frame' : `${statusOf(harbour.rows)} · ${cardRows(harbour.rows, cockpit).slice(0, 120)}`)
+    check(`${tag}: one click on harbour's row opens it in the view (the status row, the card, its own rows)`, harbour !== undefined && viewedName(harbour.rows) === 'harbour' && viewing(harbour.rows, 'harbour') && Boolean(railRow(harbour.rows, cockpit, '◉ harbour')) && transcriptRows(harbour.rows, cockpit).some(line => line.includes('[harbour]')), harbour === undefined ? 'no frame' : `${statusOf(harbour.rows)} · ${cardRows(harbour.rows, cockpit).slice(0, 120)}`)
     if (harbour !== undefined) check(`${tag}: harbour's view paints whole`, integrity(harbour.rows).length === 0, integrity(harbour.rows).slice(0, 3).join(' · '))
     const ended = marks['harbour-ended']
     check(`${tag}: harbour's turn ends while it is viewed — the view stays on harbour, its last row is on screen, the card no longer says it sleeps`, ended !== undefined && viewedName(ended.rows) === 'harbour' && transcriptRows(ended.rows, cockpit).some(line => line.includes('its turn ended')) && !cardRows(ended.rows, cockpit).includes('Sleeping'), ended === undefined ? 'no frame' : `${statusOf(ended.rows)} · ${cardRows(ended.rows, cockpit).slice(0, 160)}`)
@@ -455,9 +455,9 @@ async function leg(cols: number, rows: number): Promise<void> {
     check(`${tag}: the CREW rows keep their places across the swaps (the viewed row is marked where it stands, never moved to the top)`, crewOrder(atlas) !== '' && crewOrder(atlas) === crewOrder(fjord) && crewOrder(fjord) === crewOrder(again) && crewOrder(again) === crewOrder(rapid), `${crewOrder(atlas)} → ${crewOrder(fjord)} → ${crewOrder(again)} → ${crewOrder(rapid)}`)
     popupPins(`${tag}: the crew pop-up over the lead`, marks['crew-over-lead'], CREW_TITLE, cockpit, ['launching the crew'], rapid)
     const pinned = marks['pinned']
-    const pinnedName = pinned === undefined ? '' : (/main chat: (\S+) · /.exec(statusOf(pinned.rows))?.[1] ?? /★ (atlas|fjord|harbour)/.exec(railRow(pinned.rows, cockpit, '★') ?? '')?.[1] ?? '')
+    const pinnedName = pinned === undefined ? '' : (/viewing (\S+) · /.exec(statusOf(pinned.rows))?.[1] ?? /★ (atlas|fjord|harbour)/.exec(railRow(pinned.rows, cockpit, '★') ?? '')?.[1] ?? '')
     console.log(`  m on the crew pop-up's first row pinned: "${pinnedName || 'nobody'}"`)
-    check(`${tag}: m on the selected crewmate pins it — ★ in the rail, the status row says main chat, the card says THE MAIN CHAT, the pop-up gone`, pinned !== undefined && pinnedName !== '' && railRow(pinned.rows, cockpit, '★') !== undefined && railRow(pinned.rows, cockpit, '★')!.includes(pinnedName.slice(0, 5)) && cardRows(pinned.rows, cockpit).includes('THE MAIN CHAT') && !pinned.rows.some(line => line.includes(CREW_TITLE)), pinned === undefined ? 'no frame' : `${statusOf(pinned.rows)} · ${railRow(pinned.rows, cockpit, '★') ?? 'no ★ row'}`)
+    check(`${tag}: m on the selected crewmate pins it — ★ in the rail, the shared status row identifies the viewed pin, the pop-up gone`, pinned !== undefined && pinnedName !== '' && railRow(pinned.rows, cockpit, '★') !== undefined && railRow(pinned.rows, cockpit, '★')!.includes(pinnedName.slice(0, 5)) && viewing(pinned.rows, pinnedName) && !pinned.rows.some(line => line.includes(CREW_TITLE)), pinned === undefined ? 'no frame' : `${statusOf(pinned.rows)} · ${railRow(pinned.rows, cockpit, '★') ?? 'no ★ row'}`)
     if (pinned !== undefined) check(`${tag}: the pinned view paints whole`, integrity(pinned.rows).length === 0, integrity(pinned.rows).slice(0, 3).join(' · '))
     const pinnedNeedles = ['the second crewmate says', 'never breaks on its own', 'ledger row', 'its turn ended']
     popupPins(`${tag}: /config over the pinned ${pinnedName}`, marks['config-pinned-open'], CONFIG_TITLE, cockpit, pinnedNeedles, pinned)
@@ -465,7 +465,7 @@ async function leg(cols: number, rows: number): Promise<void> {
     popupPins(`${tag}: the crew pop-up over the pinned ${pinnedName}`, marks['crew-pinned-open'], CREW_TITLE, cockpit, pinnedNeedles, pinned)
     returnPins(`${tag}: the crew pop-up closed over the pinned ${pinnedName}`, pinned, marks['crew-pinned-closed'], cockpit, pinnedName)
     const leadPinned = marks['lead-pinned']
-    check(`${tag}: Mercury Lead in the rail goes back while ${pinnedName} stays the main chat (the status row names the main chat, where commands go and the lead waiting in the rail — cut to 'Mercury Lead w…' where 120 columns end, ★ kept, the composer still addresses it)`, leadPinned !== undefined && !/viewing/.test(statusOf(leadPinned.rows)) && (new RegExp(`main chat: ${pinnedName} · commands → ${pinnedName} · Mercury Lead(?: waits in the rail|[ a-z]*…)`).test(statusOf(leadPinned.rows)) || !/main chat/.test(statusOf(leadPinned.rows))) && railRow(leadPinned.rows, cockpit, '★') !== undefined && (composerRow(leadPinned.rows) ?? '').includes(`message ${pinnedName}`) && transcriptRows(leadPinned.rows, cockpit).some(line => line.includes('[Mercury]') || line.includes('[sam]')), leadPinned === undefined ? 'no frame' : `${statusOf(leadPinned.rows)} · ${railRow(leadPinned.rows, cockpit, '★') ?? 'no ★'} · ${flat(composerRow(leadPinned.rows) ?? '')}`)
+    check(`${tag}: Mercury Lead in the rail goes back while ${pinnedName} stays the main chat (the status names the pin, the rail keeps its star and the composer still addresses it)`, leadPinned !== undefined && !/viewing/.test(statusOf(leadPinned.rows)) && statusOf(leadPinned.rows).includes(`main chat: ${pinnedName} ·`) && railRow(leadPinned.rows, cockpit, '★') !== undefined && (composerRow(leadPinned.rows) ?? '').includes(`message ${pinnedName}`) && transcriptRows(leadPinned.rows, cockpit).some(line => line.includes('[Mercury]') || line.includes('[sam]')), leadPinned === undefined ? 'no frame' : `${statusOf(leadPinned.rows)} · ${railRow(leadPinned.rows, cockpit, '★') ?? 'no ★'} · ${flat(composerRow(leadPinned.rows) ?? '')}`)
     if (leadPinned !== undefined) check(`${tag}: the lead's view under a pinned crewmate paints whole`, integrity(leadPinned.rows).length === 0, integrity(leadPinned.rows).slice(0, 3).join(' · '))
     const railTop = marks['rail-top']
     console.log(`  the rail's cursor after Tab and ↑×12: "${flat(railRow(railTop?.rows ?? [], cockpit, '❯') ?? 'no ❯ row')}"`)

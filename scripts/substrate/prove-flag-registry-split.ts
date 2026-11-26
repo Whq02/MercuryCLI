@@ -303,7 +303,6 @@ const AREAS: Record<string, string> = {
   'src/screen/spinner/spinnerMode.ts': 'session.ts',
   'src/screen/spinner/turnCompletionVerbs.ts': 'session.ts',
   'src/screen/suggestions/': 'session.ts',
-  'src/screen/tasks/horizontalScroll.ts': 'session.ts',
   'src/screen/theme/color.ts': 'session.ts',
   'src/screen/theme/glyphs.ts': 'session.ts',
   'src/screen/theme/rowGlyphs.ts': 'session.ts',
