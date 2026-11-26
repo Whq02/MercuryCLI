@@ -1,13 +1,17 @@
-import { mkdir, rmdir, rmdirSync, stat, utimes } from 'node:fs'
+import { mkdir, readFileSync, rmSync, rmdir, rmdirSync, stat, statSync, utimes, writeFileSync } from 'node:fs'
 import { pollUntil, withDeadline } from '../../../platform/async/deadline.js'
-import { getErrnoCode } from '../../../platform/errors/errors.js'
+import { getErrnoCode, isENOENT } from '../../../platform/errors/errors.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { logError } from '../../../platform/logs/errorLog.js'
+import { pidAlive } from '../../../platform/processes/pidAlive.js'
 import { lock } from '../../../platform/storage/lockfile.js'
 
 const LOCK_POLL_MS = 100
 const LOCK_STALE_MARGIN_MS = 2_000
 const LOCK_PATIENCE_MARGIN_MS = 1_000
+const REFRESH_LOCK_FILE_STALE_MS = 30_000
+
+type RefreshLockFile = 'stale-by-age' | 'stale-by-holder'
 
 interface RefreshablePair {
   accessToken: string
@@ -19,6 +23,7 @@ type RefreshExchange<T> = { state: 'refreshed'; pair: T } | { state: 'dead'; err
 export interface LockedRefreshRoad<T extends RefreshablePair> {
   path: string
   exchangeDeadlineMs: number
+  refreshLockFile?: RefreshLockFile
   force?: boolean
   signal?: AbortSignal
   read(): T | undefined
@@ -65,10 +70,60 @@ function lockOwnedUntilStale(path: string, stale: number): Promise<() => Promise
   })
 }
 
+function refreshLockFileStale(path: string, rule: RefreshLockFile, stamp: string): boolean {
+  const [holder, stampedAt] = stamp.trim().split(/\s+/).map(Number)
+  if (rule === 'stale-by-holder' && holder !== undefined && Number.isSafeInteger(holder) && holder > 0) return !pidAlive(holder)
+  const since = rule === 'stale-by-age' && stampedAt !== undefined && Number.isFinite(stampedAt) ? stampedAt : statSync(path).mtimeMs
+  return Date.now() - since > REFRESH_LOCK_FILE_STALE_MS
+}
+
+function clearStaleRefreshLockFile(path: string, rule: RefreshLockFile, own: string | undefined): void {
+  try {
+    const stamp = readFileSync(path, 'utf8')
+    if ((stamp === own || refreshLockFileStale(path, rule, stamp)) && readFileSync(path, 'utf8') === stamp) rmSync(path)
+  } catch (error) {
+    if (!isENOENT(error)) passedOver(error)
+  }
+}
+
+function takeRefreshLockFile(path: string, rule: RefreshLockFile, ownStamps: Map<string, string>): (() => void) | undefined {
+  const stamp = `${process.pid} ${Date.now()}\n`
+  try {
+    writeFileSync(path, stamp, { flag: 'wx', mode: 0o600 })
+  } catch (error) {
+    if (getErrnoCode(error) !== 'EEXIST') throw error
+    clearStaleRefreshLockFile(path, rule, ownStamps.get(path))
+    return undefined
+  }
+  ownStamps.set(path, stamp)
+  return () => {
+    try {
+      if (readFileSync(path, 'utf8') === stamp) rmSync(path)
+    } catch (error) {
+      if (!isENOENT(error)) throw error
+    }
+    ownStamps.delete(path)
+  }
+}
+
+async function bothLocks(road: Pick<LockedRefreshRoad<RefreshablePair>, 'path' | 'refreshLockFile'>, stale: number, ownStamps: Map<string, string>): Promise<(() => Promise<void>) | undefined> {
+  const leaveFile = road.refreshLockFile === undefined ? (): void => {} : takeRefreshLockFile(`${road.path}.refresh-lock`, road.refreshLockFile, ownStamps)
+  if (leaveFile === undefined) return undefined
+  let kept = false
+  try {
+    const leaveFolder = await lockOwnedUntilStale(road.path, stale).catch(unlessHeld)
+    kept = leaveFolder !== undefined
+    return leaveFolder && (() => leaveFolder().finally(leaveFile))
+  } finally {
+    if (!kept) leaveFile()
+  }
+}
+
 export function lockedRefresh<T extends RefreshablePair>(): (road: LockedRefreshRoad<T>) => Promise<LockedRefreshAnswer<T>> {
   const joined = new Map<string, Promise<LockedRefreshAnswer<T>>>()
   const unsaved = new Map<string, { replaces: T; pair: T }>()
   const dead = new Map<string, unknown>()
+  const ownStamps = new Map<string, string>()
 
   function standing(road: LockedRefreshRoad<T>, began: T | undefined): LockedRefreshAnswer<T> | Due<T> {
     const stored = road.read()
@@ -103,7 +158,8 @@ export function lockedRefresh<T extends RefreshablePair>(): (road: LockedRefresh
       exchanged = { state: 'failed', error }
     }
     const after = road.read()
-    if (after === undefined || !samePair(after, due.stored)) return after?.refreshToken ? { state: 'current', pair: after } : { state: 'absent' }
+    const blanked = exchanged.state === 'refreshed' && after?.refreshToken === '' && after.accessToken === due.stored.accessToken
+    if (after === undefined || !(blanked || samePair(after, due.stored))) return after?.refreshToken ? { state: 'current', pair: after } : { state: 'absent' }
     if (exchanged.state === 'failed') return { state: 'failed', pair: due.pair, error: exchanged.error }
     if (exchanged.state === 'dead') {
       dead.set(due.refreshToken, exchanged.error)
@@ -119,7 +175,7 @@ export function lockedRefresh<T extends RefreshablePair>(): (road: LockedRefresh
       road.write(exchanged.pair)
       unsaved.delete(road.path)
     } catch (error) {
-      unsaved.set(road.path, { replaces: due.stored, pair: exchanged.pair })
+      unsaved.set(road.path, { replaces: after, pair: exchanged.pair })
       logError(error)
     }
     return { state: 'refreshed', pair: exchanged.pair }
@@ -130,7 +186,7 @@ export function lockedRefresh<T extends RefreshablePair>(): (road: LockedRefresh
     let release: (() => Promise<void>) | null = null
     let unusable: { error: unknown } | undefined
     try {
-      release = await pollUntil(() => lockOwnedUntilStale(road.path, stale).catch(unlessHeld), LOCK_POLL_MS, stale + LOCK_PATIENCE_MARGIN_MS, () => null)
+      release = await pollUntil(() => bothLocks(road, stale, ownStamps), LOCK_POLL_MS, stale + LOCK_PATIENCE_MARGIN_MS, () => null)
     } catch (error) {
       unusable = { error }
     }
