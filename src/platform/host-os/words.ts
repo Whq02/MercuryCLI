@@ -124,6 +124,12 @@ export function ffmpegInstallCommandWords(platform: string = process.platform): 
   return 'apt install ffmpeg'
 }
 
+export function devinCliInstallHintWords(platform: string = process.platform): string {
+  if (platform === 'win32') return 'Install Devin CLI in PowerShell: irm https://static.devin.ai/cli/setup.ps1 | iex (https://docs.devin.ai/cli)'
+  if (platform === 'darwin') return 'Install Devin CLI: curl -fsSL https://cli.devin.ai/install.sh | bash (or brew install --cask devin-cli · https://docs.devin.ai/cli)'
+  return 'Install Devin CLI: curl -fsSL https://cli.devin.ai/install.sh | bash (https://docs.devin.ai/cli)'
+}
+
 export function credentialStoreWaitNote(platform: NodeJS.Platform = process.platform): string {
   return platform === 'win32'
     ? 'checking the credential store and managed settings…'
