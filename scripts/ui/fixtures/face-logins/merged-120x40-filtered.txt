@@ -5,36 +5,36 @@
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                 ⌁ sessions · projects
+                                                  sessions · projects
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ moodle                                                         │  │ ❯ moodle                                   │
-   │   moodle groundwork                                  1 day ago │  │                                            │
-   │                                                                │  │ repo: moodle                               │
-   │ projects                                                       │  │ dir: /repo/moodle                          │
-   │   orchard-src                                   2m · 2 running │  │ last session: 26h ago                      │
-   │ ❯ moodle                                                   26h │  │                                            │
-   ╰────────────────────────────────────────────────────────────────╯  │ highlighted: the sessions above show       │
-                                                                       │ this repo alone (↑ walks back out)         │
-                                                                       │                                            │
-                                                                       │ ↵ opens the newest chat there              │
-                                                                       │ … (the trail continues — taller terminal)  │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ SESSIONS · PROJECTS                        │
-                                                                       │ Scope      all history — every project     │
-                                                                       │ Sessions   1                               │
-                                                                       │ Repos      2                               │
-                                                                       │ Opens      in place                        │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    Opus 5                          │
-                                                                       │ Critter    Octopus                         │
-                                                                       │ Dir        orchard-src                     │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  1 session in 'moodle' (filtered)                                                            │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   moodle
+   │ moodle                                                         │
+   │   moodle groundwork                                  1 day ago │   repo: moodle
+   │                                                                │   dir: /repo/moodle
+   │ projects                                                       │   last session: 26h ago
+   │   orchard-src                                   2m · 2 running │
+   │ ❯ moodle                                                   26h │   highlighted: the sessions above show
+   ╰────────────────────────────────────────────────────────────────╯   this repo alone (↑ walks back out)
+
+                                                                        ↵ opens the newest chat there
+                                                                        (a history-less repo births one);
+                                                                        the refusal paints on the row.
+
+
+
+
+
+
+
+
+
+                                                                        Scope      all history — every project
+                                                                        Sessions   1
+                                                                        Repos      2
+                                                                        Opens      in place
+
+                                                                        Mercury    Opus 5
+                                                                        Critter    Octopus
+                                                                        Dir        orchard-src
+    1 session in 'moodle' (filtered)
                     ↑↓ move · ↵ open · n new session · d prune · a this project · ⇥ repos · esc back

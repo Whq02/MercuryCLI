@@ -5,36 +5,36 @@
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                        ⌁ logins
+                                                         logins
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │                                                                │  │ ❯ Google Gemini                            │
-   │ signed in                                                      │  │                                            │
-   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │ Gemini API key                             │
-   │   Anthropic — Claude subscription or Console sign-in / API key │  │ AI Studio opened: create a key there.      │
-   │                                                 op@example.com │  │ https://aistudio.google.com/apikey         │
-   │   Hugging Face — sign-in or Hub token           keyed-op …k9f2 │  │ Cloud project: free Flash ~20/day, Pro     │
-   │   Kimi (Moonshot) — device-code sign-in or API key             │  │ 0; pay for more.                           │
-   │                              kimi.ai (global) · window reached │  │ Stored auth-scoped (mode 600), never       │
-   │                                                                │  │ logged; GOOGLE_API_KEY /                   │
-   │ available                                                      │  │ GEMINI_API_KEY win over the store.         │
-   │   OpenRouter — browser sign-in or API key        not signed in │  │ key: ▌                                     │
-   │ ❯ Google Gemini — Google sign-in, API key        not signed in │  │ ↵ stores it · esc back                     │
-   │   GLM (Z.AI) — API key (general or GLM Coding Plan)            │  ╰────────────────────────────────────────────╯
-   │                                                  not signed in │  ╭────────────────────────────────────────────╮
-   │   DeepSeek — API key                             not signed in │  │ LOGINS                                     │
-   │   xAI — Grok subscription sign-in or API key     not signed in │  │ Families   22                              │
-   │   Meta — Muse Code sign-in or API key            not signed in │  │ Signed in  4 of 22                         │
-   │   Mistral — API key                              not signed in │  │ Ready      4 lanes                         │
-   │   Nous Portal — sign-in or API key               not signed in │  ╰────────────────────────────────────────────╯
-   │   MiniMax — API key or M Plan key                not signed in │  ╭────────────────────────────────────────────╮
-   │   Together AI — API key                          not signed in │  │ ENVIRONMENT                                │
-   │   Cohere — API key                               not signed in │  │ Mercury    Opus 5                          │
-   │   Groq — API key                                 not signed in │  │ Critter    Octopus                         │
-   │ … 6 more below                                                 │  │ Dir        orchard-src                     │
-   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  paste Gemini API key                                                                        │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   Google Gemini
+   │ signed in                                                      │
+   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │   Gemini API key
+   │   Anthropic — Claude subscription or Console sign-in / API key │   AI Studio opened: create a key there.
+   │                                                 op@example.com │   https://aistudio.google.com/apikey
+   │   Hugging Face — sign-in or Hub token           keyed-op …k9f2 │   Cloud project: free Flash ~20/day, Pro
+   │   Kimi (Moonshot) — device-code sign-in or API key             │   0; pay for more.
+   │                              kimi.ai (global) · window reached │   Stored auth-scoped (mode 600), never
+   │                                                                │   logged; GOOGLE_API_KEY /
+   │ available                                                      │   GEMINI_API_KEY win over the store.
+   │   OpenRouter — browser sign-in or API key        not signed in │   key: ▌
+   │ ❯ Google Gemini — Google sign-in, API key        not signed in │   ↵ stores it · esc back
+   │   GLM (Z.AI) — API key (general or GLM Coding Plan)            │
+   │                                                  not signed in │
+   │   DeepSeek — API key                             not signed in │
+   │   xAI — Grok subscription sign-in or API key     not signed in │
+   │   Meta — Muse Code sign-in or API key            not signed in │
+   │   Mistral — API key                              not signed in │
+   │   Nous Portal — sign-in or API key               not signed in │
+   │   MiniMax — API key or M Plan key                not signed in │
+   │   Together AI — API key                          not signed in │
+   │   Cohere — API key                               not signed in │
+   │   Groq — API key                                 not signed in │   Families   22
+   │   Melious AI — API key                           not signed in │   Signed in  4 of 22
+   │   OrcaRouter — device-code sign-in or API key    not signed in │   Ready      4 lanes
+   │   Cerebras — API key                             not signed in │
+   │   Fireworks — API key                            not signed in │   Mercury    Opus 5
+   │ … 2 more below                                                 │   Critter    Octopus
+   ╰────────────────────────────────────────────────────────────────╯   Dir        orchard-src
+    paste Gemini API key
                                                  ↵ store key · esc back

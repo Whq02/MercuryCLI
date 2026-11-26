@@ -169,7 +169,7 @@ try {
       rows: ROWS,
       sends: [
         { data: 's', awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
-        { data: TO_MOTION, awaitText: 'SETTING DETAIL', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
+        { data: TO_MOTION, awaitText: 'What it controls', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
         { data: RIGHT, awaitText: 'doors: /config · Boot Menu', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-motion' },
         { data: ESC, awaitText: 'motion full · set by you', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-full' },
         { data: '\r', awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 3 },
@@ -181,7 +181,7 @@ try {
         { data: '', awaitText: 'reduced', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'config-reduced' },
         { data: '\r', afterPrevTicks: 4 },
         { data: '/bootmenu\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'chat-reduced' },
-        { data: TO_MOTION, awaitText: 'SETTING DETAIL', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
+        { data: TO_MOTION, awaitText: 'What it controls', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
         { data: BACKSPACE, awaitText: 'now: reduced (set by you)', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-reduced' },
         { data: ESC, awaitText: 'follows the machine again', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-auto' },
         { data: SHIFT_RIGHT, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 3 },

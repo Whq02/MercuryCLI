@@ -651,7 +651,7 @@ t.section('§8 — THE SIGN-IN WALK, DRIVEN (AGENTVERIFY A3: the face swap on a 
     t.check('↵ on the connect door fires the host swap exactly once', hostControl.openedCount === 1)
     t.check(
       'suspended, the agents layer renders NOTHING (the host owns the paint)',
-      !frameText().includes('the full catalogue') && !frameText().includes('CONTROL PLANE'),
+      !frameText().includes('the full catalogue') && !frameText().includes('╭'),
     )
 
     process.env.ZAI_API_KEY = 'zai-fixture-key-for-the-walk'

@@ -5,36 +5,36 @@
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                        ⌁ logins
+                                                         logins
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ OpenAI                                                         │  │ ❯ ChatGPT subscription — browser sign-in   │
-   │ ❯ ChatGPT subscription — browser sign-in                       │  │                                            │
-   │   OpenAI API key — usage-based billing                         │  │ One OpenAI family, two credentials:        │
-   ╰────────────────────────────────────────────────────────────────╯  │ the ChatGPT subscription signs in with     │
-                                                                       │ the browser (d on the wait switches to     │
-                                                                       │ a device code); an API key bills           │
-                                                                       │ usage-based.                               │
-                                                                       │ API key: platform.openai.com/api-keys      │
-                                                                       │ — sign in, API Keys, create,               │
-                                                                       │ paste it here.                             │
-                                                                       │                                            │
-                                                                       │ esc — back to the roster                   │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ LOGINS                                     │
-                                                                       │ Families   22                              │
-                                                                       │ Signed in  4 of 22                         │
-                                                                       │ Ready      4 lanes                         │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    Opus 5                          │
-                                                                       │ Critter    Octopus                         │
-                                                                       │ Dir        orchard-src                     │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  OpenAI — subscription or key                                                                │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   ChatGPT subscription — browser sign-in
+   │ OpenAI                                                         │
+   │ ❯ ChatGPT subscription — browser sign-in                       │   One OpenAI family, two credentials:
+   │   OpenAI API key — usage-based billing                         │   the ChatGPT subscription signs in with
+   ╰────────────────────────────────────────────────────────────────╯   the browser (d on the wait switches to
+                                                                        a device code); an API key bills
+                                                                        usage-based.
+                                                                        API key: platform.openai.com/api-keys
+                                                                        — sign in, API Keys, create,
+                                                                        paste it here.
+
+                                                                        esc — back to the roster
+
+
+
+
+
+
+
+
+
+
+                                                                        Families   22
+                                                                        Signed in  4 of 22
+                                                                        Ready      4 lanes
+
+                                                                        Mercury    Opus 5
+                                                                        Critter    Octopus
+                                                                        Dir        orchard-src
+    OpenAI — subscription or key
                                               ↑↓ move · ↵ pick · esc back

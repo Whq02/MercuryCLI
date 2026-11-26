@@ -315,7 +315,7 @@ await settle(80)
 section("§7 the Boot Settings face's JEV row: ←/→ flip it (no composer stands under this face)")
 {
   const boot = await mountOffscreen(h(AppStateProvider as never, {}, h(ThemeProvider as never, {}, h(BootSettingsScreen as never, { fullScene: { columns: COLS, rows: ROWS }, onClose: () => {} }))), COLS, ROWS)
-  await waitFor(() => boot.screen().includes('CONTROL PLANE'), 4000)
+  await waitFor(() => boot.screen().includes('TRUST COMBO'), 4000)
   await settle(250)
   const reached = await selectMarked(boot, '❯ JEV')
   check('↓ reaches the JEV row on the boot face', reached && /❯ JEV\s+off\s/.test(bootJevRow(boot.lines())), bootJevRow(boot.lines()))

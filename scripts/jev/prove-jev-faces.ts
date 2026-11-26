@@ -124,13 +124,21 @@ const has = (lines: string[], needle: string): boolean => lines.some(line => lin
 const collapse = (text: string): string => text.replace(/\s+/g, ' ').trim()
 const BORDERS = /[│╭╮╰╯─]/g
 const popupText = (lines: string[]): string => collapse(lines.map(line => line.replace(BORDERS, ' ')).join(' '))
-function paneLines(lines: string[], title: string, width: number): string[] {
-  const header = lines.find(line => line.includes(title))
-  if (header === undefined) return []
-  const left = header.indexOf(title) - 2
-  return lines.map(line => Array.from(line).slice(left + 1, left + width - 1).join('').trim())
+function paneLines(lines: string[]): string[] {
+  const top = lines.findIndex(line => line.includes('╭') && line.includes('╮'))
+  if (top < 0) return []
+  const left = lines[top]!.indexOf('╭')
+  const right = lines[top]!.indexOf('╮')
+  const out: string[] = []
+  for (let i = top; i < lines.length; i++) {
+    const line = lines[i]!
+    const ch = line[left]
+    if (i > top && ch !== '│' && ch !== '╰' && line.slice(0, right + 1).trim() !== '') break
+    out.push(line.slice(right + 1).trim())
+  }
+  return out
 }
-const paneText = (lines: string[], title: string, width: number): string => collapse(paneLines(lines, title, width).join(' '))
+const paneText = (lines: string[]): string => collapse(paneLines(lines).join(' '))
 
 async function mountPopup(overlay: boolean): Promise<Mounted> {
   const element = React.createElement(
@@ -161,7 +169,7 @@ async function openBootFace(): Promise<Mounted> {
     React.createElement(ThemeProvider as never, {}, React.createElement(BootSettingsScreen as never, { fullScene: { columns: COLS, rows: ROWS }, onClose: () => {} })),
   )
   const m = await mountOffscreen(element, COLS, ROWS)
-  await waitFor(() => m.screen().includes('CONTROL PLANE'), 4000)
+  await waitFor(() => m.screen().includes('TRUST COMBO'), 4000)
   await settle(250)
   return m
 }
@@ -186,8 +194,6 @@ const jevRowMark = `${jevBody.JEV_ROW_MARK} `
 const rowLine = (m: Mounted, label: string): string => (m.lines().find(line => line.includes(`${jevRowMark}${label}`)) ?? '').replace(BORDERS, ' ').trim()
 const bootJevRow = (lines: string[]): string => lines.find(line => /❯ JEV\s+(?:on|off)\s/.test(line)) ?? ''
 const said = (m: Mounted, words: string): boolean => popupText(m.lines()).includes(collapse(words))
-const DETAIL_PANE = 'SETTING DETAIL'
-const DETAIL_PANE_WIDTH = 46
 const JEV_INNER = jevBody.JEV_POPUP_WIDTH - 4
 function popupRows(lines: string[]): string[] {
   const header = lines.find(line => line.includes('Mercury · jev'))
@@ -254,21 +260,21 @@ section('§2 the Boot Settings face: the JEV row selected, its detail pane, the 
   const rowAt = lines.indexOf(row)
   check('the row sits under the AGENTS header after the Crewmates while backgrounded row', rowAt > 0 && (lines[rowAt - 1] ?? '').includes('Crewmates while backgrounded'), `${lines[rowAt - 1] ?? ''} / ${row}`)
   check('the row\'s value column reads off', /❯ JEV\s+off\s/.test(row), row)
-  const pane = paneText(lines, DETAIL_PANE, DETAIL_PANE_WIDTH)
+  const pane = paneText(lines)
   check('the detail pane carries the status line verbatim, wrapped at the pane width', pane.includes(collapse(status.jevStatusLine())), pane)
   check('the detail pane carries the key words', pane.includes(keyOwner.jevKeySourceWords(keyOwner.jevKeyPresence())))
   check('the detail pane names the row\'s What it controls and the permission law', pane.includes('What it controls') && pane.includes('never answers a permission request'))
-  check('the pane wraps the allowance sentence instead of clipping it', pane.includes('session allowance: $20.00 (a runaway stop, not a budget') && !paneLines(lines, DETAIL_PANE, DETAIL_PANE_WIDTH).some(line => line.includes('session allowance') && line.endsWith('…')))
+  check('the pane wraps the allowance sentence instead of clipping it', pane.includes('session allowance: $20.00 (a runaway stop, not a budget') && !paneLines(lines).some(line => line.includes('session allowance') && line.endsWith('…')))
   await press(m, KEY.enter, 300)
   check('↵ flips the one switch through the owner: the config file carries jev.enabled true', storedJev()?.enabled === true && setting.jevEnabled() === true, JSON.stringify(storedJev()))
   check('the config file is the only file under the home that carries the switch', filesMentioning('"jev"').length === 1 && filesMentioning('"jev"')[0] === configFile, filesMentioning('"jev"').join(','))
   const after = keepFrame('boot-settings-jev-row-on-178x51', 'the same face after ↵ on the JEV row: the value column on, the status bar carrying the owner\'s receipt, the detail pane now reading no key', m)
   check('the value column now reads on', /❯ JEV\s+on\s/.test(bootJevRow(after)), bootJevRow(after))
-  check('the status bar carries the receipt words (JEV on — JevEval joins the roster …)', has(after, 'JEV on — official; JevEval joins the roster'), after.filter(line => line.includes('System ready')).join(' | '))
-  check('the detail pane now reads the resolver\'s no-key words', status.jevStatus().kind === 'no-key' && paneText(after, DETAIL_PANE, DETAIL_PANE_WIDTH).includes(collapse(status.jevStatusLine())), status.jevStatusLine())
+  check('the status bar carries the receipt words (JEV on — JevEval joins the roster …)', has(after, 'JEV on — official; JevEval joins the roster'), after.slice(-3).join(' | '))
+  check('the detail pane now reads the resolver\'s no-key words', status.jevStatus().kind === 'no-key' && paneText(after).includes(collapse(status.jevStatusLine())), status.jevStatusLine())
   check('boot-env.json never carries the switch (the row is config-backed)', !existsSync(join(HOME, 'boot-env.json')) || !readFileSync(join(HOME, 'boot-env.json'), 'utf8').includes('jev'))
   await press(m, KEY.enter, 300)
-  check('a second ↵ flips it back off, the receipt saying nothing is sent', setting.jevEnabled() === false && has(m.lines(), 'nothing is sent'), m.lines().filter(line => line.includes('System ready')).join(' | '))
+  check('a second ↵ flips it back off, the receipt saying nothing is sent', setting.jevEnabled() === false && has(m.lines(), 'nothing is sent'), m.lines().slice(-3).join(' | '))
   await press(m, KEY.enter, 300)
   check('and on again for the next surface', setting.jevEnabled() === true && storedJev()?.enabled === true)
   m.unmount()

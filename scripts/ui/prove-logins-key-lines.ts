@@ -149,7 +149,7 @@ t.section(`§4 — THE FRAMES at ${COLS}x${ROWS}: the title frame and one card f
     const text = renderStill(frame.lines)
     if (dir !== undefined) writeFileSync(join(dir, `${frame.id}.txt`), text)
     t.check(`${frame.id}: fits ${COLS}x${ROWS}`, frame.lines.length <= ROWS && frame.lines.every(l => l.length <= COLS), `rows=${frame.lines.length} widest=${Math.max(...frame.lines.map(l => l.length))}`)
-    if (frame.family === null) t.check(`${frame.id}: the face's title reads logins`, text.includes('⌁ logins'))
+    if (frame.family === null) t.check(`${frame.id}: the face's title reads logins`, text.split('\n').some(l => l.trim() === 'logins'))
     else t.check(`${frame.id}: the card paints its key page (${PAGES[frame.family]})`, text.includes(PAGES[frame.family]))
   }
   if (dir !== undefined) console.log(`  frames written to ${dir}`)

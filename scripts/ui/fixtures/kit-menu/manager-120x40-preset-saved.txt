@@ -5,36 +5,36 @@
                                  █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
                                  ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
 
-                                                    ⌁ mcps & skills
+                                                     mcps & skills
 
-   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
-   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ MCPs                                                           │  │ ❯ deploy                                   │
-   │   github                                                    on │  │                                            │
-   │   postgres                                                 off │  │ save as preset                             │
-   │   orchard-tools (extension)                                off │  │                                            │
-   │   ext:orchard-tools:db                         off (extension) │  │ name: review kit▌                          │
-   │                                                                │  │                                            │
-   │ Skills                                                         │  │ a preset is this record under a name —     │
-   │ ❯ deploy                                             invocable │  │ the next session can start from it.        │
-   │   review                                                    on │  │                                            │
-   │   notes                                                    off │  │ preset 'review kit' saved (4 deltas)       │
-   │   orchard-tools (extension)                                off │  │                                            │
-   │   orchard-tools:prune                          off (extension) │  │                                            │
-   │   orchard-tools:graft                          off (extension) │  ╰────────────────────────────────────────────╯
-   │   skills from MCP servers appear once a session connects them  │  ╭────────────────────────────────────────────╮
-   ╰────────────────────────────────────────────────────────────────╯  │ NEXT SESSION                               │
-                                                                       │ MCPs       1 on · 2 off                    │
-                                                                       │ Skills     1 on · 1 invocable · 3 off      │
-                                                                       │ Applies    ● the next session              │
-                                                                       ╰────────────────────────────────────────────╯
-                                                                       ╭────────────────────────────────────────────╮
-                                                                       │ ENVIRONMENT                                │
-                                                                       │ Mercury    Opus 5                          │
-                                                                       │ Critter    Octopus                         │
-                                                                       │ Dir        orchard-src                     │
-                                                                       ╰────────────────────────────────────────────╯
-   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  4 choices saved — applies to the next session  ·  2 established sessions unchanged          │
-   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────╮   deploy
+   │ MCPs                                                           │
+   │   github                                                    on │   save as preset
+   │   postgres                                                 off │
+   │   orchard-tools (extension)                                off │   name: review kit▌
+   │   ext:orchard-tools:db                         off (extension) │
+   │                                                                │   a preset is this record under a name —
+   │ Skills                                                         │   the next session can start from it.
+   │ ❯ deploy                                             invocable │
+   │   review                                                    on │   preset 'review kit' saved (4 deltas)
+   │   notes                                                    off │
+   │   orchard-tools (extension)                                off │
+   │   orchard-tools:prune                          off (extension) │
+   │   orchard-tools:graft                          off (extension) │
+   │   skills from MCP servers appear once a session connects them  │
+   ╰────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+                                                                        MCPs       1 on · 2 off
+                                                                        Skills     1 on · 1 invocable · 3 off
+                                                                        Applies    ● the next session
+
+                                                                        Mercury    Opus 5
+                                                                        Critter    Octopus
+                                                                        Dir        orchard-src
+    4 choices saved — applies to the next session  ·  2 established sessions unchanged
                                            type a name · ↵ save · esc cancel

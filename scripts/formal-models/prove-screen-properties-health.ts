@@ -287,7 +287,7 @@ async function runHealthScenario(scenario: HealthScenario): Promise<void> {
   if (!frame.includes('health check')) {
     throw new Error(`BootHealthScreen did not paint title:\n${frame}`)
   }
-  const hasCertBox = frame.includes('CERTIFICATE')
+  const hasCertBox = frame.includes('Verdict')
   if (hasCertBox && !frame.includes(cert.verdict)) {
     throw new Error(`BootHealthScreen wide summary missing verdict=${cert.verdict}:\n${frame}`)
   }
@@ -296,7 +296,7 @@ async function runHealthScenario(scenario: HealthScenario): Promise<void> {
     if (closedCount !== 0) throw new Error(`${phase}: closed before Escape (closedCount=${closedCount})`)
     if (appliedIds.length !== 0) throw new Error(`${phase}: remedy applied before confirm Enter (${appliedIds.join(',')})`)
     const { pointerLines, uniqueMarkers } = focusedHealthMarkers(current)
-    const expectedPointers = hasCertBox ? 2 : 1
+    const expectedPointers = 1
     if (pointerLines.length !== expectedPointers || uniqueMarkers.length !== 1) {
       throw new Error(`${phase}: expected ${expectedPointers} pointer line(s) agreeing on 1 marker, got lines=${pointerLines.length} unique=${uniqueMarkers.join(',')}:\n${current}`)
     }

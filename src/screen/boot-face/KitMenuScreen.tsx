@@ -403,7 +403,6 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
           : presetsLayer.facts.map(f => presetLayerEntryOf(f, armed)),
         selIdx: empty ? -1 : presetsList.selectedIndex,
         title: 'presets',
-        summaryTitle: 'NEXT SESSION',
         summaryRows: presetLayerSummaryRows(presetsLayer.facts.length, armed),
         environment,
         statusRight:
@@ -422,7 +421,6 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
       entries,
       selIdx: selectable ? list.selectedIndex : -1,
       title: 'mcps & skills',
-      summaryTitle: 'NEXT SESSION',
       summaryRows: kitSummaryRows(kitCounts(listRows, states)),
       moreHint: '… (the trail continues — taller terminal)',
       environment,
