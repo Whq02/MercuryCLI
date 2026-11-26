@@ -3,7 +3,7 @@ import { ScreenInstanceContext } from '../renderer/elements/ScreenInstanceContex
 import { elementScreenLeft, elementScreenTop, measureElement, type DOMElement } from '../themedRenderer.js'
 import type { PopupBand, PopupBounds } from './PopupGutter.js'
 
-export type MeasuredHost = PopupBounds & { band: PopupBand | null; bandRows: number }
+export type MeasuredHost = PopupBounds & { band: PopupBand | null; bandRows: number; outerRows: number | undefined }
 
 export function popupHostBounds(element: DOMElement, framed: boolean): PopupBounds {
   const inset = framed ? 1 : 0
@@ -25,12 +25,14 @@ export function PopupHost({ hostRef, bandRef, framed = false, children }: {
     if (!element) return null
     const last = cached.current
     const bounds = popupHostBounds(element, framed)
+    const outer = measureElement(element).height
+    const outerRows = outer > 0 ? outer : last?.outerRows
     const strip = bandRef?.current
     const height = strip ? measureElement(strip).height : 0
     const band = strip && height > 0 ? { top: elementScreenTop(strip), rows: height } : null
     const bandRows = strip ? height || last?.bandRows || 0 : 0
-    if (last && last.left === bounds.left && last.top === bounds.top && last.columns === bounds.columns && last.rows === bounds.rows && last.band?.top === band?.top && last.band?.rows === band?.rows && last.bandRows === bandRows) return last
-    return cached.current = { ...bounds, band, bandRows }
+    if (last && last.left === bounds.left && last.top === bounds.top && last.columns === bounds.columns && last.rows === bounds.rows && last.band?.top === band?.top && last.band?.rows === band?.rows && last.bandRows === bandRows && last.outerRows === outerRows) return last
+    return cached.current = { ...bounds, band, bandRows, outerRows }
   }
   return children(useSyncExternalStore(subscribe, read))
 }
