@@ -4,10 +4,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { pinRecorderTerminal } from '../lib/proofHome.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const root = join(import.meta.dir, '../..')
 if (process.argv.includes('--child')) {
+  pinRecorderTerminal()
   const home = process.env.MERCURY_CONFIG_DIR!
   globalThis.fetch = (async () => { throw new Error('No network in the picker fixture') }) as typeof fetch
   const { enableConfigs } = await import('../../src/platform/settings/config.ts')
@@ -73,7 +75,7 @@ if (process.argv.includes('--child')) {
       const out = join(scratch, `${mode}.json`)
       const cfg = join(scratch, `${mode}-capture.json`)
       writeFileSync(cfg, JSON.stringify({ argv: [process.execPath, import.meta.filename, '--child', ...(mode === 'refused' ? ['--refused'] : [])], cwd, cols: 160, rows: 45, total: 180, readyText: 'active effort: xhigh', readySettleTicks: 6, out, sends: [{ requireAwait: true, awaitText: 'ctrl+e changes it', minTick: 3, awaitSettleTicks: 5, data: '\u0005' }] }))
-      const env = { ...process.env, HOME: userHome, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_FULLSCREEN: '1', MERCURY_REDUCED_MOTION: '1', MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', BROWSER: '/usr/bin/true', TMPDIR: scratch }
+      const env = pinRecorderTerminal({ ...process.env, HOME: userHome, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_FULLSCREEN: '1', MERCURY_REDUCED_MOTION: '1', MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', BROWSER: '/usr/bin/true', TMPDIR: scratch })
       for (const key of ['MERCURY_HOME', 'MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'NODE_ENV', 'CI', 'MERCURY_CRITTER']) delete (env as Record<string, unknown>)[key]
       const capture = spawnSync(driver.python, [captureEngineEntry(driver, root), cfg], { cwd, env, encoding: 'utf8', timeout: vshotBudgetMs(90_000) })
       type Grid = Array<Array<{ c: string }>>

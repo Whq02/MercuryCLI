@@ -6,11 +6,11 @@ import type { TranscriptMessage } from './transcriptEntries.js'
 
 type Scope = { kind: 'session' } | { kind: 'crewmate'; agentId: string }
 type ConversationEnd = { primary: TranscriptMessage; rows: TranscriptMessage[]; screenRows: TranscriptMessage[] }
-type Point = { id: UUID; parent: UUID | null; stamp: string; position: number; role: 'turn' | 'result' | 'quiet' | 'fence'; group: string; kept: { anchor: UUID; tail: UUID } | undefined }
+export type Point = { id: UUID; parent: UUID | null; stamp: string; position: number; role: 'turn' | 'result' | 'quiet' | 'fence'; group: string; kept: { anchor: UUID; tail: UUID } | undefined }
 type Choice = { primary: UUID; end: UUID; shown: UUID; fence: UUID | undefined; relinks: Map<UUID, UUID>; late: Map<UUID, UUID> }
 type Graph = ReturnType<typeof transcriptRows>
 
-function pointOf(row: TranscriptMessage, position: number): Point {
+export function pointOf(row: TranscriptMessage, position: number): Point {
   const segment = isFoldBoundaryMessage(row) ? row.compactMetadata?.preservedSegment : undefined
   const role = row.type === 'assistant' ? 'turn' : row.type === 'user' ? (isToolUseResultMessage(row) ? 'result' : 'turn') : isFoldBoundaryMessage(row) ? 'fence' : 'quiet'
   const group = row.type === 'assistant' && row.message.id ? row.message.id : row.uuid
@@ -45,7 +45,7 @@ function newer(point: Point, other: Point): boolean {
   return at > otherAt || (at === otherAt && point.position > other.position)
 }
 
-function choose(ordered: readonly Point[]): Choice | undefined {
+export function choose(ordered: readonly Point[]): Choice | undefined {
   const points = new Map<UUID, Point>()
   for (const point of ordered) points.set(point.id, point)
   const fenceAt = ordered.findLastIndex(point => point.role === 'fence')

@@ -134,8 +134,9 @@ through that archive's launcher to install the release into `~/.mercury/versions
 and add the command directory to your `PATH` once (a guarded line in your shell's
 startup file, or the user `PATH` on Windows), without administrator access.
 `--dry-run` previews the installation (naming the bundled runtime and the
-`PATH` change it would make), `--uninstall` removes managed binaries only
-while keeping your configuration and sessions, and `--force` replaces an
+`PATH` change it would make), `--uninstall` removes managed binaries and profile
+commands only while keeping your configuration, sessions and profile folders,
+and `--force` replaces an
 existing non-Mercury `mercury` file in the bin directory after backing it up as
 `mercury.bak` (without `--force`, an existing file from another program is
 left untouched and refused). Pass `--json` on any verb for JSON output.
@@ -198,8 +199,8 @@ prints the result on the `background daemon:` line: `moved to v… — new sessi
 run on it`; `v… takes new sessions; daemon v… keeps its N live sessions until
 they finish` (a new background daemon starts on the new version for new
 sessions while the old daemon finishes any running sessions and exits when they
-end); `moves to v… when its N live sessions finish`; `already on v…`; `none
-running — the next session starts one on v…`; or `` could not be moved — <why>;
+end); `moves to v… when its N live sessions finish`; `already on v…`; `none running in this home — the next
+session here starts one on v…`; or `` could not be moved — <why>;
 `mercury daemon stop` ends it and the next session starts one on v… ``. The final
 line notes that any open Mercury terminal window continues running on the build
 it started with until you close and reopen it: existing sessions keep running,
@@ -232,7 +233,7 @@ Its cause remains unknown.
 The activation law:
 
 1. single-update lock;
-2. download + checksum verify (same-release `SHA256SUMS.txt` only);
+2. download + checksum verify (same-release `SHA256SUMS.txt`) + archive signature verify (`.sig`);
 3. extract → layout judgement;
 4. embedded-version equality (manifest + a staged `--version` smoke);
 5. stage into `versions/<v>` without touching the active version;
@@ -244,7 +245,8 @@ recovery. Output lines never carry GitHub access material.
 
 A once-a-day update notice performs the same
 release-list read after the first screen paint, stays silent on network errors, and
-shows one expiring notice (`"vX.Y.Z available — mercury update"`).
+shows one notice (`"vX.Y.Z available — mercury update"`) that clears
+automatically once the installed version overtakes it.
 The notice names a release newer than the running
 build: the listing is compared against the managed install's
 pointer, and a build running ahead of its pointer shows nothing. The home screen reads the same cache and shows

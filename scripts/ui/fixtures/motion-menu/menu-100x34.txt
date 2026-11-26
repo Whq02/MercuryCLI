@@ -1,6 +1,6 @@
 
 
-  (>_) MERCURY · boot menu
+  MERCURY · boot menu
 
   trust combo
     Content-rule wards              default (on)

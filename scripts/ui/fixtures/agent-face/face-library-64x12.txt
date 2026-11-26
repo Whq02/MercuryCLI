@@ -1,4 +1,4 @@
- (>_) MERCURY · agents
+ MERCURY · agents
  
   
  Shared project settings

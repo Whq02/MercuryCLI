@@ -130,8 +130,8 @@ goal armed. Your next message resumes a paused goal; a scheduled wake does not.
 Pressing `Enter` opens a chat immediately using a pre-warmed
 background runner. The new session loads the
 repository's MCPs & Skills selection (or the preset you selected in Boot Menu), and
-the launch receipt names which ([KIT.md](KIT.md)). The board's `+ new session · n`
-tab, at the right end of its SESSIONS title, starts a new session from the
+the launch receipt names which ([KIT.md](KIT.md)). The board's `+ new · n`
+tab, at the right end of its `sessions` title, starts a new session from the
 board in the project the board shows, focused at once.
 When every session slot is taken, the launch waits up to 20 seconds for one to free
 and starts automatically when it does; otherwise the home screen reports how many live
@@ -396,13 +396,13 @@ succeed, to read it when it needs it. A run with no screen (`mercury run`)
 gives the same line on stderr and in a `notice` row
 (`code: "mention_dropped"`), and lists it in the outcome's `notices`.
 
-The session box at the top of the view holds the critter and, while
-a turn runs, the working row in its own capsule beside it: a slim box of
-five rows, the sprite at its left and the capsule to its right, the capsule
-taking the rest of the box's width. The sprite sits level with the
-capsule's middle however tall the capsule grows (the lower of the two
-middle rows when the capsule has an even number of rows): a status that
-stacks or wraps onto more lines lengthens the capsule downwards and the
+The status band at the top of the view holds the critter and, while
+a turn runs, the working row beside it, over a hairline divider: the sprite at
+its left and the working row to its right, taking the rest of the band's width.
+The sprite sits level with the
+working row's middle however tall it grows (the lower of the two
+middle rows when it has an even number of rows): a status that
+stacks or wraps onto more lines lengthens it downwards and the
 sprite follows its middle. The same small sprite is the critter everywhere
 it appears (the session box, the compact layout's band, and the header above the chat),
 and clicking it or running `/critter` chooses the
@@ -472,7 +472,7 @@ own watchdog's warning point: never sooner than five minutes of silence, and
 never later than the watchdog's own cut. On the routes whose keep-alives
 feed the watchdog the budget is six minutes (twelve in patient mode), so the
 row can name the silence from five (`"no stream events for 5m — the session
-may be stuck (the watchdog aborts at 6m)"`); on the quiet routes, whose budget
+may be stuck (the watchdog aborts at 6m)"`); on the silent routes, whose budget
 is fifteen minutes, the row names what it saw from seven and a half (`"no
 stream events for 8m — the session may be stuck (the watchdog aborts at
 15m)"`). Every wait, warning and reissue line spells a minute or more in
@@ -533,18 +533,18 @@ parallel sessions fit (`"y run it once"` or `"n no probe — the machine's own
 reading decides"`, `"esc keeps the default · asked once, never again"`). The
 board is scoped to that project: its
 sessions that are running, waiting for a slot, or finished and waiting for a
-merge, and beneath them, PARKED, the project's chats with no running worker.
+merge, and beneath them, `parked`, the project's chats with no running worker.
 When you pick another project through the REPO picker (`Ctrl+G`), the board shows that project's
 sessions instead, while every other project's sessions keep running. Activity
 in other repositories stays visible: each other project with activity
-paints one summary line under OTHER PROJECTS, between the live rows and
-PARKED (`"N running in foo"`, with its finished and needs-you counts and
+paints one summary line under `other projects`, between the live rows and
+`parked` (`"N running in foo"`, with its finished and needs-you counts and
 `"switch to see them"` in its NOW cell), and pressing `Enter` on it switches the view
 through the REPO picker's path; at most three lines paint, and a `"+N
 more projects with activity"` line opens the picker itself. The chat you are in stays visible across a project
 switch: the board always includes the focused
 session, wherever it lives, marked with `✦ "from <its project>"` beside its
-title (among the live rows when running, or at the top of PARKED when stopped),
+title (among the live rows when running, or at the top of `parked` when stopped),
 and pressing `Enter` opens it; focusing a session of the current
 project returns the carried row to its own project board. Two things on the board
 are machine-wide: the status row's seats fraction counts every running
@@ -556,11 +556,11 @@ The board is two panes. On the left is the live view of the chosen session:
 its header line (`"<title> · <project> · <model> · <effort>"` with `"↵ enter
 session"` at its right), its running transcript, and its own message box at
 the foot, where a message waits for the session's next turn. On the right is
-the session list: the grouped rows under `status & title`, `PROJECT` and
-`last used` (the time since the session last did anything), a `⋮` row when
-more rows lie beyond the window, the NEEDS YOU block below the list, and the
-row keys in the pane's own legend: `↑↓ choose · ↵ enter · n new · p pause · x
-stop · a archive · pgup/pgdn scroll`. The list has focus when the board
+the session list: the grouped rows under `status & title`, `project` and
+`last used` (the time since the session's last conversation turn), a `⋮` row
+when more rows lie beyond the window, the `needs you` block below the list, and
+the resting bottom legend (`tab`, `/`, `?`, `esc`, with `?` listing the
+selected row's keys). The list has focus when the board
 opens, and choosing another row switches the live view; `tab` moves to the
 live view's message box and back. Under 100 columns the two panes stack, the
 live view on top. The status row below the panes names the project and the
@@ -569,7 +569,7 @@ seats in use against the ceiling, the number turning amber over it.
 Pressing `Enter` on a live row switches to that session's chat (with its own
 model, permission prompts, and counters) while every
 other session's runner keeps working. The parked rows list the project's
-stopped chats touched within the last week, newest first,
+stopped chats active within the last week (by last conversation turn), newest first,
 up to ten, each showing its stored title (or its first prompt line)
 and `"parked · <age>"`. Pressing `Enter` on a parked row resumes it in place: its transcript paints at
 once, the daemon starts a runner for that session behind the paint, it
@@ -1015,7 +1015,7 @@ never left on screen.
 
 The hint row under the composer displays every such receipt or notice
 for several seconds. While one is shown, the default
-hints (`? for shortcuts · ctrl+x p for commands + files`) step aside and
+hints (`? for shortcuts · ctrl+x p commands + files`) step aside and
 return when it clears, so a receipt (such as the model id resolved by
 `/defaultprovider`) stays readable at 80 columns. On a
 narrow window the session counts step aside the same way, the notice is truncated

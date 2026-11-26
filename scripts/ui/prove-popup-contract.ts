@@ -181,7 +181,7 @@ for (const cols of [80, 120]) {
   } finally { interactive.unmount() }
 }
 
-const { EffortPopup, EffortApplyContext } = await import('../../src/commands/effort/EffortPopup.tsx')
+const { EffortPopup } = await import('../../src/commands/effort/EffortPopup.tsx')
 const { McpPopup } = await import('../../src/commands/mcp/McpPopup.tsx')
 const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.tsx')
 const { PopupFrameContext } = await import('../../src/screen/overlays/PopupGutter.tsx')
@@ -202,7 +202,7 @@ for (const cols of [80, 120]) {
     let done = false
     let picked = ''
     setEngineModelOverride(name === 'effort' ? 'claude-opus-5' : undefined)
-    const body = name === 'effort' ? h(EffortApplyContext.Provider, { value: value => { picked = String(value); return 'Applied' } }, h(EffortPopup, { onDone: () => { done = true } }))
+    const body = name === 'effort' ? h(EffortPopup, { apply: value => { picked = String(value); return 'Applied' }, onDone: () => { done = true } })
       : name === 'mcp' ? h(McpPopup, { onDone: () => { done = true } })
       : name === 'model' ? h(MercuryModelPicker, { models, current: models[0]!.id, initialFilter: 'fixture', onSelect: value => { picked = value }, onClose: () => { done = true } })
       : h(Dialog, { title: 'Color', onCancel: () => { done = true } }, h(ColorPicker, { agentName: 'fixture', onConfirm: value => { picked = value ?? 'automatic' } }))

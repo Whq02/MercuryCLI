@@ -2,7 +2,7 @@
 
 
 
-    (>_) MERCURY · saturn scheduler
+    MERCURY · saturn scheduler
 
     journey session
     ❯ aaaa1111  in 2h            in 2h

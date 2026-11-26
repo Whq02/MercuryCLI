@@ -1,9 +1,11 @@
-import { decodeTranscriptBuffer } from '../fabric/transcriptDecode.js'
+import type { UUID } from 'node:crypto'
+import { choose } from './conversationEnd.js'
+import { readRecordFact, recordHoldsToolResult, type RecordFact } from './recordFacts.js'
+
+type RowFact = Extract<RecordFact, { kind: 'voter' }>
 
 const RECORD_LINE_PREFIX = Buffer.from('{"schemaVersion":1,"recordId":"')
 const PRUNE_KIND_NEEDLE = Buffer.from('"payload":{"kind":"')
-const PRUNE_PARENT_NEEDLE = Buffer.from('"parentId":"')
-const PRUNE_MESSAGE_ID_NEEDLE = Buffer.from('"providerMessageId":"')
 const PRUNE_KIND_BOUND = 600
 const PRUNE_CHAIN_KINDS = new Set(['input', 'output', 'attachment', 'notice', 'boundary', 'progress'])
 
@@ -25,147 +27,127 @@ export function indexLine(bytes: Buffer, from: number): IndexedLine {
 }
 
 export function selectBranchIds(lines: readonly IndexedLine[], read: (r: IndexedLine) => Buffer): Set<string> | null {
-  const QUOTE = 34
   const nodes = lines.filter(r => r.id !== null)
   if (!nodes.length) return null
   const len = lines.reduce((n, r) => n + r.to - r.from, 0)
-  const nodeIds = nodes.map(r => r.id!)
-  const nodeIdx = nodes.flatMap(r => [r.from, r.to])
   const chainBytes = nodes.reduce((n, r) => n + r.to - r.from, 0)
   if (chainBytes < Math.floor(len / 2)) return null
-  const idToSlots = new Map<string, number[]>()
-  for (let slot = 0; slot < nodes.length; slot++) {
-    const id = nodeIds[slot]!, list = idToSlots.get(id)
-    if (list) list.push(slot)
-    else idToSlots.set(id, [slot])
+  const settled = new Map<string, IndexedLine>()
+  const bytes = new Map<string, number>()
+  for (const row of nodes) {
+    settled.set(row.id!, row)
+    bytes.set(row.id!, (bytes.get(row.id!) ?? 0) + row.to - row.from)
   }
-  const readSlot = (slot: number): Buffer => read(nodes[slot]!)
-  const decodeSlot = (slot: number): Record<string, unknown> | null => {
-    const d = decodeTranscriptBuffer<Record<string, unknown>>(
-      readSlot(slot),
-    )
-    return d.entries.length === 1 ? d.entries[0]! : null
+  const rows = new Map<string, RowFact>()
+  const progress = new Map<string, string | null>()
+  for (const [id, row] of settled) {
+    const fact = readRecordFact(id, read(row), rows.size)
+    if (fact?.kind === 'bridge') progress.set(id, fact.parent)
+    else if (fact !== undefined) rows.set(id, fact)
   }
+  const over = (parent: string | null): string | null => {
+    let at = parent
+    for (let hops = 0; at !== null && progress.has(at) && hops <= progress.size; hops++) at = progress.get(at) ?? null
+    return at
+  }
+  const points = [...rows.values()].filter(fact => !fact.sidechain).map(fact => ({ ...fact.point, parent: over(fact.point.parent) as UUID | null }))
+  const elected = choose(points)
+  if (elected === undefined) return null
+  const relinks: ReadonlyMap<string, string> = elected.relinks
+  const scope = new Set<string>(points.map(point => point.id))
+  const above = (id: string): string | null => relinks.get(id) ?? over(rows.get(id)!.point.parent)
 
-  let leaf: Record<string, unknown> | null = null
-  for (let slot = nodeIds.length - 1; slot >= 0; slot--) {
-    const e = decodeSlot(slot)
-    if (e === null || e.isSidechain === true) continue
-    leaf = e
-    break
-  }
-  if (leaf === null) return null
-
-  const liveIds = new Set<string>()
-  const liveMessageIds = new Set<string>()
-  const assistantIds = new Set<string>()
-  const keepsAsQuiet = (e: Record<string, unknown>): boolean =>
-    e.type === 'attachment' || (e.type === 'system' && e.subtype !== 'compact_boundary' && e.subtype !== 'microcompact_boundary')
-  const noteAssistant = (e: Record<string, unknown>, id: string): void => {
-    if (e.type !== 'assistant') return
-    const message = e.message as { id?: unknown } | undefined
-    if (typeof message?.id === 'string' && message.id !== '') liveMessageIds.add(message.id)
-    assistantIds.add(id)
-  }
-  let liveBytes = 0
-  let cur: Record<string, unknown> | null = leaf
-  const spineEntries: Array<{ id: string; assistant: boolean; quiet: boolean }> = []
-  while (cur) {
-    const id = typeof cur.uuid === 'string' ? cur.uuid : null
-    if (id === null || liveIds.has(id)) break
-    liveIds.add(id)
-    noteAssistant(cur, id)
-    spineEntries.push({ id, assistant: cur.type === 'assistant', quiet: keepsAsQuiet(cur) })
-    for (const slot of idToSlots.get(id) ?? []) {
-      liveBytes += nodeIdx[slot * 2 + 1]! - nodeIdx[slot * 2]!
-    }
-    const parent = typeof cur.parentUuid === 'string' && cur.parentUuid ? cur.parentUuid : null
-    if (parent === null) break
-    const slots = idToSlots.get(parent)
-    if (!slots || slots.length === 0) break
-    cur = decodeSlot(slots[slots.length - 1]!)
-  }
-  if (liveIds.size === 0) return null
-
-  const assistantNoteIds = new Set<string>()
-  let spineUnderAssistant = false
-  for (let i = spineEntries.length - 1; i >= 0; i--) {
-    const entry = spineEntries[i]!
-    if (entry.assistant) spineUnderAssistant = true
-    else if (entry.quiet) {
-      if (spineUnderAssistant) assistantNoteIds.add(entry.id)
-    } else spineUnderAssistant = false
-  }
-
-  const byParent = new Map<string, number[]>()
-  const byMessageId = new Map<string, number[]>()
-  const indexInto = (index: Map<string, number[]>, line: Buffer, needle: Buffer, cap: number, slot: number): void => {
-    let at = line.indexOf(needle)
-    while (at !== -1) {
-      const from = at + needle.length
-      const close = line.indexOf(QUOTE, from)
-      if (close > from && close - from <= cap) {
-        const key = line.toString('latin1', from, close)
-        const slots = index.get(key)
-        if (slots) slots.push(slot)
-        else index.set(key, [slot])
-      }
-      at = line.indexOf(needle, from)
-    }
-  }
-  for (let slot = 0; slot < nodeIds.length; slot++) {
-    if (liveIds.has(nodeIds[slot]!)) continue
-    const line = readSlot(slot)
-    indexInto(byParent, line, PRUNE_PARENT_NEEDLE, 64, slot)
-    indexInto(byMessageId, line, PRUNE_MESSAGE_ID_NEEDLE, 128, slot)
-  }
   const kept = new Set<string>()
-  const parentQueue: string[] = [...liveIds]
-  const messageIdQueue: string[] = [...liveMessageIds]
-  const settledEntryOf = (id: string): Record<string, unknown> | null => {
-    const slots = idToSlots.get(id)
-    return slots === undefined || slots.length === 0 ? null : decodeSlot(slots[slots.length - 1]!)
+  const spine: string[] = []
+  for (let at: string | null = elected.end; at !== null && scope.has(at) && !kept.has(at); at = above(at)) {
+    kept.add(at)
+    spine.push(at)
   }
-  const keepsAsToolResult = (e: Record<string, unknown>, parent: string): boolean => {
-    if (e.type !== 'user' || !(assistantIds.has(parent) || assistantNoteIds.has(parent))) return false
-    const content = (e.message as { content?: unknown } | undefined)?.content
-    if (!Array.isArray(content)) return false
-    return (content as Array<{ type?: unknown }>).some(block => block?.type === 'tool_result')
+  const under = new Map<string, string[]>()
+  const groups = new Map<string, string[]>()
+  const file = (index: Map<string, string[]>, key: string, id: string): void => {
+    const ids = index.get(key)
+    if (ids) ids.push(id)
+    else index.set(key, [id])
   }
-  const consider = (slot: number, road: 'parent' | 'sibling'): void => {
-    const id = nodeIds[slot]!
-    if (liveIds.has(id) || kept.has(id)) return
-    const e = settledEntryOf(id)
-    if (e === null || typeof e.uuid !== 'string' || e.uuid !== id) return
-    const parent = typeof e.parentUuid === 'string' && e.parentUuid ? e.parentUuid : null
-    const parentStands = parent !== null && (liveIds.has(parent) || kept.has(parent))
-    const message = e.message as { id?: unknown } | undefined
-    const sibling = road === 'sibling' && e.type === 'assistant' && typeof message?.id === 'string' && liveMessageIds.has(message.id)
-    const toolResult = road === 'parent' && parentStands && parent !== null && keepsAsToolResult(e, parent)
-    const note = road === 'parent' && parentStands && keepsAsQuiet(e)
-    if (!sibling && !toolResult && !note) return
-    kept.add(id)
-    if (note && parent !== null && (assistantIds.has(parent) || assistantNoteIds.has(parent))) assistantNoteIds.add(id)
-    noteAssistant(e, id)
-    parentQueue.push(id)
-    if (sibling && typeof message?.id === 'string') messageIdQueue.push(message.id)
+  for (const [id, fact] of rows) {
+    const parent = over(fact.point.parent)
+    if (parent !== null) file(under, parent, id)
+    if (fact.assistant) file(groups, fact.point.group, id)
   }
-  while (parentQueue.length > 0 || messageIdQueue.length > 0) {
-    const parentId = parentQueue.pop()
-    if (parentId !== undefined) for (const slot of byParent.get(parentId) ?? []) consider(slot, 'parent')
-    const messageId = messageIdQueue.pop()
-    if (messageId !== undefined) for (const slot of byMessageId.get(messageId) ?? []) consider(slot, 'sibling')
+  const voiced = new Set<string>()
+  let underAssistant = false
+  for (let i = spine.length - 1; i >= 0; i--) {
+    const fact = rows.get(spine[i]!)!
+    if (fact.assistant) underAssistant = true
+    else if (!fact.note) underAssistant = false
+    if (underAssistant) voiced.add(spine[i]!)
   }
-  for (const id of kept) {
-    for (const slot of idToSlots.get(id) ?? []) {
-      liveBytes += nodeIdx[slot * 2 + 1]! - nodeIdx[slot * 2]!
+  const holdsResult = (id: string, fact: RowFact): boolean => (fact.holdsResult ??= recordHoldsToolResult(id, read(settled.get(id)!)))
+  const gathered = [...spine]
+  while (gathered.length > 0) {
+    const id = gathered.pop()!
+    const fact = rows.get(id)!
+    for (const twin of (fact.assistant && groups.get(fact.point.group)) || []) {
+      if (kept.has(twin)) continue
+      kept.add(twin)
+      voiced.add(twin)
+      gathered.push(twin)
+    }
+    for (const child of under.get(id) ?? []) {
+      const below = rows.get(child)!
+      if (kept.has(child) || !(below.note || (voiced.has(id) && holdsResult(child, below)))) continue
+      kept.add(child)
+      if (below.note && voiced.has(id)) voiced.add(child)
+      gathered.push(child)
     }
   }
 
-  const deadBytes = chainBytes - liveBytes
-  if (deadBytes < Math.floor(len / 2)) return null
+  const hangsFrom = new Map<string, string>()
+  const stranded = new Set<string>()
+  for (const id of scope) {
+    if (kept.has(id) || hangsFrom.has(id)) continue
+    const line = new Set<string>()
+    let at: string | null = id
+    let top = id
+    while (at !== null && !kept.has(at) && !hangsFrom.has(at) && !line.has(at)) {
+      line.add(at)
+      top = at
+      const written = over(rows.get(at)!.point.parent)
+      at = written !== null && rows.has(written) ? (relinks.get(at) ?? written) : null
+    }
+    if (at !== null && hangsFrom.has(at)) top = hangsFrom.get(at) ?? top
+    else if (at === null || !kept.has(at)) stranded.add(top)
+    for (const step of line) hangsFrom.set(step, top)
+  }
+  const fenceAt = elected.fence === undefined ? Infinity : rows.get(elected.fence)!.point.position
+  const revived = new Set<string>()
+  const stands = (id: string): boolean => {
+    const top = hangsFrom.get(id)
+    return top === undefined ? kept.has(id) : revived.has(top) || (stranded.has(top) && rows.get(id)!.point.position > fenceAt)
+  }
+  const leansOn = (id: string): Array<string | null | undefined> => {
+    const written = over(rows.get(id)!.point.parent)
+    const moved = relinks.get(id)
+    return [moved, moved === undefined ? undefined : written, written !== null && scope.has(written) ? elected.late.get(id as UUID) : undefined]
+  }
+  const needed = [...scope].filter(stands).flatMap(leansOn)
+  while (needed.length > 0) {
+    const id = needed.pop() ?? ''
+    const top = hangsFrom.get(id)
+    if (top === undefined || stands(id)) continue
+    revived.add(top)
+    for (const [member, from] of hangsFrom) if (from === top && scope.has(member)) needed.push(...leansOn(member))
+  }
+  for (const id of hangsFrom.keys()) if (scope.has(id) && stands(id)) kept.add(id)
+  for (const id of [...kept]) {
+    for (let at = rows.get(id)!.point.parent as string | null; at !== null && progress.has(at) && !kept.has(at); at = progress.get(at) ?? null) kept.add(at)
+  }
 
-  return new Set([...liveIds, ...kept])
+  let liveBytes = 0
+  for (const id of kept) liveBytes += bytes.get(id) ?? 0
+  if (chainBytes - liveBytes < Math.floor(len / 2)) return null
+  return kept
 }
 
 export function pruneRecordBranchesBeforeParse(buf: Buffer): Buffer {
