@@ -2,14 +2,13 @@ import { useMemo, useState, useSyncExternalStore } from 'react'
 import { useLoad } from '../../effects/effects.js'
 import { conversationIdHere } from '../../../engine/connector/focusedConnector.js'
 import { currentProject, subscribeCurrentProject } from '../../boot-face/bootCardFacts.js'
-import type { SessionListing } from '../../../sessions/transcripts/transcriptEntries.js'
+import { compareSessionListings, type SessionListing } from '../../../sessions/transcripts/transcriptEntries.js'
 import { formatRelativeTimeAgo } from '../../../platform/text/format.js'
 import { boardHomedSessionIds, readSessionWorkers } from '../../../daemon/concourse-workers/concourseWorkers.js'
 import { sanitizeLabel } from '../../concourse-model/concourseSnapshot.js'
 import { newSessionTitle } from '../../concourse-model/sessionNaming.js'
 import { partitionByProject } from '../../session-chooser/sessionFilter.js'
 import { listedSessionName, listedSessionsOf } from '../../../sessions/transcripts/listedSessions.js'
-import { compareSessionRecency } from '../../../sessions/transcripts/sessionIndex.js'
 import { isSessionCleared } from '../../../sessions/transcripts/clearedSessions.js'
 import {
   enrichSessionListings,
@@ -63,12 +62,7 @@ export function rowProject(log: SessionListing): string {
 
 export function resumableNewestFirst(all: SessionListing[], currentSessionId: string): SessionListing[] {
   const resumable = listedSessionsOf(all, currentSessionId)
-  resumable.sort((a, b) =>
-    compareSessionRecency(
-      { lastUsedMs: a.lastUsedAt ?? null, mtimeMs: new Date(a.modified).getTime(), sessionId: a.sessionId },
-      { lastUsedMs: b.lastUsedAt ?? null, mtimeMs: new Date(b.modified).getTime(), sessionId: b.sessionId },
-    ),
-  )
+  resumable.sort(compareSessionListings)
   return resumable
 }
 
