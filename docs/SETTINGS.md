@@ -40,7 +40,9 @@ starts Mercury in it. A profile has its own logins, settings, history and
 memory; the program and your project folders, their instruction files among
 them, are shared, and every profile reads your own `MERCURY.md` and `rules`
 folder from the first home. Removing a profile there deletes its command; its
-folder, logins included, stays on disk until you delete it.
+folder, logins included, stays on disk until you delete it. Each profile
+command carries a managed marker so updates can refresh it; remove that marker
+line to keep a hand edit.
 
 Mercury writes an editor-schema pointer as `$schema` in your settings file.
 The schema at `<config home>/schema/settings.schema.json` belongs to the

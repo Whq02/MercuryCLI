@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { mock } from 'bun:test'
 import * as childProcess from 'node:child_process'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { paintsBootFaceReady } from '../lib/bootFace.ts'
@@ -336,6 +336,60 @@ section(`§3 after the update: the cache that offered ${NEWER} under ${RUNNING} 
   chat.unmount()
   await settle(200)
   resetClock()
+}
+
+section(`§4 SUBMIT 495: an already-open chat window drops its update notice when the shared installed pointer overtakes the advertised version, and keeps a genuinely newer offer`)
+{
+  const NEXTER = '1.0.0-beta.19'
+  const versionsDir = join(HOME, 'shared-versions')
+  mkdirSync(versionsDir, { recursive: true })
+  const writePointer = (version: string): void => {
+    const tmp = join(versionsDir, `current.txt.tmp.${process.pid}`)
+    writeFileSync(tmp, `${version}\n`)
+    renameSync(tmp, join(versionsDir, 'current.txt'))
+  }
+  const seedAvailable = (version: string): void =>
+    notice.writeUpdateNoticeCache(
+      { schema: 1, checkedAtMs: Date.now() - 60_000, runningVersion: RUNNING, available: { version, tag: `v${version}` } },
+      cachePath,
+    )
+  process.env.MERCURY_VERSIONS_DIR = versionsDir
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: RUNNING }
+
+  writePointer(RUNNING)
+  seedAvailable(NEWER)
+  const chat1 = await mountChat()
+  const noticeNewer = notice.updateNoticeText(NEWER)
+  const shown1 = await waitFor(() => probe.live?.key === notice.UPDATE_NOTICE_KEY && chat1.screen().includes(noticeNewer), notice.UPDATE_NOTICE_FIRST_DELAY_MS + 10_000)
+  check(`open window (running ${RUNNING}, installed ${RUNNING}) shows ${noticeNewer}`, shown1, `live=${JSON.stringify(probe.live)} · rows: ${rowsWith(chat1, 'available')}`)
+  writePointer(NEWER)
+  const cleared1 = await waitFor(() => probe.live === null && !chat1.screen().includes(noticeNewer), 4_000)
+  check(`when shared versions/current.txt moves to ${NEWER}, the open window drops ${noticeNewer}`, cleared1, `live=${JSON.stringify(probe.live)} · rows: ${rowsWith(chat1, 'available')}`)
+  writePointer(NEXTER)
+  await settle(300)
+  writePointer(NEWER)
+  await settle(300)
+  check(`after further update to ${NEXTER} and rollback to ${NEWER}, the already-installed ${NEWER} notice stays gone`, probe.live === null && !chat1.screen().includes(noticeNewer), `live=${JSON.stringify(probe.live)}`)
+  chat1.unmount()
+  await settle(200)
+  resetClock()
+
+  writePointer(RUNNING)
+  seedAvailable(NEXTER)
+  const chat2 = await mountChat()
+  const noticeNexter = notice.updateNoticeText(NEXTER)
+  const shown2 = await waitFor(() => probe.live?.key === notice.UPDATE_NOTICE_KEY && chat2.screen().includes(noticeNexter), notice.UPDATE_NOTICE_FIRST_DELAY_MS + 10_000)
+  check(`open window (running ${RUNNING}, installed ${RUNNING}) shows genuinely newer ${noticeNexter}`, shown2, `live=${JSON.stringify(probe.live)} · rows: ${rowsWith(chat2, 'available')}`)
+  writePointer(NEWER)
+  await settle(600)
+  check(`when shared versions/current.txt moves only to ${NEWER}, the genuinely newer ${noticeNexter} stays visible`, probe.live?.key === notice.UPDATE_NOTICE_KEY && chat2.screen().includes(noticeNexter), `live=${JSON.stringify(probe.live)} · rows: ${rowsWith(chat2, 'available')}`)
+  writePointer(NEXTER)
+  const cleared2 = await waitFor(() => probe.live === null && !chat2.screen().includes(noticeNexter), 4_000)
+  check(`once shared versions/current.txt reaches ${NEXTER}, the open window drops ${noticeNexter}`, cleared2, `live=${JSON.stringify(probe.live)} · rows: ${rowsWith(chat2, 'available')}`)
+  chat2.unmount()
+  await settle(200)
+  resetClock()
+  delete process.env.MERCURY_VERSIONS_DIR
 }
 
 console.error = originalError

@@ -29,6 +29,25 @@ interface ChainNeeds {
   materializeSessionFile(): Promise<void>
 }
 
+function* beforeSealing(messages: Transcript): Generator<Transcript[number]> {
+  let moved: Set<UUID> | undefined
+  for (const [i, message] of messages.entries()) {
+    if (moved?.has(message.uuid)) continue
+    const ids = isFoldBoundaryMessage(message) ? message.compactMetadata?.preservedSegment?.keptUuids : undefined
+    if (ids && i + 1 < messages.length) {
+      const kept = new Set(ids)
+      for (let j = i + 1; j < messages.length; j++) {
+        const row = messages[j]!
+        if (!kept.delete(row.uuid) || moved?.has(row.uuid)) continue
+        moved ??= new Set()
+        moved.add(row.uuid)
+        yield row
+      }
+    }
+    yield message
+  }
+}
+
 export class ChainPart {
   private readonly recentChainLinks = new Map<UUID, { parent: UUID | null; quiet: boolean }>()
 
@@ -82,7 +101,7 @@ export class ChainPart {
         const sessionId = getSessionId()
         const slug = getPlanSlugCache().get(sessionId)
 
-        for (const message of messages) {
+        for (const message of isSidechain ? messages : beforeSealing(messages)) {
           const sourceAssistantUuid = message.type === 'user' ? message.sourceToolAssistantUUID : undefined
           const effectiveParentUuid =
             sourceAssistantUuid && !this.leafDescendsQuietly(parentUuid, sourceAssistantUuid)

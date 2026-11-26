@@ -4,9 +4,9 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { distBuildInputs } from '../lib/distProvenance.ts'
+import { pinRecorderTerminal } from '../lib/proofHome.ts'
 import { firstDivergence, neutralizeGrid, type StoredGrid } from '../ui/visualBaseline.ts'
 import { ROOT, argument, git, scratch } from './support.ts'
-
 type Verdict = { same: boolean; environment: boolean; detail: string }
 type Family = { id: string; paths: string[]; script: string; args: string[]; output: (path: string, dir: string) => Buffer; judge?: (path: string, actual: Buffer, expected: Buffer) => Verdict }
 const COUNTS_ROW = /^(?:\d+ sessions? on · (?:\d+ monitors? here · \d+ crewmates? here|counts unavailable)|S:\d+ · M:\d+ · C:\d+)/
@@ -186,7 +186,7 @@ for (const family of selected) {
   rmSync(dir, { recursive: true, force: true })
   mkdirSync(dir, { recursive: true })
   const run = spawnSync(process.execPath, [join(ROOT, family.script), ...family.args.map(arg => arg === '$OUT' ? dir : arg)], {
-    cwd: ROOT, env: { ...process.env, TZ: 'UTC' }, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, timeout: 900_000,
+    cwd: ROOT, env: pinRecorderTerminal({ ...process.env, TZ: 'UTC' }), encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, timeout: 900_000,
   })
   writeFileSync(join(work, `${family.id}.log`), run.stdout + '\n' + run.stderr)
   if (run.status !== 0) {

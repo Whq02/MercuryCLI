@@ -1,5 +1,5 @@
 import { readdirSync, type Dirent } from 'node:fs'
-import { dirname, isAbsolute, join, posix as posixPath, resolve } from 'node:path'
+import { dirname, isAbsolute, join, posix as posixPath, resolve, win32 } from 'node:path'
 import type { ToolPermissionContext } from '../kit/tool.js'
 import type { PermissionRule } from '../../permissions/rules/permissions.js'
 import type { PermissionResult } from '../../permissions/rules/permissionResult.js'
@@ -8,6 +8,7 @@ import {
   commandViews,
   parseForSecurity,
   PARSE_ABORTED,
+  peelWrappers,
   pinnedCommandAnalysis,
   placedPath,
   shellCommandText,
@@ -23,6 +24,10 @@ import { BASH_TOOL_NAME } from '../kit/names/bash.js'
 import { gitLeavingOut, gitNamesPrinted, gitPatchQuestion, gitVariableSet } from './gitPrintedNames.js'
 import { COMMAND_OPERATION_TYPE, PATH_EXTRACTORS, type PathCommand } from './pathValidation.js'
 import { errorMessage, getErrnoCode, isFsInaccessible } from '../../platform/errors/errors.js'
+import { getFsImplementation, safeResolvePath } from '../../platform/files/fsOperations.js'
+import { rememberedPlatform } from '../../platform/host-os/host.js'
+import { msysDrivePathToNative, splitPathFromRoot } from '../../platform/host-os/paths.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
 
 export type HiddenDenyRule = { rule: PermissionRule; why: string }
 type DenyRuleReach = { denied: PermissionResult | null; hidden: HiddenDenyRule | null; unread?: HiddenDenyRule | null }
@@ -624,6 +629,88 @@ function denialsOf(reach: Reach) {
   return { hide, pathFound, pathDenial, treeDenial, refusal, kindOf, checkRedirect }
 }
 
+function operandGroups(base: PathCommand, words: string[]): { operands: string[]; reads: string[]; kind: FileKind } {
+  const edits = base === 'sed' ? words.some(word => /^-[A-Za-z]*i/.test(word) || word.startsWith('--in-place')) : COMMAND_OPERATION_TYPE[base] !== 'read'
+  const flagged = (base === 'cp' || base === 'mv') && words.some(word => word.startsWith('-'))
+  const targets = flagged ? optionValuesOf(words, 't', ['--target-directory']) : []
+  const operands = flagged ? [...words.filter(word => !word.startsWith('-') && !targets.includes(word)), ...targets] : PATH_EXTRACTORS[base](words)
+  const sources = base === 'cp' || base === 'mv' ? (targets.length > 0 ? operands.slice(0, -targets.length) : operands.slice(0, -1)) : []
+  const reads = base === 'dd' ? words.filter(word => word.startsWith('if=')).map(word => word.slice(3)) : sources
+  return { operands, reads, kind: edits ? 'edit' : 'read' }
+}
+
+function pathCommand(name: string): name is PathCommand {
+  return name in COMMAND_OPERATION_TYPE
+}
+
+function msysSpelling(folder: string, operand: string): string | undefined {
+  if (msysDrivePathToNative(operand, true, 'win32') !== operand) return operand
+  return win32.parse(operand).root === '' && msysDrivePathToNative(folder, true, 'win32') !== folder ? `${folder}/${operand}` : undefined
+}
+
+function msysWriteTarget(spelling: string): string | undefined {
+  const native = msysDrivePathToNative(spelling, true, 'win32')
+  const { root, segments } = splitPathFromRoot(native, win32)
+  const fs = getFsImplementation()
+  if (!fs.existsSync(root)) return undefined
+  if (!segments.includes('..')) return native
+  let path = root
+  for (const segment of segments) {
+    if (segment === '..') {
+      const parent = safeResolvePath(fs, path)
+      if (path === root || !parent.isCanonical) return undefined
+      path = win32.dirname(parent.resolvedPath)
+    } else if (segment !== '.') path = win32.join(path, segment)
+  }
+  return path
+}
+
+function msysWriteDenial(root: Parameters<typeof commandViews>[0], cwd: string, denials: Denials, ports: DenyRuleReachPorts): PermissionResult | null {
+  const { views, loose } = commandViews(root, cwd, () => null, (folder, target) => {
+    const operand = expandTilde(target)
+    const spelling = msysSpelling(folder, operand)
+    return spelling === undefined ? resolve(folder, operand) : posixPath.normalize(spelling)
+  })
+  const check = (word: string, stand: Stand, known: boolean, subject: string): PermissionResult | null => {
+    const { path, folders } = placedPath(word, stand)
+    if (!known && !win32.isAbsolute(path)) return null
+    for (const folder of folders) {
+      const spelling = msysSpelling(folder, path)
+      if (spelling === undefined) continue
+      const native = msysWriteTarget(spelling)
+      if (native === undefined) continue
+      const found = denials.pathDenial(native, { cwds: [cwd], left: [] }, ['edit'])
+      if (found !== null && found !== 'unread') return denials.refusal(`${subject} ${found.path}`, found.path, found.rule, 'edit')
+    }
+    return null
+  }
+  const redirect = (op: string, target: Word, stand: Stand, known: boolean) =>
+    OUTPUT_OPERATORS.has(op) && target !== null && target !== '-' && !/^\d+$/.test(target) ? check(target, stand, known, 'The redirection to') : null
+  for (const r of loose) {
+    const denied = redirect(r.op, r.target, r, r.cwdKnown)
+    if (denied !== null) return denied
+  }
+  for (const v of views) {
+    for (const r of v.redirects) {
+      const denied = redirect(r.op, r.target, v, v.cwdKnown)
+      if (denied !== null) return denied
+    }
+    if (!v.argv.every(word => word !== null)) continue
+    const argv = peelWrappers(v.argv)
+    if (!Array.isArray(argv)) continue
+    const base = posixPath.basename(argv[0] ?? '')
+    const written = ports.optionNamedWrites(argv)
+    if (pathCommand(base) && Object.hasOwn(PATH_EXTRACTORS, base) && COMMAND_OPERATION_TYPE[base] !== 'read') {
+      const { kind, operands, reads } = operandGroups(base, argv.slice(1))
+      if (kind === 'edit') written.push(...(base === 'cp' ? operands.slice(reads.length) : operands))
+    }
+    for (const word of written) {
+      const denied = check(word, v, v.cwdKnown, `The ${base} write to`)
+      if (denied !== null) return denied
+    }
+  }
+  return null
+}
 function feedOf(name: string, words: string[]): Feed {
   const base = posixPath.basename(name)
   if (base === 'echo' || base === 'printf') {
@@ -709,16 +796,9 @@ function viewChecksOf(reach: Reach, denials: Denials, ports: DenyRuleReachPorts)
     }
     return null
   }
-  const operandDenial = (view: View, base: string, words: string[]): PermissionResult | null => {
-    const operation = COMMAND_OPERATION_TYPE[base as PathCommand]
-    const edits = base === 'sed' ? words.some(word => /^-[A-Za-z]*i/.test(word) || word.startsWith('--in-place')) : operation !== 'read'
-    const own: FileKind = edits ? 'edit' : 'read'
-    const flagged = (base === 'cp' || base === 'mv') && words.some(word => word.startsWith('-'))
-    const targets = flagged ? optionValuesOf(words, 't', ['--target-directory']) : []
-    const operands = flagged ? [...words.filter(word => !word.startsWith('-') && !targets.includes(word)), ...targets] : PATH_EXTRACTORS[base as PathCommand](words)
-    const sources = base === 'cp' || base === 'mv' ? (targets.length > 0 ? operands.slice(0, -targets.length) : operands.slice(0, -1)) : []
-    const reads = base === 'dd' ? words.filter(word => word.startsWith('if=')).map(word => word.slice(3)) : sources
-    for (const [paths, wanted] of [[reads, ['read']], [operands, [own]]] as Array<[string[], FileKind[]]>) {
+  const operandDenial = (view: View, base: PathCommand, words: string[]): PermissionResult | null => {
+    const { operands, reads, kind } = operandGroups(base, words)
+    for (const [paths, wanted] of [[reads, ['read']], [operands, [kind]]] as const) {
       for (const path of paths) {
         const found = pathFound(path, view, wanted)
         if (found === 'unread') hide(fileRule, `the wildcard ${path} matches more files than Mercury reads`)
@@ -918,7 +998,7 @@ async function reachOf(
       const denied = writeDenial(view, base, words)
       if (denied !== null) return { denied, hidden: null }
     }
-    if (base in COMMAND_OPERATION_TYPE && base !== 'git') {
+    if (pathCommand(base) && base !== 'git') {
       if (kinds.length === 0) continue
       if (!literal) {
         hide(fileRule, `${base} names a path at run time`)
@@ -979,6 +1059,14 @@ async function reachOf(
    } finally {
     if (readRule !== undefined && budget.unsettled !== true && !(await leavesAsItWas(view))) budget.unsettled = true
    }
+  }
+  if (fileRules.some(rule => !READ_RULE_TOOLS.has(rule.ruleValue.toolName)) && rememberedPlatform() === 'win32') {
+    try {
+      const denied = msysWriteDenial(root, cwd, denials, ports)
+      if (denied !== null) return { denied, hidden: null }
+    } catch (error) {
+      logForDebugging(`Bash drive deny check was indeterminate; retaining the original verdict: ${errorMessage(error)}`, { level: 'warn' })
+    }
   }
   return { denied: null, hidden: reach.hidden, unread: reach.unread }
 }

@@ -41,7 +41,7 @@ import { captchaLine, challengeAction, frontAfterCard, isPlanRefusal, planOf } f
 import { faultNote, faultText } from './act.js'
 import { factsLine, interruptedText, readWords, treeLimitsOf } from './words.js'
 import { type Shot, takeScreenshot, toolUseIdOfParent, toolUseIdsOfParent } from './shot.js'
-import type { CallRun, ComputerDoor, FocusDriver, RoadNeeds } from '../roads/needs.js'
+import type { CallRun, ComputerAnswer, ComputerDoor, FocusDriver, RoadNeeds } from '../roads/needs.js'
 import { sequenceRoad } from '../roads/sequence.js'
 import { focusAppRoad } from '../roads/focusApp.js'
 import { actRoad } from '../roads/act.js'
@@ -49,7 +49,7 @@ import { readRoad } from '../roads/read.js'
 import { treeRoad } from '../roads/tree.js'
 import { cursorRoad, displaysRoad, frontmostRoad } from '../roads/facts.js'
 
-export async function computerCall(ComputerTool: ComputerDoor, input: Input, context: ToolUseContext, canUseTool?: CanUseToolFn, parentAssistantMessage?: AssistantMessage): Promise<{ data: Output; effect: ToolEffect }> {
+export async function computerCall(ComputerTool: ComputerDoor, input: Input, context: ToolUseContext, canUseTool?: CanUseToolFn, parentAssistantMessage?: AssistantMessage, inSequence = false): Promise<{ data: Output; effect: ToolEffect }> {
   const startedAt = Date.now()
   const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
   const signal = context.abortController?.signal ?? new AbortController().signal
@@ -69,21 +69,30 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
     return finish()
   }
   const driver = resolution.driver
-  const permissions = await driver.permissions()
-  if (permissions.ok) rememberDesktopPermissions(permissions.value)
+  if (!inSequence) {
+    const permissions = await driver.permissions()
+    if (permissions.ok) rememberDesktopPermissions(permissions.value)
+  }
   const takeShot = (wanted: number | undefined, label: string | undefined, settleMs = 0, observe?: DesktopBounds): Promise<Shot> =>
     takeScreenshot(owner, driver, context, toolUseId, wanted, label, signal, input.region, settleMs, observe, input.full, input.scale, true, sameMessage)
   const shotLines = new Set<string>()
+  const omittedShots: Array<{ line: string; imagePath: string }> = []
+  let activeShotLine: string | undefined
   const adoptShot = (shot: Extract<Shot, { ok: true }>): void => {
+    if (run.imagePath !== undefined && activeShotLine !== undefined) {
+      omittedShots.push({ line: activeShotLine, imagePath: run.imagePath })
+    }
     run.imagePath = shot.imagePath
     run.inlinePath = shot.inlinePath
     run.inlineMediaType = shot.inlineMediaType
     run.screen = shot.screen
+    activeShotLine = shot.line
     shotLines.add(shot.line)
   }
-  const needs: RoadNeeds = { run, input, context, owner, signal, toolUseId, sameMessage, driver, canUseTool, parentAssistantMessage, takeShot, adoptShot, shotLines, finish, ComputerTool }
+  const runStep = (step: Input): Promise<ComputerAnswer> => computerCall(ComputerTool, step, context, canUseTool, parentAssistantMessage, true)
+  const needs: RoadNeeds = { run, input, context, owner, signal, toolUseId, sameMessage, driver, canUseTool, parentAssistantMessage, takeShot, adoptShot, shotLines, finish, runStep, ComputerTool }
   try {
-    const invalid = tableRefusal(input)
+    const invalid = inSequence ? null : tableRefusal(input)
     const badRegion = input.region === undefined ? null : regionRefusal(input.region, screenOf(owner))
     if (invalid !== null || badRegion !== null) {
       run.result = invalid ?? badRegion!
@@ -119,7 +128,7 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
       const checked = consumeCheckedAct(owner, challengeAnswered ? challengeAction(input.action) : input.action)
       const judged: DesktopJudgedApp | null = checked?.app ?? null
       const viaGrant = checked?.viaGrant === true
-      return await actRoad(needs, plan, challengeAnswered, checked, judged, viaGrant)
+      return await actRoad(needs, plan, challengeAnswered, checked, judged, viaGrant, inSequence)
     }
     const turnFront = await driver.frontmostApplication()
     if (turnFront.ok) noteTurnHome(owner, turnKeyOf(context), { identity: turnFront.value.identity, name: turnFront.value.name })
@@ -278,11 +287,26 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
       run.imagePath = run.inlinePath = run.inlineMediaType = undefined
       run.screen = undefined
     }
-    const { result, outcome, imagePath, inlinePath, inlineMediaType, screen, claimedForAct, contentShown } = run
+    const { outcome, imagePath, inlinePath, inlineMediaType, screen, claimedForAct, contentShown } = run
+    let result = run.result!
+    const keptOmitted: Array<{ line: string; imagePath: string }> = []
+    if (outcome === 'succeeded' && imagePath !== undefined && omittedShots.length > 0) {
+      const resultLines = result.split('\n')
+      const byLine = new Map(omittedShots.map(shot => [shot.line, shot]))
+      result = resultLines.map(line => {
+        const omitted = byLine.get(line)
+        if (!omitted) return line
+        keptOmitted.push(omitted)
+        return `screenshot saved at ${omitted.imagePath} (not returned in this answer — only the last screenshot travels; use Read on that path to view it)`
+      }).join('\n')
+      if (keptOmitted.length > 0) {
+        result += `\nimages: 1 of ${keptOmitted.length + 1} returned (only the last screenshot travels; ${keptOmitted.length} earlier saved to disk — see paths above); coordinates now refer to ${imagePath}`
+      }
+    }
     if (imagePath && screen) setScreen(owner, screen)
     if (claimedForAct && !signal.aborted) renewDesktopClaim()
     const clamps = ([['depth', TREE_DEPTH_CAP], ['limit', TREE_LIMIT_CAP]] as const).filter(([field, cap]) => (input[field] ?? 0) > cap).map(([field, cap]) => `${field} ${input[field]} → ${cap}`)
-    const text = result! + (clamps.length && outcome === 'succeeded' ? `\nclamped: ${clamps.join('; ')}` : '')
+    const text = result + (clamps.length && outcome === 'succeeded' ? `\nclamped: ${clamps.join('; ')}` : '')
     const noted = imagePath !== undefined || contentShown || (outcome === 'succeeded' && carriesScreenContent(input, false))
     const output: Output = {
       action: input.action,
@@ -298,7 +322,7 @@ export async function computerCall(ComputerTool: ComputerDoor, input: Input, con
       effect: {
         outcome,
         operation: `computer.${input.action}`,
-        changedPaths: imagePath ? [imagePath] : [],
+        changedPaths: imagePath ? [...keptOmitted.map(shot => shot.imagePath), imagePath] : [],
         evidence: text.split('\n')[0]?.slice(0, 160) ?? '',
         startedAt,
         completedAt: Date.now(),

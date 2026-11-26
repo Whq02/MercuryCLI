@@ -82,9 +82,9 @@ t.section('§3 — REAL BINARY: keystrokes fill the ring; /trace renders it')
       cwd: process.cwd(),
       sends: [
         { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, mark: 'boot-ready', data: '\r' },
-        { requireAwait: true, awaitText: ' ready · ', awaitPattern: ' ready · [\\s\\S]*Type a prompt, start a slash command', awaitSettleTicks: 3, mark: 'chat-ready', data: 'x' },
+        { requireAwait: true, awaitText: ' ready · ', awaitPattern: ' ready · [\\s\\S]*Type a prompt, or / for commands', awaitSettleTicks: 3, mark: 'chat-ready', data: 'x' },
         { requireAwait: true, awaitText: '│❯ x ', awaitPattern: '│❯ x ', awaitSettleTicks: 2, mark: 'typed-x', data: '\x7f' },
-        { requireAwait: true, awaitText: 'Type a prompt, start a slash command', awaitPattern: 'Type a prompt, start a slash command', awaitSettleTicks: 2, mark: 'trace-requested', data: '/trace\r' },
+        { requireAwait: true, awaitText: 'Type a prompt, or / for commands', awaitPattern: 'Type a prompt, or / for commands', awaitSettleTicks: 2, mark: 'trace-requested', data: '/trace\r' },
       ],
       readyText: ['input→frame', 'slowest ', 'compose ', 'profile '],
       readySettleTicks: 4,

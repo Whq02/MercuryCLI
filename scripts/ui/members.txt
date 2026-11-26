@@ -20,6 +20,7 @@ prove-consent-card-fits-drive.ts
 prove-consent-card-holds-under-words.ts
 prove-crew-live-drive.ts
 prove-crew-receipt-counts-drive.ts
+prove-crew-results-after-big-resume-drive.ts
 prove-crew-seats-drive.ts
 prove-crewmates-door-drive.ts
 prove-exit-note-drive.ts
@@ -67,6 +68,7 @@ prove-ran-counts-what-ran.ts
 prove-render-canary.ts
 prove-runs-board-name.ts
 prove-saturn-empty-board-drive.ts
+prove-saturn-popup-drive.ts
 prove-seats-doors-drive.ts
 prove-seats-drive.ts
 prove-select-scroll-drive.ts
