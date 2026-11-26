@@ -1,19 +1,19 @@
-  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-workbench               │                                                                                                                  │
+workbench               ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
   private reasoning     │                                                                                                                  │
-                        │ 00:31:56 [sam] ❯ private reasoning                                                                               │
-next                    │                                                                                                                  │
-  /health               │ ✻ thinking… — the provider returned no thinking text for this model                                              │
-  /memory               │                                                                                                                  │
-  /mission              │                                                                                    00:31 claude-opus-4-8         │
                         │                                                                                                                  │
-files · project         │ Private reasoning answer.                                                                                        │
-  ↵ browse              │                                                                                                                  │
+next                    │ 18:12:41 [sam] ❯ private reasoning                                                                               │
+  /health               │                                                                                                                  │
+  /memory               │ ✻ thinking… — the provider returned no thinking text for this model                                              │
+  /goal                 │                                                                                                                  │
+                        │                                                                                    18:12 claude-opus-4-8         │
+files · project         │                                                                                                                  │
+  ↵ browse              │ Private reasoning answer.                                                                                        │
                         │                                                                                                                  │
 vitals                  │                                                                                                                  │
   spend $0.00           │                                                                                                                  │
   ctx 0% · 1000k        │                                                                                                                  │
   health — run /health  │                                                                                                                  │
+                        │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │

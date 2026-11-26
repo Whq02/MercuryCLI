@@ -129,7 +129,7 @@ export function boardListView({ accent, crewmateTasks, armedWork, bootRecovery, 
           <Box flexGrow={1} minWidth={0}>
             <Text wrap="truncate-end">
               <Text color={accent} bold>{GLYPH.spark} {LEAD_ROW_NAME}</Text>
-              <Text color={tokens.textMuted}> · the lead's own chat · ↵ goes back</Text>
+              <Text color={tokens.textMuted}> · the lead's own chat</Text>
             </Text>
           </Box>
         </CursorRow>
@@ -173,7 +173,7 @@ export function boardListView({ accent, crewmateTasks, armedWork, bootRecovery, 
     footerParts.push(
       '↑↓ select',
       'pgup/pgdn page',
-      `↵ ${selected?.kind === 'lead' ? `back to ${LEAD_ROW_NAME}` : 'open'}`,
+      '↵ open',
     )
   }
   if (armedWork === null && selectedStoppable) footerParts.push(selected?.work !== undefined ? 'x x stop' : 'x stop')

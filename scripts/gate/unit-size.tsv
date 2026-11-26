@@ -3,7 +3,7 @@ src/integrations/samples/shell.ts	text	SCRIPT	398
 src/permissions/capability/declarations.ts	table	TOOL_CAPABILITY_DECLARATIONS	55
 src/platform/substrate/stateLifecycle.ts	table	LIFECYCLE_MANIFEST	25
 src/screen/spinner/spinnerVerbs.ts	table	MERCURY_DESERT_VERBS	404
-src/screen/tips/tipRegistry.ts	table	GENERAL_TIPS	41
+src/screen/tips/tipRegistry.ts	table	GENERAL_TIPS	42
 src/tools/engines/eval-kernels/jsCellTransform.ts	unit	createJsCellTransformer	527
 src/tools/engines/eval-kernels/jsRunnerSource.ts	text	JS_RUNNER_SOURCE	440
 src/tools/engines/eval-kernels/pyRunnerSource.ts	text	PY_RUNNER_SOURCE	543

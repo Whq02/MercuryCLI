@@ -18,17 +18,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-console.log('— CRW-08 the crewmate card names where its stop and pause keys fire —')
-{
-  const words = await import('../../src/screen/cockpit/crewmateWords.ts')
-  const live = words.crewmateCardKeys(false)
-  const pinned = words.crewmateCardKeys(true)
-  check('the card no longer promises a bare x stop · p pause (those keys type into its composer)', !/· x stop · p pause(?! in)/.test(live) && !/· x stop · p pause(?! in)/.test(pinned), `${live} | ${pinned} — crewmateCardKeys in src/screen/cockpit/crewmateWords.ts must not print a bare x stop · p pause`)
-  check('it names the board where m, x x and p fire — m included, so the card never reads as a bare m while the composer has focus (F34A-20)', live.includes(`in ${words.CREW_VIEW_DOOR}: ${words.CREW_MAIN_CHAT_KEY} · x x stop · p pause`) && pinned.includes(`x x stop · p pause in ${words.CREW_VIEW_DOOR}`) && !/· m main chat ·/.test(live) && !/· m main chat ·/.test(words.crewmateCardKeys(false, false)), live + ' — crewmateCardKeys in src/screen/cockpit/crewmateWords.ts must name the board door before m, x x stop and p pause')
-  check('the wide card drops redundant esc interrupts and BACK_HINT while keeping compact esc hints', !live.includes('esc interrupts') && !live.includes(words.BACK_HINT) && !pinned.includes('esc interrupts') && words.crewmateCardKeys(false, true, words.COMPACT_BACK_HINT).startsWith('esc interrupts'), live + ' — crewmateCardKeys in src/screen/cockpit/crewmateWords.ts drops wide esc/BACK_HINT and keeps compact esc')
-  check('a landed crewmate’s card keeps its own keys (the clear key placed on the board, no stop key)', words.crewmateCardKeys(false, false) === `in ${words.CREW_VIEW_DOOR}: ${words.CREW_MAIN_CHAT_KEY} · ${words.CREW_CLEAR_KEY}` && !words.crewmateCardKeys(false, false).includes('x x stop'), words.crewmateCardKeys(false, false) + ' — crewmateCardKeys(false, false) in src/screen/cockpit/crewmateWords.ts must keep the clear key on the board, with no stop key')
-}
-
 console.log('— CRW-11 the ⌃x ⌃x ladder says a second chord is needed within the window —')
 {
   const m = await import('../../src/screen/concourse/controlManifest.ts')

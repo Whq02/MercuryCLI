@@ -36,13 +36,10 @@ import { useDisplayedSessionModel, useFocusedBornEffort, useFocusedSentEffort, u
 import { useFocusedWorkspaceBranch } from '../focused-session/useFocusedWorkspaceBranch.js'
 import { useSessionSignInGate } from '../focused-session/useSessionSignInGate.js'
 import { signedOutStatusWords } from '../../models/sign-in/accounts/sessionSignIn.js'
-import { useCrewmateModel } from '../tasks/useCrewmateModel.js'
-import { renderModelChip } from '../../models/catalogue/engineModel.js'
+import { useCrewmateIdentity } from '../tasks/useCrewmateModel.js'
 import { focusedEffortLabelOf } from '../widgets/EffortChip.js'
 import { modelSupportsEffort } from '../../models/effort/effort.js'
 import { useAppStateMaybeOutsideOfProvider } from '../app-state/AppState.js'
-import { targetWords, useComposerCrewmate, useViewedCrewmate } from '../tasks/useCrewmateView.js'
-import { crewmateNextTurnWords, crewmateStatusWords } from '../cockpit/crewmateWords.js'
 import { daemonBuildStatusWords, lastDaemonHandshake, subscribeDaemonHandshake } from '../../daemon/control/handshake.js'
 import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
 import { createSignal } from '../../platform/async/signal.js'
@@ -325,9 +322,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const effortValue = useAppStateMaybeOutsideOfProvider(s => s.effortValue)
   const receipt = useSyncExternalStore(subscribeStatusRowReceipt, statusRowReceipt, statusRowReceipt)
   const daemonBuild = useSyncExternalStore(subscribeDaemonHandshake, focusedDaemonBuildWords, focusedDaemonBuildWords)
-  const crewmate = useViewedCrewmate()
-  const composerCrewmate = useComposerCrewmate()
-  const crewmateModel = useCrewmateModel(crewmate ?? composerCrewmate)
+  const crewmate = useCrewmateIdentity()
   const { folder, branch } = useFocusedWorkspaceBranch()
   const signedOutWords = signedOutStatusWords(useSessionSignInGate(effectiveModel))
   const painting = hasSeatLive(c)
@@ -340,17 +335,15 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   }, [painting])
   if (!painting) return null
   const status: SeatStatusV1 = c.status()
-  const line = composerCrewmate !== null ? crewmateStatusWords(crewmate, targetWords(composerCrewmate), composerCrewmate.running) : statusLine(live, status, crew)
+  const line = crewmate === null ? statusLine(live, status, crew) : `${crewmate.address} · ${crewmate.running} crewmate${crewmate.running === 1 ? '' : 's'} running`
   const backHint =
-    crewmate !== null && !crewmate.pinned
+    crewmate?.viewed
       ? keyHintLabel('⇧← back')
       : escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false, sendNow, escapeOwned)
   const effortLabel = modelSupportsEffort(effectiveModel) ? focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false) : null
-  const chipCrewmate = crewmate ?? composerCrewmate
-  const shownModel = chipCrewmate !== null && crewmateModel !== null ? (crewmateModel.model === null ? 'model unreported' : renderModelChip(crewmateModel.model)) : modelName
-  const shownEffort = chipCrewmate !== null && crewmateModel !== null ? crewmateModel.effort : effortLabel
-  const next = chipCrewmate !== null && crewmateModel !== null && crewmateModel.next !== null ? crewmateModel.next : null
-  const nextWords = next === null ? '' : crewmateNextTurnWords(renderModelChip(next.model ?? crewmateModel!.model ?? ''), next.effort ?? crewmateModel!.effort)
+  const shownModel = crewmate?.model ?? modelName
+  const shownEffort = crewmate === null ? effortLabel : crewmate.effort
+  const nextWords = crewmate?.next ?? ''
   const modelWords = [`${modelStatusWords(shownModel, shownEffort)}${nextWords}`, daemonBuild].filter(Boolean).join(' · ')
   lastRowFit = { columns, head: [modelWords, motionWords].filter(Boolean).join(' · '), samples, folder, branch, backHint }
   const held = receipt !== '' && !statusRowWarns(live, status) ? receipt : null

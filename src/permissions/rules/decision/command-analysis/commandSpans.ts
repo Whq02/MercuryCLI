@@ -62,6 +62,102 @@ export function preparedCommandSpans(command: string): CommandSpan[] | null {
   return commandSpans(root)
 }
 
+export type ClosingStatement = { at: number; after: '&&' | '||' | ';'; stage: string }
+
+function lastStageOf(node: Node): Node | undefined {
+  if (node.type === 'command' || (node.type === 'test_command' && node.children[0]?.type === '[')) return node
+  if (node.type === 'pipeline') {
+    const last = node.children[node.children.length - 1]
+    return last === undefined ? undefined : lastStageOf(last)
+  }
+  if (node.type !== 'redirected_statement') return undefined
+  const piped = node.children.flatMap(child => (child.type === 'heredoc_redirect' ? child.children.filter(inner => inner.type === 'pipeline') : []))
+  const tail = piped[piped.length - 1] ?? node.children[0]
+  return tail === undefined ? undefined : lastStageOf(tail)
+}
+
+function goesOnAfter(node: Node): Node[] {
+  if (node.type === 'list') return node.children.slice(1)
+  if (node.type !== 'redirected_statement') return []
+  const heredoc = node.children.findLast(child => child.type === 'heredoc_redirect')
+  const operator = heredoc?.children.findIndex(child => child.type === '&&' || child.type === '||') ?? -1
+  return heredoc === undefined || operator === -1 ? [] : heredoc.children.slice(operator, operator + 2)
+}
+
+export function closingStatement(command: string): ClosingStatement | undefined {
+  const root = preparedCommandRoot(command)
+  const at = root === null || root.type !== 'program' ? null : placeIn(command, root)
+  if (root === null || at === null) return undefined
+  let node = root.children.findLast(child => child.type !== ';' && child.type !== 'comment')
+  let after: ClosingStatement['after'] = ';'
+  for (let onward = node === undefined ? [] : goesOnAfter(node); onward.length > 0; onward = node === undefined ? [] : goesOnAfter(node)) {
+    const operator = onward[0]?.type
+    if (operator !== '&&' && operator !== '||') return undefined
+    after = operator
+    node = onward[1]
+  }
+  const stage = node === undefined ? undefined : lastStageOf(node)
+  if (node === undefined || stage === undefined) return undefined
+  return { at: node.startIndex + at - root.startIndex, after, stage: stage.text }
+}
+
+const NAMES_WHAT_THE_SHELL_RUNS = /\bBASH_COMMAND\b|\bPS4\b|\bBASH_XTRACEFD\b/
+const RUNS_BESIDE_THE_FRAME = /\b(?:trap|enable)\b/
+const MAY_TURN_VERBOSE_ON = /\b(?:set|shopt)\b[^;&|\n]*(?:\s-[A-Za-z]*v|\bverbose\b|\$)/
+const A_PLAIN_COMMAND_WORD = /^[\w./+~@:-]+$/
+const HOLDS_AN_EXPANSION = /[$`]/
+const RUNS_ITS_WORDS = /^(?:eval|set|shopt|builtin|command|time|source|\.|mapfile|readarray)$/
+const RUNS_TEXT_THE_TREE_DOES_NOT_HOLD = /^(?:(?:builtin|command|time)\s+)*\\?(?:eval|source|\.)(?:\s|$)/
+
+function whatTheShellMayRun(root: Node): string | null {
+  const commands: Node[] = []
+  const said: Node[] = []
+  const own = new Set<string>()
+  const visit = (node: Node): void => {
+    if (node.type === 'command') commands.push(node)
+    else if (node.type === 'comment') said.push(node)
+    else {
+      if (node.type === 'function_definition') own.add(node.children.find(child => child.type === 'word')?.text ?? '')
+      for (const child of node.children) visit(child)
+    }
+  }
+  visit(root)
+  if (own.has('builtin')) return null
+  const kept = root.text.split('')
+  for (const node of said) kept.fill(' ', node.startIndex - root.startIndex, node.endIndex - root.startIndex)
+  for (const node of commands) {
+    const name = node.children.find(child => child.type === 'command_name')
+    if (name === undefined) continue
+    const runsItsWords = RUNS_ITS_WORDS.test(name.text)
+    if (!A_PLAIN_COMMAND_WORD.test(name.text) || name.text === 'alias' || (runsItsWords && HOLDS_AN_EXPANSION.test(node.text))) return root.text
+    if (!runsItsWords && !own.has(name.text)) kept.fill(' ', name.endIndex - root.startIndex, node.endIndex - root.startIndex)
+  }
+  return kept.join('')
+}
+
+function readsTheStatusItIsHanded(node: Node): boolean {
+  if (node.type === 'special_variable_name') return node.text === '?'
+  if (node.type === 'expansion') return node.children[1]?.type === '!'
+  const name = node.type === 'command' ? node.children.find(child => child.type === 'command_name') : undefined
+  return name !== undefined && RUNS_TEXT_THE_TREE_DOES_NOT_HOLD.test(node.text.slice(name.startIndex - node.startIndex))
+}
+
+function readsTheLastStatus(node: Node, from: number): boolean {
+  if (node.startIndex >= from && readsTheStatusItIsHanded(node)) return true
+  if (node.type !== 'function_definition') return node.children.some(child => readsTheLastStatus(child, from))
+  const body = node.children.find(child => child.children.length > 0)
+  const first = body?.type === 'compound_statement' || body?.type === 'subshell' ? body.children.find(child => child.children.length > 0) : body
+  return (first !== undefined && readsTheLastStatus(first, 0)) || node.children.some(child => readsTheLastStatus(child, Infinity))
+}
+
+export function watchesItsShell(command: string, closing: ClosingStatement): boolean {
+  const root = preparedCommandRoot(command)
+  const at = root === null ? null : placeIn(command, root)
+  if (root === null || at === null || NAMES_WHAT_THE_SHELL_RUNS.test(command)) return true
+  const run = whatTheShellMayRun(root)
+  return run === null || RUNS_BESIDE_THE_FRAME.test(run) || MAY_TURN_VERBOSE_ON.test(run) || readsTheLastStatus(root, closing.at - at + root.startIndex)
+}
+
 const NOT_WORDS: ReadonlySet<string> = new Set(['variable_assignment', 'file_redirect', 'herestring_redirect'])
 const QUOTED_WORDS: ReadonlySet<string> = new Set(['raw_string', 'string'])
 

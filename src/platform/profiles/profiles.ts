@@ -63,31 +63,29 @@ function stored<T>(path: string, shape: () => z.ZodType<T>): T | undefined {
   }
 }
 
-export function firstProfileHome(): string {
+function homeMarker(mode: 'strict' | 'lenient'): { first: string; id: number } {
   const home = getMercuryHome()
   try {
-    return stored(join(home, HOME_MARKER), markerShape)?.first ?? home
+    const marker = stored(join(home, HOME_MARKER), markerShape)
+    return { first: marker?.first ?? home, id: marker?.id ?? 1 }
   } catch (error) {
+    if (mode === 'strict') throw error
     passedOver(error)
-    return home
+    return { first: home, id: 1 }
   }
+}
+
+export function firstProfileHome(): string {
+  return homeMarker('lenient').first
 }
 
 export function currentProfileId(): number {
-  const home = getMercuryHome()
-  try {
-    return stored(join(home, HOME_MARKER), markerShape)?.id ?? 1
-  } catch (error) {
-    passedOver(error)
-    return 1
-  }
+  return homeMarker('lenient').id
 }
 
 function family(): Family {
-  const home = getMercuryHome()
-  const marker = stored(join(home, HOME_MARKER), markerShape)
-  const first = marker?.first ?? home
-  return { first, currentId: marker?.id ?? 1, labels: stored(join(first, RECORD), recordShape)?.profiles ?? [] }
+  const { first, id } = homeMarker('strict')
+  return { first, currentId: id, labels: stored(join(first, RECORD), recordShape)?.profiles ?? [] }
 }
 
 function save(first: string, labels: Labels): void {

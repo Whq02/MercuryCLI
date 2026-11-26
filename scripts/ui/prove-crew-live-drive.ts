@@ -463,9 +463,10 @@ async function landLeg(dialect: Dialect): Promise<void> {
   )
   const card = marks['card'] ?? ''
   const viewed = [SEAT_ONE, SEAT_TWO].find(name => card.includes(`viewing ${name}`))
+  const { renderModelChip } = await import('../../src/models/catalogue/engineModel.ts')
   check(
-    `${tag}: the agent's view reads its model, context and landed state; its transcript card reads its model, landed time and context`,
-    viewed !== undefined && agentRow(card, viewed, servedModel, /\blanded\b/) && rowTokens(card, viewed) && agentRow(landed, viewed, servedModel, /\blanded in \d/) && rowTokens(landed, viewed) && !card.includes('completed') && !landed.includes('tool use'),
+    `${tag}: the viewed status names its model and the rail its landed state; roster and transcript retain the context and duration`,
+    viewed !== undefined && agentRow(card, `viewing ${viewed}`, renderModelChip(servedModel), '0 crewmates running') && agentRow(card, viewed, /\blanded\b/) && rowTokens(crewLanded, viewed) && agentRow(landed, viewed, servedModel, /\blanded in \d/) && rowTokens(landed, viewed) && !card.includes('completed') && !landed.includes('tool use'),
     'the view must show the seat model, context and landed, and the landed card must show the seat model, landed in <time> and context without a tool use count; see the card and landed frame dumps below',
   )
   if (failures > 0 && process.env.CREW_KEEP !== '1') for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
