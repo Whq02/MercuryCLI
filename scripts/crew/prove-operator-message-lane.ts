@@ -11,7 +11,7 @@ await import('../../src/engine/tasks/tasks.js')
 const { drainPendingMessages, peekOperatorMessages, queueOperatorMessage, queuePendingMessage, takeOperatorMessages } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
 const { composerTargetTaskId } = await import('../../src/screen/app-state/selectors.js')
 const { clearMainChat, enterCrewmateView, exitCrewmateView, setMainChat, stopOrDismissCrewmate } = await import('../../src/crew/crewmates/crewmateView.js')
-const { crewmateComposerHint, crewmateStatusWords, crewmatePlaceholder, crewmateCardKeys, LEAD_ROW_NAME } = await import('../../src/screen/cockpit/crewmateWords.js')
+const { crewmateStatusWords, crewmatePlaceholder, crewmateCardKeys, LEAD_ROW_NAME } = await import('../../src/screen/cockpit/crewmateWords.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -121,7 +121,6 @@ section('§5 the words of the two states (one owner)')
   const viewing = { name: 'Lane atlas', pinned: false }
   const pinned = { name: 'Lane fjord', pinned: true }
   check('the status words: the viewed crewmate, the composer\'s target, and the pin viewed from another screen', crewmateStatusWords(viewing, viewing, 15) === 'viewing Lane atlas · composer → Lane atlas · commands → Lane atlas · 15 crewmates running' && crewmateStatusWords(pinned, pinned, 1) === `main chat: Lane fjord · commands → Lane fjord · ${LEAD_ROW_NAME} waits in the rail · 1 crewmate running` && crewmateStatusWords(null, pinned, 1) === `main chat: Lane fjord · commands → Lane fjord · ${LEAD_ROW_NAME} waits in the rail · 1 crewmate running` && crewmateStatusWords(viewing, pinned, 2) === 'viewing Lane atlas · commands → Lane atlas · composer → Lane fjord (the main chat) · 2 crewmates running', 'crewmateStatusWords in src/screen/cockpit/crewmateWords.ts must produce the viewed, pinned and mixed status lines these checks expect')
-  check('the composer hint: ↵ names the target, esc names the VIEWED crewmate (none on the lead\'s screen)', crewmateComposerHint(viewing, viewing) === '↵ sends to Lane atlas · esc interrupts Lane atlas' && crewmateComposerHint(pinned, pinned) === `↵ sends to Lane fjord · esc interrupts Lane fjord · m on ${LEAD_ROW_NAME} returns the main chat` && crewmateComposerHint(pinned, viewing) === `↵ sends to Lane fjord · esc interrupts Lane atlas · m on ${LEAD_ROW_NAME} returns the main chat` && crewmateComposerHint(pinned, null) === `↵ sends to Lane fjord · m on ${LEAD_ROW_NAME} returns the main chat`, 'crewmateComposerHint in src/screen/cockpit/crewmateWords.ts must name the send target and the esc target for each viewed and pinned pairing')
   check('the placeholder and the card keys', crewmatePlaceholder('Lane fjord') === 'message Lane fjord' && crewmateCardKeys(false) === 'in /crewmates: m main chat · x x stop · p pause' && crewmateCardKeys(true).startsWith(`m on ${LEAD_ROW_NAME} hands the main chat back`), 'crewmatePlaceholder and crewmateCardKeys in src/screen/cockpit/crewmateWords.ts must produce the placeholder and card key lines these checks expect')
 }
 

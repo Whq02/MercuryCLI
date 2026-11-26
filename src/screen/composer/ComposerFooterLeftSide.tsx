@@ -35,13 +35,6 @@ import { ExitChordNotice } from './ExitChordNotice.js'
 import { noticeBlockRows, noticeRowBlock, noticeRowDetail, noticeRowText, noticeRowWayOut } from './Notifications.js'
 import { standsUntilRemoved } from '../notifications/notifications.js'
 import type { InputMode } from './input-core/textInput.js'
-import {
-  extendedKeysSupportedNow,
-  subscribeExtendedKeysSupport,
-} from '../renderer/terminal-session/capabilities.js'
-import { getNewlineInstructions } from './composerConfig.js'
-import { crewmateComposerHint } from '../cockpit/crewmateWords.js'
-import { targetWords, useComposerCrewmate, useViewedCrewmate, viewedWords } from '../tasks/useCrewmateView.js'
 import { footerClusterOf } from './footerLeftSideView.js'
 const XTERMJS_HOSTS = new Set(['vscode', 'cursor', 'windsurf', 'codium', 'antigravity'])
 
@@ -108,18 +101,7 @@ export function ComposerFooterLeftSide({
   const killChord = useShortcutDisplay('chat:killAgents', 'Chat', 'ctrl+x k')
   const copyChord = useShortcutDisplay('selection:copy', 'Scroll', 'ctrl+shift+c')
   const paletteChord = useShortcutDisplay('app:commandPalette', 'Global', 'ctrl+k')
-  useSyncExternalStore(
-    subscribeExtendedKeysSupport,
-    extendedKeysSupportedNow,
-    extendedKeysSupportedNow,
-  )
   const escapeOwned = useEscapeOwned()
-  const composerCrewmate = useComposerCrewmate()
-  const viewedCrewmate = useViewedCrewmate()
-  const crewmateHint =
-    composerCrewmate !== null
-      ? crewmateComposerHint(targetWords(composerCrewmate), viewedWords(viewedCrewmate), escapeOwned)
-      : null
   const killConfirmPending = currentNotice?.key === 'kill-agents-confirm'
   const noticeText = noticeRowText(currentNotice)
   const noticeDetail = noticeText !== null ? noticeRowDetail(currentNotice) : null
@@ -156,49 +138,34 @@ export function ComposerFooterLeftSide({
   }
 
   const fullscreen = isFullscreenActive()
-  const secondLine = !compact ? (
-    <Text dimColor wrap="truncate-end">
-      {getNewlineInstructions()}
-      {crewmateHint !== null ? ` · ${crewmateHint}` : ''}
-    </Text>
-  ) : null
 
   if (voice.phase === 'recording') {
     return (
-      <>
-        <Box height={fullscreen ? 1 : undefined} overflow="hidden">
-          <Text wrap="truncate-end">
-            <Text color={tokens.failure}>●</Text> {RECORDING_FOOTER}
-          </Text>
-        </Box>
-        {secondLine}
-      </>
+      <Box height={fullscreen ? 1 : undefined} overflow="hidden">
+        <Text wrap="truncate-end">
+          <Text color={tokens.failure}>●</Text> {RECORDING_FOOTER}
+        </Text>
+      </Box>
     )
   }
 
   if (voice.phase === 'transcribing') {
     return (
-      <>
-        <Box height={fullscreen ? 1 : undefined} overflow="hidden">
-          <Text dimColor wrap="truncate-end">
-            {TRANSCRIBING_FOOTER}
-          </Text>
-        </Box>
-        {secondLine}
-      </>
+      <Box height={fullscreen ? 1 : undefined} overflow="hidden">
+        <Text dimColor wrap="truncate-end">
+          {TRANSCRIBING_FOOTER}
+        </Text>
+      </Box>
     )
   }
 
   if (drivingActive) {
     return (
-      <>
-        <Box height={fullscreen ? 1 : undefined} overflow="hidden">
-          <Text wrap="truncate-end">
-            <Text color={tokens.warning}>●</Text> {drivingFooter(desktop.app)}
-          </Text>
-        </Box>
-        {secondLine}
-      </>
+      <Box height={fullscreen ? 1 : undefined} overflow="hidden">
+        <Text wrap="truncate-end">
+          <Text color={tokens.warning}>●</Text> {drivingFooter(desktop.app)}
+        </Text>
+      </Box>
     )
   }
   if (compact) {
@@ -221,12 +188,9 @@ export function ComposerFooterLeftSide({
 
   if (mode === 'bash') {
     return (
-      <>
-        <Box height={fullscreen ? 1 : undefined} overflow="hidden">
-          {searchField ?? <Text dimColor>{BASH_MODE_CHARACTER} for shell mode</Text>}
-        </Box>
-        {secondLine}
-      </>
+      <Box height={fullscreen ? 1 : undefined} overflow="hidden">
+        {searchField ?? <Text dimColor>{BASH_MODE_CHARACTER} for shell mode</Text>}
+      </Box>
     )
   }
 
@@ -292,40 +256,29 @@ export function ComposerFooterLeftSide({
   const rowHasContent =
     searchField !== undefined || vimInsert || showTasksPill || showPrBadge
 
-  const idleLegendOnly =
-    idleHintShows &&
-    !vimInsert &&
-    searchField === undefined &&
-    crewmateHint === null
-
-  return (
-    <>
-      {footerClusterOf({
-        tokens,
-        columns,
-        footerSelection,
-        paletteChord,
-        noticeText,
-        noticeDetail,
-        noticeWayOut,
-        noticeBlock,
-        blockRows,
-        prStatus,
-        viewingCrewmate,
-        showPrBadge,
-        showTasksPill,
-        parts,
-        noticeStands,
-        hintsShow,
-        idleHintShows,
-        rowHasContent,
-        searchField,
-        vimInsert,
-        isLoading,
-        crewmateFooterIndex,
-        onOpenTasksDialog,
-      })}
-      {idleLegendOnly ? null : secondLine}
-    </>
-  )
+  return footerClusterOf({
+    tokens,
+    columns,
+    footerSelection,
+    paletteChord,
+    noticeText,
+    noticeDetail,
+    noticeWayOut,
+    noticeBlock,
+    blockRows,
+    prStatus,
+    viewingCrewmate,
+    showPrBadge,
+    showTasksPill,
+    parts,
+    noticeStands,
+    hintsShow,
+    idleHintShows,
+    rowHasContent,
+    searchField,
+    vimInsert,
+    isLoading,
+    crewmateFooterIndex,
+    onOpenTasksDialog,
+  })
 }
