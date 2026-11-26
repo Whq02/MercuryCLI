@@ -14,7 +14,7 @@ Object.assign(process.env, { HOME: home, MERCURY_CONFIG_DIR: home, MERCURY_TMPDI
 delete process.env.NODE_ENV
 delete process.env.MERCURY_SKIP_PROMPT_HISTORY
 process.chdir(home)
-const api = await startFixtureApi(Array.from({ length: 32 }, () => ({ kind: 'text' as const, text: 'The earlier work is complete. Continue with the saved tool reports and the current request.' })))
+const api = await startFixtureApi(Array.from({ length: 40 }, () => ({ kind: 'text' as const, text: 'The earlier work is complete. Continue with the saved tool reports and the current request.' })))
 process.env.ANTHROPIC_BASE_URL = api.url
 const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
@@ -325,6 +325,57 @@ try {
     const cut = await fold(next, { at: next.findIndex(row => row.uuid === tail[0]!.uuid), direction: 'up_to' })
     check(scene, 'the list of the refold names the kept note and not the note hung under it since', (cut.messagesToKeep ?? []).some(row => row.uuid === joined.uuid) && !(cut.messagesToKeep ?? []).some(row => row.uuid === late.uuid))
     await verify(`${scene}, refold`, sid, [...line.flatMap(row => row === joined ? [joined, late] : [row]), ...cleanForTranscript(next.slice(next.findIndex(m => m.uuid === done.uuid) + 1))], [...before.slice(0, 3), result.boundaryMarker, ...result.summaryMessages], cut)
+  }
+  for (const scene of ['a host notice between a call and its result', 'a host notice ahead of the crew rows of its call', 'a host notice between a prompt and its call', 'a host notice between two calls and their results']) {
+    const sid = start(), group = `msg_${sid}`, file = getTranscriptPath()
+    const a = call('A', group), b = call('B', group)
+    const calls = scene === 'a host notice between two calls and their results' ? [a, b] : [a]
+    const before = [user('Earlier question.'), reply('Earlier material. '.repeat(1400)), user('Second question.'), reply('Second answer.'), user('Third question.'), reply('Third answer.')]
+    const ask = user('Run the slow check.'), end = reply('The check ran.'), then = user('And a slow answer.'), done = reply('The slow answer.')
+    const joined = crew('joined'), post = crew('@main BOARD-POST-IN-AN-EARLIER-TURN?'), notice = createUserMessage({ content: 'A host notice.', isVirtual: true, origin: { kind: 'task-notification' } })
+    const under = scene === 'a host notice ahead of the crew rows of its call' ? [notice, joined, post] : scene === 'a host notice between a prompt and its call' ? [joined, post] : [joined, post, notice]
+    const held: Message[] = [...before]
+    const runner = async (row: Message) => { held.push(row); await recordTranscript([row], undefined, held) }
+    await recordTranscript([...before, ask])
+    if (under.length === 2) await runner(notice)
+    await recordTranscript(calls.map(made => made.row))
+    for (const row of under) await runner(row)
+    for (const made of calls) await recordTranscript([made.result])
+    await recordTranscript([end])
+    await recordTranscript([then, done])
+    await flushSessionStorage()
+    held.push(ask, ...calls.map(made => made.row), ...calls.map(made => made.result), end, then, done)
+    const tail = held.slice(3)
+    const line = [...before.slice(3), ask, ...(under.length === 2 ? [notice] : []), ...calls.map(made => made.row), ...under, ...calls.map(made => made.result), end, then, done]
+    const parents = new Map(raw(file).map(r => [r.recordId, r.parentId]))
+    check(scene, 'the writer hung the notice on the line under the prompt, or beside the line with each result under its call', under.length === 2 ? parents.get(notice.uuid) === ask.uuid && parents.get(a.row.uuid) === notice.uuid && parents.get(a.result.uuid) === post.uuid : parents.get(under[0]!.uuid) === calls.at(-1)!.row.uuid && calls.every(made => parents.get(made.result.uuid) === made.row.uuid) && parents.get(end.uuid) === calls.at(-1)!.result.uuid)
+    const result = await fold(held)
+    check(scene, 'the list of the actual fold names the notice ahead of the prompt of its turn', isDeepStrictEqual(ids(result.messagesToKeep ?? []), ids(tail)) && tail.includes(notice) && tail.indexOf(notice) < tail.indexOf(ask))
+    const next = await verify(scene, sid, line, before.slice(0, 3), result)
+    _resetTranscriptReaderForTesting()
+    const elected = electConversationEnd((await loadTranscriptFile(file, { throwOnError: true })).messages)?.rows ?? []
+    check(scene, 'the elected line holds the kept rows in that same order', isDeepStrictEqual(ids(elected).filter(id => line.some(row => row.uuid === id)), ids(line)))
+    _resetTranscriptReaderForTesting()
+    const resumed = (await loadConversationForResume(sid, file))?.messages ?? []
+    const sent = ids(planApiConversation(resumed).selected)
+    check(scene, 'the request a resume plans holds the rows a request takes in the order of the list, and neither the notice nor a note', isDeepStrictEqual(sent.filter(id => tail.some(row => row.uuid === id)), ids(tail.filter(row => row !== joined && row !== post && row !== notice))))
+    const cut = await fold(next, { at: next.findIndex(row => row.uuid === tail[0]!.uuid), direction: 'up_to' })
+    await verify(`${scene}, refold`, sid, [...line, ...cleanForTranscript(next.slice(next.findIndex(m => m.uuid === done.uuid) + 1))], [...before.slice(0, 3), result.boundaryMarker, ...result.summaryMessages], cut)
+  }
+  {
+    const sid = start(), a = call('A', `msg_${sid}`)
+    const asked = user('Run the slow check.'), end = reply('The check ran.'), last = createUserMessage({ content: 'A host notice.', isVirtual: true, origin: { kind: 'task-notification' } })
+    const held: Message[] = [asked]
+    await recordTranscript([asked, a.row])
+    held.push(last)
+    await recordTranscript([last], undefined, held)
+    await recordTranscript([a.result])
+    await recordTranscript([end])
+    await flushSessionStorage()
+    const boundary = createFoldBoundaryMessage('manual', 100, end.uuid), summary = createUserMessage({ content: 'Earlier work.', isCompactSummary: true })
+    const kept = [a.row, a.result, end, last]
+    annotateBoundaryWithPreservedSegment(boundary, summary.uuid, kept)
+    await verify('list ends on a host notice written earlier', sid, kept, [asked], { boundaryMarker: boundary, summaryMessages: [summary], messagesToKeep: kept, hookResults: [], attachments: [], preFoldTokenCount: 100, postFoldTokenCount: 10 })
   }
   {
     const scene = 'the line never drops a row'
