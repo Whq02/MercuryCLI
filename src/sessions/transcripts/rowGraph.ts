@@ -9,6 +9,21 @@ type BoundaryRow = TranscriptMessage & SystemFoldBoundaryMessage
 const foldBoundaryRow = (row: TranscriptMessage): row is BoundaryRow => row.type === 'system' && row.subtype === 'compact_boundary'
 const snipped = (row: TranscriptMessage): UUID[] | undefined => (row as { snipMetadata?: { removedUuids?: UUID[] } }).snipMetadata?.removedUuids
 
+export function keptLine<Id>(listed: readonly Id[], parentOf: (id: Id) => Id | null | undefined): Id[] {
+  const named = new Set(listed)
+  const under = new Map<Id, Id[]>()
+  const seen = new Set<Id>()
+  let loose: Id[] = []
+  for (let id: Id | null | undefined = listed.at(-1); id !== undefined && id !== null && !seen.has(id); id = parentOf(id)) {
+    seen.add(id)
+    if (!named.has(id)) { loose.unshift(id); continue }
+    under.set(id, loose)
+    loose = []
+    if (id === listed[0]) return listed.flatMap(row => [row, ...(under.get(row) ?? [])])
+  }
+  return [...listed]
+}
+
 class TranscriptRows {
   private positions = new Map<UUID, number>()
   private ordinal = 0
@@ -141,8 +156,9 @@ class TranscriptRows {
     if (segment.keptUuids !== undefined) {
       const ids = segment.keptUuids
       if (!Array.isArray(ids) || ids[0] !== segment.headUuid || ids.at(-1) !== segment.tailUuid || !ids.every(id => this.has(id))) return null
-      const kept = new Set(ids)
-      return kept.size === ids.length && !kept.has(segment.anchorUuid) ? kept : null
+      const line = keptLine(ids, id => this.get(id)?.parentUuid)
+      const kept = new Set(line)
+      return kept.size === line.length && !kept.has(segment.anchorUuid) ? kept : null
     }
     const kept = new Set<UUID>()
     let cursor = this.get(segment.tailUuid)
@@ -156,7 +172,7 @@ class TranscriptRows {
 
   private relinkSegment(segment: Segment, kept: Set<UUID>): void {
     let parentUuid = segment.anchorUuid
-    for (const id of segment.keptUuids ?? [segment.headUuid]) {
+    for (const id of segment.keptUuids === undefined ? [segment.headUuid] : kept) {
       const row = this.get(id)!
       if (row.parentUuid !== parentUuid) this.set(id, { ...row, parentUuid })
       parentUuid = id

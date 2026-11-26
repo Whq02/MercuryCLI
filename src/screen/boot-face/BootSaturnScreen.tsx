@@ -518,12 +518,7 @@ export function runBoxPauseResumeNote(scheduleId: string, paused: boolean, dir?:
   }
 }
 
-export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: givenNow, receiptsOf, modelOptionsOf, presetsOf, projectsOf, preflightOf }: BootSaturnScreenProps = {}): React.ReactNode {
-  const t = useMercuryTokens();
-  const { columns: termCols, rows: termRows } = useTerminalSize();
-  const columns = fullScene?.columns ?? termCols;
-  const rows = fullScene?.rows ?? Math.max(12, Math.min(24, termRows - 2));
-
+export function useSaturnController({ onClose, facts: given, nowMs: givenNow, receiptsOf, modelOptionsOf, presetsOf, projectsOf, preflightOf, wordGlow = null }: Omit<BootSaturnScreenProps, 'fullScene'> & { wordGlow?: ReturnType<typeof useGreetingShimmer> } = {}) {
   const [collected, setCollected] = useState<{ facts: SaturnScreenFactsV1; atMs: number }>(() => {
     const atMs = givenNow ?? Date.now();
     return { facts: given ?? collectSaturnScreenFacts(atMs), atMs };
@@ -756,18 +751,9 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
     { isActive: formPrompt !== null },
   );
 
-  const { accent: coreAccent, rampStops } = useSplashCoreAccent();
-  const core = useMemo(
-    () => createSplashCore({ nocolor: false, truecolor: true, accent: coreAccent }),
-    [coreAccent],
-  );
-  const wordGlow = useGreetingShimmer(rampStops, WORD_W);
-
   const menuM = useMemo(() => {
     return saturnMenuOf({ mainModel, saturnSummaryRows, facts, nowMs, wordGlow, form, givenNow, preflightOf, livePreflightOf, formPick, SATURN_WORKSPACE_CUSTOM_ROW, clampText, SATURN_OPENING_AUDIT_ROW, SATURN_AUDIT_MISSION, SATURN_OPENING_REVIEW_ROW, SATURN_REVIEW_MISSION, saturnOpeningRowIsCurrent, pickList, saturnFormLegendOf, saturnFormDetailLines, formPrompt, saturnFormEntries, formList, formNote, saturnEntryOf, list, note, saturnStatusLine, selected, saturnLegendOf, busy, saturnDetailLines, receiptsOf, liveReceiptsOf, saturnEmptyDetailLines });
   }, [facts, nowMs, selected, list.selectedIndex, list.note, note, mainModel, receiptsOf, form, formNote, formPrompt, formPick, formList.selectedIndex, pickList.selectedIndex, givenNow, preflightOf, wordGlow?.peakCell, wordGlow?.gainLevel]);
-
-  const composition = useBootComposition(core, columns, rows, menuM);
 
   const rowPropsAt = (entryIdx: number): { props: ReturnType<typeof list.rowProps>; hoverLabel: string } | null => {
     if (form !== null) {
@@ -783,5 +769,21 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
     return row === undefined ? null : { props: list.rowProps(row, entryIdx), hoverLabel: row.facts.id };
   };
 
+  return { facts, nowMs, form, formPrompt, formPick, menuM, rowPropsAt };
+}
+
+export function BootSaturnScreen(props: BootSaturnScreenProps = {}): React.ReactNode {
+  const t = useMercuryTokens();
+  const { columns: termCols, rows: termRows } = useTerminalSize();
+  const columns = props.fullScene?.columns ?? termCols;
+  const rows = props.fullScene?.rows ?? Math.max(12, Math.min(24, termRows - 2));
+  const { accent: coreAccent, rampStops } = useSplashCoreAccent();
+  const core = useMemo(
+    () => createSplashCore({ nocolor: false, truecolor: true, accent: coreAccent }),
+    [coreAccent],
+  );
+  const wordGlow = useGreetingShimmer(rampStops, WORD_W);
+  const { menuM, rowPropsAt } = useSaturnController({ ...props, wordGlow });
+  const composition = useBootComposition(core, columns, rows, menuM);
   return saturnRowsView({ columns, rows, composition, rowPropsAt, t });
 }

@@ -14,7 +14,7 @@ try {
   const { runLlmHost } = await import(`${f.root}/src/models/llm-host/index.ts`)
   const { updateSettingsForSource } = await import(`${f.root}/src/platform/settings/settings.ts`)
   const { selectableEffortLevels, resolveEffortTruth } = await import(`${f.root}/src/models/effort/effort.ts`)
-  const { effortPopupRows, EffortPopup, EffortApplyContext } = await import(`${f.root}/src/commands/effort/EffortPopup.tsx`)
+  const { effortPopupRows, EffortPopup } = await import(`${f.root}/src/commands/effort/EffortPopup.tsx`)
   const { executeEffort } = await import(`${f.root}/src/commands/effort/effort.tsx`)
   const answers: Record<string, string> = { servers: '__add__', address: f.baseUrl, dialect: 'llamacpp', key: '', model: f.model, name: 'effort-host', confirm: 'run' }
   const result = await runLlmHost(async (question: any) => {
@@ -40,11 +40,11 @@ try {
   let done = ''
   const open = async (model: string, effort?: string) => {
     setEngineModelOverride(model)
-    return mountOffscreen(h(AppStateProvider, { initialState: { ...getDefaultAppState(), effortValue: effort } }, h(ThemeProvider, {}, h(Box, { width: 110, height: 30 }, h(EffortApplyContext.Provider, { value: (value: string) => {
+    return mountOffscreen(h(AppStateProvider, { initialState: { ...getDefaultAppState(), effortValue: effort } }, h(ThemeProvider, {}, h(Box, { width: 110, height: 30 }, h(EffortPopup, { apply: (value: string) => {
       const applied = executeEffort(value, model)
       selected = applied.effortUpdate?.value as string | undefined
       return applied.message
-    } }, h(EffortPopup, { onDone: (message: string) => { done = message } }))))), 110, 30)
+    }, onDone: (message: string) => { done = message } })))), 110, 30)
   }
   mounted = await open(id, 'low')
   assert.ok(await waitFor(() => mounted!.screen().includes('Mercury · effort'), 10000), mounted.screen())

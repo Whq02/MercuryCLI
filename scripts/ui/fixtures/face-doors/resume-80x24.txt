@@ -3,7 +3,7 @@
 
 
 
-     (>_) MERCURY · resume session
+     MERCURY · resume session
 
      orchard-src
        the tool-loop fold   2 minutes ago
