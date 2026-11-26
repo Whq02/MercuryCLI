@@ -28,9 +28,11 @@ type Grid = Cell[][]
 type Mark = { label: string; grid: Grid }
 type Capture = { grid: Grid; marks: Mark[]; endReason: string }
 const text = (grid: Grid): string => grid.map(row => row.map(cell => cell.c).join('')).join('\n')
-const inkOfRow = (grid: Grid, needle: string): string | null => {
-  const row = grid.find(cells => cells.map(cell => cell.c).join('').includes(needle))
-  return row === undefined ? null : row.map(cell => `${cell.c}${cell.fg}/${cell.bg}/${cell.bold ? 1 : 0}`).join(' ')
+const inkOfRailRow = (grid: Grid, needle: string): string | null => {
+  const paneLeft = (grid[0] ?? []).map(cell => cell.c).join('').indexOf('╭', 1)
+  if (paneLeft <= 0) return null
+  const row = grid.find(cells => cells.slice(0, paneLeft).map(cell => cell.c).join('').includes(needle))
+  return row === undefined ? null : row.slice(0, paneLeft).map(cell => `${cell.c}${cell.fg}/${cell.bg}/${cell.bold ? 1 : 0}`).join(' ')
 }
 const click = (x: string | number, y: string | number): string => `\x1b[<0;${x};${y}M\x1b[<0;${x};${y}m`
 const firstDifference = (a: string, b: string): string => {
@@ -114,10 +116,10 @@ try {
       }
       if (code !== 0) continue
       const marks = Object.fromEntries(capture.marks.map(mark => [mark.label, mark.grid]))
-      const viewBefore = inkOfRow(marks.chat!, 'workbench')
-      const viewOpen = inkOfRow(marks.open!, 'workbench')
-      if (noDim) check(`${tag}: with the recess off the cockpit stays around the window with its ink untouched (the lanes label row reads as before the open)`, viewBefore !== null && viewOpen === viewBefore, `before ${viewBefore?.slice(0, 120)} · open ${viewOpen?.slice(0, 120)}`)
-      else if (panel === 'crewmates') check(`${tag}: the cockpit stays around the window, dimmed by the elevated registration (the lanes label row's ink moved)`, viewBefore !== null && viewOpen !== null && viewOpen !== viewBefore, `before ${viewBefore?.slice(0, 120)} · open ${viewOpen?.slice(0, 120)}`)
+      const viewBefore = inkOfRailRow(marks.chat!, 'workbench')
+      const viewOpen = inkOfRailRow(marks.open!, 'workbench')
+      if (noDim) check(`${tag}: with the recess off the cockpit stays around the window with its ink untouched (the workbench rail row reads as before the open)`, viewBefore !== null && viewOpen === viewBefore, `before ${viewBefore?.slice(0, 120)} · open ${viewOpen?.slice(0, 120)}`)
+      else if (panel === 'crewmates') check(`${tag}: the cockpit stays around the window, dimmed by the elevated registration (the workbench rail row's ink moved)`, viewBefore !== null && viewOpen !== null && viewOpen !== viewBefore, `before ${viewBefore?.slice(0, 120)} · open ${viewOpen?.slice(0, 120)}`)
       check(`${tag}: clicking the frame edge does not close`, text(marks.edge!).includes(needle))
       check(`${tag}: the outside press closes the panel`, !text(marks.pressed!).includes(needle))
       check(`${tag}: its release is consumed`, text(marks.pressed!) === text(marks.clicked!), firstDifference(text(marks.pressed!), text(marks.clicked!)))
