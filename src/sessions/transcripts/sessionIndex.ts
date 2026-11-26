@@ -243,7 +243,7 @@ function scanBackwardActivitySync(filePath: string, nowMs: number = Date.now()):
   return recheckAtMs !== undefined ? { rawLastUsedMs: found, recheckAtMs } : { rawLastUsedMs: found }
 }
 
-export function scanLastConversationActivityMsSync(filePath: string, nowMs: number = Date.now()): number | null {
+function scanLastConversationActivityMsSync(filePath: string, nowMs: number = Date.now()): number | null {
   return clampAcceptedMs(scanBackwardActivitySync(filePath, nowMs).rawLastUsedMs, nowMs)
 }
 
