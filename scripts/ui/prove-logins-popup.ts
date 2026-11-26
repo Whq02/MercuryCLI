@@ -117,7 +117,8 @@ const { ScrollKeybindingHandler } = await import('../../src/screen/scroll-keys/S
 const store = await import('../../src/screen/cockpit/settingsPopup.js')
 const { call } = await import('../../src/commands/logins/login.js')
 const { loginFamilyRows } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.js')
-const familyRows = loginFamilyRows({ engineLegs: true })
+const providerFamilyRows = loginFamilyRows({ engineLegs: true })
+const familyRows = loginFamilyRows({ engineLegs: true, externalAgents: true })
 let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
@@ -206,7 +207,7 @@ for (const s of sizes) {
   seed = 'idle'; estate = 'absent'
   let board = await mount(s)
   fits(board.m, s, 'menu'); save(board.m, s, 'menu')
-  check(`${s.columns}x${s.rows}: the twenty-two-family list starts without a digit or a reserved ordinal column`, familyRows.length === 22 && board.m.screen().includes('❯ OpenAI — ChatGPT'))
+  check(`${s.columns}x${s.rows}: the twenty-two-family list plus external agent starts without a digit or a reserved ordinal column`, providerFamilyRows.length === 22 && familyRows.length === 23 && board.m.screen().includes('❯ OpenAI — ChatGPT'))
   const menu = board.m.screen()
   for (const digit of ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '１', '９']) {
     await key(board.m, digit)
@@ -216,28 +217,28 @@ for (const s of sizes) {
   if (compact) {
     const body = bodyRows(board.m, s)
     check(`${s.columns}x${s.rows} compact: the body is the family rows alone, one line each, filling the box`, body.length === geometryOf(s).rowBudget && body.every(line => line !== '') && body.filter(line => /^[❯ ↓↑] /.test(line)).length === body.length && !board.m.screen().includes('Sign in') && !board.m.screen().includes('Provider readiness') && !board.m.screen().includes('subscription, usage-based billing'), body.join(' | '))
-    check(`${s.columns}x${s.rows} compact: the header marker reads 1 of 22`, markerOf(board.m) === '1 of 22', markerOf(board.m))
+    check(`${s.columns}x${s.rows} compact: the header marker reads 1 of 23`, markerOf(board.m) === '1 of 23', markerOf(board.m))
   }
-  for (let index = 1; index < 22; index++) {
+  for (let index = 1; index < familyRows.length; index++) {
     await key(board.m, KEY.down)
-    check(`${s.columns}x${s.rows}: arrows reach family ${index + 1} without a digit or a reserved ordinal column`, board.m.screen().includes(`❯ ${familyRows[index]!.label.slice(0, 24)}`))
-    if (compact) check(`${s.columns}x${s.rows} compact: the marker follows the focus to ${index + 1} of 22`, markerOf(board.m) === `${index + 1} of 22`, markerOf(board.m))
+    check(`${s.columns}x${s.rows}: arrows reach row ${index + 1} without a digit or a reserved ordinal column`, board.m.screen().includes(`❯ ${familyRows[index]!.label.slice(0, 24)}`))
+    if (compact) check(`${s.columns}x${s.rows} compact: the marker follows the focus to ${index + 1} of 23`, markerOf(board.m) === `${index + 1} of 23`, markerOf(board.m))
   }
   save(board.m, s, 'menu-bottom')
   const shown = rowsShown(board.m, s)
   const behind = behindOf(board.m)
   await key(board.m, '\x1b[<64;15;7M')
-  check(`${s.columns}x${s.rows}: a wheel notch up moves the selected row to the family above and the card's body does not scroll`, board.m.screen().includes(`❯ ${familyRows[20]!.label.slice(0, 24)}`) && rowsShown(board.m, s) === shown, board.m.screen())
+  check(`${s.columns}x${s.rows}: a wheel notch up moves the selected row to the row above and the card's body does not scroll`, board.m.screen().includes(`❯ ${familyRows[familyRows.length - 2]!.label.slice(0, 24)}`) && rowsShown(board.m, s) === shown, board.m.screen())
   check(`${s.columns}x${s.rows}: the wheel does not scroll the transcript behind the popup`, behindOf(board.m) === behind, behindOf(board.m))
   await key(board.m, '\x1b[<65;15;7M')
-  check(`${s.columns}x${s.rows}: a wheel notch down moves the selected row back to the last family and the card's body does not scroll`, board.m.screen().includes(`❯ ${familyRows[21]!.label.slice(0, 24)}`) && rowsShown(board.m, s) === shown, board.m.screen())
+  check(`${s.columns}x${s.rows}: a wheel notch down moves the selected row back to the last row and the card's body does not scroll`, board.m.screen().includes(`❯ ${familyRows[familyRows.length - 1]!.label.slice(0, 24)}`) && rowsShown(board.m, s) === shown, board.m.screen())
   if (compact) {
-    check(`${s.columns}x${s.rows} compact: the last family row is reached by arrows with the title row still pinned`, board.m.screen().includes('OpenCode Zen — API key') && board.m.lines().some(line => line.includes(compactHint)))
-    for (let index = 0; index < 21; index++) await key(board.m, KEY.up)
-    check(`${s.columns}x${s.rows} compact: arrows return to the first row and the marker reads 1 of 22`, markerOf(board.m) === '1 of 22' && board.m.screen().includes('OpenAI — ChatGPT'), markerOf(board.m))
+    check(`${s.columns}x${s.rows} compact: the last row is reached by arrows with the title row still pinned`, board.m.screen().includes('Devin CLI (external agent)') && board.m.lines().some(line => line.includes(compactHint)))
+    for (let index = 0; index < familyRows.length - 1; index++) await key(board.m, KEY.up)
+    check(`${s.columns}x${s.rows} compact: arrows return to the first row and the marker reads 1 of 23`, markerOf(board.m) === '1 of 23' && board.m.screen().includes('OpenAI — ChatGPT'), markerOf(board.m))
   }
   const guide = compact ? compactHint : listHint
-  check(`${s.columns}x${s.rows}: paging down walks the family rows to the last one, without moving the list key guide`, await walk(board.m, `❯ ${familyRows[21]!.label.slice(0, 24)}`) && board.m.screen().includes(guide), board.m.screen())
+  check(`${s.columns}x${s.rows}: paging down walks the rows to the last one, without moving the list key guide`, await walk(board.m, `❯ ${familyRows[familyRows.length - 1]!.label.slice(0, 24)}`) && board.m.screen().includes(guide), board.m.screen())
   const last = board.m.screen()
   await key(board.m, '\x1b[6~')
   check(`${s.columns}x${s.rows}: paging past the last family row finds nothing below it`, board.m.screen() === last && noReadiness(board.m), board.m.screen())
@@ -317,7 +318,7 @@ for (const s of sizes) {
   save(board.m, s, 'paste-guard')
   await key(board.m, KEY.esc)
   check('key esc returns to the family menu, not out of the popup', store.isSettingsPopupOpen() && await walk(board.m, '❯ OpenAI — ChatGPT', KEY.up) && noReadiness(board.m), board.m.screen())
-  if (compact) check('compact: back on the menu the marker returns', markerOf(board.m) !== undefined && /of 22$/.test(markerOf(board.m) ?? ''), markerOf(board.m))
+  if (compact) check('compact: back on the menu the marker returns', markerOf(board.m) !== undefined && /of 23$/.test(markerOf(board.m) ?? ''), markerOf(board.m))
   board.close()
   board = await mount(s, 'moonshot')
   await key(board.m, KEY.enter); await key(board.m, KEY.enter); await key(board.m, KEY.enter)
@@ -361,7 +362,7 @@ for (const s of sizes) {
       fits(board.m, s, `${estate} estate`)
     } else {
       check(`${estate} ${s.columns}x${s.rows}: the menu opens on the sign-in rows alone`, board.m.screen().includes('❯ OpenAI — ChatGPT') && noReadiness(board.m), board.m.screen())
-      check(`${estate} ${s.columns}x${s.rows}: paging ends on the last family row, with nothing below it`, await walk(board.m, `❯ ${familyRows[21]!.label.slice(0, 24)}`) && noReadiness(board.m), board.m.screen())
+      check(`${estate} ${s.columns}x${s.rows}: paging ends on the last row, with nothing below it`, await walk(board.m, `❯ ${familyRows[familyRows.length - 1]!.label.slice(0, 24)}`) && noReadiness(board.m), board.m.screen())
       fits(board.m, s, `${estate} estate`); save(board.m, s, `${estate}-menu-bottom`)
     }
     board.close()
@@ -408,8 +409,7 @@ device.close()
 const short = { columns: 80, rows: 14, bottom: 4 }
 const tiny = await mount(short)
 fits(tiny.m, short, 'short host')
-check('a shorter host is compact and its arrows reach the last family row with the marker at 22 of 22', isCompact(short) && await walk(tiny.m, 'OpenCode Zen — API key', KEY.down) && markerOf(tiny.m) === '22 of 22', markerOf(tiny.m))
-save(tiny.m, short, 'short-host')
+check('a shorter host is compact and its arrows reach the last row with the marker at 23 of 23', isCompact(short) && await walk(tiny.m, 'Devin CLI (external agent)', KEY.down) && markerOf(tiny.m) === '23 of 23', markerOf(tiny.m))
 tiny.close()
 for (const phase of ['menu', 'key', 'device', 'browser', 'receipt', 'account']) {
   seed = phase === 'browser' ? 'waiting' : phase === 'receipt' ? 'success' : 'idle'

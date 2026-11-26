@@ -34,7 +34,7 @@ type Grid = Cell[][]
 type Payload = { grid: Grid; marks?: Array<{ label: string; grid: Grid }>; endReason: string }
 const gridText = (grid: Grid): string[] => grid.map(row => row.map(cell => cell.c).join(''))
 const titleRow = (grid: Grid): string => gridText(grid).find(row => row.includes('✶ VIEW')) ?? ''
-const composer = (grid: Grid): Grid => grid.slice(grid.length - 5, grid.length - 2)
+const composer = (grid: Grid): Grid => grid.slice(grid.length - 4, grid.length - 1)
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
 const scratch = mkdtempSync(join(realpathSync(tmpdir()), 'rename-hosted-'))
 

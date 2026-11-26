@@ -9,6 +9,10 @@ import { startTimeout } from '../../../platform/async/timers.js';
 export function receiptFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFlowState, { kind: 'receipt' }>, key: Key): void {
   const { refreshFacts, closeFlow, settleSignedIn } = ctx;
   if (key.return || key.escape) {
+    if (current.external === true) {
+      closeFlow();
+      return;
+    }
     if (current.ok) settleSignedIn();
     else {
       refreshFacts();
