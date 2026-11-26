@@ -17,6 +17,11 @@ const { renderToAnsiString } = await import('../../src/screen/renderer/staticRen
 const { AssistantToolUseMessage } = await import('../../src/screen/messages/AssistantToolUseMessage.js')
 const { CollapsedReadSearchContent } = await import('../../src/screen/messages/CollapsedReadSearchContent.js')
 const { UserCrewmateNotificationMessage } = await import('../../src/screen/messages/UserCrewmateNotificationMessage.js')
+const { MessageRow } = await import('../../src/screen/messages/MessageRow.js')
+const { CrewmateTool } = await import('../../src/tools/crewmate/CrewmateTool.js')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.js')
+const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.js')
+const { buildMessageLookups } = await import('../../src/engine/messages/lookups.js')
 const { MessageMetaProvider } = await import('../../src/screen/messages/TranscriptNameplate.js')
 const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
 const { useMercuryTokens } = await import('../../src/screen/widgets/useMercuryTokens.js')
@@ -297,6 +302,76 @@ section('§3 the collapsed group in its states: the lead follows the sentence an
   const denied = await renderGroup('denied')
   check('a group with a denied member leads with ✕ in column one in the failure tone', denied.row.startsWith(`${GLYPH.fail} `) && denied.body.startsWith('Read ') && denied.lead?.fg === tokens.failure, JSON.stringify(denied))
   check('no group row carries a state dot or ring', [running, done, errored, denied].every(r => !STATE_GLYPHS.some(glyph => r.row.includes(glyph))))
+}
+
+section('§4 grouped_tool_use (crewmate launch) through MessageRow: col-0 lead, col-2 timestamp, one space, col-21 header')
+{
+  const renderGroupedLaunch = async (mode: 'done' | 'denied') => {
+    const ids = ['toolu_grp_1', 'toolu_grp_2', 'toolu_grp_3']
+    const rawUses = ids.map((id, i) => ({
+      ...createAssistantMessage({
+        content: [{ type: 'tool_use', id, name: 'Crewmate', input: { name: `seat-${i + 1}`, description: `seat-${i + 1}`, prompt: 'go', run_in_background: true } }],
+      }),
+      timestamp: STAMP,
+    }))
+    const rawResults = ids.map((id, i) => ({
+      ...createUserMessage({
+        content: [{
+          type: 'tool_result',
+          tool_use_id: id,
+          content: mode === 'denied' && i === 0 ? 'The operator declined this tool call; it was not run and nothing was changed.' : 'launched',
+          ...(mode === 'denied' && i === 0 ? { is_error: true } : {}),
+        }],
+      }),
+      ...(mode === 'done' ? { toolUseResult: { status: 'async_launched', agentId: `a${i + 1}` } } : {}),
+      timestamp: STAMP,
+    }))
+    const all = [...rawUses, ...rawResults]
+    const normalized = normalizeMessages(all)
+    const lookups = buildMessageLookups(normalized, all)
+    const assistantRows = normalized.filter(m => m.type === 'assistant')
+    const userRows = normalized.filter(m => m.type === 'user')
+    const groupedMessage = {
+      type: 'grouped_tool_use' as const,
+      toolName: 'Crewmate',
+      messageId: `msg-grouped-${mode}`,
+      messages: assistantRows,
+      results: userRows,
+      displayMessage: assistantRows[0]!,
+      uuid: `grouped-${mode}`,
+      timestamp: STAMP,
+    }
+    const node = React.createElement(
+      MessageMetaProvider,
+      { message: { type: 'grouped_tool_use', timestamp: STAMP }, children: null },
+      React.createElement(MessageRow, {
+        message: groupedMessage,
+        tools: [CrewmateTool],
+        lookups,
+        screen: 'prompt',
+        columns: 120,
+        verbose: false,
+        isUserContinuation: true,
+        hasContentAfter: false,
+        inProgressToolUseIDs: new Set<string>(),
+        streamingToolUseIDs: new Set<string>(),
+        canAnimate: false,
+        isLoading: false,
+        lastThinkingBlockId: null,
+        latestBashOutputUUID: null,
+      }),
+    )
+    const { ansi, text } = await renderRows(node)
+    const index = text.findIndex(row => row.includes('3 background crewmates launched'))
+    const row = text[index] ?? ''
+    return { row, body: row.replace(PLATE_RE, ''), lead: cellsOf(ansi[index] ?? '')[0] }
+  }
+  const done = await renderGroupedLaunch('done')
+  const denied = await renderGroupedLaunch('denied')
+  const wantCol = [...nameColumns][0]
+  check('grouped launch (done) paints two-cell blank lead, col-2 nameplate and one space before the header', PLATE_RE.test(done.row) && done.row.startsWith('  ') && done.body === '3 background crewmates launched', JSON.stringify(done))
+  check('grouped launch (denied) paints ✕ in column one in the failure tone, col-2 nameplate and one space before the header', PLATE_RE.test(denied.row) && denied.row.startsWith(`${GLYPH.fail} `) && denied.body === '3 background crewmates launched' && denied.lead?.fg === tokens.failure, JSON.stringify(denied))
+  check('grouped launch headers align to the same tool-name column as every single tool row', done.row.indexOf('3 background') === wantCol && denied.row.indexOf('3 background') === wantCol, JSON.stringify({ doneCol: done.row.indexOf('3 background'), deniedCol: denied.row.indexOf('3 background'), wantCol }))
 }
 
 console.log(failures === 0 ? '\n✅ TOOL ROW LEAD LAW HOLDS (bold name leads pending/done; ✕ leads error/denied; notices keep their dot)' : `\n❌ ${failures} TOOL ROW LEAD CHECK(S) FAILED`)

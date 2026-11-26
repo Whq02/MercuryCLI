@@ -402,31 +402,27 @@ export function AssistantToolUseMessage({
           {hasTag ? <Text> {toolUseTag}</Text> : null}
         </Text>
       </Box>
-      {showBlockSummary && resultSummary !== null ? (
-        <Box paddingLeft={2}>
-          <MessageResponse height={1}>
-            <Text dimColor wrap="truncate">
-              {resultSummary}
-            </Text>
-          </MessageResponse>
-        </Box>
-      ) : null}
-      {isRunning ? (
+      {(showBlockSummary && resultSummary !== null) ||
+      isRunning ||
+      (queuedNode !== null && queuedNode !== undefined && queuedNode !== false) ? (
         <Box flexDirection="column" paddingLeft={2}>
-          {renderProgressBlock()}
-        </Box>
-      ) : null}
-      {isRunning &&
-      shouldAnimate &&
-      !isTranscriptMode &&
-      tool.name === BASH_TOOL_NAME ? (
-        <Box paddingLeft={2}>
-          <RunningShellBackgroundHint id={param.id} />
-        </Box>
-      ) : null}
-      {queuedNode !== null && queuedNode !== undefined && queuedNode !== false ? (
-        <Box paddingLeft={2}>
-          <MessageResponse height={1}>{queuedNode}</MessageResponse>
+          {showBlockSummary && resultSummary !== null ? (
+            <MessageResponse height={1}>
+              <Text dimColor wrap="truncate">
+                {resultSummary}
+              </Text>
+            </MessageResponse>
+          ) : null}
+          {isRunning ? renderProgressBlock() : null}
+          {isRunning &&
+          shouldAnimate &&
+          !isTranscriptMode &&
+          tool.name === BASH_TOOL_NAME ? (
+            <RunningShellBackgroundHint id={param.id} />
+          ) : null}
+          {queuedNode !== null && queuedNode !== undefined && queuedNode !== false ? (
+            <MessageResponse height={1}>{queuedNode}</MessageResponse>
+          ) : null}
         </Box>
       ) : null}
     </Box>

@@ -168,36 +168,33 @@ export function collapsedGroupView({ selectedBg, active, anyErrored, anyDenied, 
           {tail}
         </Text>
       </Box>
-      {active && hint !== null ? (
-        <Box paddingLeft={2}>
-          <MessageResponse>
-            <Text dimColor wrap="wrap">
-              {hint}
-            </Text>
-          </MessageResponse>
-        </Box>
-      ) : null}
-      {memberEntries
-        .filter(entry => lookups.deniedToolUseIDs.has(entry.id))
-        .map(entry => (
-          <Box key={entry.id} paddingLeft={2}>
+      {(active && hint !== null) ||
+      memberEntries.some(entry => lookups.deniedToolUseIDs.has(entry.id)) ||
+      shellId !== null ||
+      movedByOperator ? (
+        <Box flexDirection="column" paddingLeft={2}>
+          {active && hint !== null ? (
             <MessageResponse>
               <Text dimColor wrap="wrap">
-                {denialLineOf(memberResultText(lookups, entry.id))}
+                {hint}
               </Text>
             </MessageResponse>
-          </Box>
-        ))}
-      {shellId !== null ? (
-        <Box paddingLeft={2}>
-          <RunningShellBackgroundHint id={shellId} />
-        </Box>
-      ) : null}
-      {movedByOperator ? (
-        <Box paddingLeft={2}>
-          <MessageResponse height={1}>
-            <Text dimColor>{BACKGROUND_MOVED_WORDS}</Text>
-          </MessageResponse>
+          ) : null}
+          {memberEntries
+            .filter(entry => lookups.deniedToolUseIDs.has(entry.id))
+            .map(entry => (
+              <MessageResponse key={entry.id}>
+                <Text dimColor wrap="wrap">
+                  {denialLineOf(memberResultText(lookups, entry.id))}
+                </Text>
+              </MessageResponse>
+            ))}
+          {shellId !== null ? <RunningShellBackgroundHint id={shellId} /> : null}
+          {movedByOperator ? (
+            <MessageResponse height={1}>
+              <Text dimColor>{BACKGROUND_MOVED_WORDS}</Text>
+            </MessageResponse>
+          ) : null}
         </Box>
       ) : null}
     </Box>

@@ -11,6 +11,7 @@ import {
   getEphemeralProgressFrame,
   useEphemeralProgressVersion,
 } from '../app-state/ephemeralProgressStore.js'
+import { ToolRowLead, toolRowStateOf } from './ToolRowLead.js'
 import { TranscriptNameplate } from './TranscriptNameplate.js'
 
 export function GroupedToolUseContent({
@@ -74,8 +75,29 @@ export function GroupedToolUseContent({
     return null
   }
 
+  const allResolved =
+    items.length > 0 &&
+    items.every(item => item.isResolved || item.rawResult !== undefined)
+  const anyErrored = items.some(
+    item =>
+      item.isErrored ||
+      (typeof item.rawResult === 'object' &&
+        item.rawResult !== null &&
+        (item.rawResult as { status?: unknown }).status === 'failed'),
+  )
+  const anyDenied = items.some(item => item.isDenied)
+
   return (
     <Box>
+      <Box flexShrink={0}>
+        <ToolRowLead
+          state={toolRowStateOf({
+            resolved: allResolved,
+            errored: anyErrored,
+            denied: anyDenied,
+          })}
+        />
+      </Box>
       <Box flexShrink={0}>
         <TranscriptNameplate />
       </Box>
