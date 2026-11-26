@@ -12,6 +12,7 @@ prove-browser-birth-truth.ts
 prove-browser-bounds.ts
 prove-browser-click-enclosing.ts
 prove-browser-close-finish.ts
+prove-browser-cover-wait.ts
 prove-browser-crash.ts
 prove-browser-download-paths.ts
 prove-browser-downloads.ts

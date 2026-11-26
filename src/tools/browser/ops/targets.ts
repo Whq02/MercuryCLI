@@ -1,9 +1,9 @@
 import type { ElementHandle, Frame, Page } from 'puppeteer-core'
-import { type CheckedTarget, approveWebOrigin, consumeCheckedActOrigin, originApproved, sessionAttached } from '../../../integrations/browser/browserSession.js'
+import { type CheckedTarget, approveWebOrigin, consumeCheckedActOrigin, forgetClicked, originApproved, sessionAttached } from '../../../integrations/browser/browserSession.js'
 import type { OwnerKey } from '../../../engine/run-owner/ownerKey.js'
 import { type Input, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './schema.js'
 import { isDriverTimeout } from './failures.js'
-import { type LiveSession, actOrigin, heldFrameOrigin, targetSurface } from './page.js'
+import { type LiveSession, actOrigin, bounded, heldFrameOrigin, targetSurface } from './page.js'
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
 import { withDeadline } from '../../../platform/async/deadline.js'
 
@@ -165,9 +165,15 @@ export async function isDisabledTarget(handle: ElementHandle<Element>): Promise<
   )
 }
 
-export async function clickGate(handle: ElementHandle<Element>): Promise<string | null> {
-  const disabled = await isDisabledTarget(handle)
-  if (disabled) return 'the target is disabled'
+interface Cover {
+  hop: ElementHandle<Element>
+  x: number
+  y: number
+  point: { x: number; y: number }
+  occluder: string
+}
+
+async function coverOf(handle: ElementHandle<Element>): Promise<Cover | null> {
   const point = await handle.clickablePoint()
   let current: ElementHandle<Element> | null = handle
   while (current !== null) {
@@ -204,10 +210,146 @@ export async function clickGate(handle: ElementHandle<Element>): Promise<string 
       current === handle,
       ENCLOSING_CONTROL,
     )
-    if (occluder) return `the click point (${Math.round(point.x)}, ${Math.round(point.y)}) is covered by ${occluder}; click the covering element to dismiss it, or scroll the target into view; after reading the overlay, force: true dispatches a DOM click to the target`
+    if (occluder) return { hop: current, x, y, point, occluder }
     current = container
   }
   return null
+}
+
+function coveredWords(cover: Cover): string {
+  return `the click point (${Math.round(cover.point.x)}, ${Math.round(cover.point.y)}) is covered by ${cover.occluder}; click the covering element to dismiss it, or scroll the target into view; after reading the overlay, force: true dispatches a DOM click to the target`
+}
+
+export async function clickGate(handle: ElementHandle<Element>): Promise<string | null> {
+  if (await isDisabledTarget(handle)) return 'the target is disabled'
+  const cover = await coverOf(handle)
+  return cover === null ? null : coveredWords(cover)
+}
+
+const COVER_CLICKED_MS = 5000
+const COVER_SETTLE_MS = 2000
+const COVER_DRIFT_MS = 1000
+const COVER_STEP_MS = 50
+
+async function coverMotion(cover: Cover): Promise<{ settlesIn: number | null; drifts: boolean }> {
+  return cover.hop.evaluate(
+    async (_el, px, py, soon) => {
+      const above = (el: Element): Element | null => el.assignedSlot ?? el.parentElement ?? (el.getRootNode() instanceof ShadowRoot ? (el.getRootNode() as ShadowRoot).host : null)
+      const at = (): Element | null => {
+        let hit = document.elementFromPoint(px, py)
+        while (hit?.shadowRoot) {
+          const inner = hit.shadowRoot.elementFromPoint(px, py)
+          if (!inner || inner === hit) break
+          hit = inner
+        }
+        return hit
+      }
+      const reading = (el: Element): string => {
+        const box = el.getBoundingClientRect()
+        let opacity = 1
+        for (let cur: Element | null = el; cur !== null; cur = above(cur)) opacity *= Number(getComputedStyle(cur).opacity)
+        return [box.x, box.y, box.width, box.height, opacity].join(' ')
+      }
+      const first = at()
+      if (first === null) return { settlesIn: null, drifts: false }
+      let settlesIn: number | null = null
+      let steady = false
+      for (let cur: Element | null = first; cur !== null; cur = above(cur)) {
+        for (const run of cur.getAnimations()) {
+          if (run.playState !== 'running') continue
+          const played = Number(run.currentTime ?? 0)
+          const left = run.playbackRate > 0 ? (Number(run.effect?.getComputedTiming().endTime ?? 0) - played) / run.playbackRate : run.playbackRate < 0 ? played / -run.playbackRate : Infinity
+          if (left > soon) steady = true
+          else settlesIn = Math.max(settlesIn ?? 0, left)
+        }
+      }
+      const before = reading(first)
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(null))))
+      return { settlesIn, drifts: at() !== first || (!steady && settlesIn === null && reading(first) !== before) }
+    },
+    cover.x,
+    cover.y,
+    COVER_SETTLE_MS,
+  )
+}
+
+async function coverHoldsClick(s: LiveSession, cover: Cover): Promise<boolean> {
+  const clicked = s.clicked
+  if (clicked === null || clicked.target.frame !== cover.hop.frame || Date.now() >= clicked.at + COVER_CLICKED_MS) return false
+  return clicked.target
+    .evaluate(
+      (last, px, py) => {
+        const above = (el: Element): Element | null => el.assignedSlot ?? el.parentElement ?? (el.getRootNode() instanceof ShadowRoot ? (el.getRootNode() as ShadowRoot).host : null)
+        const line = (el: Element): Element[] => {
+          const up: Element[] = []
+          for (let cur: Element | null = el; cur !== null; cur = above(cur)) up.push(cur)
+          return up
+        }
+        const layer = (up: Element[]): Element | undefined =>
+          up.findLast(el => el !== document.body && el !== document.documentElement && (getComputedStyle(el).position === 'fixed' || el.matches('dialog, [role="dialog"], [role="alertdialog"], [aria-modal="true"]')))
+        let hit = document.elementFromPoint(px, py)
+        while (hit?.shadowRoot) {
+          const inner = hit.shadowRoot.elementFromPoint(px, py)
+          if (!inner || inner === hit) break
+          hit = inner
+        }
+        if (hit === null) return false
+        const mine = line(last)
+        const its = line(hit)
+        const shared = layer(mine)
+        return mine.includes(hit) || its.includes(last) || (shared !== undefined && shared === layer(its))
+      },
+      cover.x,
+      cover.y,
+    )
+    .catch(passedOverAs(false))
+}
+
+export function rememberClick(s: LiveSession, target: ElementHandle<Element>): void {
+  forgetClicked(s)
+  const mine = { target, at: Date.now() }
+  s.clicked = mine
+  void bounded(COVER_CLICKED_MS).then(() => {
+    if (s.clicked === mine) forgetClicked(s)
+  })
+}
+
+type ClickGate = { clear: true; waited: string } | { clear: false; refusal: string; stood: string }
+
+export async function clickGateWhenClear(s: LiveSession, handle: ElementHandle<Element>, until: number): Promise<ClickGate> {
+  const began = Date.now()
+  const page = s.nav.seq
+  let first: string | null = null
+  let watchBy = 0
+  let because: string | null = null
+  for (;;) {
+    try {
+      if (await isDisabledTarget(handle)) return { clear: false, refusal: 'the target is disabled', stood: '' }
+      const cover = await coverOf(handle)
+      if (cover === null) return { clear: true, waited: first === null ? '' : `\n  note: the click waited ${Date.now() - began}ms for ${first}, which covered the target, to leave` }
+      if (first === null) {
+        first = cover.occluder
+        const motion = await coverMotion(cover)
+        if (motion.settlesIn !== null) {
+          watchBy = Date.now() + motion.settlesIn + 2 * COVER_STEP_MS
+          because = 'the cover was animating'
+        } else if (motion.drifts) {
+          watchBy = Date.now() + COVER_DRIFT_MS
+          because = 'the cover was changing'
+        }
+      }
+      const held = await coverHoldsClick(s, cover)
+      if (held) because = 'the last click landed in the cover'
+      const now = Date.now()
+      if (now >= until || !(held || now < watchBy)) {
+        return { clear: false, refusal: coveredWords(cover), stood: because === null ? ` (watched ${now - began}ms: the cover did not move)` : ` (watched ${now - began}ms because ${because}: the target stayed covered)` }
+      }
+      await bounded(COVER_STEP_MS)
+    } catch (err) {
+      if (first !== null && (s.nav.seq !== page || s.navWatch.pendingUrl !== null)) return { clear: false, refusal: `the page navigated away while the click waited for ${first} to leave`, stood: '' }
+      throw err
+    }
+  }
 }
 
 export async function probeEditableTarget(s: LiveSession, requested: ElementHandle<Element> | null, frame?: Input['frame']) {
