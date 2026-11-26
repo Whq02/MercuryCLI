@@ -142,7 +142,7 @@ export function crewSection({ input, tok, accent, keptIds, crewEntries, crewShow
     })
   }
   if (crewMore > 0) rows.push({ kind: 'more', key: 'crew:more', n: crewMore, row: { kind: 'command', command: '/crewmates', label: 'crew:more' } })
-  return { key: 'crew', glyph: GLYPH.fisheye, label: `crew ${crewEntries.length}`, open: '/crewmates', rows }
+  return { key: 'crew', glyph: GLYPH.fisheye, label: 'crew', count: String(crewEntries.length), countSep: ' ', open: '/crewmates', rows }
 }
 
 export function workSection({ work }: SectionFacts): LanesSectionSpec | null {
