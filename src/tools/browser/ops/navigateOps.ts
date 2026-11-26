@@ -28,6 +28,7 @@ import type { OwnerKey } from '../../../engine/run-owner/ownerKey.js'
 import type { Input } from './schema.js'
 import { withDeadline } from '../../../platform/async/deadline.js'
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
+import { sleep } from '../../../platform/async/sleep.js'
 
 export async function openOp({ input, owner, tab, context, sessionAtEntry, crashedAtEntry, signalFor, acting }: OpRun): Promise<OpDone> {
   let result: string
@@ -148,9 +149,31 @@ export async function openOp({ input, owner, tab, context, sessionAtEntry, crash
   return { result, outcome }
 }
 
-function pageHoldsText(needle: string, rendered: boolean): boolean {
+const TEXT_STEP_MS = 100
+
+function flat(text: string): string {
+  return text.replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+function rendersText(surface: ReturnType<typeof targetSurface>, needle: string): Promise<boolean> {
+  return surface.$eval('body', deepTextOf).then(text => flat(text).includes(flat(needle)), passedOverAs(false))
+}
+
+async function textArrives(surface: ReturnType<typeof targetSurface>, needle: string, deadline: number, signal: AbortSignal): Promise<boolean> {
+  const until = Date.now() + deadline
+  for (;;) {
+    signal.throwIfAborted()
+    const asked = Date.now()
+    if (await withDeadline(rendersText(surface, needle), Math.max(0, until - asked), () => false, { unref: true })) return true
+    const now = Date.now()
+    if (now >= until) return false
+    await sleep(Math.min(until - now, Math.max(TEXT_STEP_MS, 4 * (now - asked))), signal, { unref: true })
+  }
+}
+
+function pageKeepsText(needle: string): boolean {
   const norm = (x: string): string => x.replace(/\s+/g, ' ').trim().toLowerCase()
-  return norm((rendered ? document.body?.innerText : document.body?.textContent) ?? '').includes(norm(needle))
+  return norm(document.body?.textContent ?? '').includes(norm(needle))
 }
 
 async function textElsewhere(owner: OwnerKey, s: LiveSession, needle: string, frame: Input['frame']): Promise<string> {
@@ -160,10 +183,10 @@ async function textElsewhere(owner: OwnerKey, s: LiveSession, needle: string, fr
       children.map(child =>
         sessionAttached(s) && !originApproved(owner, originOf(child.url()))
           ? false
-          : withDeadline(child.evaluate(pageHoldsText, needle, true).catch(passedOverAs(false)), MISS_LOOK_MS, () => false, { unref: true }),
+          : withDeadline(rendersText(child, needle), MISS_LOOK_MS, () => false, { unref: true }),
       ),
     ),
-    withDeadline(targetSurface(s, frame).evaluate(pageHoldsText, needle, false).catch(passedOverAs(false)), MISS_LOOK_MS, () => false, { unref: true }),
+    withDeadline(targetSurface(s, frame).evaluate(pageKeepsText, needle).catch(passedOverAs(false)), MISS_LOOK_MS, () => false, { unref: true }),
   ])
   const at = held.indexOf(true)
   if (at !== -1) return `; child frame ${at + 1} (${children[at]!.url().split('?')[0]}) holds it (set frame to wait there)`
@@ -199,7 +222,11 @@ export async function waitForOp(s: LiveSession, { input, owner, signalFor }: OpR
         state === 'hidden' ? 'hidden/gone' : state === 'visible' ? 'present and visible' : 'present (attached)'
       result = `waitFor selector ${input.selector}: ${landedState} after ${Date.now() - t0}ms at ${pageWhere(s)}`
     } else if (input.text !== undefined) {
-      await targetSurface(s, input.frame).waitForFunction(pageHoldsText, { timeout: deadline, polling: 'raf', signal: signalFor(s) }, input.text, true)
+      if (!(await textArrives(targetSurface(s, input.frame), input.text, deadline, signalFor(s)))) {
+        result = `waitFor ${waited}${await waitMissWords(owner, s, input, deadline)}`
+        outcome = 'failed'
+        return { result, outcome }
+      }
       result = `waitFor text "${preview(input.text)}": present after ${Date.now() - t0}ms at ${pageWhere(s)}`
     } else if (s.nav.seq > s.nav.seen) {
       await s.page

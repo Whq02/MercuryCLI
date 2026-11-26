@@ -123,6 +123,29 @@ function hiddenWords(found: ElementHandle<Element>): Promise<string> {
     }, passedOverAs(''))
 }
 
+function shadowHostOf(s: LiveSession, selector: string, frame: Input['frame']): Promise<{ tag: string; id: string; cls: string } | null> {
+  return withDeadline(
+    targetSurface(s, frame)
+      .evaluate(wanted => {
+        const within = (scope: Document | ShadowRoot): { tag: string; id: string; cls: string } | null => {
+          for (const el of scope.querySelectorAll('*')) {
+            const shadow = el.shadowRoot
+            if (shadow === null) continue
+            if (shadow.querySelector(wanted) !== null) return { tag: el.tagName.toLowerCase(), id: el.id, cls: typeof el.className === 'string' ? el.className : '' }
+            const deeper = within(shadow)
+            if (deeper !== null) return deeper
+          }
+          return null
+        }
+        return within(document)
+      }, selector)
+      .catch(passedOverAs(null)),
+    MISS_LOOK_MS,
+    () => null,
+    { unref: true },
+  )
+}
+
 export async function selectorMissWords(
   s: LiveSession,
   selector: string,
@@ -131,15 +154,17 @@ export async function selectorMissWords(
   watched: 'visible' | 'attached',
   absentNote = '',
 ): Promise<string> {
-  const [attached, framed, layer] = await Promise.all([
+  const [attached, framed, layer, host] = await Promise.all([
     watched === 'visible' ? withDeadline(targetSurface(s, frame).$(selector).then<string | false>(found => (found === null ? false : hiddenWords(found))).catch(passedOverAs(false)), MISS_LOOK_MS, () => null, { unref: true }) : false,
     frame === undefined ? framedOnly(s, selector) : null,
     coveringLayerNote(s),
+    shadowHostOf(s, selector, frame),
   ])
   if (typeof attached === 'string') return `${selector} is present but never became visible within the ${deadline}ms deadline (hidden or zero-sized — acts need a visible target; waitFor state:"attached" can read its arrival)${attached}${layer}`
   if (framed !== null) return framedTargetWords(selector, framed)
   if (attached === null) return `${selector} did not become visible within the ${deadline}ms deadline, and the page did not answer within ${MISS_LOOK_MS}ms when asked whether it is there (its script may be busy)`
-  return `no element for selector ${selector} within the ${deadline}ms deadline${absentNote}${framesDiagnosis(s)}${layer}`
+  const where = host === null ? framesDiagnosis(s) : `; it is inside the shadow root of ${elementName(host)}: the selector ">>> ${selector}" reaches it`
+  return `no element for selector ${selector} within the ${deadline}ms deadline${absentNote}${where}${layer}`
 }
 
 export async function resolveActTarget(

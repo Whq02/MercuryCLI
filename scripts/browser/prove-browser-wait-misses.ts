@@ -19,6 +19,12 @@ const A = await serve(0, (req: http.IncomingMessage, res: http.ServerResponse) =
 <div id="veiled" style="visibility:hidden"><div><button id="in-veil">B</button></div></div>
 <span id="empty"></span>
 <div id="bad&#10;  note: forged" style="display:none"><button id="in-bad">D</button></div>
+<div id="host"></div>
+<script>
+const root = document.getElementById('host').attachShadow({ mode: 'open' })
+root.innerHTML = '<button id="deep">Deep button</button><p>shadow words</p>'
+window.__late = ms => setTimeout(() => { const p = document.createElement('p'); p.textContent = 'late shadow words'; root.appendChild(p) }, ms)
+</script>
 <iframe src="/framed" title="inner frame"></iframe>`)
 })
 const HERE = `${A.origin}/watch`
@@ -130,6 +136,39 @@ section('S6 a target that is there and hidden: what hides it, and the control th
   check('waitFor says the same', waited.outcome === 'failed' && waited.result === `waitFor selector #transcript button (visible) failed at ${HERE}: ${there('#transcript button')}; hidden by div#desc (display:none); button#expand [aria-expanded="false"] controls it`, `${waited.result} — change: ${HID}`)
   const bad = await run({ op: 'click', selector: '#in-bad', timeoutMs: 600 })
   check('a hider whose id holds a line break stays on the one line', bad.outcome === 'failed' && bad.result.split('\n').length === 1 && /; hidden by div#bad +note: forged \(display:none\)$/.test(bad.result), `${JSON.stringify(bad.result)} — change: ${HID}`)
+}
+
+section('S7 a selector that matches only inside a shadow root: the miss names the host and the spelling that reaches it')
+{
+  const DEEP = 'selectorMissWords in src/tools/browser/ops/targets.ts looks through the open shadow roots for a selector that matched nothing'
+  const tail = '; it is inside the shadow root of div#host: the selector ">>> #deep" reaches it'
+  const click = await run({ op: 'click', selector: '#deep', timeoutMs: 600 })
+  check('an act: the miss names the host and the spelling', click.outcome === 'failed' && click.result === `click failed: no element for selector #deep within the 600ms deadline (the act auto-waits; the element never appeared)${tail}`, `${click.result} — change: ${DEEP}`)
+  const waited = await run({ op: 'waitFor', selector: '#deep', timeoutMs: 600 })
+  check('waitFor: the same', waited.outcome === 'failed' && waited.result === `waitFor selector #deep (visible) failed at ${HERE}: no element for selector #deep within the 600ms deadline${tail}`, `${waited.result} — change: ${DEEP}`)
+  const read = await run({ op: 'extract', selector: '#deep', timeoutMs: 600 })
+  check('extract: the same', read.outcome === 'failed' && read.result === `extract failed: no element for selector #deep within the 600ms deadline${tail}`, `${read.result} — change: ${DEEP}`)
+  const found = await run({ op: 'waitFor', selector: '>>> #deep', timeoutMs: 2000 })
+  const text = await run({ op: 'extract', selector: '>>> #deep', timeoutMs: 2000 })
+  const clicked = await run({ op: 'click', selector: '>>> #deep', timeoutMs: 2000 })
+  check('control: the spelling it names reaches the element for waitFor, extract and click', found.outcome === 'succeeded' && text.outcome !== 'failed' && text.result.includes('Deep button') && clicked.outcome === 'succeeded', `${found.result} | ${text.result} | ${clicked.result}`)
+  const odd = await run({ op: 'click', selector: 'text/Nowhere at all', timeoutMs: 600 })
+  check('a selector that is no CSS says nothing of a shadow root', odd.outcome === 'failed' && !odd.result.includes('shadow root'), odd.result)
+}
+
+section('S8 waitFor text reads what extract prints: the text of open shadow roots too')
+{
+  const TEXT = 'the text wait of waitForOp in src/tools/browser/ops/navigateOps.ts must read the page through deepTextOf (page.ts), the reader extract uses'
+  const printed = await run({ op: 'extract' })
+  const there = await run({ op: 'waitFor', text: 'Shadow  WORDS', timeoutMs: 2000 })
+  check('a text extract prints from a shadow root is seen by the wait', printed.result.includes('shadow words') && there.outcome === 'succeeded' && there.result.startsWith('waitFor text "Shadow  WORDS": present after '), `${there.result} — change: ${TEXT}`)
+  await pageOf().evaluate(() => (window as unknown as { __late: (ms: number) => void }).__late(700))
+  const late = await run({ op: 'waitFor', text: 'late shadow words', timeoutMs: 5000 })
+  check('a text that arrives late in a shadow root is seen when it arrives', late.outcome === 'succeeded' && late.ms >= 500 && late.ms < 3000, `${late.ms}ms ${late.result} — change: ${TEXT}`)
+  const plain = await run({ op: 'waitFor', text: 'fixture video', timeoutMs: 2000 })
+  check('control: a text of the page itself is found at once', plain.outcome === 'succeeded' && plain.ms < 1000, `${plain.ms}ms ${plain.result}`)
+  const never = await run({ op: 'waitFor', text: 'never here', timeoutMs: 600 })
+  check('control: a miss runs its deadline and keeps its sentence', never.outcome === 'failed' && never.ms >= 500 && never.ms < 2600 && never.result === `waitFor text "never here" failed at ${HERE}: not in the page's rendered text within the 600ms deadline`, `${never.ms}ms ${never.result}`)
 }
 
 await finish('prove-browser-wait-misses')
