@@ -71,7 +71,7 @@ for (const scene of [
     cols: COLS,
     rows: ROWS,
     turns,
-    sends: ['after:Type a prompt:300:' + PROMPT, `after:${PROMPT}:400:\\r`, `after:No, keep the rule:1500:${scene.key}`],
+    sends: ['after:Type a prompt:300:' + PROMPT, `after:${PROMPT}:400:\\r`, `after:~No, keep the rule:1500:${scene.key}`],
     seconds: 30,
     keep: true,
   })

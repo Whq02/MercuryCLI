@@ -54,9 +54,8 @@ check('exactly one registry row, and it is named crewmates', registered.length =
 
 console.log('\n the doors the crew words print name /crewmates')
 const doors = [
-  ['CREW_CLEAR_DOOR', words.CREW_CLEAR_DOOR],
+  ['CREW_VIEW_DOOR', words.CREW_VIEW_DOOR],
   ['CREWMATE_BETWEEN_TURNS_DETAIL', words.CREWMATE_BETWEEN_TURNS_DETAIL],
-  ['crewmateCardKeys (viewing, landed)', words.crewmateCardKeys(false, false)],
 ] as const
 for (const [label, text] of doors) {
   check(`${label} says /crewmates and never /teammates`, text.includes('/crewmates') && !text.includes('/teammates'), text)

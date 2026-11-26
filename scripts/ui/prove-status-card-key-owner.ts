@@ -81,13 +81,14 @@ for (const [columns, rows, view] of [[120, 40, 'lead'], [213, 60, 'lead'], [213,
   }
   const scene = await mountOffscreen(h(App, { initialState: { ...getDefaultAppState(), ...(view === 'lead' ? {} : { viewingCrewmateTaskId: 'helper' }) }, getFpsMetrics: () => undefined, children: h(KeybindingSetup, { children: h(Frame) }) }), columns, rows)
   try {
-    await settledFrame(scene, frame => frame.includes('esc ') && frame.includes('sessions on'))
+    await settledFrame(scene, frame => frame.includes('Conversation') && frame.includes('sessions on') && (view === 'lead' || frame.includes('viewing helper')))
     const before = scene.screen()
     const escLines = (frame: string): string[] => frame.split('\n').filter(line => /\besc\b/.test(line) && !line.includes('esc declines'))
-    const expectedCount = view === 'lead' ? 3 : 1
+    const expectedCount = view === 'lead' ? 3 : view === 'running-crew' ? 2 : 0
+    const showing = escLines(before)
     check(
       `${label}: with no card the rows that carry Escape name its action`,
-      escLines(before).length === expectedCount && (view !== 'lead' || escLines(before)[1]!.includes('esc interrupt')) && escLines(before)[expectedCount - 1]!.includes('esc interrupts'),
+      showing.length === expectedCount && (expectedCount === 0 || (showing[expectedCount - 2]!.trim() === 'esc interrupt' && showing[expectedCount - 1]!.includes('esc interrupts'))),
       escLines(before).map(line => line.trim()).join(' | '),
     )
     open()
@@ -98,7 +99,7 @@ for (const [columns, rows, view] of [[120, 40, 'lead'], [213, 60, 'lead'], [213,
     check(`${label}: under the card neither the line under the composer nor the compact line names Escape`, escLines(during).length === 0, escLines(during).map(line => line.trim()).join(' | '))
     scene.push('\x1b')
     check(`${label}: Escape reaches the card's decline`, await waitFor(() => declined === 1, 3000))
-    await settledFrame(scene, frame => frame.includes('Conversation') && frame.includes('esc '))
+    await settledFrame(scene, frame => frame.includes('Conversation') && !frame.includes('Confirmation'))
     check(`${label}: after the card leaves, the whole frame is restored`, scene.screen() === before)
     hold(true)
     await waitFor(() => escLines(scene.screen()).length === 0, 3000)
