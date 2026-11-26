@@ -66,9 +66,6 @@ function compareListedSessions(a: SessionListing, b: SessionListing): number {
   return compareSessionListings(a, b) || compareStampDesc(a.date, b.date)
 }
 
-const RESTAMP_BURST_CAP = 32
-const RESTAMP_SCAN_GUARD = RESTAMP_BURST_CAP * 8
-
 export async function readListedSessions(lite: SessionListing[], count: number): Promise<SessionListing[]> {
   if (count <= 0) return []
   const listed: SessionListing[] = []
@@ -78,9 +75,7 @@ export async function readListedSessions(lite: SessionListing[], count: number):
     next = batch.nextIndex
     listed.push(...listedSessionsOf(batch.logs, ''))
   }
-  let extraKept = 0
-  let scanned = 0
-  while (listed.length >= count && next < lite.length && extraKept < RESTAMP_BURST_CAP && scanned < RESTAMP_SCAN_GUARD) {
+  while (listed.length >= count && next < lite.length) {
     listed.sort(compareListedSessions)
     const boundary = listed[count - 1]!
     const threshold = boundary.isAuthFailureHusk ? null : (boundary.lastUsedAt ?? null)
@@ -88,10 +83,7 @@ export async function readListedSessions(lite: SessionListing[], count: number):
     if (threshold !== null && candidateMtime + RECENCY_CLOCK_SLACK_MS < threshold && candidateMtime !== boundary.modified.getTime()) break
     const batch = await enrichSessionListings(lite, next, 1)
     next = batch.nextIndex
-    scanned++
-    const kept = listedSessionsOf(batch.logs, '')
-    extraKept += kept.length
-    listed.push(...kept)
+    listed.push(...listedSessionsOf(batch.logs, ''))
   }
   listed.sort(compareListedSessions)
   return listed.slice(0, count)

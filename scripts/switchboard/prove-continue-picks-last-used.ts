@@ -846,6 +846,54 @@ try {
     const huskRepo = await listRepoSessions([pHusk])
     const huskExplicit = await lastSession(sidHusk as Parameters<typeof lastSession>[0])
     check('§4 auth-failure husk ranks below answered session across all implicit doors while explicit resume keeps husk', huskCli0?.sessionId === sidAnswered && huskBoot.cwdProject?.sessionId === sidAnswered && huskRepo[0]?.sessionId === sidAnswered && huskExplicit?.sessionId === sidHusk, `cli=${huskCli0?.sessionId?.slice(-3)} boot=${huskBoot.cwdProject?.sessionId?.slice(-3)} explicit=${huskExplicit?.sessionId?.slice(-3)}`)
+
+    const pBulk = join(SCRATCH, 'proj-bulk-51')
+    mkdirSync(pBulk, { recursive: true })
+    const bulkDir = paths.getProjectDir(pBulk)
+    mkdirSync(bulkDir, { recursive: true })
+    const bT = Date.now()
+    const sidBulkWin = sid('800')
+    const fBulkWin = join(bulkDir, `${sidBulkWin}.jsonl`)
+    writeFileSync(
+      fBulkWin,
+      encodeSeedTranscript(
+        [
+          makeRow(sidBulkWin, bT - 21_000, { cwd: pBulk, type: 'user', message: { role: 'user', content: 'bulk winner prompt' } }),
+          makeRow(sidBulkWin, bT - 20_000, {
+            cwd: pBulk,
+            type: 'assistant',
+            message: { id: 'm_bw', type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'bulk winner reply' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+          }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidBulkWin,
+      ),
+    )
+    utimesSync(fBulkWin, new Date(bT - 19_000), new Date(bT - 19_000))
+    for (let i = 0; i < 51; i++) {
+      const idleId = sid(String(801 + i))
+      const fIdle = join(bulkDir, `${idleId}.jsonl`)
+      writeFileSync(
+        fIdle,
+        encodeSeedTranscript(
+          [
+            makeRow(idleId, bT - 240_000 - i * 1_000, { cwd: pBulk, type: 'user', message: { role: 'user', content: `bulk idle ${i}` } }),
+            makeRow(idleId, bT - 200_000 - i * 1_000, {
+              cwd: pBulk,
+              type: 'assistant',
+              message: { id: `m_bi_${i}`, type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: `idle reply ${i}` }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+            }),
+          ] as Parameters<typeof encodeSeedTranscript>[0],
+          idleId,
+        ),
+      )
+      utimesSync(fIdle, new Date(bT - 8_000 + i), new Date(bT - 8_000 + i))
+    }
+    setGround(pBulk)
+    const bulkBoot = scanBootCardFacts(pBulk)
+    const bulkParked = parkedSessionsOf(pBulk, { withinMs: PARKED_WEEK_MS, cap: 10 })
+    const bulkRepo = await listRepoSessions([pBulk])
+    const bulkCli1 = await readListedSessions(await listSessions(), 1)
+    check('§4 51 restamped old chats ahead of winner (52nd by mtime): Boot, parked, /sessions page 1, and CLI --limit 1 all find winner', bulkBoot.cwdProject?.sessionId === sidBulkWin && bulkParked[0]?.sessionId === sidBulkWin && bulkRepo[0]?.sessionId === sidBulkWin && bulkCli1[0]?.sessionId === sidBulkWin, `boot=${bulkBoot.cwdProject?.sessionId?.slice(-3)} parked=${bulkParked[0]?.sessionId?.slice(-3)} repo=${bulkRepo[0]?.sessionId?.slice(-3)} cli1=${bulkCli1[0]?.sessionId?.slice(-3)}`)
   }
 } finally {
   clearTimeout(watchdog)
