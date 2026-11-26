@@ -20,6 +20,7 @@ import type {
 } from './transcriptEntries.js'
 import { compareSessionListings, sortSessionListings } from './transcriptEntries.js'
 import type { Message } from '../../engine/message-shapes/message.js'
+import { isToolUseResultMessage } from '../../engine/message-shapes/normalize.js'
 import {
   decodeTranscriptBuffer,
   TRANSCRIPT_FORMAT_REFUSAL,
@@ -415,13 +416,27 @@ export type ResumeFacts = Pick<
   | 'prRepository'
   | 'turnEnd'
   | 'turnOpen'
+  | 'displacedNotices'
 >
+
+function hostNoticesBehindLaterResults(messages: Map<UUID, TranscriptMessage>, chain: TranscriptMessage[]): UUID[] {
+  const graph = transcriptRows(messages)
+  const displaced: UUID[] = []
+  let newestResult = -1
+  for (const row of chain) {
+    const position = graph.positionOf(row.uuid)
+    if (row.type === 'user' && row.isVirtual === true && position < newestResult) displaced.push(row.uuid)
+    if (isToolUseResultMessage(row)) newestResult = Math.max(newestResult, position)
+  }
+  return displaced
+}
 
 export function resumeFactsOf(
   fold: Omit<TranscriptFoldState, 'progressBridge'>,
   sessionId: UUID,
   chain: TranscriptMessage[],
 ): ResumeFacts {
+  const displacedNotices = hostNoticesBehindLaterResults(fold.messages, chain)
   return {
     fileHistorySnapshots: buildFileHistorySnapshotChain(fold.fileHistorySnapshots, chain),
     attributionSnapshots: buildAttributionSnapshotChain(fold.attributionSnapshots, chain),
@@ -446,6 +461,7 @@ export function resumeFactsOf(
     prRepository: fold.prRepositories.get(sessionId),
     turnEnd: fold.turnEnds.get(sessionId),
     ...(fold.turnsOpen.has(sessionId) ? { turnOpen: true } : {}),
+    ...(displacedNotices.length > 0 ? { displacedNotices } : {}),
   }
 }
 
