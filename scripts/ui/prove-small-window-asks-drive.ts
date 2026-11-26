@@ -73,7 +73,7 @@ try {
     const short = await drive(120, 40, {
       name: 'short',
       ...theSessionsPage,
-      sends: [...toTheCard, key('(>_) MERCURY · resume session', DOWN, 'card-short'), key('(>_) MERCURY · resume session', '\r', 'yes-short')],
+      sends: [...toTheCard, key('MERCURY · resume session', DOWN, 'card-short'), key('MERCURY · resume session', '\r', 'yes-short')],
       resizes: [{ afterMark: 'card-wide', cols: 80, rows }],
       readyText: 'deleted 2 transcripts',
       after: staged => transcriptsOf(staged).every(file => !existsSync(file)),
