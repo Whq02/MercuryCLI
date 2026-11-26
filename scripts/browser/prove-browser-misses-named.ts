@@ -20,6 +20,8 @@ const { BrowserTool } = tool
 const { activeSession } = await import('../../src/integrations/browser/browserSession.ts')
 const { processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
 const { call: browserCommand } = await import('../../src/commands/browser/browserCommand.ts')
+const BUNDLED_NAME = 'A8'
+Object.defineProperty((await import('puppeteer-core')).TimeoutError, 'name', { value: BUNDLED_NAME })
 const OWNER = processOwnerForLane(null)
 type ToolInput = Parameters<typeof BrowserTool.call>[0]
 const ctx = {} as Parameters<typeof BrowserTool.call>[1]
@@ -41,6 +43,10 @@ console.log('§1 the driver\'s timeout is recognised whatever the bundle calls i
     const named = Object.assign(new Error('anything'), { name: 'TimeoutError' })
     check('the named class still counts', isDriverTimeout(named), '', 'keep the TimeoutError class name counted in isDriverTimeout in src/tools/browser/ops/failures.ts')
     check('an ordinary error is not a timeout', !isDriverTimeout(new Error('Protocol error (Runtime.callFunctionOn): Target closed')), '', 'isDriverTimeout in src/tools/browser/ops/failures.ts must not count a protocol error as a timeout')
+    const wrapped = Object.assign(new Error('Waiting for selector `.late` failed'), { name: BUNDLED_NAME, cause: Object.assign(new Error('Waiting failed: 2000ms exceeded'), { name: BUNDLED_NAME }) })
+    check('a waitForSelector timeout, which the driver wraps around the timeout it names as the cause, is a timeout under a mangled class name', isDriverTimeout(wrapped), '', 'make isDriverTimeout in src/tools/browser/ops/failures.ts read the cause chain, not the top message alone')
+    const detached = Object.assign(new Error('Waiting for selector `.late` failed'), { cause: new Error('Waiting failed: Frame detached') })
+    check('the same wrapper around a failure that is no timeout is not a timeout', !isDriverTimeout(detached), '', 'isDriverTimeout in src/tools/browser/ops/failures.ts must count the wrapper only when its cause chain holds a timeout sentence')
   }
 }
 
@@ -128,6 +134,13 @@ console.log('§3 a selector that matches nothing fails by name, at the deadline,
   ] as Array<[string, ToolInput]>) {
     const miss = await run(input)
     check(`${label}: the miss names the selector and the deadline`, miss.outcome === 'failed' && miss.result.includes(input.selector!) && miss.result.includes('600ms deadline') && !/Timed out after waiting/.test(miss.result), miss.result, 'the missing-selector failure in src/tools/browser/ops/targets.ts must name the selector and the deadline in ms')
+  }
+  for (const [label, input] of [
+    ['waitFor', { op: 'waitFor', selector: '#never-here', timeoutMs: 600 }],
+    ['extract', { op: 'extract', selector: '#never-here', timeoutMs: 600 }],
+  ] as Array<[string, ToolInput]>) {
+    const miss = await run(input)
+    check(`${label}: a selector miss is the tool's own sentence while the driver's timeout class carries the bundle's name`, miss.outcome === 'failed' && miss.result.includes('#never-here') && miss.result.includes('600ms') && !/Waiting for selector/.test(miss.result), miss.result, 'isDriverTimeout in src/tools/browser/ops/failures.ts must know the timeout the driver wraps as "Waiting for selector … failed" by its cause, since the built bundle renames the TimeoutError class')
   }
   const textMiss = await run({ op: 'waitFor', text: 'NEVER APPEARS', timeoutMs: 500 })
   check('waitFor text: the miss names the text and the deadline', textMiss.outcome === 'failed' && textMiss.result.includes('NEVER APPEARS') && textMiss.result.includes('deadline 500ms exceeded'), textMiss.result, 'the waitFor text miss in src/tools/browser/ops/navigateOps.ts must name the text and the deadline')
