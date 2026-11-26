@@ -92,11 +92,19 @@ export function detectInstalledBrowsers(): InstalledBrowser[] {
   return found
 }
 
-export function browserCacheDir(): string {
+function browsersDirIn(home: string): string {
   const override = flagEnv('MERCURY_BROWSER_CACHE_DIR')
   if (override && override !== '') return override
+  return path.join(home, 'browsers')
+}
+
+export function browserCacheDir(): string {
   const first = firstProfileHome()
-  return path.join(existsSync(first) ? first : getMercuryHome(), 'browsers')
+  return browsersDirIn(existsSync(first) ? first : getMercuryHome())
+}
+
+export function browserPlanDir(): string {
+  return browsersDirIn(getMercuryHome())
 }
 
 export interface ManagedBrowser {

@@ -8,11 +8,9 @@ import {
   install,
   resolveBuildId,
 } from '@puppeteer/browsers'
-import { browserCacheDir, dirSizeBytes, listManagedBrowsers, type ManagedBrowser } from './browserResolver.js'
+import { browserCacheDir, browserPlanDir, dirSizeBytes, listManagedBrowsers, type ManagedBrowser } from './browserResolver.js'
 import { withDeadline } from '../../platform/async/deadline.js'
-import { getMercuryHome } from '../../platform/environment/envUtils.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
-import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 
 function requirePlatform(): NonNullable<ReturnType<typeof detectBrowserPlatform>> {
   const p = detectBrowserPlatform()
@@ -82,18 +80,12 @@ export async function planBrowserInstall(pinnedBuildId?: string): Promise<Instal
 
 export const INSTALL_PLAN_TTL_MS = 10 * 60 * 1000
 
-function installPlanDir(): string {
-  const override = flagEnv('MERCURY_BROWSER_CACHE_DIR')
-  if (override && override !== '') return override
-  return path.join(getMercuryHome(), 'browsers')
-}
-
 function installPlanPath(): string {
-  return path.join(installPlanDir(), '.install-plan.json')
+  return path.join(browserPlanDir(), '.install-plan.json')
 }
 
 export function persistInstallPlan(buildId: string): void {
-  fs.mkdirSync(installPlanDir(), { recursive: true })
+  fs.mkdirSync(browserPlanDir(), { recursive: true })
   fs.writeFileSync(installPlanPath(), JSON.stringify({ buildId, plannedAt: Date.now() }))
 }
 
@@ -122,20 +114,49 @@ interface InstallResult {
   sizeBytes: number
 }
 
+type BrowserInstaller = (options: {
+  browser: Browser
+  buildId: string
+  cacheDir: string
+  platform: NonNullable<ReturnType<typeof detectBrowserPlatform>>
+  downloadProgressCallback?: (downloadedBytes: number, totalBytes: number) => void
+}) => Promise<unknown>
+
+function removeIfEmptyDir(dir: string): void {
+  try {
+    fs.rmdirSync(dir)
+  } catch (error) {
+    passedOver(error)
+  }
+}
+
 export async function installManagedBrowser(
   buildId: string,
   onProgress?: (downloadedBytes: number, totalBytes: number) => void,
+  installer: BrowserInstaller = install,
 ): Promise<InstallResult> {
   const platform = requirePlatform()
   const cacheDir = browserCacheDir()
-  await install({
-    browser: Browser.CHROME,
-    buildId,
-    cacheDir,
-    platform,
-    downloadProgressCallback: onProgress,
-  })
+  const buildDir = path.join(cacheDir, Browser.CHROME, `${platform}-${buildId}`)
   const executablePath = computeExecutablePath({ browser: Browser.CHROME, buildId, cacheDir, platform })
+  removeIfEmptyDir(buildDir)
+  if (fs.existsSync(buildDir) && !fs.existsSync(executablePath)) {
+    throw new Error(
+      `incomplete Chrome for Testing ${buildId} build at ${buildDir} (executable missing) — run /browser remove ${buildId}, then provision again`,
+    )
+  }
+  try {
+    await installer({
+      browser: Browser.CHROME,
+      buildId,
+      cacheDir,
+      platform,
+      downloadProgressCallback: onProgress,
+    })
+  } catch (error) {
+    removeIfEmptyDir(buildDir)
+    throw error
+  }
   const installed: ManagedBrowser | undefined = listManagedBrowsers().find(m => m.buildId === buildId)
   return {
     buildId,
