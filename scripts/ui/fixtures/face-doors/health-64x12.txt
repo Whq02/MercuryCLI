@@ -1,5 +1,5 @@
 
-    (>_) MERCURY · health check
+    MERCURY · health check
 
     ↑ 5 more
       Bundle integrity                              ✓ ok

@@ -1,6 +1,6 @@
 
 
-                    (>_) MERCURY · health check
+                    MERCURY · health check
 
                     Keybindings file
                       ▲ warn
