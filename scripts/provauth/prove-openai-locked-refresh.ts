@@ -184,6 +184,20 @@ try {
   release()
   await turnHolder
   await turn
+
+  console.log('── a sign-out while the accepted answer is out stays a sign-out ──')
+  const leaving = 'rt-of-a-sixth-sign-in'
+  server.live = leaving
+  seed(leaving)
+  const beforeLeaving = server.grants.length
+  release = server.hold()
+  const leftBehind = accounts.currentSubscriptionTokens()
+  await until('the grant is at the server', () => server.grants.length === beforeLeaving + 1)
+  accounts.disconnectOpenaiSubscription()
+  const signedOut = readFileSync(authPath, 'utf8')
+  release()
+  const afterSignOut = await leftBehind
+  check('the call answers no pair and the store is byte for byte what the sign-out left, no tokens in it', afterSignOut === undefined && !signedOut.includes('"tokens"') && readFileSync(authPath, 'utf8') === signedOut, JSON.stringify({ answered: afterSignOut?.refreshToken ?? null, store: readFileSync(authPath, 'utf8') }))
 } finally {
   server.stop()
 }

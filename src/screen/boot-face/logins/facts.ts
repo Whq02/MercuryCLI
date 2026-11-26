@@ -203,9 +203,9 @@ export function loginsRosterEntryOf(row: LoginsRosterRowV1, facts: LoginsScreenF
   };
 }
 
-export function loginsRosterDetailLines(row: LoginsRosterRowV1, facts: LoginsScreenFactsV1): string[] {
+export function loginsRosterDetailLines(row: LoginsRosterRowV1, facts: LoginsScreenFactsV1, devinCliMissing: string | null = null): string[] {
   if (row.kind === 'provider') return loginsDetailLines(row.arm, facts);
-  return devinCliDetailLines();
+  return devinCliDetailLines(devinCliMissing === null ? null : wrapPlain(devinCliMissing, DETAIL_W));
 }
 export type LoginsEntry = {
   label: string;
