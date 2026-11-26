@@ -31,7 +31,7 @@ const { readTranscriptChainSince } = await import('../../src/sessions/transcript
 const { flushSessionStorage, getTranscriptPath, recordTranscript, resetProjectForTesting } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 const { asSessionId } = await import('../../src/sessions/transcripts/ids.ts')
 const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
-const { createFoldBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { createFoldBoundaryMessage, createSystemMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
 
 const HINT =
@@ -97,6 +97,20 @@ try {
     check(`${name}: no row is shown twice`, new Set(ids).size === ids.length, shape)
     const before = SHOWN_AS_BEFORE[name]
     if (before !== undefined) check(`${name}: the screen is row for row what it was`, shape === j(before), shape)
+
+    if (name === 'tie-behind') {
+      section(`${name}: a note, then a turn, are written under the late result of a call that is still shown`)
+      const note = createSystemMessage('screen proof: a note under the late result', 'info')
+      const prompt = createUserMessage({ content: 'screen proof: the prompt after the note' })
+      await recordTranscript([note])
+      await flushSessionStorage()
+      const noted = await readTranscriptChainSince(scene.file, chain.cursor)
+      check(`${name}: the note is appended below the reply and no shown row is taken back`, !noted.rewound && j(noted.appended.map(row => row.uuid)) === j([note.uuid]) && noted.rows.at(-2)?.uuid === scene.final, `rewound ${noted.rewound}, ${j(shapeOf(noted.rows, scene))}`)
+      await recordTranscript([prompt])
+      await flushSessionStorage()
+      const asked = await readTranscriptChainSince(scene.file, noted.cursor)
+      check(`${name}: the prompt is appended below the note, which keeps its place`, !asked.rewound && j(asked.appended.map(row => row.uuid)) === j([prompt.uuid]) && noted.rows.every((row, index) => asked.rows[index] === row), `rewound ${asked.rewound}, ${j(shapeOf(asked.rows, scene))}`)
+    }
 
     if (name === 'fold') {
       section(`${name}: the session goes on and the connector reads again`)

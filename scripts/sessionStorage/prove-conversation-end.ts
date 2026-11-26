@@ -326,10 +326,33 @@ try {
   }
   {
     const hand = byHand()
-    const boundary = at(createFoldBoundaryMessage('auto', 900))
-    hand.put(boundary, null)
+    const u1 = said('first prompt of a provider that gives every reply one id')
+    const a1 = called('same_id_call', 'msg_same')
+    const r1 = reported('same_id_call', a1)
+    const a2 = replied('first reply')
+    a2.message.id = 'msg_same'
+    const u2 = said('second prompt')
+    const a3 = replied('second reply')
+    a3.message.id = 'msg_same'
+    hand.put(u1, null)
+    hand.put(a1, u1)
+    hand.put(r1, a1)
+    hand.put(a2, r1)
+    hand.put(u2, a2)
+    hand.put(a3, u2)
     const elected = electConversationEnd(await read(hand.file))
-    check('a fold line with nothing behind it is its own end, with no turn made up', elected?.primary.uuid === boundary.uuid && j(ids(elected.rows)) === j([boundary.uuid]), shapeOf(elected?.rows ?? []))
+    check('replies that carry one message id, a prompt between them: the later reply is the end and the line is whole', elected?.primary.uuid === a3.uuid && j(ids(elected.rows)) === j([u1.uuid, a1.uuid, r1.uuid, a2.uuid, u2.uuid, a3.uuid]), shapeOf(elected?.rows ?? []))
+  }
+  {
+    const lone = byHand()
+    lone.put(at(createFoldBoundaryMessage('auto', 900)), null)
+    const noticed = byHand()
+    const boundary = at(createFoldBoundaryMessage('auto', 900))
+    noticed.put(boundary, null)
+    noticed.put(noted(), boundary)
+    const onlyResult = byHand()
+    onlyResult.put(reported('lost_call', called('lost_call', 'msg_lost')), randomUUID())
+    check('a file that holds no prompt and no reply (a fold line alone; a fold line with a note under it; a result alone) has no conversation: nothing is elected', electConversationEnd(await read(lone.file)) === undefined && electConversationEnd(await read(noticed.file)) === undefined && electConversationEnd(await read(onlyResult.file)) === undefined)
   }
 
   section('§6 a fresh runner writes an operator\'s rewind record first: a fork by intent stays a fork (the product\'s writer)')
