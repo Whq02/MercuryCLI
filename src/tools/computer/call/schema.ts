@@ -229,7 +229,7 @@ export function usesScreenshotPixels(step: Input): boolean {
 
 export function definitelyTakesImage(step: Input, sequence: Input): boolean {
   if (step.action !== 'screenshot') return false
-  return step.pixels === true || sequence.pixels === true || step.full === true || sequence.full === true || step.display !== undefined || step.region !== undefined || sequence.region !== undefined
+  return (step.pixels ?? sequence.pixels) === true || (step.full ?? sequence.full) === true || step.display !== undefined || (step.region ?? sequence.region) !== undefined
 }
 
 export const NO_SCREENSHOT = 'no screenshot yet — coordinates are pixels of the last screenshot; take one first'

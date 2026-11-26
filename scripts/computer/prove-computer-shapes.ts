@@ -147,6 +147,29 @@ section('E3: explicit pixels is accepted on capture-producing acts, focusApp and
     check('explicit screenshot step preserves terminal-text default when pixels is omitted', terminal.outcome === 'succeeded' && !terminal.imagePath && terminal.result.includes('visible terminal text') && focusedTextReads === 2, terminal.result)
     const terminalPixels = await runTyped({ action: 'sequence', steps: [{ action: 'screenshot' }], pixels: true })
     check('sequence pixels:true overrides explicit screenshot step terminal-text default to return pixels', terminalPixels.outcome === 'succeeded' && terminalPixels.imagePath !== undefined && focusedTextReads === 2, terminalPixels.result)
+    const { toolResultTurn } = await import('./computerToolKit.ts')
+    const baseTermCtx = toolContext()
+    const seedId = `shapes-term-seen-${++serial}`
+    const seedInput: ComputerInput = { action: 'screenshot', pixels: true }
+    const seedParent = createAssistantMessage({ content: [{ type: 'tool_use', id: seedId, name: 'Computer', input: seedInput }] })
+    const seedAnswer = await ComputerTool.call(seedInput, baseTermCtx, allowEverything, seedParent)
+    const seedBlock = ComputerTool.mapToolResultToToolResultBlockParam(seedAnswer.data, seedId)
+    const termCtx = { ...baseTermCtx, messages: [...baseTermCtx.messages, seedParent, toolResultTurn(seedBlock)] }
+    const runTerm = async (input: ComputerInput) => {
+      const id = `shapes-e3-term-${++serial}`
+      const parent = createAssistantMessage({ content: [{ type: 'tool_use', id, name: 'Computer', input }] })
+      return resultOf(await ComputerTool.call(input, termCtx, allowEverything, parent))
+    }
+    const clicksBeforeOverride = driver.acts.filter(a => a.act === 'click').length
+    const overrideInput: ComputerInput = { action: 'sequence', pixels: true, steps: [{ action: 'screenshot', pixels: false }, { action: 'click', x: 20, y: 20 }] }
+    const overrideValid = await ComputerTool.validateInput!(overrideInput, termCtx)
+    const overrideRan = await runTerm(overrideInput)
+    check('sequence pixels:true with explicit screenshot step pixels:false on a terminal returns terminal text and allows a following coordinate click from the seen map', overrideValid.result && overrideRan.outcome === 'succeeded' && overrideRan.result.includes('visible terminal text') && focusedTextReads === 3 && driver.acts.filter(a => a.act === 'click').length === clicksBeforeOverride + 1, `${JSON.stringify(overrideValid)}\n${overrideRan.result}`)
+    const clicksBeforeUnseen = driver.acts.filter(a => a.act === 'click').length
+    const unseenTermInput: ComputerInput = { action: 'sequence', pixels: true, steps: [{ action: 'screenshot' }, { action: 'click', x: 20, y: 20 }] }
+    const unseenTermValid = await ComputerTool.validateInput!(unseenTermInput, termCtx)
+    const unseenTermRan = await runTerm(unseenTermInput)
+    check('genuinely unseen pixel screenshot in sequence pixels:true still refuses a following coordinate click before acting', unseenTermValid.result === false && unseenTermRan.outcome === 'failed' && unseenTermRan.result.includes('taken in this same message') && driver.acts.filter(a => a.act === 'click').length === clicksBeforeUnseen, `${JSON.stringify(unseenTermValid)}\n${unseenTermRan.result}`)
   }
   driver.frontmostApplication = frontOrig
   driver.findApplication = findOrig
