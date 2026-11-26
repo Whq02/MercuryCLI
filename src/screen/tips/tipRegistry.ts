@@ -200,6 +200,16 @@ const GENERAL_TIPS: Tip[] = [
     },
   },
   {
+    id: 'rails-tab',
+    cooldownSessions: 12,
+    async content() {
+      return 'With side rails shown, Tab on an empty prompt focuses them — ↑↓ moves, ↵ opens, esc returns.'
+    },
+    async isRelevant() {
+      return getInitialSettings().view?.zen !== true
+    },
+  },
+  {
     id: 'rewind-checkpoint',
     cooldownSessions: 12,
     async content() {
@@ -489,6 +499,9 @@ const GENERAL_TIPS: Tip[] = [
       return true
     },
   },
+]
+
+const INTERNAL_TIPS: Tip[] = [
   {
     id: 'skills-location',
     cooldownSessions: 30,
@@ -511,8 +524,6 @@ const GENERAL_TIPS: Tip[] = [
     },
   },
 ]
-
-const INTERNAL_TIPS: Tip[] = []
 
 const ALL_TIPS: Tip[] = [...GENERAL_TIPS, ...INTERNAL_TIPS]
 

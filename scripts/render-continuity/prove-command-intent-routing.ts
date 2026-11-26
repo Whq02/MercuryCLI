@@ -229,12 +229,12 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
       iCrew >= 0 ? undefined : forensics(frames.findIndex(f => f.rows.some(r => r.includes('poise probe')))),
       'the Crewmate tool call must list the hosted agent in the CREW lane of the rail; the frames above show what the rail painted instead',
     )
-    const iView = idxOf(iCrew + 1, f => inView(f) && has(f, 'sends to poise probe'))
+    const iView = idxOf(iCrew + 1, f => inView(f) && has(f, 'viewing poise probe'))
     t.check(
       "one click on its CREW row opens the agent in the view (its transcript lives with the runner; ↵ addresses it)",
       iCrew >= 0 && iView > iCrew,
       iView > iCrew ? undefined : forensics(iCrew),
-      'a click on the agent CREW row must open the agent view with the sends to poise probe line; the frames above show what painted after the click',
+      'a click on the agent CREW row must open the agent view with viewing poise probe on the status row; the frames above show what painted after the click',
     )
     const iClosed = idxOf(iView + 1, f => !inView(f) && has(f, /›\s*✶ Mercury Lead/) && crewRow(f))
     t.check(

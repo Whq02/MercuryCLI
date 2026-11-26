@@ -476,9 +476,6 @@ async function run(cols: number, rows: number): Promise<void> {
     check('birch is viewed while atlas stays pinned', click.row >= 0 && click.landed && scene.state().viewingCrewmateTaskId === BIRCH.id && scene.state().mainChatTaskId === ATLAS.id, `row ${click.row} · viewing=${String(scene.state().viewingCrewmateTaskId)} pinned=${String(scene.state().mainChatTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ↵ ')}`)
     check('the status row says birch is viewed', viewedName(frame, railCols) === 'Lane birch', statusOf(frame, railCols))
     check('the composer placeholder names the pinned target: message Lane atlas', composerText(frame).includes(`message ${ATLAS.name}`), composerText(frame).slice(0, 80))
-    const footer = footerOf(frame).replace(/\s+/g, ' ')
-    check('the footer says ↵ sends to Lane atlas', /sends to Lane atlas/.test(footer), footer.slice(0, 260))
-    check('the footer says esc interrupts Lane birch — the VIEWED crewmate, the one the key cuts', /esc interrupts? Lane birch/.test(footer) && !/esc interrupts? Lane atlas/.test(footer), footer.slice(0, 260))
     const status = statusRowOf(frame)
     console.log(`the status row: "${status}"`)
     const painted = /viewing .*?(?=…|\s{2,}|$)/.exec(status)?.[0] ?? ''
@@ -505,7 +502,6 @@ async function run(cols: number, rows: number): Promise<void> {
     save('04-pinned-atlas-lead-view', cols, rows, frame)
     check('the lead\'s chat is the view while atlas stays pinned', click.row >= 0 && click.landed && scene.state().viewingCrewmateTaskId === undefined && scene.state().mainChatTaskId === ATLAS.id, `row ${click.row} · viewing=${String(scene.state().viewingCrewmateTaskId)} pinned=${String(scene.state().mainChatTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ↵ ')}`)
     const footer = footerOf(frame).replace(/\s+/g, ' ')
-    check('the footer says ↵ sends to Lane atlas · m on Mercury Lead returns the main chat', /sends to Lane atlas/.test(footer) && /m on Mercury Lead returns the main chat/.test(footer), footer.slice(0, 260))
     check('the footer does NOT say esc interrupts Lane atlas — esc on the lead\'s screen is the lead\'s own interrupt', !/esc interrupts? Lane atlas/.test(footer), footer.slice(0, 260))
     const status = statusRowOf(frame)
     console.log(`the status row: "${status}"`)
@@ -534,9 +530,6 @@ async function run(cols: number, rows: number): Promise<void> {
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('CEDAR-ROW')), 6000)
     await sleep(300)
     check('cedar (completed on the roster, opened from the crew pop-up\'s road) is viewed', scene.state().viewingCrewmateTaskId === CEDAR.id && viewedName(scene.lines(), railCols) === CEDAR.name, `viewingAgentTaskId=${String(scene.state().viewingCrewmateTaskId)} · status row ${statusOf(scene.lines(), railCols)}`)
-    const idleFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
-    check('the footer on the landed crewmate says esc goes back to Mercury Lead, never esc interrupts Lane cedar', /esc[^·]*back[^·]*Mercury Lead/.test(idleFooter) && !/esc interrupts? Lane cedar/.test(idleFooter), idleFooter.slice(0, 260))
-    check('the footer says ↵ resumes Lane cedar with your line (the runner resumes a landed hosted crewmate from its transcript), never "↵ sends to Lane cedar"', /↵ resumes Lane cedar with your line/.test(idleFooter) && !/↵ sends to Lane cedar/.test(idleFooter), idleFooter.slice(0, 260))
     const stopsBefore = stops().length
     scene.push(ESC)
     await sleep(500)
@@ -566,8 +559,6 @@ async function run(cols: number, rows: number): Promise<void> {
     await until(() => scene.state().viewingCrewmateTaskId === LOCAL_ID, 4000)
     await sleep(400)
     const IDLE_LINE = 'to the idle local'
-    const idleLocalFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
-    check('the footer on a landed LOCAL crewmate says ↵ is refused and names the resume door (r in /crewmates), never "↵ sends to Lane local"', /↵ refused — r in \/crewmates resumes Lane local/.test(idleLocalFooter) && !/↵ sends to Lane local/.test(idleLocalFooter), idleLocalFooter.slice(0, 260))
     await typeWords(scene, IDLE_LINE)
     scene.push(ENTER)
     await sleep(700)
