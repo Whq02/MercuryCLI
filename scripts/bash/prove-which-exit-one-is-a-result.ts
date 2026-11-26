@@ -244,6 +244,7 @@ if (process.platform === 'win32') {
     ['the closing test reads $? through an indirect name', `s='?'; false; test "\${!s}" = 1`, 'ok'],
     ['the closing test reads $? through eval', `false; test "$(eval 'echo $?')" = 1`, 'ok'],
     ['a function of the script, first stage of the closing pipeline, reads $?', 'st() { [ "$?" = 1 ] && echo failed; }; false; st | grep -c failed', 'ok'],
+    ['the closing test sources a file that reads $?', `printf 'echo $?\\n' > ${WORK}/reads-status; false; test "$(. ${WORK}/reads-status)" = 1`, 'ok'],
   ]
   for (const [label, command, want, more] of RAN_LAST) {
     const ran = await drive(command, more)
@@ -318,6 +319,8 @@ if (process.platform === 'win32') {
     ['a function of the script that reads no status, called by the closing test', 'say() { echo ok; }; false; test "$(say)" = ok'],
     ['a function that reads $? after its own command', `run() { "$@"; rc=$?; return $rc; }; run true; grep missing ${LEFT}`],
     ['a function that reads $? in its second statement, called by the closing test', 'st() { :; echo $?; }; false; test "$(st)" = 0'],
+    ['a file sourced before the closing command, and a dot in its words', `. ${STATUS}; grep -c 'a . b' ${LEFT}`],
+    ['eval and source as words the closing grep searches for', `false; grep -c -e eval -e source ${LEFT}`],
     ['set -euo pipefail ahead of a pipe with --verbose', `set -euo pipefail\ntrue --verbose | grep -c missing`],
     ['--set and a variable in the words of another command', `v=1; true --set image=$v; grep missing ${LEFT}`],
     ['a command held in a variable', `tool=true; $tool --quiet; grep missing ${LEFT}`],
@@ -361,6 +364,9 @@ if (process.platform === 'win32') {
     ['a function that reads $? through eval', `st() { eval 'echo $?'; }; false; test "$(st)" = 1`, 'unmarked'],
     ['a closing test that reads $? through an indirect name', `s='?'; false; test "\${!s}" = 1`, 'unmarked'],
     ['a closing test that reads $? through eval', `false; test "$(eval 'echo $?')" = 1`, 'unmarked'],
+    ['a closing test that sources a file that reads $?', `printf 'echo $?\\n' > ${WORK}/reads-status; false; test "$(. ${WORK}/reads-status)" = 1`, 'unmarked'],
+    ['a closing pipeline whose first stage sources a file', `printf 'echo $?\\n' > ${WORK}/reads-status; false; source ${WORK}/reads-status | grep -c 1`, 'unmarked'],
+    ['a closing test that reads $? through eval behind an assignment and command', `false; test "$(X=1 command eval 'echo $?')" = 1`, 'unmarked'],
     ['a trap handed to mapfile as its callback', `mapfile -c 1 -C 'trap "echo seen >> ${SIDE}" DEBUG #' lines < ${LEFT}; grep -e '[' ${LEFT}`, 'unmarked'],
     ['a DEBUG trap installed by a sourced file reads $? as 0 at the closing command, and sees no other command', `. ${INSTALL}; false; grep missing ${LEFT}`, 'bound'],
     ['a DEBUG trap whose name is put together from pieces', `trap 'echo "rc=$?" >> ${SIDE}' DE"BUG"; false; grep missing ${LEFT}`, 'unmarked'],
