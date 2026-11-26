@@ -200,6 +200,16 @@ const GENERAL_TIPS: Tip[] = [
     },
   },
   {
+    id: 'rails-tab',
+    cooldownSessions: 12,
+    async content() {
+      return 'With side rails shown, Tab on an empty prompt focuses them — ↑↓ moves, ↵ opens, esc returns.'
+    },
+    async isRelevant() {
+      return getInitialSettings().view?.zen !== true
+    },
+  },
+  {
     id: 'rewind-checkpoint',
     cooldownSessions: 12,
     async content() {
@@ -489,6 +499,9 @@ const GENERAL_TIPS: Tip[] = [
       return true
     },
   },
+]
+
+const INTERNAL_TIPS: Tip[] = [
   {
     id: 'skills-location',
     cooldownSessions: 30,
@@ -512,20 +525,7 @@ const GENERAL_TIPS: Tip[] = [
   },
 ]
 
-const INTERNAL_TIPS: Tip[] = [
-  {
-    id: 'rails-tab',
-    cooldownSessions: 12,
-    async content() {
-      return 'On an empty prompt, Tab focuses the side rails — ↑↓ picks a row, ↵ opens it, esc returns.'
-    },
-    async isRelevant() {
-      return getInitialSettings().view?.zen !== true
-    },
-  },
-]
-
-const ALL_TIPS: Tip[] = [...GENERAL_TIPS.slice(0, -2), ...INTERNAL_TIPS, ...GENERAL_TIPS.slice(-2)]
+const ALL_TIPS: Tip[] = [...GENERAL_TIPS, ...INTERNAL_TIPS]
 
 function customTipsFromSettings(): { tips: Tip[]; excludeDefault: boolean } {
   const words = getInitialSettings().activity?.tips?.words
