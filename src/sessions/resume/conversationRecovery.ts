@@ -10,7 +10,7 @@ import { withoutRetractedReplies } from '../../engine/connector/midTurnText.js'
 import { restoreBoundPrefixFromMessages } from '../../models/roads/anthropic/boundPrefixRecord.js'
 import { declaredRouteOf } from '../../models/roads/routeLaw.js'
 import type { AssistantMessage, AttachmentMessage, Message, NormalizedUserMessage, UserMessage } from '../../engine/message-shapes/message.js'
-import type { SessionListing, SerializedMessage, TranscriptMessage, TurnEnded } from '../transcripts/transcriptEntries.js'
+import type { SessionListing, SerializedMessage, TurnEnded } from '../transcripts/transcriptEntries.js'
 import { PERMISSION_MODES } from '../../permissions/rules/permissions.js'
 import { suppressNextSkillListing } from '../../engine/attachment-shapes/skillListing.js'
 import { getCwd } from '../../platform/files/cwd.js'
@@ -41,9 +41,9 @@ import {
   type OpenToolUses,
 } from '../../engine/message-shapes/openToolUses.js'
 import { runSessionStartHooks } from '../../daemon/runner/sessionStart.js'
+import { electConversationEnd } from '../transcripts/conversationEnd.js'
 import { resumeFactsOf, type ResumeFacts } from '../transcripts/sessionListings.js'
 import {
-  buildConversationChain,
   checkResumeConsistency,
   lastSession,
   sessionIdOfListing,
@@ -503,30 +503,14 @@ type WalkedTranscript = {
 
 async function walkTranscriptFile(path: string): Promise<WalkedTranscript> {
   const loaded = await loadTranscriptFile(path)
-  const messages = loaded.messages
-  const referencedParents = new Set<string>()
-  for (const message of messages.values()) {
-    if (message.parentUuid && !message.isSidechain) referencedParents.add(message.parentUuid)
-  }
-  let best: TranscriptMessage | null = null
-  let bestTime = 0
-  for (const message of messages.values()) {
-    if (referencedParents.has(message.uuid)) continue
-    if (message.isSidechain) continue
-    const time = Date.parse(message.timestamp)
-    if (Number.isNaN(time)) continue
-    if (time > bestTime) {
-      bestTime = time
-      best = message
-    }
-  }
-  if (!best) return { messages: [], sessionId: undefined, facts: {} }
-  const chain = buildConversationChain(messages, best)
-  const sessionId = best.sessionId as UUID
+  const elected = electConversationEnd(loaded.messages)
+  if (elected === undefined) return { messages: [], sessionId: undefined, facts: {} }
+  const rows = elected.rows
+  const sessionId = (rows.at(-1) ?? elected.primary).sessionId as UUID
   return {
-    messages: removeExtraFields(chain),
+    messages: removeExtraFields(rows),
     sessionId,
-    facts: resumeFactsOf(loaded, sessionId, chain),
+    facts: resumeFactsOf(loaded, sessionId, rows),
   }
 }
 
