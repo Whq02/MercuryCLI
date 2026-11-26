@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import puppeteer from 'puppeteer-core'
 import { removeScratch } from '../lib/removeScratch.ts'
-import { BrowserTool, ROOT, check, finish, lead, ownerOf, permission, requireBrowser, run, section, serve } from './harness.ts'
+import { BrowserTool, ROOT, check, finish, lead, permission, requireBrowser, run, section, serve } from './harness.ts'
 import type { Tool, ToolUseContext } from '../../src/tools/kit/tool.js'
 import type { PermissionDecision } from '../../src/permissions/rules/permissionResult.js'
 import type { ToolUseConfirm } from '../../src/permissions/cards/PermissionRequest.js'
@@ -18,6 +18,7 @@ process.env.NODE_ENV = 'test'
 const bindings = await import('../../src/screen/keys/useKeybinding.js')
 mock.module('../../src/screen/keys/useKeybinding.js', () => ({ ...bindings, useKeybinding: () => undefined, useKeybindings: () => undefined }))
 const { BrowserPermissionRequest } = await import('../../src/permissions/cards/browser/BrowserPermissionRequest.js')
+const { encodeDecisionReasonForWire, decodeDecisionReasonFromWire } = await import('../../src/permissions/rules/decisionReasonWire.js')
 const { renderToString } = await import('../../src/screen/renderer/staticRender.js')
 const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
@@ -152,7 +153,19 @@ try {
     }
   }
 
-  section('S2 attached-session ask cards (open, extract, click) never open with headless Chrome for Testing')
+  const wireRoundTrip = (decision: PermissionDecision): PermissionDecision => {
+    const rawDetail = 'decisionReason' in decision ? JSON.parse(JSON.stringify(encodeDecisionReasonForWire(decision.decisionReason))) : undefined
+    const decodedReason = decodeDecisionReasonFromWire(rawDetail)
+    const suggestions = 'suggestions' in decision ? decision.suggestions : undefined
+    return {
+      behavior: 'ask',
+      message: 'Browser asks to run',
+      ...(suggestions !== undefined && suggestions.length > 0 ? { suggestions } : {}),
+      ...(decodedReason !== undefined ? { decisionReason: decodedReason } : {}),
+    }
+  }
+
+  section('S2 attached-session ask cards across daemon wire (open, extract, click, emulation) never show headless Chrome for Testing')
   {
     const joined = await run({ op: 'attach', endpoint }, lead)
     const tabA = /^\s*(tab-\d+): /.exec(joined.result.split('\n').find(line => line.includes(siteA.origin)) ?? '')?.[1] ?? 'tab-missing'
@@ -162,11 +175,13 @@ try {
       ['attached-open', { op: 'open', url: `${siteB.origin}/page` } satisfies BrowserInput],
       ['attached-extract', { op: 'extract', tab: tabA } satisfies BrowserInput],
       ['attached-click', { op: 'click', tab: tabA, selector: '#btn' } satisfies BrowserInput],
+      ['attached-emulation', { op: 'viewport', tab: tabA, emulation: { headers: { 'x-attached': '1' } } } satisfies BrowserInput],
     ] as const) {
       const decision = (await permission(input, lead)) as PermissionDecision
       check(`${label}: permission check asks for unapproved origin in attached browser`, decision.behavior === 'ask', JSON.stringify(decision))
+      const wired = wireRoundTrip(decision)
       for (const columns of [80, 120]) {
-        const frame = await renderCard(input, decision, columns)
+        const frame = await renderCard(input, wired, columns)
         captures.push(`=== ${label} (${columns}) ===\n${frame}`)
         const flat = flatten(frame)
         check(`${label}/${columns}: does not show headless Chrome for Testing`, !flat.includes('Chrome for Testing') && !flat.includes('headless'), flat)
@@ -181,7 +196,7 @@ try {
     const defaultDesc = await BrowserTool.description(openInput, descCtx)
     check('isolated open description still leads with headless Chrome for Testing', defaultDesc.startsWith('Drive a headless Chrome for Testing from the managed cache') && defaultDesc.includes('installed browsers are never launched'), defaultDesc)
 
-    const isolatedDecision = (await permission(openInput, isolatedOwner)) as PermissionDecision
+    const isolatedDecision = wireRoundTrip((await permission(openInput, isolatedOwner)) as PermissionDecision)
     const isolatedFrame = await renderCard(openInput, isolatedDecision, 120)
     captures.push(`=== isolated-open (120) ===\n${isolatedFrame}`)
     const isolatedFlat = flatten(isolatedFrame)
@@ -191,6 +206,7 @@ try {
     const emulDecision: PermissionDecision = {
       behavior: 'ask',
       message: `Browser viewport on ${siteB.origin} with extra headers sent on every request, including other origins — reached by navigation, not yet approved this session`,
+      suggestions: [{ type: 'addRules', rules: [{ toolName: 'Browser', ruleContent: `origin:${siteB.origin}` }], behavior: 'allow', destination: 'localSettings' }],
       decisionReason: { type: 'safetyCheck', reason: `${siteB.origin} was reached by navigation, not requested by the operator`, operatorOnly: true },
     }
     const emulFrame = await renderCard(emulInput, emulDecision, 120, emulDecision.message)

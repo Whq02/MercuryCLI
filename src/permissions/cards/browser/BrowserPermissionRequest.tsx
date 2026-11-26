@@ -41,7 +41,6 @@ export function BrowserPermissionRequest({
     suggestedRule && suggestedRule.type === 'addRules' ? suggestedRule.rules[0]?.ruleContent : undefined
   const askedOrigin = (ruleContent ?? suggestedContent ?? '').replace(/^origin:/, '')
   const emulationAct = input.op === 'viewport' && (input.emulation?.headers != null || input.emulation?.credentials != null)
-  const attachedAsk = reason?.type === 'safetyCheck' && reason.reason.includes('your own browser')
   const scopeLines =
     provisioning || emulationAct || input.secretRef !== undefined || ruleContent?.startsWith('secret:') === true || !askedOrigin.startsWith('http')
       ? []
@@ -138,7 +137,7 @@ export function BrowserPermissionRequest({
         )}
         {scopeLines.length > 0 ? (
           scopeLines.map((line, i) => <Text key={i}>{line}</Text>)
-        ) : attachedAsk ? null : (
+        ) : reason?.type === 'safetyCheck' && !(emulationAct && ruleContent !== null) ? null : (
           <Text dimColor>{toolUseConfirm.description}</Text>
         )}
         <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
