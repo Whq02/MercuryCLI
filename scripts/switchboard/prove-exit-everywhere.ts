@@ -137,7 +137,7 @@ console.log('leg B — the concourse with a draft (the first press clears it AND
   const { home, fixturePath } = freshHome('draft')
   const DRAFT = 'zq-draft-zq'
   const c = capture('B-draft', ['node', BIN], [
-    { data: '\t', requireAwait: true, awaitText: 'LAST USED', awaitSettleTicks: 4 },
+    { data: '\t', requireAwait: true, awaitText: 'last used', awaitSettleTicks: 4 },
     { data: DRAFT, afterPrevTicks: 3 },
     { data: CTRL_C, requireAwait: true, awaitText: DRAFT, awaitSettleTicks: 2 },
     ...armThenExit,
@@ -152,7 +152,7 @@ console.log('leg C — the concourse under a card (the key atlas owns every key;
 {
   const { home, fixturePath } = freshHome('card')
   const c = capture('C-card', ['node', BIN], [
-    { data: '?', requireAwait: true, awaitText: 'LAST USED', awaitSettleTicks: 4 },
+    { data: '?', requireAwait: true, awaitText: 'last used', awaitSettleTicks: 4 },
     { data: CTRL_C, requireAwait: true, awaitText: 'CONCOURSE — keys', awaitSettleTicks: 2 },
     ...armThenExit,
   ], { cols: 120, rows: 40, total: 150, env: envFor(home, fixturePath) })
@@ -166,7 +166,7 @@ console.log('leg D — the split view (140×40)')
 {
   const { home, fixturePath } = freshHome('split')
   const c = capture('D-split', ['node', BIN], [
-    { data: 's', requireAwait: true, awaitText: 'LAST USED', awaitSettleTicks: 4 },
+    { data: 's', requireAwait: true, awaitText: 'last used', awaitSettleTicks: 4 },
     { data: CTRL_C, requireAwait: true, awaitText: 'FOCUSED CHAT', awaitSettleTicks: 3 },
     ...armThenExit,
   ], { cols: 140, rows: 40, total: 150, env: envFor(home, fixturePath) })
@@ -195,7 +195,7 @@ console.log('leg F — the window lapse (one press never exits; the notice clear
   const { home, fixturePath } = freshHome('lapse')
   const AFTER = 'zq-after-zq'
   const c = capture('F-lapse', ['node', BIN], [
-    { data: '\t', requireAwait: true, awaitText: 'LAST USED', awaitSettleTicks: 4 },
+    { data: '\t', requireAwait: true, awaitText: 'last used', awaitSettleTicks: 4 },
     { data: CTRL_C, afterPrevTicks: 3 },
     { data: '', requireAwait: true, awaitText: NOTICE, awaitSettleTicks: 1, mark: 'armed' },
     { data: AFTER, afterPrevTicks: 1 },

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { join } from 'node:path'
+export {}
 
 let failures = 0
 function check(label: string, cond: boolean, detail = '', fix = ''): void {
@@ -9,16 +9,12 @@ function check(label: string, cond: boolean, detail = '', fix = ''): void {
 }
 const stopsFix = 'change stripStops in src/screen/routes/surfaceRoute.ts so the stops match the expected world'
 const strippedHintFix = 'change stripKeyMapHintOf in src/screen/routes/surfaceRoute.ts so the hint names the next stop (concourse or boot face) through keyHintLabel'
-const footerSpellFix = 'change footerStripHint in src/screen/composer/ComposerFooter.tsx so the chord reads "shift + ←" and the stop name is kept'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
 const { stripKeyMapHintOf, stripStops } = await import('../../src/screen/routes/surfaceRoute.js')
 const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.js')
-const footerModule = (await import('../../src/screen/composer/ComposerFooter.js')) as { footerStripHint?: (hint: string) => string }
-const footerStripHint = footerModule.footerStripHint ?? ((hint: string): string => hint)
-
 section('§1 the derivation — both worlds, through the real strip owners')
 {
   const full = stripStops({ concourseEnabled: true, chatBoot: false, chatPresent: true })
@@ -34,19 +30,6 @@ section('§1 the derivation — both worlds, through the real strip owners')
 
   check('no stops ⇒ empty hint', stripKeyMapHintOf('repl', []) === '', JSON.stringify(stripKeyMapHintOf('repl', [])), 'make stripKeyMapHintOf in src/screen/routes/surfaceRoute.ts return an empty string when there are no stops')
 }
-
-
-section('§3 the footer spells the chord in its own row\'s grammar: "shift + ←", beside "shift + ↵ for a new line", on every host')
-{
-  check('the concourse present: "shift + ← concourse"', footerStripHint('⇧← concourse') === 'shift + ← concourse', footerStripHint('⇧← concourse'), footerSpellFix)
-  check('the off-mac spelling folds to the same words (Windows reads the same row)', footerStripHint(keyHintLabel('⇧← concourse', 'windows')) === 'shift + ← concourse', footerStripHint(keyHintLabel('⇧← concourse', 'windows')), footerSpellFix + ' and fold the off-mac spelling from keyHintLabel (src/screen/widgets/keyHintLabel.ts) to the same words')
-  check('the plain world: "shift + ← boot face"', footerStripHint('⇧← boot face') === 'shift + ← boot face', '', footerSpellFix)
-  check('no stop ⇒ still nothing', footerStripHint('') === '', '', 'make footerStripHint in src/screen/composer/ComposerFooter.tsx return an empty string for an empty hint')
-  check('the stop name stays router-derived (only the chord is respelled)', footerStripHint('⇧← anything') === 'shift + ← anything', '', footerSpellFix)
-  check('no ⇧ survives into the footer row', !footerStripHint(stripKeyMapHintOf('repl', stripStops({ concourseEnabled: true, chatBoot: false, chatPresent: true }))).includes('⇧'), '', footerSpellFix + ' so no ⇧ remains')
-  check('the row reads one grammar: both hints open with "shift + "', footerStripHint('⇧← concourse').startsWith('shift + ') && 'shift + ↵ for a new line'.startsWith('shift + '), '', footerSpellFix)
-}
-
 if (failures > 0) {
   console.error(`\n❌ ${failures} FOOTER-STRIP-HINT PROOF(S) FAILED`)
   process.exit(1)

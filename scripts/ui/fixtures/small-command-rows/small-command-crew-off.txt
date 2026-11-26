@@ -5,9 +5,9 @@ workbench               │   ▄▄▄▄▄▄▄▄▄                       
 next                    │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
   /health               │                                                                                                                  │
   /memory               │                                                                                                                  │
-  /mission              │ 00:39:28 [sam] ❯ start                                                                                           │
+  /mission              │ 01:11:28 [sam] ❯ start                                                                                           │
                         │                                                                                                                  │
-files · project         │ 00:39:28 [Mercury] Command rows ready.                                                                           │
+files · project         │ 01:11:28 [Mercury] Command rows ready.                                                                           │
   ↵ browse              │                                                                                                                  │
                         │ ❯ /crewmates off                                                                                                 │
 vitals                  │   └ crewmates off for this session                                                                               │
@@ -41,10 +41,10 @@ vitals                  │   └ crewmates off for this session                
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
+                        │                                                                                                                  │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
  ready · Opus 5.5 · high                                                                                                   project  ⇧← back
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                                         │
+│❯ Type a prompt, or / for commands                                                                                                        │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line · shift + ← concourse
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

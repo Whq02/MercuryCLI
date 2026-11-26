@@ -65,14 +65,14 @@ const CONCOURSE_REFERENCE_SEED = {
   },
   groups: [
     {
-      label: 'READY TO REVIEW',
+      label: 'ready to review',
       count: 1,
       rows: [
         { id: 's-audit', glyph: 'ok', title: 'Audit billing receipts', project: 'Moodle', owner: 'Mercury', age: '12m', seats: '—' },
       ],
     },
     {
-      label: 'WORKING',
+      label: 'working',
       count: 3,
       rows: [
         { id: 's-oauth', glyph: 'ok', title: 'Fix OAuth callback', project: 'Moodle', owner: 'Mercury', age: '07m', seats: '1/2', selected: true },
@@ -81,7 +81,7 @@ const CONCOURSE_REFERENCE_SEED = {
       ],
     },
     {
-      label: 'QUEUED',
+      label: 'queued',
       count: 2,
       rows: [
         { id: 's-trace', glyph: 'diamond', title: 'Trace reconnect race', project: 'orchard-src', owner: '—', age: '—', seats: 'waits' },
@@ -120,7 +120,7 @@ export function referenceFixtureSnapshot(): Record<string, unknown> {
   const seatOf = (s: string): { held: number; ceiling: number } | 'waits' | null =>
     s === 'waits' ? 'waits' : /^\d+\/\d+$/.test(s) ? { held: Number(s.split('/')[0]), ceiling: Number(s.split('/')[1]) } : null
   const stateOf = (groupLabel: string): 'ready-to-review' | 'working' | 'queued' =>
-    groupLabel === 'READY TO REVIEW' ? 'ready-to-review' : groupLabel === 'WORKING' ? 'working' : 'queued'
+    groupLabel === 'ready to review' ? 'ready-to-review' : groupLabel === 'working' ? 'working' : 'queued'
   return {
     schema: 1,
     revision: 1,

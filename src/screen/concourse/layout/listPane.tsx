@@ -175,7 +175,7 @@ function boardRowsOf({
         <Box key={`h:${g.id}`} flexShrink={0} paddingX={1}>
           <Text>
             <Text color={groupRole(g.id)} bold>
-              {g.label.toLowerCase()}
+              {g.label}
             </Text>
             <Text color={groupRole(g.id)}> · {g.rows.length}</Text>
           </Text>

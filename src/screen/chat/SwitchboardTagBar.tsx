@@ -341,9 +341,11 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   if (!painting) return null
   const status: SeatStatusV1 = c.status()
   const line = composerCrewmate !== null ? crewmateStatusWords(crewmate, targetWords(composerCrewmate), composerCrewmate.running) : statusLine(live, status, crew)
+  const crewmateRightHint =
+    crewmate !== null && !crewmate.pinned ? crewmateStatusRightHint(false, crewmateLive(crewmate), escapeOwned) : ''
   const backHint =
     crewmate !== null && !crewmate.pinned
-      ? `${crewmateStatusRightHint(false, crewmateLive(crewmate), escapeOwned)} · ${keyHintLabel('⇧← back')}`
+      ? crewmateRightHint !== '' ? `${crewmateRightHint} · ${keyHintLabel('⇧← back')}` : keyHintLabel('⇧← back')
       : escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false, sendNow, escapeOwned)
   const effortLabel = modelSupportsEffort(effectiveModel) ? focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false) : null
   const chipCrewmate = crewmate ?? composerCrewmate

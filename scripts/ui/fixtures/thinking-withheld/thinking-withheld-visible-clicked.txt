@@ -5,11 +5,11 @@ workbench               │   ▄▄▄▄▄▄▄▄▄                       
 next                    │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
   /health               │                                                                                                                  │
   /memory               │                                                                                                                  │
-  /mission              │ 00:41:14 [sam] ❯ private reasoning                                                                               │
+  /mission              │ 01:13:14 [sam] ❯ private reasoning                                                                               │
                         │                                                                                                                  │
-files · project         │ 00:41:14 [Mercury] Private reasoning answer.                                                                     │
+files · project         │ 01:13:14 [Mercury] Private reasoning answer.                                                                     │
   ↵ browse              │                                                                                                                  │
-                        │ 00:41:23 [sam] ❯ visible reasoning                                                                               │
+                        │ 01:13:23 [sam] ❯ visible reasoning                                                                               │
 vitals                  │                                                                                                                  │
   spend $0.00           │ ● Preserved thinking: 2 thinking blocks written by Opus 4.8 stay out of the requests to Opus 5.5 (the            │
   ctx 0% · 1000k        │ conversation switched models); the model re-plans without them.                                                  │
@@ -18,7 +18,8 @@ vitals                  │                                                     
                         │   Visible reasoning body.                                                                                        │
                         │                                                                                                                  │
                         │                                                                                                                  │
-                        │ 00:41:23 [Mercury] Visible reasoning answer.                                                                     │
+                        │ 01:13:23 [Mercury] Visible reasoning answer.                                                                     │
+                        │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
@@ -46,5 +47,4 @@ vitals                  │                                                     
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │❯                                                                                                                                         │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line · shift + ← boot face
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

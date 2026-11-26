@@ -22,7 +22,6 @@ const { AppStateProvider } = await import('../../src/screen/app-state/AppState.j
 const { WORK_FRAMES } = await import('../../src/screen/cockpit/liveGlyphs.js')
 const { GLYPH } = await import('../../src/screen/theme/glyphs.js')
 const { BLACK_CIRCLE } = await import('../../src/screen/theme/rowGlyphs.js')
-const { TOOL_FAMILY_MARKS } = await import('../../src/screen/widgets/toolGlyphs.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -135,9 +134,7 @@ async function renderRow(opts: {
   return renderToString(node as never, 100)
 }
 const workFamily = (s: string): boolean => WORK_FRAMES.some(f => s.includes(f))
-const SHELL = TOOL_FAMILY_MARKS.shell.glyph
-const READ = TOOL_FAMILY_MARKS.read.glyph
-const leadsWith = (row: string, lead: string, name: string): boolean => row.replace(/^\d\d:\d\d:\d\d \[Mercury\] /, '').startsWith(`${lead} ${name}`)
+const leadsWith = (row: string, prefix: string): boolean => row.replace(/^\d\d:\d\d:\d\d \[Mercury\] /, '').startsWith(prefix)
 
 const runningRow = await renderRow({
   tool: BashTool,
@@ -147,9 +144,8 @@ const runningRow = await renderRow({
   lookups: baseLookups(),
 })
 check(
-  'the RUNNING row leads with the shell mark and no work glyph',
-  leadsWith(runningRow, SHELL, 'Bash') && !workFamily(runningRow),
-  JSON.stringify(runningRow),
+  'the RUNNING row has a two-cell blank lead before Bash and no work glyph',
+  leadsWith(runningRow, '  Bash') && !workFamily(runningRow),
 )
 check(
   '…and shows the live progress body under the header (running…)',
@@ -166,9 +162,8 @@ const settledRow = await renderRow({
   lookups: baseLookups({ resolvedToolUseIDs: new Set([TOOL_ID]) }),
 })
 check(
-  'the SETTLED row leads with the shell mark alone — no dot, no work glyph',
-  leadsWith(settledRow, SHELL, 'Bash') && !settledRow.includes(BLACK_CIRCLE) && !workFamily(settledRow),
-  JSON.stringify(settledRow),
+  'the SETTLED row has a two-cell blank lead before Bash — no dot, no work glyph',
+  leadsWith(settledRow, '  Bash') && !settledRow.includes(BLACK_CIRCLE) && !workFamily(settledRow),
 )
 check('…and the progress body is gone at settle', !settledRow.includes('running…'))
 
@@ -183,9 +178,8 @@ const erroredRow = await renderRow({
   }),
 })
 check(
-  'an ERRORED row leads with the shell mark, never a warn glyph or the pulse',
-  leadsWith(erroredRow, SHELL, 'Bash') && !erroredRow.includes(GLYPH.warn) && !workFamily(erroredRow),
-  JSON.stringify(erroredRow),
+  'an ERRORED row leads with ✕, never a warn glyph or the pulse',
+  leadsWith(erroredRow, `${GLYPH.fail} Bash`) && !erroredRow.includes(GLYPH.warn) && !workFamily(erroredRow),
 )
 
 const deniedRow = await renderRow({
@@ -199,7 +193,7 @@ const deniedRow = await renderRow({
     deniedToolUseIDs: new Set([TOOL_ID]),
   }),
 })
-check('a DENIED row leads with ✕ in the mark\'s place', leadsWith(deniedRow, GLYPH.fail, 'Bash') && !deniedRow.includes(SHELL) && !workFamily(deniedRow), JSON.stringify(deniedRow))
+check('a DENIED row leads with ✕', leadsWith(deniedRow, `${GLYPH.fail} Bash`) && !workFamily(deniedRow), JSON.stringify(deniedRow))
 
 const readRow = await renderRow({
   tool: ReadTool,
@@ -208,7 +202,7 @@ const readRow = await renderRow({
   inProgress: new Set<string>(),
   lookups: baseLookups({ resolvedToolUseIDs: new Set([TOOL_ID]) }),
 })
-check('a resolved READ leads with the read mark, never a ring', leadsWith(readRow, READ, 'Read') && !readRow.includes(GLYPH.read) && !workFamily(readRow), JSON.stringify(readRow))
+check('a resolved READ has a two-cell blank lead before Read, never a ring', leadsWith(readRow, '  Read') && !readRow.includes(GLYPH.read) && !workFamily(readRow), JSON.stringify(readRow))
 
 section('§C the daemon-hosted feed seams (source locks, call-shaped)')
 {

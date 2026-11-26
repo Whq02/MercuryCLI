@@ -5,11 +5,11 @@ workbench               │   ▄▄▄▄▄▄▄▄▄                       
 next                    │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
   /health               │                                                                                                                  │
   /memory               │                                                                                                                  │
-  /mission              │ 00:41:14 [sam] ❯ private reasoning                                                                               │
+  /mission              │ 01:13:14 [sam] ❯ private reasoning                                                                               │
                         │                                                                                                                  │
 files · project         │ ✻ thinking… — the provider returned no thinking text for this model                                              │
   ↵ browse              │                                                                                                                  │
-                        │ 00:41:14 [Mercury] Private reasoning answer.                                                                     │
+                        │ 01:13:14 [Mercury] Private reasoning answer.                                                                     │
 vitals                  │                                                                                                                  │
   spend $0.00           │                                                                                                                  │
   ctx 0% · 1000k        │                                                                                                                  │
@@ -41,10 +41,10 @@ vitals                  │                                                     
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
+                        │                                                                                                                  │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
  ready · Opus 5.5 · high                                                                                                   project  ⇧← back
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                                         │
+│❯ Type a prompt, or / for commands                                                                                                        │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line · shift + ← boot face
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

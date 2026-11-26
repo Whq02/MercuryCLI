@@ -101,9 +101,9 @@ if (grid) {
   const errY = lineOf('missing-manifest.ts')
   const errLead = leadOf(errY)
   check('errored Edit status row present', errY >= 0)
-  check('errored Edit leads with its ▨ mark (not ✕)', errLead?.c === '▨',
+  check('errored Edit leads with ✕', errLead?.c === '✕',
     errLead ? `saw '${errLead.c}'` : 'no glyph')
-  check('errored ▨ is CRIMSON', hexEq(errLead?.fg, CRIMSON),
+  check('errored ✕ is CRIMSON', hexEq(errLead?.fg, CRIMSON),
     `fg=${errLead?.fg} want=${CRIMSON}`)
 
   const bodyY = lineOf('Error: ENOENT')
@@ -114,7 +114,7 @@ if (grid) {
   check('body headline ▲ is AMBER', hexEq(bodyLead?.fg, AMBER),
     `fg=${bodyLead?.fg} want=${AMBER}`)
 
-  if (denyLead?.c !== '✕' || errLead?.c !== '▨') {
+  if (denyLead?.c !== '✕' || errLead?.c !== '✕') {
     console.log('  … transcript rows around the needles (first 78 cols):')
     for (const y of [denyY, errY]) {
       if (y < 0) continue
@@ -126,7 +126,6 @@ if (grid) {
 
   const noFailOn = (y: number) =>
     y < 0 || !grid[y]!.some(c => c.c === '✕')
-  check('errored status row carries no ✕', noFailOn(errY))
   check('errored body headline row carries no ✕', noFailOn(bodyY))
 }
 cleanupScenario('denied-transcript')

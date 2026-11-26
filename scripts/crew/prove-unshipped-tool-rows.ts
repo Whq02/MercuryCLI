@@ -17,8 +17,6 @@ const tally = makeTally('prove-unshipped-tool-rows')
 const UNSHIPPED = 'FrobnicateTool'
 
 tally.section('§1 a tool no build ships: the renderer, the tool list and the render shim')
-const { toolFamilyFor } = await import('../../src/screen/widgets/toolGlyphs.ts')
-tally.check('the transcript renderer paints a recorded row of a tool no build ships as it paints any unknown tool', toolFamilyFor(UNSHIPPED) === toolFamilyFor('AnotherUnknownTool'), `toolFamilyFor in src/screen/widgets/toolGlyphs.ts must give every name it does not know the same family; got ${toolFamilyFor(UNSHIPPED)} and ${toolFamilyFor('AnotherUnknownTool')}`)
 const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
 const listed = getAllBaseTools().map(tool => tool.name)
 tally.check('the tool list of a booted session names the crew tools (SendMessage · Agent) and no unshipped name', listed.includes('SendMessage') && listed.includes('Crewmate') && !listed.includes(UNSHIPPED), `${listed.join(', ')} (getAllBaseTools in src/tools/kit/toolList.ts must list SendMessage and Crewmate and no tool named ${UNSHIPPED})`)

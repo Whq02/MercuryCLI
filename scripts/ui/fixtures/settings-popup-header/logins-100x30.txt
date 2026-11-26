@@ -17,14 +17,14 @@ vitals              │ │   OpenAI — ChatGPT subscription or API key        
                     │ │   Kimi (Moonshot) — device-code sign-in or API key                       │ │
                     │ │   GLM (Z.AI) — API key (general or GLM Coding Plan)                      │ │
                     │ │   DeepSeek — API key                                                     │ │
-                    │ │   xAI — Grok subscription sign-in or API key                           ↓ │ │
+                    │ │   xAI — Grok subscription sign-in or API key                             │ │
+                    │ │   Meta — Muse Code sign-in or API key                                  ↓ │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ move · pgup/pgdn page · ↵ select · esc back · click outside closes    │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │
                     │                                                                              │
                     ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
-│❯ Type a prompt, start a slash command, or Tab to focus the rails                                 │
+│❯ Type a prompt, or / for commands                                                                │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
-? for shortcuts · ctrl+x p for commands + files
-shift + ↵ for a new line
+? for shortcuts · ctrl+x p commands + files · \ ↵ new line · tab rails

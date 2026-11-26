@@ -438,7 +438,7 @@ async function landLeg(dialect: Dialect): Promise<void> {
   const running = marks['running'] ?? ''
   check(
     `${tag}: the running card's rows read the record — both names, the served model, tokens > 0`,
-    [SEAT_ONE, SEAT_TWO].every(name => running.split('\n').some((line, at, lines) => line.includes('△ crewmate') && line.includes(name) && (lines[at + 1] ?? '').includes(servedModel) && /\brunning\b/.test(lines[at + 1] ?? '') && nonZeroTokens(lines[at + 1] ?? ''))),
+    [SEAT_ONE, SEAT_TWO].every(name => running.split('\n').some((line, at, lines) => line.includes('crewmate') && line.includes(name) && (lines[at + 1] ?? '').includes(servedModel) && /\brunning\b/.test(lines[at + 1] ?? '') && nonZeroTokens(lines[at + 1] ?? ''))),
     'each seat needs a line with the crewmate glyph and its name, then a next line with the model, running and a non-zero token figure; the running card is drawn by src/tools/crewmate/rows.tsx, see the running frame dump below',
   )
   check(

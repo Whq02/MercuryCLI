@@ -28,8 +28,4 @@ export function useHoverOwned(id: string): boolean {
   return owned
 }
 
-export function useHoverOwner(): string | null {
-  return useSyncExternalStore(subscribeHover, getHoverOwner, () => null)
-}
-
 export { claimHover, releaseHover } from '../cockpit/hoverOwner.js'

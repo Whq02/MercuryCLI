@@ -171,7 +171,7 @@ function chained(records: Rec[]): Rec[] {
 }
 const workGlyph = (line: string): boolean => WORK_FRAMES.some(f => line.includes(f))
 const tailOf = (line: string): string | null => /· (\d+)s(?:\s|$)/.exec(line)?.[1] ?? null
-const leadsWith = (line: string, mark: string, name: string): boolean => line.includes(`] ${mark} ${name}`) && !line.includes(BLACK_CIRCLE) && !workGlyph(line)
+const leadsWith = (line: string, name: string): boolean => line.includes(`]   ${name}`) && !line.includes(BLACK_CIRCLE) && !workGlyph(line)
 
 section('§A the record road — the reader and the fold the connector uses carry a large Eval result and an Edit result to an empty set')
 {
@@ -332,7 +332,7 @@ section('§B the screen road — the rows over identity-kept records settle when
   await sleep(1_100)
   const runningEval = rowLine('measure initial disk') ?? ''
   console.log(`  frame while the Eval runs:\n${lines().filter(l => l.trim() !== '').map(l => `    ${l}`).join('\n')}`)
-  check('while the Eval runs, its row leads with the shell mark and a tail read from the record clock (about 99 s)', leadsWith(runningEval, '▰', 'Eval') && tailOf(runningEval) !== null && Number(tailOf(runningEval)) >= 98 && Number(tailOf(runningEval)) <= 105, runningEval)
+  check('while the Eval runs, its row starts directly with Eval and a tail read from the record clock (about 99 s)', leadsWith(runningEval, 'Eval') && tailOf(runningEval) !== null && Number(tailOf(runningEval)) >= 98 && Number(tailOf(runningEval)) <= 105, runningEval)
 
   setRecords([...records, r.evalResult, r.editUse])
   setLive(runningLive([EDIT_ID]))
@@ -341,8 +341,8 @@ section('§B the screen road — the rows over identity-kept records settle when
   const midEval = rowLine('measure initial disk') ?? ''
   const runningEdit = rowLine('settings-store.json') ?? ''
   console.log(`  frame while the Edit runs:\n${lines().filter(l => l.trim() !== '').map(l => `    ${l}`).join('\n')}`)
-  check('THE DEFECT PIN (mid-turn): once the Eval result lands, the Eval row stops counting while the turn goes on', tailOf(midEval) === null && leadsWith(midEval, '▰', 'Eval'), midEval)
-  check('…and the Update row now runs with its own tail read from its record clock (about 57 s)', leadsWith(runningEdit, '▨', 'Update') && tailOf(runningEdit) !== null && Number(tailOf(runningEdit)) >= 56 && Number(tailOf(runningEdit)) <= 63, runningEdit)
+  check('THE DEFECT PIN (mid-turn): once the Eval result lands, the Eval row stops counting while the turn goes on', tailOf(midEval) === null && leadsWith(midEval, 'Eval'), midEval)
+  check('…and the Update row now runs with its own tail read from its record clock (about 57 s)', leadsWith(runningEdit, 'Update') && tailOf(runningEdit) !== null && Number(tailOf(runningEdit)) >= 56 && Number(tailOf(runningEdit)) <= 63, runningEdit)
 
   setRecords([...records, r.editResult, r.answer])
   setLive(IDLE_LIVE)
@@ -354,8 +354,8 @@ section('§B the screen road — the rows over identity-kept records settle when
   check('the result rows painted: the Eval body and the Edit diff card stand under their calls', frame().includes('ran · js · cell 5 · 2 display(s)') && frame().includes('Added 7 lines, removed 1 line'), frame().slice(0, 400))
   check('THE DEFECT PIN: the Update row stops counting once its result stands (no seconds tail on the row)', tailOf(settledEdit) === null, settledEdit)
   check('…and the Eval row stops counting too', tailOf(settledEval) === null, settledEval)
-  check('the Update row leads with its mark alone, never a dot or the work glyph, once the turn is over', leadsWith(settledEdit, '▨', 'Update'), settledEdit)
-  check('the Eval row leads with its mark alone too', leadsWith(settledEval, '▰', 'Eval'), settledEval)
+  check('the Update row starts directly with Update, never a dot or the work glyph, once the turn is over', leadsWith(settledEdit, 'Update'), settledEdit)
+  check('the Eval row starts directly with Eval too', leadsWith(settledEval, 'Eval'), settledEval)
   check('the settled Edit row carries its edit meta tail (the row re-rendered with its result)', settledEdit.includes('+7/-1'), settledEdit)
   check('no line of the settled frame counts seconds', lines().every(l => tailOf(l) === null), j(lines().filter(l => tailOf(l) !== null)))
   ink.unmount()
