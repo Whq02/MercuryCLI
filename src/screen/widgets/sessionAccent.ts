@@ -13,6 +13,7 @@ import {
 } from '../cockpit/critterData.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../platform/settings/config.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
+import { currentProfileId } from '../../platform/profiles/profiles.js'
 
 export type Critter = {
   key: string
@@ -45,6 +46,10 @@ function poolKeyOr(key: string): string {
   return DEFAULT_CRITTER_KEY
 }
 
+function defaultCritterKey(): string {
+  return ALL_CRITTERS[(currentProfileId() - 1) % ALL_CRITTERS.length]?.key ?? DEFAULT_CRITTER_KEY
+}
+
 function currentKey(): string {
   if (activeKey != null) return activeKey
   const env = flagEnv('MERCURY_CRITTER')
@@ -57,10 +62,10 @@ function currentKey(): string {
     activeKey =
       saved != null && saved.trim() !== ''
         ? poolKeyOr(saved.trim().toLowerCase())
-        : DEFAULT_CRITTER_KEY
+        : defaultCritterKey()
     return activeKey
   } catch {
-    return DEFAULT_CRITTER_KEY
+    return defaultCritterKey()
   }
 }
 const listeners = new Set<() => void>()
