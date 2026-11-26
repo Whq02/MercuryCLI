@@ -88,7 +88,7 @@ const pending = new Map<string, PendingLSPDiagnostic>()
 const publishListeners = new Set<PublishListener>()
 const delivered = new LRUCache<string, Map<string, Set<string>>>({ max: MAX_TRACKED_FILES })
 
-type AwaitingWrite = { owner: Lane; docVersion: number | undefined; at: number }
+type AwaitingWrite = { owner: Lane; docVersion: number | undefined; at: number; pull: 'none' | 'due' | 'asked' }
 
 const awaitingWrites = new Map<string, AwaitingWrite>()
 
@@ -211,9 +211,9 @@ export function releaseDiagnosticsWriter(owner: OwnerKey, worktree?: string): vo
   logForDebugging(`LSP diagnostics: lane ${lane} handed back — ${dropped} worktree file publish${dropped === 1 ? '' : 'es'} dropped, ${handed} shared-tree file publish${handed === 1 ? '' : 'es'} returned to the main lane, ${held} outside the project folder kept for the lane${root !== undefined ? ` (root ${root} sunk)` : ''}`)
 }
 
-function armAwaitingWrite(lane: Lane, fileKey: string, docVersion: number | undefined): void {
+function armAwaitingWrite(lane: Lane, fileKey: string, docVersion: number | undefined, pull: AwaitingWrite['pull'] = 'none'): void {
   awaitingWrites.delete(fileKey)
-  awaitingWrites.set(fileKey, { owner: lane, docVersion, at: Date.now() })
+  awaitingWrites.set(fileKey, { owner: lane, docVersion, at: Date.now(), pull })
   while (awaitingWrites.size > MAX_TRACKED_FILES) {
     const oldest = awaitingWrites.keys().next().value
     if (oldest === undefined) break
@@ -223,7 +223,7 @@ function armAwaitingWrite(lane: Lane, fileKey: string, docVersion: number | unde
 
 function settleAwaitingWrite(fileKey: string, version: number | undefined): void {
   const entry = awaitingWrites.get(fileKey)
-  if (entry === undefined) return
+  if (entry === undefined || entry.pull !== 'none') return
   if (version !== undefined && entry.docVersion !== undefined && version <= entry.docVersion) return
   awaitingWrites.delete(fileKey)
 }
@@ -357,20 +357,19 @@ export function subscribeLSPDiagnosticPublish(cb: PublishListener): () => void {
 }
 
 
-const lastReports = new LRUCache<string, { file: DiagnosticFile; at: number; version?: number }>({
+const lastReports = new LRUCache<string, { file: DiagnosticFile; at: number; version: number | undefined }>({
   max: MAX_TRACKED_FILES,
 })
 type ReportListener = (event: { serverName: string; file: DiagnosticFile }) => void
 const reportListeners = new Set<ReportListener>()
 
+const newestReport = (serverName: string, fileKey: string) =>
+  lastReports.peek(`${serverName}::${fileKey}`) ?? lastReports.peek(`${serverName}::file://${fileKey}`)
+
 export function recordPublishedReport(serverName: string, file: DiagnosticFile, version?: number): void {
   if (staleAgainstWriteBaseline(serverName, file.uri, version)) return
   settleAwaitingWrite(plainPathKey(file.uri), version)
-  lastReports.set(`${serverName}::${foldFileKey(file.uri)}`, {
-    file,
-    at: Date.now(),
-    ...(version !== undefined ? { version } : {}),
-  })
+  lastReports.set(`${serverName}::${foldFileKey(file.uri)}`, { file, at: Date.now(), version })
   for (const listener of reportListeners) {
     try {
       listener({ serverName, file })
@@ -381,13 +380,8 @@ export function recordPublishedReport(serverName: string, file: DiagnosticFile, 
 }
 
 export function noteDocumentLifecycle(serverName: string, fileUriOrPath: string): void {
-  const plain = plainPathKey(fileUriOrPath)
-  for (const key of [`${serverName}::${plain}`, `${serverName}::file://${plain}`]) {
-    const existing = lastReports.peek(key)
-    if (existing !== undefined && existing.version !== undefined) {
-      lastReports.set(key, { file: existing.file, at: existing.at })
-    }
-  }
+  const last = newestReport(serverName, plainPathKey(fileUriOrPath))
+  if (last !== undefined) last.version = undefined
 }
 
 export function subscribePublishedReports(cb: ReportListener): () => void {
@@ -414,32 +408,45 @@ function staleAgainstWriteBaseline(serverName: string, uri: string, version: num
   if (baseline !== undefined && baseline.docVersion !== undefined && version <= baseline.docVersion) return true
   const awaiting = awaitingWrites.get(fileKey)
   if (awaiting !== undefined && awaiting.docVersion !== undefined && version <= awaiting.docVersion) return true
-  const last = lastReports.peek(`${serverName}::${fileKey}`) ?? lastReports.peek(`${serverName}::file://${fileKey}`)
+  const last = newestReport(serverName, fileKey)
   return last !== undefined && last.version !== undefined && version < last.version
 }
 
-function dropPendingForFile(fileKey: string, messageFor: (serverName: string) => string): void {
+function dropPendingForFile(fileKey: string, why: string): void {
   for (const [pendingId, entry] of pending) {
     const kept = entry.files.filter(file => plainPathKey(file.uri) !== fileKey)
     if (kept.length === entry.files.length) continue
     if (kept.length === 0) pending.delete(pendingId)
     else entry.files = kept
-    logForDebugging(messageFor(entry.serverName))
+    logForDebugging(`LSP diagnostics: ${entry.serverName}'s publish for ${fileKey} ${why}`)
   }
 }
 
-export function rearmAfterMultiFileSync(
-  writes: ReadonlyArray<{ path: string; docVersion: number | undefined }>,
-  owner?: OwnerKey,
-): void {
+export function rearmAfterMultiFileSync(writes: ReadonlyArray<{ path: string; docVersion: number | undefined; pulled: boolean }>, owner?: OwnerKey): void {
   const lane = laneOf(owner)
   for (const write of writes) {
     const fileKey = plainPathKey(write.path)
-    dropPendingForFile(
-      fileKey,
-      serverName => `LSP diagnostics: ${serverName}'s mid-transaction publish for ${fileKey} predates the last synced file — discarded`,
-    )
-    armAwaitingWrite(lane, fileKey, write.docVersion)
+    dropPendingForFile(fileKey, 'predates the last file of its apply — discarded')
+    armAwaitingWrite(lane, fileKey, write.docVersion, write.pulled ? 'due' : 'none')
+  }
+}
+
+export function pulledReportsFor(path: string): ((serverName: string) => (diagnostics: Diagnostic[]) => void) | undefined {
+  const fileKey = plainPathKey(path)
+  const write = awaitingWrites.get(fileKey)
+  if (write === undefined || write.pull !== 'due') return undefined
+  write.pull = 'asked'
+  return serverName => {
+    const asked = newestReport(serverName, fileKey)
+    return diagnostics => {
+      if (awaitingWrites.get(fileKey) !== write || newestReport(serverName, fileKey) !== asked) {
+        logForDebugging(`LSP diagnostics: ${serverName}'s pulled report for ${fileKey} yields to a newer publish or write`)
+        return
+      }
+      const file = { uri: fileKey, diagnostics }
+      recordPublishedReport(serverName, file)
+      registerPendingLSPDiagnostic({ serverName, files: [file] })
+    }
   }
 }
 
@@ -448,10 +455,7 @@ export function snapshotDiagnosticsBeforeWrite(path: string, before: string | nu
   const lane = laneOf(owner)
   claimWriter(lane, fileKey)
   armAwaitingWrite(lane, fileKey, docVersion)
-  dropPendingForFile(
-    fileKey,
-    serverName => `LSP diagnostics: ${serverName}'s publish for ${fileKey} predates the write — no data until it publishes again`,
-  )
+  dropPendingForFile(fileKey, 'predates the write — no data until it publishes again')
   let step: LineShiftStep | null = null
   try {
     step = before === null ? null : lineShiftStepBetween(before, after)
@@ -482,10 +486,7 @@ export function snapshotDiagnosticsBeforeWrite(path: string, before: string | nu
 
 export function noteOutOfBandWrite(path: string, versions: ReadonlyArray<{ serverName: string; docVersion: number }>): void {
   const fileKey = plainPathKey(path)
-  dropPendingForFile(
-    fileKey,
-    serverName => `LSP diagnostics: ${serverName}'s publish for ${fileKey} predates a write outside the tools — no data until it publishes the re-synced text`,
-  )
+  dropPendingForFile(fileKey, 'predates a write outside the tools — no data until it publishes the re-synced text')
   const previous = writeBaselines.peek(fileKey)
   const next = new Map<string, WriteBaseline>(previous ?? [])
   for (const { serverName, docVersion } of versions) {
@@ -505,50 +506,10 @@ export function _writeBaselineForTesting(path: string): Array<{ serverName: stri
   return [...baselines].map(([serverName, baseline]) => ({ serverName, steps: baseline.steps.length, docVersion: baseline.docVersion }))
 }
 
-export function pendingReportsForOwner(owner?: OwnerKey): Array<{ serverName: string; uri: string }> {
-  const lane = laneOf(owner)
-  const seen = new Set<string>()
-  const out: Array<{ serverName: string; uri: string }> = []
-  for (const entry of pending.values()) {
-    if (entry.attachmentSent || entry.owner !== lane) continue
-    for (const file of entry.files) {
-      if (file.diagnostics.length === 0) continue
-      const key = `${entry.serverName}::${plainPathKey(file.uri)}`
-      if (seen.has(key)) continue
-      seen.add(key)
-      out.push({ serverName: entry.serverName, uri: plainPathKey(file.uri) })
-    }
-  }
-  return out
-}
-
-export function reconcilePendingLSPDiagnostic(
-  serverName: string,
-  file: DiagnosticFile,
-  owner?: OwnerKey,
-  version?: number,
-): void {
-  if (staleAgainstWriteBaseline(serverName, file.uri, version)) return
-  recordPublishedReport(serverName, file, version)
-  const lane = laneOf(owner)
-  const targetKey = plainPathKey(file.uri)
-  let replaced = false
-  for (const [id, entry] of pending) {
-    if (entry.attachmentSent || entry.owner !== lane || entry.serverName !== serverName) continue
-    const hasTarget = entry.files.some(item => plainPathKey(item.uri) === targetKey)
-    if (!hasTarget) continue
-    const nextFiles = entry.files.filter(item => plainPathKey(item.uri) !== targetKey)
-    if (!replaced && file.diagnostics.length > 0) {
-      nextFiles.push(file)
-      replaced = true
-    }
-    if (nextFiles.length === 0) pending.delete(id)
-    else entry.files = nextFiles
-  }
-}
 export function _pendingForTesting(): Array<{ serverName: string; uris: string[]; owner: OwnerKey | null }> {
   return [...pending.values()].filter(entry => !entry.attachmentSent).map(entry => ({ serverName: entry.serverName, uris: entry.files.map(file => file.uri), owner: entry.owner }))
 }
+
 export function _writerForTesting(path: string): OwnerKey | null {
   return writers.peek(plainPathKey(path))?.owner ?? null
 }

@@ -22,8 +22,10 @@ process.on('exit', () => rmSync(scratch, { recursive: true, force: true }))
 const wsRoot = path.join(scratch, 'ws')
 const pullDir = path.join(wsRoot, 'pull')
 const pushDir = path.join(wsRoot, 'push')
+const peerDir = path.join(wsRoot, 'peer')
 mkdirSync(pullDir, { recursive: true })
 mkdirSync(pushDir, { recursive: true })
+mkdirSync(peerDir, { recursive: true })
 
 process.env.MERCURY_LSP_SERVERS = JSON.stringify({
   'stub-pull': {
@@ -55,7 +57,7 @@ const manager = mgrModule.getLspServerManager()
 if (!manager) throw new Error('LSP manager failed to initialize')
 
 const registry = await import('../../src/integrations/lsp/LSPDiagnosticRegistry.js')
-const { getLSPDiagnosticAttachments } = await import('../../src/engine/attachments/diagnostics.js')
+const { deliverAfterRevalidation, getLSPDiagnosticAttachments } = await import('../../src/engine/attachments/diagnostics.js')
 const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.js')
 const { awaitDiagnosticStabilization, runMercuryLspOp } = await import('../../src/tools/lsp/mercuryOps.js')
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
@@ -171,6 +173,33 @@ async function syncStub(filePath: string): Promise<void> {
   await manager.sendRequest(filePath, 'test/sync', {})
 }
 
+async function stubPulls(filePath: string): Promise<{ pullCount: number; heldPulls: number }> {
+  return (await manager.sendRequest<{ pullCount: number; heldPulls: number }>(filePath, 'test/pullCount', {})) ?? { pullCount: -1, heldPulls: -1 }
+}
+
+const QUIET_STUB = {
+  releaseHalfOnSaveCount: 0,
+  releaseHalfOnFirstChange: false,
+  versioned: false,
+  settledPushOnSaveCount: 0,
+  settledPushDelayMs: 0,
+  settledSplitDelayMs: 0,
+  silentStems: [],
+  defectFile: '',
+  defectMessage: '',
+  holdNextPullForFile: '',
+  clearHeld: true,
+  clearPersistent: true,
+  resetPullCount: true,
+}
+const PULL_SERVER = 'env:stub-pull'
+const PUSH_SERVER = 'env:stub-push'
+const REAL_DEFECT = "Type 'number' is not assignable to type 'string'."
+
+function stubFinding(message: string, line = 0) {
+  return { range: { start: { line, character: 0 }, end: { line, character: 5 } }, severity: 1, source: 'half-rename-stub', code: '2322', message }
+}
+
 try {
   section('§1 unversioned half-state delivered BEFORE clean pull/tool result (8 diagnostics in 3 files)')
   {
@@ -186,6 +215,7 @@ try {
       defectFile: '',
       clearHeld: true,
       clearPersistent: true,
+      resetPullCount: true,
     })
     const preview = await renameOp(pullDir, ctx, files.defs, 'newAlpha')
     check('preview returns plan across 4 files without writing', preview.applied === false && typeof preview.plan === 'string' && readFileSync(files.defs, 'utf8').includes('oldAlpha'), preview.result)
@@ -193,9 +223,11 @@ try {
     const applyStart = Date.now()
     const applied = await renameOp(pullDir, ctx, files.defs, 'newAlpha', { apply: true, plan: preview.plan })
     const applyMs = Date.now() - applyStart
+    const toolPulls = (await stubPulls(files.defs)).pullCount
     const attachStart = Date.now()
     const attachments = asDiagAttachments(await getLSPDiagnosticAttachments(ctx))
     const attachMs = Date.now() - attachStart
+    const attachPulls = (await stubPulls(files.defs)).pullCount - toolPulls
     waitSamples.push({ label: 'pull-unversioned-before-return', applyMs, attachMs })
 
     const diagCount = totalDiagCount(attachments)
@@ -210,6 +242,11 @@ try {
       'next model turn receives 0 stale half-rename diagnostics (not 8 in 3 files)',
       attachments.length === 0 && diagCount === 0,
       `got ${diagCount} diagnostics in ${totalFileCount(attachments)} file(s); witness=${modelFacingText(attachments).slice(0, 320)}`,
+    )
+    check(
+      'the tool asks its primary file once, as on the base, and the attachment asks each of the 4 written files once',
+      toolPulls === 1 && attachPulls === 4,
+      `tool pulls=${toolPulls} (awaitDiagnosticStabilization in src/tools/lsp/mercury-ops/afterWrite.ts must stay one pull of the primary); attachment pulls=${attachPulls} (pullWrittenFiles in src/integrations/lsp/publishedDiagnostics.ts must ask once per file re-armed by rearmAfterMultiFileSync)`,
     )
   }
 
@@ -372,6 +409,7 @@ try {
     const firstCount = totalDiagCount(firstDrain)
     durableFindings += firstCount
     const firstText = modelFacingText(firstDrain)
+    const pullsAfterFirstDrain = (await stubPulls(files.defs)).pullCount
 
     check(
       'primary-file tool check stays honest on defs.ts (0 errors on defs.ts)',
@@ -412,10 +450,27 @@ try {
     const resurrectDrain = asDiagAttachments(await getLSPDiagnosticAttachments(ctx))
     check('out-of-order older version after clear does not resurrect cleared defect', resurrectDrain.length === 0, modelFacingText(resurrectDrain))
 
+    await manager.sendRequest(files.defs, 'test/publish', { uri: pathToFileURL(files.a).href, diagnostics: [stubFinding('Late report with no write behind it.')] })
+    await syncStub(files.defs)
+    const lateDrain = asDiagAttachments(await getLSPDiagnosticAttachments(ctx))
+    const laterPulls = (await stubPulls(files.defs)).pullCount - pullsAfterFirstDrain
+    check(
+      'after the rename has been told once, four attachments with no write behind them make 0 requests and a late report is delivered untouched',
+      laterPulls === 0 && totalDiagCount(lateDrain) === 1 && modelFacingText(lateDrain).includes('Late report with no write behind it.'),
+      `requests=${laterPulls} (pulledReportsFor in src/integrations/lsp/LSPDiagnosticRegistry.ts must open no ticket once settleWritesAwaitingReport has settled the write); ${modelFacingText(lateDrain).slice(0, 240)}`,
+    )
+
+    registry.resetAllLSPDiagnosticState()
+    await manager.closeAllFiles()
+    const multi = writeFourFiles(pullDir, 'ts', 'oldMulti')
+    const multiCtx = makeContext()
+    await configureStub(multi.defs, QUIET_STUB)
+    const multiPreview = await renameOp(pullDir, multiCtx, multi.defs, 'newMulti')
+    await renameOp(pullDir, multiCtx, multi.defs, 'newMulti', { apply: true, plan: multiPreview.plan })
     registry.registerPendingLSPDiagnostic({
       serverName: 'companion-linter',
       files: [{
-        uri: files.a,
+        uri: multi.a,
         diagnostics: [{
           message: 'Companion push finding on a.ts.',
           severity: 'Warning',
@@ -425,14 +480,16 @@ try {
         }],
       }],
     })
-    await manager.sendRequest(files.defs, 'test/releaseHalfState', { versioned: false })
-    await syncStub(files.defs)
-    const multiServerDrain = asDiagAttachments(await getLSPDiagnosticAttachments(ctx))
+    await manager.sendRequest(multi.defs, 'test/releaseHalfState', { versioned: false })
+    await syncStub(multi.defs)
+    const stalePair = registry.peekLastPublishedReport(PULL_SERVER, multi.a)?.file.diagnostics.length
+    const stalePending = registry._pendingForTesting().some(entry => entry.serverName === PULL_SERVER && entry.uris.includes(multi.a))
+    const multiServerDrain = asDiagAttachments(await getLSPDiagnosticAttachments(multiCtx))
     const multiServerText = modelFacingText(multiServerDrain)
     check(
       'pull reconciliation is per-server: cleaning stub-pull half-state on a.ts preserves independent companion-linter finding',
-      totalDiagCount(multiServerDrain) === 1 && multiServerText.includes('Companion push finding on a.ts.') && !multiServerText.includes('oldDelta'),
-      multiServerText.slice(0, 320),
+      stalePair === 3 && stalePending && totalDiagCount(multiServerDrain) === 1 && multiServerText.includes('Companion push finding on a.ts.') && !multiServerText.includes('oldMulti') && registry.peekLastPublishedReport(PULL_SERVER, multi.a)?.file.diagnostics.length === 0,
+      `stale pair before the attachment: ${stalePair} diagnostics, pending=${stalePending}; ${multiServerText.slice(0, 320)}`,
     )
 
     registry.resetAllLSPDiagnosticState()
@@ -529,6 +586,189 @@ try {
     const cancelled = await renameOp(pullDir, cancelCtx, files6.defs, 'newZeta', { apply: true, plan: prev6b.plan })
     const afterCancel = asDiagAttachments(await getLSPDiagnosticAttachments(makeContext()))
     check('cancellation does not discard valid pending report', cancelled.applied === false && totalDiagCount(afterCancel) === 1 && modelFacingText(afterCancel).includes('Valid before cancel.'), modelFacingText(afterCancel))
+  }
+
+  section('§5 the rename is asked once, at its own lane, and nothing newer than the ask is touched')
+  {
+    const urisOf = (rows: DiagAttachment[]): string => rows.flatMap(row => row.files.map(file => file.uri)).join(',')
+
+    registry.resetAllLSPDiagnosticState()
+    await manager.closeAllFiles()
+    const quiet = writeFourFiles(pullDir, 'ts', 'oldQuiet')
+    const quietCtx = makeContext()
+    await configureStub(quiet.defs, { ...QUIET_STUB, defectFile: 'b.ts', defectMessage: REAL_DEFECT })
+    const quietPreview = await renameOp(pullDir, quietCtx, quiet.defs, 'newQuiet')
+    const quietApplied = await renameOp(pullDir, quietCtx, quiet.defs, 'newQuiet', { apply: true, plan: quietPreview.plan })
+    const quietToolPulls = (await stubPulls(quiet.defs)).pullCount
+    const quietDrain = asDiagAttachments(await getLSPDiagnosticAttachments(quietCtx))
+    const quietAsked = (await stubPulls(quiet.defs)).pullCount - quietToolPulls
+    const quietAgain = asDiagAttachments(await getLSPDiagnosticAttachments(quietCtx))
+    const quietAskedAgain = (await stubPulls(quiet.defs)).pullCount - quietToolPulls - quietAsked
+    durableFindings += totalDiagCount(quietDrain)
+    check(
+      'a rename that leaves one real error on a server that never publishes again: it arrives once, alone',
+      /Post-apply diagnostics: 0 error\(s\), 0 warning\(s\)/.test(quietApplied.result) && totalDiagCount(quietDrain) === 1 && urisOf(quietDrain) === quiet.b && modelFacingText(quietDrain).includes(REAL_DEFECT) && quietAsked === 4 && quietAgain.length === 0 && quietAskedAgain === 0,
+      `told ${totalDiagCount(quietDrain)} in ${urisOf(quietDrain)} after ${quietAsked} requests, then ${totalDiagCount(quietAgain)} after ${quietAskedAgain} — the landing function of pulledReportsFor in src/integrations/lsp/LSPDiagnosticRegistry.ts must enter the answer for a file whose push was dropped or never came; ${modelFacingText(quietDrain).slice(0, 240)}`,
+    )
+
+    registry.resetAllLSPDiagnosticState()
+    await manager.closeAllFiles()
+    const race = writeFourFiles(pullDir, 'ts', 'oldRace')
+    const raceCtx = makeContext()
+    await configureStub(race.defs, { ...QUIET_STUB, releaseHalfOnSaveCount: 4 })
+    const racePreview = await renameOp(pullDir, raceCtx, race.defs, 'newRace')
+    await renameOp(pullDir, raceCtx, race.defs, 'newRace', { apply: true, plan: racePreview.plan })
+    await syncStub(race.defs)
+    await configureStub(race.defs, { holdNextPullForFile: 'a.ts' })
+    const raceStale = registry.peekLastPublishedReport(PULL_SERVER, race.a)?.file.diagnostics.length
+    const raceAttach = getLSPDiagnosticAttachments(raceCtx)
+    let raceHeld = 0
+    for (const until = Date.now() + 3_000; raceHeld === 0 && Date.now() < until; ) raceHeld = (await stubPulls(race.defs)).heldPulls
+    await manager.sendRequest(race.defs, 'test/publish', { uri: pathToFileURL(race.a).href, diagnostics: [stubFinding('NEW-GENUINE', 1)] })
+    await syncStub(race.defs)
+    await manager.sendRequest(race.defs, 'test/releaseHeldPull', { items: [] })
+    const raceDrain = asDiagAttachments(await raceAttach)
+    const raceText = modelFacingText(raceDrain)
+    const raceAgain = asDiagAttachments(await getLSPDiagnosticAttachments(raceCtx))
+    check(
+      'a newer publish that lands while a written file\'s pull is outstanding survives the older empty answer',
+      raceStale === 3 && raceHeld === 1 && totalDiagCount(raceDrain) === 1 && raceText.includes('NEW-GENUINE') && !raceText.includes('oldRace') && raceAgain.length === 0 && registry.peekLastPublishedReport(PULL_SERVER, race.a)?.file.diagnostics[0]?.message === 'NEW-GENUINE',
+      `stale before=${raceStale}, held pulls=${raceHeld}, told ${totalDiagCount(raceDrain)} — the landing function of pulledReportsFor in src/integrations/lsp/LSPDiagnosticRegistry.ts must do nothing once the pair's newest report is no longer the one it saw at the ask; ${raceText.slice(0, 240)}`,
+    )
+
+    registry.resetAllLSPDiagnosticState()
+    await manager.closeAllFiles()
+    const mute = writeFourFiles(pullDir, 'ts', 'oldMute')
+    const muteCtx = makeContext()
+    await configureStub(mute.defs, { ...QUIET_STUB, releaseHalfOnSaveCount: 4 })
+    const mutePreview = await renameOp(pullDir, muteCtx, mute.defs, 'newMute')
+    await renameOp(pullDir, muteCtx, mute.defs, 'newMute', { apply: true, plan: mutePreview.plan })
+    await syncStub(mute.defs)
+    await configureStub(mute.defs, { holdNextPullForFile: 'a.ts' })
+    const muteStart = Date.now()
+    const muteDrain = asDiagAttachments(await getLSPDiagnosticAttachments(muteCtx))
+    const muteMs = Date.now() - muteStart
+    waitSamples.push({ label: 'pull-one-unanswered', applyMs: 0, attachMs: muteMs })
+    await manager.sendRequest(mute.defs, 'test/releaseHeldPull', { items: [] })
+    await syncStub(mute.defs)
+    const muteAgain = asDiagAttachments(await getLSPDiagnosticAttachments(muteCtx))
+    check(
+      'a pull not answered inside the one deadline is unknown: its file is neither called clean nor emptied, the answered files are, and the late answer lands nowhere',
+      totalDiagCount(muteDrain) === 3 && urisOf(muteDrain) === mute.a && muteMs >= 1_400 && muteMs < 3_000 && muteAgain.length === 0 && registry.peekLastPublishedReport(PULL_SERVER, mute.a)?.file.diagnostics.length === 3,
+      `told ${totalDiagCount(muteDrain)} in ${urisOf(muteDrain)} after ${muteMs} ms (one RESYNC_REPORT_WAIT_MS, not two); ledger for a.ts holds ${registry.peekLastPublishedReport(PULL_SERVER, mute.a)?.file.diagnostics.length} — deliverAfterRevalidation in src/engine/attachments/diagnostics.ts must wait once and pulledReportsFor's landing function must refuse an answer whose write is settled`,
+    )
+
+    registry.resetAllLSPDiagnosticState()
+    await manager.closeAllFiles()
+    const mine = writeFourFiles(pullDir, 'ts', 'oldMine')
+    const theirs = writeFourFiles(peerDir, 'ts', 'oldTheirs')
+    const mineCtx = makeContext()
+    const theirsCtx = makeContext('agent-writer')
+    await configureStub(mine.defs, { ...QUIET_STUB, defectFile: 'b.ts', defectMessage: REAL_DEFECT })
+    const minePreview = await renameOp(pullDir, mineCtx, mine.defs, 'newMine')
+    const theirsPreview = await renameOp(peerDir, theirsCtx, theirs.defs, 'newTheirs')
+    await renameOp(pullDir, mineCtx, mine.defs, 'newMine', { apply: true, plan: minePreview.plan })
+    const theirsApplied = await renameOp(peerDir, theirsCtx, theirs.defs, 'newTheirs', { apply: true, plan: theirsPreview.plan })
+    await manager.sendRequest(mine.defs, 'test/releaseHalfState', { versioned: false })
+    await syncStub(mine.defs)
+    const lanePulls = (await stubPulls(mine.defs)).pullCount
+    const mineDrain = asDiagAttachments(await getLSPDiagnosticAttachments(mineCtx))
+    const mineAsked = (await stubPulls(mine.defs)).pullCount - lanePulls
+    const theirsDrain = asDiagAttachments(await getLSPDiagnosticAttachments(theirsCtx))
+    const theirsAsked = (await stubPulls(mine.defs)).pullCount - lanePulls - mineAsked
+    check(
+      'two writers on two lanes: each lane asks for its own 4 files and is told its own real error once, alone',
+      theirsApplied.applied === true && mineAsked === 4 && theirsAsked === 4 && totalDiagCount(mineDrain) === 1 && urisOf(mineDrain) === mine.b && totalDiagCount(theirsDrain) === 1 && urisOf(theirsDrain) === theirs.b,
+      `main lane: ${totalDiagCount(mineDrain)} in ${urisOf(mineDrain)} after ${mineAsked} requests; peer lane: ${totalDiagCount(theirsDrain)} in ${urisOf(theirsDrain)} after ${theirsAsked} requests; peer apply: ${theirsApplied.result.slice(0, 160)}`,
+    )
+
+    registry.resetAllLSPDiagnosticState()
+    await manager.closeAllFiles()
+    const partial = writeFourFiles(pushDir, 'zz', 'oldPartial')
+    const partialCtx = makeContext()
+    await configureStub(partial.defs, { ...QUIET_STUB, settledPushOnSaveCount: 4, silentStems: ['a', 'b', 'c'] })
+    const partialPreview = await renameOp(pushDir, partialCtx, partial.defs, 'newPartial')
+    const partialApplied = await renameOp(pushDir, partialCtx, partial.defs, 'newPartial', { apply: true, plan: partialPreview.plan })
+    const partialDrain = asDiagAttachments(await getLSPDiagnosticAttachments(partialCtx))
+    const silentPaths = [partial.a, partial.b, partial.c]
+    const silentStates: string[] = []
+    for (const silentPath of silentPaths) silentStates.push((await awaitDiagnosticStabilization(manager, silentPath, { deadlineMs: 120, quietWindowMs: 40 })).state)
+    const partialPulls = (await stubPulls(partial.defs)).pullCount
+    check(
+      'four push-only files, one reports clean, three never report: the three are never called clean and none is asked',
+      /Post-apply diagnostics: 0 error\(s\), 0 warning\(s\)/.test(partialApplied.result) && registry.peekLastPublishedReport(PUSH_SERVER, partial.defs)?.file.diagnostics.length === 0 && silentPaths.every(silentPath => registry.peekLastPublishedReport(PUSH_SERVER, silentPath) === undefined) && silentStates.join(',') === 'timed-out,timed-out,timed-out' && partialDrain.length === 0 && partialPulls === 0,
+      `result=${partialApplied.result}; silent files: ${silentStates.join(',')}; reports for them: ${silentPaths.filter(silentPath => registry.peekLastPublishedReport(PUSH_SERVER, silentPath) !== undefined).length}; requests=${partialPulls}`,
+    )
+  }
+
+  section('§6 the ticket in the registry: who gets one, and when an answer lands')
+  {
+    registry.resetAllLSPDiagnosticState()
+    const at = (name: string): string => path.join(scratch, 'tickets', name)
+    const finding = (message: string): DiagnosticFile['diagnostics'][number] => ({ message, severity: 'Error', range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } }, source: 'ticket-fixture' })
+    const publish = (serverName: string, uri: string, message: string): void => {
+      const file = { uri, diagnostics: [finding(message)] }
+      registry.recordPublishedReport(serverName, file)
+      registry.registerPendingLSPDiagnostic({ serverName, files: [file] })
+    }
+    const newest = (serverName: string, uri: string): string | undefined => registry.peekLastPublishedReport(serverName, uri)?.file.diagnostics.map(diagnostic => diagnostic.message).join('|')
+    const apply = (names: string[], pulled: boolean): void => registry.rearmAfterMultiFileSync(names.map(name => ({ path: at(name), docVersion: 1, pulled })))
+
+    registry.snapshotDiagnosticsBeforeWrite(at('single.ts'), 'a\n', 'b\n', 1)
+    apply(['pushed.ts', 'pushed-2.ts'], false)
+    check(
+      'no ticket without a multi-file apply on a pull server: not for an unwritten file, a single-file write, or a push-only apply',
+      registry.pulledReportsFor(at('unwritten.ts')) === undefined && registry.pulledReportsFor(at('single.ts')) === undefined && registry.pulledReportsFor(at('pushed.ts')) === undefined,
+    )
+
+    apply(['once.ts', 'doubt.ts'], true)
+    const once = registry.pulledReportsFor(at('once.ts'))
+    check('a written file\'s ticket opens once: a second attachment running beside the first gets none', once !== undefined && registry.pulledReportsFor(at('once.ts')) === undefined)
+
+    publish('one', at('doubt.ts'), 'in doubt')
+    publish('one', at('pushed.ts'), 'pushed')
+    check('a push settles a push-only write and leaves a pulled write waiting for its answer', registry.writesAwaitingReport().includes(at('doubt.ts')) && !registry.writesAwaitingReport().includes(at('pushed.ts')), registry.writesAwaitingReport().join(','))
+
+    const landOne = once?.('one')
+    const landTwo = once?.('two')
+    landOne?.([finding('from one')])
+    landTwo?.([finding('from two')])
+    check('two servers on one file each land their own answer', newest('one', at('once.ts')) === 'from one' && newest('two', at('once.ts')) === 'from two', `${newest('one', at('once.ts'))} / ${newest('two', at('once.ts'))}`)
+
+    apply(['newer.ts', 'newer-2.ts'], true)
+    const landOlder = registry.pulledReportsFor(at('newer.ts'))?.('one')
+    publish('one', at('newer.ts'), 'NEWER')
+    landOlder?.([])
+    check('an answer does nothing once a publish was queued after its ask', landOlder !== undefined && newest('one', at('newer.ts')) === 'NEWER', String(newest('one', at('newer.ts'))))
+
+    apply(['rewritten.ts', 'rewritten-2.ts'], true)
+    const landOldText = registry.pulledReportsFor(at('rewritten.ts'))?.('one')
+    registry.snapshotDiagnosticsBeforeWrite(at('rewritten.ts'), 'a\n', 'b\n', 2)
+    landOldText?.([finding('about the text before the newer write')])
+    check('an answer does nothing once its file was written again', landOldText !== undefined && newest('one', at('rewritten.ts')) === undefined, String(newest('one', at('rewritten.ts'))))
+
+    apply(['settled.ts', 'settled-2.ts'], true)
+    const landLate = registry.pulledReportsFor(at('settled.ts'))?.('one')
+    registry.settleWritesAwaitingReport(undefined, [at('settled.ts')])
+    landLate?.([finding('after the attachment settled the write')])
+    check('an answer does nothing once the attachment has settled its write', landLate !== undefined && newest('one', at('settled.ts')) === undefined, String(newest('one', at('settled.ts'))))
+
+    const told = registry.checkForLSPDiagnostics().flatMap(set => set.files.flatMap(file => file.diagnostics.map(diagnostic => diagnostic.message))).sort().join('|')
+    check('the model is told the landed answers and the standing publishes, nothing else', told === 'NEWER|from one|from two|in doubt|pushed', told)
+
+    registry.resetAllLSPDiagnosticState()
+    const independent = path.join(pullDir, 'independent.ts')
+    const requestsBefore = (await stubPulls(independent)).pullCount
+    publish(PULL_SERVER, independent, 'old')
+    const first = deliverAfterRevalidation([], 400, undefined, manager)
+    publish(PULL_SERVER, independent, 'NEW-GENUINE')
+    const delivered = [...(await first), ...(await deliverAfterRevalidation([], 400))]
+    const requests = (await stubPulls(independent)).pullCount - requestsBefore
+    check(
+      'the captain\'s no-write scene on the real pull server: a pending report with no write behind it makes 0 requests and the newer finding is told',
+      requests === 0 && JSON.stringify(delivered).includes('NEW-GENUINE'),
+      `requests=${requests}; delivered=${JSON.stringify(delivered).slice(0, 240)}`,
+    )
   }
 } finally {
   registry.resetAllLSPDiagnosticState()

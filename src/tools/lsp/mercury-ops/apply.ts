@@ -274,16 +274,6 @@ export async function applyPrepared(
     } catch (error) {
       logForDebugging(`lsp ops: read-state refresh failed for ${w.abs}: ${String(error)}`)
     }
-  }
-  const syncResults = await syncServersAfterWrites(
-    manager,
-    written.map(w => ({ absolutePath: w.abs, newText: w.newText, before: w.create ? null : w.originalText })),
-    owner,
-  )
-  for (const sync of syncResults) {
-    if (!sync.ok) syncFailures.push(`${displayPathFor(env.cwd, sync.absolutePath)}: ${sync.reason}`)
-  }
-  for (const w of written) {
     try {
       rememberAnchoredSnapshot(owner, mintFileAnchor(w.newText), w.newText, w.abs)
       dropSeenLines(owner, w.abs)
@@ -291,6 +281,10 @@ export async function applyPrepared(
       logForDebugging(`lsp ops: anchor bookkeeping failed for ${w.abs}: ${String(error)}`)
     }
   }
+  const syncs = await syncServersAfterWrites(manager, written.map(w => ({ absolutePath: w.abs, newText: w.newText, before: w.create ? null : w.originalText })), owner)
+  syncs.forEach((sync, i) => {
+    if (!sync.ok) syncFailures.push(`${displayPathFor(env.cwd, written[i]!.abs)}: ${sync.reason}`)
+  })
   const primary = written[0]!.abs
   const stabilization = await awaitDiagnosticStabilization(manager, primary)
   try {

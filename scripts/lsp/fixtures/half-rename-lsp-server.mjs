@@ -10,6 +10,8 @@ let buf = Buffer.alloc(0)
 const docs = new Map()
 const heldHalfState = new Map()
 const persistentDiagnostics = new Map()
+const heldPulls = []
+let pullCount = 0
 let config = {
   releaseHalfOnSaveCount: 0,
   releaseHalfOnFirstChange: false,
@@ -20,6 +22,7 @@ let config = {
   silentStems: [],
   defectFile: '',
   defectMessage: '',
+  holdNextPullForFile: '',
 }
 let saveCount = 0
 
@@ -187,6 +190,17 @@ function onMessage(msg) {
     saveCount = 0
     if (msg.params?.clearHeld === true) heldHalfState.clear()
     if (msg.params?.clearPersistent === true) persistentDiagnostics.clear()
+    if (msg.params?.resetPullCount === true) pullCount = 0
+    send({ jsonrpc: '2.0', id: msg.id, result: { ok: true } })
+    return
+  }
+  if (msg.method === 'test/pullCount') {
+    send({ jsonrpc: '2.0', id: msg.id, result: { pullCount, heldPulls: heldPulls.length } })
+    return
+  }
+  if (msg.method === 'test/releaseHeldPull') {
+    const items = Array.isArray(msg.params?.items) ? msg.params.items : []
+    while (heldPulls.length > 0) send({ jsonrpc: '2.0', id: heldPulls.shift(), result: { kind: 'full', items } })
     send({ jsonrpc: '2.0', id: msg.id, result: { ok: true } })
     return
   }
@@ -268,6 +282,12 @@ function onMessage(msg) {
   }
   if (msg.method === 'textDocument/diagnostic') {
     const uri = msg.params.textDocument.uri
+    pullCount++
+    if (config.holdNextPullForFile && basename(fileURLToPath(uri)) === config.holdNextPullForFile) {
+      config.holdNextPullForFile = ''
+      heldPulls.push(msg.id)
+      return
+    }
     send({ jsonrpc: '2.0', id: msg.id, result: { kind: 'full', items: computeDiagnosticsForUri(uri) } })
     return
   }
