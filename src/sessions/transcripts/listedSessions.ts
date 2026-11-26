@@ -1,5 +1,6 @@
 import { getListingDisplayTitle } from '../../platform/logs/errorLog.js'
 import { enrichSessionListings, sessionIdOfListing } from './sessionListings.js'
+import { compareSessionRecency, RECENCY_CLOCK_SLACK_MS } from './sessionIndex.js'
 import type { SessionListing } from './transcriptEntries.js'
 
 const SUBSTANTIVE_FILE_SIZE = 4096
@@ -62,14 +63,19 @@ function compareStampDesc(a: string, b: string): number {
 }
 
 function compareListedSessions(a: SessionListing, b: SessionListing): number {
-  const byModified = b.modified.getTime() - a.modified.getTime()
-  if (byModified !== 0) return byModified
-  const byStamp = compareStampDesc(a.date, b.date)
-  if (byStamp !== 0) return byStamp
-  return (a.sessionId ?? '').localeCompare(b.sessionId ?? '')
+  return (
+    compareSessionRecency(
+      { lastUsedMs: a.lastUsedAt ?? null, mtimeMs: a.modified.getTime(), sessionId: a.sessionId },
+      { lastUsedMs: b.lastUsedAt ?? null, mtimeMs: b.modified.getTime(), sessionId: b.sessionId },
+    ) || compareStampDesc(a.date, b.date)
+  )
 }
 
+const RESTAMP_BURST_CAP = 32
+const RESTAMP_SCAN_GUARD = RESTAMP_BURST_CAP * 8
+
 export async function readListedSessions(lite: SessionListing[], count: number): Promise<SessionListing[]> {
+  if (count <= 0) return []
   const listed: SessionListing[] = []
   let next = 0
   while (listed.length < count && next < lite.length) {
@@ -77,16 +83,20 @@ export async function readListedSessions(lite: SessionListing[], count: number):
     next = batch.nextIndex
     listed.push(...listedSessionsOf(batch.logs, ''))
   }
-  if (listed.length > 0 && next < lite.length) {
-    const boundaryMtime = lite[next - 1]!.modified.getTime()
-    let tied = 0
-    while (next + tied < lite.length && lite[next + tied]!.modified.getTime() === boundaryMtime) {
-      tied++
-    }
-    if (tied > 0) {
-      const batch = await enrichSessionListings(lite.slice(next, next + tied), 0, tied)
-      listed.push(...listedSessionsOf(batch.logs, ''))
-    }
+  let extraKept = 0
+  let scanned = 0
+  while (listed.length >= count && next < lite.length && extraKept < RESTAMP_BURST_CAP && scanned < RESTAMP_SCAN_GUARD) {
+    listed.sort(compareListedSessions)
+    const boundary = listed[count - 1]!
+    const threshold = boundary.lastUsedAt ?? null
+    const candidateMtime = lite[next]!.modified.getTime()
+    if (threshold !== null && candidateMtime + RECENCY_CLOCK_SLACK_MS < threshold && candidateMtime !== boundary.modified.getTime()) break
+    const batch = await enrichSessionListings(lite, next, 1)
+    next = batch.nextIndex
+    scanned++
+    const kept = listedSessionsOf(batch.logs, '')
+    extraKept += kept.length
+    listed.push(...kept)
   }
   listed.sort(compareListedSessions)
   return listed.slice(0, count)
