@@ -164,7 +164,7 @@ export interface QuietCheckDeps {
   check: () => Promise<CheckOutcome>
   readCache: () => UpdateNoticeCacheV1 | null
   writeCache: (cache: UpdateNoticeCacheV1) => void
-  notify: (text: string) => void
+  notify: (text: string, version: string) => void
   now: () => number
   runningVersion: string
   installedVersion?: string | null
@@ -180,7 +180,7 @@ export async function runQuietUpdateCheck(deps: QuietCheckDeps): Promise<QuietCh
   const decision = decideQuietCheck(cache, deps.now(), deps.runningVersion, UPDATE_NOTICE_DAILY_MS, installed)
   if (decision.action === 'skip') return 'skipped'
   if (decision.action === 'notify-from-cache') {
-    deps.notify(updateNoticeText(decision.available.version))
+    deps.notify(updateNoticeText(decision.available.version), decision.available.version)
     return 'notified-from-cache'
   }
   const deadline = armInactivityDeadline({ seam: 'quiet update check', limitMs: deps.limitMs ?? UPDATE_NOTICE_CHECK_LIMIT_MS })
@@ -196,7 +196,7 @@ export async function runQuietUpdateCheck(deps: QuietCheckDeps): Promise<QuietCh
   const checkedAtMs = deps.now()
   if (outcome.state === 'update-available' && updateVersionStillAvailable(outcome.version, deps.runningVersion, installed)) {
     deps.writeCache({ schema: 1, checkedAtMs, runningVersion: deps.runningVersion, available: { version: outcome.version, tag: outcome.tag }, ...carried })
-    deps.notify(updateNoticeText(outcome.version))
+    deps.notify(updateNoticeText(outcome.version), outcome.version)
     return 'notified'
   }
   if (outcome.state === 'update-available' || outcome.state === 'current' || outcome.state === 'no-releases') {
@@ -241,24 +241,24 @@ export function scheduleQuietUpdateNotice(
   }
   const armPointerWatch = (roots: LayoutRoots): void => {
     if (disposed || opts.onDismiss === undefined) return
-    checkInstalled(roots)
-    if (advertised === null) return
     const dir = sharedVersionsDir(roots)
-    if (!existsSync(dir)) return
-    try {
-      watcher = watchDir(dir, { persistent: false }, (_event, name) => {
-        if (name !== null && name !== undefined && String(name) !== 'current.txt') return
-        if (settleTimer !== null) return
-        settleTimer = startTimeout(() => {
-          settleTimer = null
-          checkInstalled(roots)
-        }, POINTER_WATCH_COALESCE_MS)
-        settleTimer.unref?.()
-      })
-      watcher.on('error', error => logForDebugging(`update notice: pointer watch failed: ${String(error)}`))
-    } catch (error) {
-      logForDebugging(`update notice: pointer watch did not arm: ${String(error)}`)
+    if (existsSync(dir)) {
+      try {
+        watcher = watchDir(dir, { persistent: false }, (_event, name) => {
+          if (name !== null && name !== undefined && String(name) !== 'current.txt') return
+          if (settleTimer !== null) return
+          settleTimer = startTimeout(() => {
+            settleTimer = null
+            checkInstalled(roots)
+          }, POINTER_WATCH_COALESCE_MS)
+          settleTimer.unref?.()
+        })
+        watcher.on('error', error => logForDebugging(`update notice: pointer watch failed: ${String(error)}`))
+      } catch (error) {
+        logForDebugging(`update notice: pointer watch did not arm: ${String(error)}`)
+      }
     }
+    checkInstalled(roots)
   }
   const timer = startTimeout(() => {
     const roots = resolveLayoutRoots()
@@ -267,11 +267,11 @@ export function scheduleQuietUpdateNotice(
       check: () => checkForUpdate(roots, () => {}),
       readCache: () => readUpdateNoticeCache(),
       writeCache: cache => writeUpdateNoticeCache(cache),
-      notify: text => {
+      notify: (text, version) => {
         if (disposed) return
-        advertised = /^v(\S+) available /.exec(text)?.[1] ?? null
+        advertised = version
         notify(text)
-        if (advertised !== null) armPointerWatch(roots)
+        armPointerWatch(roots)
       },
       now: Date.now,
       runningVersion: MACRO.VERSION,
