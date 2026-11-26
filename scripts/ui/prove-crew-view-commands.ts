@@ -136,6 +136,8 @@ const { default: ScreenInstance } = await import('../../src/screen/renderer/scre
 const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
 const { App } = await import('../../src/boot/App.tsx')
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { usePickerCommandContext } = await import('./pickerCommandContext.ts')
+const { useNotifications } = await import('../../src/screen/notifications/notifications.tsx')
 const { useAppStateStore } = await import('../../src/screen/app-state/AppState.tsx')
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
@@ -164,7 +166,7 @@ const { getCrewmateTranscriptPath } = await import('../../src/sessions/transcrip
 const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { builtinCommands, isCommandEnabled } = await import('../../src/commands/catalogue/commands.ts')
-const { isSettingsPopupOpen, settingsPopupRequest } = await import('../../src/screen/cockpit/settingsPopup.ts')
+const { modelPickerPopupClaimed } = await import('../../src/screen/cockpit/modelPickerPopup.ts')
 const { getInitialSettings } = await import('../../src/platform/settings/settings.ts')
 const { REFOCUS_CLICK_WINDOW_MS } = await import('../../src/screen/renderer/elements/App.tsx')
 const CLOCK_SLEW_MS = 50
@@ -264,6 +266,9 @@ function Harness(): React.ReactNode {
   const [screen, setScreen] = React.useState('prompt')
   const insertRef = React.useRef<unknown>(null)
   const modalScrollRef = React.useRef(null)
+  const [modal, setModal] = React.useState<React.ReactNode>(null)
+  const { addNotification } = useNotifications()
+  const getToolUseContext = usePickerCommandContext(commands)
   return h(KeybindingSetup, null,
     h(GlobalKeybindingHandlers, { screen, setScreen, showAllInTranscript: false, setShowAllInTranscript: () => {}, messageCount: 0, compactWork: controls } as never),
     h(FullscreenLayout, {
@@ -271,7 +276,7 @@ function Harness(): React.ReactNode {
       scrollable: h(TranscriptSwap, { lead: h(Transcript), tools: [], commands, screen: 'prompt', scrollRef, agentDefinitions: { activeAgents: [], allAgents: [] } }),
       statusBand: h(Text, null, 'waiting on 1 crewmate'),
       statusBandActive: true,
-      modalScrollRef,
+      modalScrollRef, modal,
       bottom: h(Box, { flexDirection: 'column' },
         h(Composer, {
           compactWork: controls, compactFocus: focus,
@@ -279,12 +284,22 @@ function Harness(): React.ReactNode {
           setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands, agents: [],
           isLoading: false, verbose: false, submitCount: 1, onShowRewindPicker: () => {},
           mcpClients: [], vimMode, setVimMode, showBashesDialog: bashes, setShowBashesDialog: setBashes,
-          onExit: () => {}, getToolUseContext: () => ({} as never),
+          onExit: () => {}, getToolUseContext,
           onSubmit: async (text: string) => {
-            submits.push(text)
+            const state = store.getState()
+            const [name, ...args] = text.slice(1).split(' ')
+            const command = commands.find(c => c.name === name)
+            if ((state.viewingCrewmateTaskId ?? state.mainChatTaskId) === undefined || command?.type !== 'local-jsx' || (name !== 'effort' && name !== 'model')) { submits.push(text); return }
+            if (pending.text().trimEnd() === text) { pending.clearForSubmit(text); pending.edit('') }
+            const module = await command.load()
+            const node = await module.call(message => {
+              setModal(null)
+              if (message) addNotification({ key: `command-${name}`, text: message, priority: 'immediate' })
+            }, getToolUseContext([], [], new AbortController(), CREW_MODEL), args.join(' '))
+            if (node) setModal(node)
           },
           isSearchingHistory: searching, setIsSearchingHistory: setSearching, helpOpen: help, setHelpOpen: setHelp,
-          hasSuppressedDialogs: false, isLocalJSXCommandActive: false, insertTextRef: insertRef,
+          hasSuppressedDialogs: false, isLocalJSXCommandActive: modal !== null, insertTextRef: insertRef,
         } as never),
         h(FocusedSessionStatusRow),
       ),
@@ -401,23 +416,23 @@ section('§1 a running hosted crewmate in the view: the per-agent commands act o
   check("(a) the status row's chip keeps the running model and effort and appends the recorded next-turn model", chipShown, (scene.lines().find(line => /Fable 5\.1|Haiku 5\.5/.test(line) && / · (high|low)/.test(line)) ?? '').trim().slice(0, 200))
 
   submitsBefore = submits.length
-  const opened = await command(scene, '/model', () => isSettingsPopupOpen() && settingsPopupRequest()?.view === 'model')
+  const opened = await command(scene, '/model', () => modelPickerPopupClaimed() && screenWords(scene).includes('Mercury · model'))
   await sleep(600)
   save('01-model-picker-at-atlas', scene.lines())
   const words = screenWords(scene)
-  check('(a) /model with no argument opens the picker for the crewmate — its line names the crewmate and the next-turn rule', opened && words.includes('Lane atlas — a pick switches it at its next turn'), words.slice(0, 600))
+  check('(a) /model with no argument opens the picker for the crewmate — the main chat model frame and switch keys', opened && words.includes('↵ switch') && !words.includes('a pick switches'), words.slice(0, 600))
   check('(a) the picker shows the crewmate\'s recorded model as its current row', scene.lines().some(line => /Haiku 5\.5\s+claude-haiku-5-5\s+current/.test(line)), scene.lines().filter(line => line.includes('current')).join(' | ').slice(0, 400))
   const headers = scene.lines().filter(line => line.includes('Mercury · model')).length
-  check('(a) the picker is one frame with one header and the one hint line — no frame around a frame, no second footer', headers === 1 && scene.lines().some(line => line.includes('↵ picks · esc keeps Haiku 5.5')) && !words.includes('↵ switch ·') && !words.includes('pgup/pgdn page'), `${headers} headers · ${words.slice(0, 400)}`)
+  check('(a) the picker is one frame with one header and one switch legend, not the private pick legend', headers === 1 && scene.lines().filter(line => line.includes('↵ switch')).length === 1 && !words.includes('↵ picks'), `${headers} headers · ${words.slice(0, 400)}`)
   check("(a) the picker's context gauge shows the crewmate's fill, not the main seat's", scene.lines().some(line => /│ context [█░]+ \d+%/.test(line)), (scene.lines().find(line => /│ context /.test(line)) ?? '').trim().slice(0, 120))
   scene.push(ESC)
-  const closed = await until(() => !isSettingsPopupOpen(), 4000)
+  const closed = await until(() => !modelPickerPopupClaimed(), 4000)
   await sleep(300)
-  check('(a) esc closes the picker and the receipt says the crewmate stays on its model', closed && screenWords(scene).includes('Lane atlas stays on Haiku 5.5'), screenWords(scene).slice(-300))
+  check('(a) esc closes the picker and the receipt says the crewmate stays on its model', closed && screenWords(scene).includes('Kept model as Haiku 5.5'), screenWords(scene).slice(-300))
   mainSeatUntouched(scene, '(a, picker)', submitsBefore)
 
   submitsBefore = submits.length
-  const pickerAgain = await command(scene, '/model', () => isSettingsPopupOpen() && settingsPopupRequest()?.view === 'model')
+  const pickerAgain = await command(scene, '/model', () => modelPickerPopupClaimed() && screenWords(scene).includes('Mercury · model'))
   await sleep(500)
   const recordBeforePick = readRecord(hostedRecord(ATLAS.id))?.model
   scene.push('\x1b[B')
@@ -427,7 +442,7 @@ section('§1 a running hosted crewmate in the view: the per-agent commands act o
   await sleep(400)
   save('01-model-picked-at-atlas', scene.lines())
   const pickedModel = readRecord(hostedRecord(ATLAS.id))?.model
-  check('(a) a pick inside the crewmate\'s picker (↓ then ↵) records the picked row on the crewmate and closes the picker', pickerAgain && picked && typeof pickedModel === 'string' && pickedModel !== HAIKU && !isSettingsPopupOpen(), `record ${String(pickedModel)} · open ${String(isSettingsPopupOpen())}`)
+  check('(a) a pick inside the crewmate\'s picker (↓ then ↵) records the picked row on the crewmate and closes the picker', pickerAgain && picked && typeof pickedModel === 'string' && pickedModel !== HAIKU && !modelPickerPopupClaimed(), `record ${String(pickedModel)} · open ${String(modelPickerPopupClaimed())}`)
   check('(a) the pick\'s receipt names the crewmate and its next turn', /Lane atlas switches to .+ at its next turn/.test(screenWords(scene)), screenWords(scene).slice(-300))
   mainSeatUntouched(scene, '(a, pick)', submitsBefore)
   await command(scene, `/model ${HAIKU}`, () => readRecord(hostedRecord(ATLAS.id))?.model === HAIKU)
@@ -443,8 +458,16 @@ section('§1 a running hosted crewmate in the view: the per-agent commands act o
   check("(b) the user's saved effort and the main seat's effort value did not move", JSON.stringify(getInitialSettings().engine ?? {}) === settingsBefore && scene.state().effortValue === effortBefore, `${JSON.stringify(getInitialSettings().engine)} · ${String(scene.state().effortValue)}`)
   mainSeatUntouched(scene, '(b)', submitsBefore)
 
-  await command(scene, '/effort', () => screenWords(scene).includes('Lane atlas runs low on'))
-  check('(b) /effort alone reads the crewmate\'s effort and names the levels its model takes', screenWords(scene).includes('Lane atlas runs low on Haiku 5.5') && screenWords(scene).includes('/effort '), screenWords(scene).slice(-300))
+  const effortOpened = await command(scene, '/effort', () => screenWords(scene).includes('Mercury · effort'))
+  save('01-effort-picker-at-atlas', scene.lines())
+  check('(b) /effort shows the main popup and the selected model and recorded effort', effortOpened && screenWords(scene).includes('Haiku 5.5') && screenWords(scene).includes('next turn low') && scene.lines().some(line => line.includes('low') && line.includes('current')) && screenWords(scene).includes('↵ apply'), screenWords(scene).slice(-800))
+  scene.push('\x1b[B')
+  await sleep(250)
+  scene.push(ENTER)
+  const medium = await until(() => readRecord(hostedRecord(ATLAS.id))?.effortOverride === 'medium' && !screenWords(scene).includes('Mercury · effort'), 5000)
+  check('(b) the selection updates only the next effort on the viewed seat', medium && readRecord(hostedRecord(ATLAS.id))?.effort === 'high' && JSON.stringify(getInitialSettings().engine ?? {}) === settingsBefore && scene.state().effortValue === effortBefore, JSON.stringify(readRecord(hostedRecord(ATLAS.id))))
+  mainSeatUntouched(scene, '(b, pick)', submitsBefore)
+  await command(scene, '/effort low', () => readRecord(hostedRecord(ATLAS.id))?.effortOverride === 'low')
 
   submitsBefore = submits.length
   const compactLanded = await command(scene, '/compact', () => readRecord(hostedRecord(ATLAS.id))?.compactOnResume === true)
@@ -467,13 +490,13 @@ section('§1 a running hosted crewmate in the view: the per-agent commands act o
   const helpRan = await command(scene, '/help', () => submits.length > submitsBefore)
   save('01-help-at-atlas', scene.lines())
   check('(e) /help at a crewmate runs for the session as before', helpRan && submits[submits.length - 1] === '/help', JSON.stringify(submits.slice(submitsBefore)))
-  check('(e) …and the receipt says it ran for this session, not the crewmate', screenWords(scene).includes('/help runs for this session, not Lane atlas'), screenWords(scene).slice(-300))
+  check('(e) …and session commands add no redundant routing notice', !screenWords(scene).includes('runs for this session, not'), screenWords(scene).slice(-300))
   const crewRan = await command(scene, '/crewmates', () => submits.length > submitsBefore + 1)
-  check('(e) /crewmates at a crewmate runs for the session with the same line', crewRan && submits[submits.length - 1] === '/crewmates' && screenWords(scene).includes('/crewmates runs for this session, not Lane atlas'), `${JSON.stringify(submits.slice(submitsBefore))} · ${screenWords(scene).slice(-200)}`)
+  check('(e) /crewmates at a crewmate runs for the session with the same line', crewRan && submits[submits.length - 1] === '/crewmates' && !screenWords(scene).includes('runs for this session, not'), `${JSON.stringify(submits.slice(submitsBefore))} · ${screenWords(scene).slice(-200)}`)
   check('(e) the global commands left the crewmate\'s record alone', JSON.stringify(readRecord(hostedRecord(ATLAS.id))) === JSON.stringify({ agentType: 'mercury-crew', model: HAIKU, effort: 'high', effortOverride: 'low', compactOnResume: true }), JSON.stringify(readRecord(hostedRecord(ATLAS.id))))
   await clearNotices(scene)
   await command(scene, '/frobnicate', () => screenWords(scene).includes('Unknown command: /frobnicate'))
-  check('the unknown-command line says commands run for the crewmate or for this session', screenWords(scene).includes('Unknown command: /frobnicate — commands run for Lane atlas or for this session; // sends the line to the agent as text'), screenWords(scene).slice(-300))
+  check('the unknown command gets the main chat refusal and /help door', screenWords(scene).includes('Unknown command: /frobnicate') && screenWords(scene).includes('/help lists commands'), screenWords(scene).slice(-300))
 
   submitsBefore = submits.length
   const modelCallsBefore = callsOf('setModel').length
@@ -481,10 +504,10 @@ section('§1 a running hosted crewmate in the view: the per-agent commands act o
   await clearNotices(scene)
   const keyRecordBefore = readRecord(hostedRecord(ATLAS.id))?.model
   scene.push(`${ESC}p`)
-  const keyPicker = await until(() => isSettingsPopupOpen() && settingsPopupRequest()?.view === 'model', 5000)
+  const keyPicker = await until(() => modelPickerPopupClaimed() && screenWords(scene).includes('Mercury · model'), 5000)
   await sleep(400)
   save('k1-meta-p-at-atlas', scene.lines())
-  check('(k1) meta+p at the selected crewmate opens the crewmate\'s own picker, not the main seat\'s', keyPicker && screenWords(scene).includes('Lane atlas — a pick switches it at its next turn') && !screenWords(scene).includes('Select model'), screenWords(scene).slice(0, 400))
+  check('(k1) meta+p at the selected crewmate opens the crewmate\'s own picker, not the main seat\'s', keyPicker && screenWords(scene).includes('↵ switch') && !screenWords(scene).includes('Select model'), screenWords(scene).slice(0, 400))
   scene.push('\x1b[B')
   await sleep(250)
   scene.push(ENTER)

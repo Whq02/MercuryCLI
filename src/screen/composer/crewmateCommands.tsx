@@ -1,8 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import type { Command } from '../../commands/catalogue/commands.js'
 import { getCommandName } from '../../commands/catalogue/commands.js'
-import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../engine/message-shapes/messageTags.js'
-import { ModalContext } from '../overlays/modalContext.js'
 import type { Notification } from '../notifications/notifications.js'
 import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
 import type { AppState } from '../app-state/AppState.js'
@@ -14,37 +12,29 @@ import {
   crewmateFoldWords,
   crewmateContextWords,
   crewmateEffortClearedWords,
-  crewmateEffortCurrentWords,
   crewmateEffortRefusedWords,
   crewmateEffortSwitchWords,
   crewmateModelCurrentWords,
-  crewmateModelKeptWords,
-  crewmateModelPickerLine,
   crewmateModelSwitchWords,
   crewmateNumbersUnreportedWords,
   crewmateUsageWords,
 } from '../cockpit/crewmateWords.js'
-import { closeSettingsPopup, openSettingsPopup } from '../cockpit/settingsPopup.js'
 import { getContextWindowForModel } from '../../engine/compaction-window/contextFill.js'
 import { crewmateModelOverride } from '../../crew/crewmates/crewmateModelWord.js'
-import { EFFORT_LEVELS, normalizeEffortLevelString, resolveStampedEffortTruth, selectableEffortLevels, type EffortLevel } from '../../models/effort/effort.js'
+import { EFFORT_LEVELS, normalizeEffortLevelString, resolveStampedEffortTruth } from '../../models/effort/effort.js'
 import { errorMessage, isENOENT } from '../../platform/errors/errors.js'
 import { formatDuration, formatTokens } from '../../platform/text/format.js'
 import { logError } from '../../platform/logs/errorLog.js'
-import { parseUserSpecifiedModel, renderModelName } from '../../models/catalogue/engineModel.js'
-import { MODEL_PICKER_PANEL } from '../../models/facts/modelPickerGroups.js'
+import { renderModelName } from '../../models/catalogue/engineModel.js'
 import type { CrewmateMetadata } from '../../sessions/transcripts/paths.js'
 import { formatSessionCost } from '../../models/roads/spendSpelling.js'
-import { panelWidth } from '../widgets/geometry.js'
-import { POPUP_GUTTER } from '../overlays/PopupGutter.js'
 import { crewmateMetadataFile } from '../tasks/useCrewmateModel.js'
-import { crewmateLive, type CrewmateInView } from '../tasks/useCrewmateView.js'
+import { crewmateInView, crewmateLive, type CrewmateInView } from '../tasks/useCrewmateView.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 
 const CREWMATE_COMMAND_RECEIPT_KEY = 'crewmate-command'
 const CREWMATE_FOLD_INSTRUCTIONS_NOTE = 'the instructions are not carried; a crewmate compacts with the standard summary'
 const EFFORT_OPTIONS = `${EFFORT_LEVELS.join('|')}|auto`
-const MODEL_PICKER_ROWS = 29
 
 type CrewmateCommandIo = {
   setAppState: (f: (prev: AppState) => AppState) => void
@@ -112,18 +102,16 @@ type CrewmateSeat = {
   file: string
   meta: CrewmateMetadata | null
   model: string
-  io: CrewmateCommandIo
 }
 
-async function recordModel(seat: CrewmateSeat, model: string): Promise<void> {
+async function recordModel(seat: CrewmateSeat, model: string): Promise<string> {
   const label = renderModelName(model)
   const current = seat.meta?.model ?? runningModelOf(seat.crewmate)
   if (current === model) {
-    seat.io.receipt(crewmateModelCurrentWords(seat.name, label, null))
-    return
+    return crewmateModelCurrentWords(seat.name, label, null)
   }
   await writeRecord(seat.file, { ...(await latestRecord(seat)), model })
-  seat.io.receipt(crewmateModelSwitchWords(seat.name, label, seat.running))
+  return crewmateModelSwitchWords(seat.name, label, seat.running)
 }
 
 function contextPercentOf(crewmate: CrewmateInView, model: string): number | null {
@@ -138,110 +126,37 @@ function contextPercentOf(crewmate: CrewmateInView, model: string): number | nul
   }
 }
 
-async function openCrewmateModelPicker(seat: CrewmateSeat): Promise<void> {
-  const { MercuryModelChoicePicker, modelChoiceRow } = await import('../../commands/model/mercuryModel.js')
-  const label = renderModelName(seat.model)
-  const line = crewmateModelPickerLine(seat.name, seat.running)
-  const hint = `↵ picks · esc keeps ${label}`
-  openSettingsPopup({
-    view: 'model',
-    width: available => panelWidth(available, { ...MODEL_PICKER_PANEL, reserve: 0 }),
-    rows: MODEL_PICKER_ROWS,
-    line,
-    hint,
-    bodyOwnsEscape: true,
-    bodyOwnsFrame: true,
-    body: geometry => (
-      <ModalContext.Provider value={{ rows: geometry.rowBudget, columns: geometry.width + 2 * POPUP_GUTTER, scrollRef: null }}>
-        <MercuryModelChoicePicker
-          current={modelChoiceRow(seat.model)}
-          line={line}
-          hint={hint}
-          ctxPct={contextPercentOf(seat.crewmate, seat.model)}
-          onSelect={id => {
-            closeSettingsPopup()
-            void recordModel(seat, parseUserSpecifiedModel(id)).catch(error => seat.io.receipt(errorMessage(error), 'warning'))
-          }}
-          onClose={() => {
-            closeSettingsPopup()
-            seat.io.receipt(crewmateModelKeptWords(seat.name, label))
-          }}
-        />
-      </ModalContext.Provider>
-    ),
-  })
-}
-
-async function runModel(seat: CrewmateSeat, args: string): Promise<void> {
-  const lowered = args.toLowerCase()
-  if (args === '') return openCrewmateModelPicker(seat)
-  if (COMMON_HELP_ARGS.includes(lowered)) {
-    seat.io.receipt(`/model opens ${seat.name}'s picker; /model <model> names its next model directly`)
-    return
-  }
-  if (COMMON_INFO_ARGS.includes(lowered)) {
-    const running = runningModelOf(seat.crewmate)
-    const recorded = seat.meta?.model ?? null
-    const switching = seat.running && recorded !== null && running !== null && recorded !== running
-    seat.io.receipt(crewmateModelCurrentWords(seat.name, renderModelName(switching ? running : seat.model), switching ? renderModelName(recorded) : null))
-    return
-  }
-  try {
-    const resolved = await crewmateModelOverride(args, getFocusedSessionConnector().modelFacts().effective)
-    if (resolved === undefined) throw new Error(`'${args}' names no model`)
-    await recordModel(seat, resolved)
-  } catch (error) {
-    seat.io.receipt(errorMessage(error), 'warning')
-  }
-}
-
-async function runEffort(seat: CrewmateSeat, args: string): Promise<void> {
+async function recordEffort(seat: CrewmateSeat, args: string): Promise<string> {
   const token = args.toLowerCase()
-  if (COMMON_HELP_ARGS.includes(token)) {
-    seat.io.receipt(`/effort [${EFFORT_OPTIONS}] sets ${seat.name}'s effort for its next turn`)
-    return
-  }
-  if (token === '' || COMMON_INFO_ARGS.includes(token)) {
-    const level = word(seat.meta?.effortOverride) ?? word(seat.meta?.effort) ?? seat.crewmate.facts?.effort ?? null
-    seat.io.receipt(crewmateEffortCurrentWords(seat.name, level, renderModelName(seat.model), selectableEffortLevels(seat.model)))
-    return
-  }
   if (token === 'auto' || token === 'unset') {
     const { effortOverride: _override, ...rest } = await latestRecord(seat)
     await writeRecord(seat.file, rest)
-    seat.io.receipt(crewmateEffortClearedWords(seat.name, seat.running))
-    return
+    return crewmateEffortClearedWords(seat.name, seat.running)
   }
-  const level: EffortLevel | undefined = normalizeEffortLevelString(token)
-  if (level === undefined) {
-    seat.io.receipt(`Valid options: ${EFFORT_OPTIONS} — "${args}" is not an effort option.`, 'warning')
-    return
-  }
+  const level = normalizeEffortLevelString(token)
+  if (level === undefined) return `Valid options: ${EFFORT_OPTIONS} — "${args}" is not an effort option.`
   const selectable = resolveStampedEffortTruth(seat.model, level, { thinkingEnabled: true }).selectable
-  if (level !== 'max' && !selectable.includes(level)) {
-    seat.io.receipt(crewmateEffortRefusedWords(seat.name, level, renderModelName(seat.model), selectable), 'warning')
-    return
-  }
+  if (level !== 'max' && !selectable.includes(level)) return crewmateEffortRefusedWords(seat.name, level, renderModelName(seat.model), selectable)
   await writeRecord(seat.file, { ...(await latestRecord(seat)), effortOverride: level })
-  seat.io.receipt(crewmateEffortSwitchWords(seat.name, level, seat.running))
+  return crewmateEffortSwitchWords(seat.name, level, seat.running)
 }
 
-async function runFold(seat: CrewmateSeat, args: string): Promise<void> {
+async function runFold(seat: CrewmateSeat, args: string, io: CrewmateCommandIo): Promise<void> {
   const note = args === '' ? '' : ` — ${CREWMATE_FOLD_INSTRUCTIONS_NOTE}`
   const local = seat.crewmate.local
-  if (local !== undefined && isCrewmateTask(local) && local.status === 'running' && requestCrewmateFold(local.id, seat.io.setAppState)) {
-    seat.io.receipt(`${crewmateFoldWords(seat.name, true)}${note}`)
+  if (local !== undefined && isCrewmateTask(local) && local.status === 'running' && requestCrewmateFold(local.id, io.setAppState)) {
+    io.receipt(`${crewmateFoldWords(seat.name, true)}${note}`)
     return
   }
   await writeRecord(seat.file, { ...(await latestRecord(seat)), compactOnResume: true })
-  seat.io.receipt(`${crewmateFoldWords(seat.name, false)}${note}`)
+  io.receipt(`${crewmateFoldWords(seat.name, false)}${note}`)
 }
 
-function runContext(seat: CrewmateSeat): void {
+function runContext(seat: CrewmateSeat, io: CrewmateCommandIo): void {
   const facts = seat.crewmate.facts
   const context = facts?.tokens?.context ?? null
   if (facts === null || context === null) {
-    seat.io.receipt(crewmateNumbersUnreportedWords(seat.name))
+    io.receipt(crewmateNumbersUnreportedWords(seat.name))
     return
   }
   const model = facts.model ?? seat.model
@@ -252,18 +167,18 @@ function runContext(seat: CrewmateSeat): void {
     window = null
   }
   const pct = window !== null && window > 0 ? Math.round((context / window) * 100) : null
-  seat.io.receipt(crewmateContextWords(seat.name, renderModelName(model), formatTokens(context), window !== null && window > 0 ? formatTokens(window) : null, pct))
+  io.receipt(crewmateContextWords(seat.name, renderModelName(model), formatTokens(context), window !== null && window > 0 ? formatTokens(window) : null, pct))
 }
 
-function runUsage(seat: CrewmateSeat): void {
+function runUsage(seat: CrewmateSeat, io: CrewmateCommandIo): void {
   const facts = seat.crewmate.facts
   const tokens = facts?.tokens ?? null
   if (facts === null || tokens === null) {
-    seat.io.receipt(crewmateNumbersUnreportedWords(seat.name))
+    io.receipt(crewmateNumbersUnreportedWords(seat.name))
     return
   }
   const elapsed = (facts.endedAt ?? Date.now()) - facts.startedAt
-  seat.io.receipt(crewmateUsageWords(seat.name, renderModelName(facts.model ?? seat.model), {
+  io.receipt(crewmateUsageWords(seat.name, renderModelName(facts.model ?? seat.model), {
     input: formatTokens(tokens.input ?? tokens.total),
     output: formatTokens(tokens.output ?? 0),
     cached: tokens.cached !== null && tokens.cached !== undefined && tokens.cached > 0 ? formatTokens(tokens.cached) : null,
@@ -273,49 +188,53 @@ function runUsage(seat: CrewmateSeat): void {
   }))
 }
 
-async function seatOf(crewmate: CrewmateInView, io: CrewmateCommandIo): Promise<CrewmateSeat | null> {
+async function seatOf(crewmate: CrewmateInView, command: string): Promise<CrewmateSeat> {
   const file = crewmateMetadataFile(crewmate)
-  if (file === null) return null
+  if (file === null) throw new Error(crewmateCommandUnreachableWords(crewmate.name, command))
   const meta = await readRecord(file)
   const model = word(meta?.model) ?? runningModelOf(crewmate) ?? getFocusedSessionConnector().modelFacts().effective
-  return { crewmate, name: crewmate.name, running: crewmateRuns(crewmate), file, meta, model, io }
+  return { crewmate, name: crewmate.name, running: crewmateRuns(crewmate), file, meta, model }
 }
 
-export async function openCrewmateModelPickerFor(crewmate: CrewmateInView, io: CrewmateCommandIo): Promise<void> {
-  let seat: CrewmateSeat | null
-  try {
-    seat = await seatOf(crewmate, io)
-  } catch (error) {
-    io.receipt(errorMessage(error), 'warning')
-    return
+export async function crewmatePickerSeat(state: AppState, command: 'model' | 'effort') {
+  const id = state.viewingCrewmateTaskId ?? state.mainChatTaskId
+  if (id === undefined) return undefined
+  const connector = getFocusedSessionConnector()
+  const crew = crewmateInView(id, state, connector.workRoster().rows, connector.sessionId(), state.crewLedger[id]?.facts)
+  if (crew === null) throw new Error(crewmateCommandUnreachableWords(id, command))
+  const seat = await seatOf(crew, command)
+  return {
+    model: seat.model,
+    effort: seat.meta?.effortOverride ?? seat.meta?.effort ?? crew.facts?.effort ?? null,
+    contextPercent: contextPercentOf(crew, seat.model),
+    modelStatus: () => {
+      const running = runningModelOf(crew)
+      const switching = seat.running && running !== null && running !== seat.model
+      return crewmateModelCurrentWords(crew.name, renderModelName(switching ? running : seat.model), switching ? renderModelName(seat.model) : null)
+    },
+    setModel: async (id: string) => {
+      const model = await crewmateModelOverride(id, connector.modelFacts().effective)
+      if (model === undefined) throw new Error(`'${id}' names no model`)
+      return recordModel(seat, model)
+    },
+    setEffort: (value: string) => recordEffort(seat, value),
   }
-  if (seat === null) {
-    io.receipt(crewmateCommandUnreachableWords(crewmate.name, 'model'), 'warning')
-    return
-  }
-  await openCrewmateModelPicker(seat)
 }
+
+export type CrewmatePickerSeat = NonNullable<Awaited<ReturnType<typeof crewmatePickerSeat>>>
 
 export async function runCrewmateCommand(command: Command, line: string, crewmate: CrewmateInView, io: CrewmateCommandIo): Promise<void> {
   const name = getCommandName(command)
   const args = argsOf(line)
   try {
-    const seat = await seatOf(crewmate, io)
-    if (seat === null) {
-      io.receipt(crewmateCommandUnreachableWords(crewmate.name, name), 'warning')
-      return
-    }
+    const seat = await seatOf(crewmate, name)
     switch (command.name) {
-      case 'model':
-        return await runModel(seat, args)
-      case 'effort':
-        return await runEffort(seat, args)
       case 'compact':
-        return await runFold(seat, args)
+        return await runFold(seat, args, io)
       case 'context':
-        return runContext(seat)
+        return runContext(seat, io)
       case 'usage':
-        return runUsage(seat)
+        return runUsage(seat, io)
       default:
         io.receipt(crewmateCommandUnreachableWords(crewmate.name, name), 'warning')
     }

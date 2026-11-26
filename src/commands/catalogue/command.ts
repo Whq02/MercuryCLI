@@ -1,3 +1,4 @@
+import type { CrewmatePickerSeat } from '../../screen/composer/crewmateCommands.js'
 import type * as React from 'react'
 import type { UUID } from 'crypto'
 import type { CanUseToolFn, ToolUseContext } from '../../tools/kit/tool.js'
@@ -129,6 +130,7 @@ type CommandDoneOptions = {
 export type LocalJSXCommandOnDone = (result?: string, options?: CommandDoneOptions) => void
 
 export type LocalJSXCommandContext = ToolUseContext & {
+  crewmateSeat?: (command: 'model' | 'effort') => Promise<CrewmatePickerSeat | undefined>
   setMessages: (updater: (prev: Message[]) => Message[]) => void
   canUseTool?: CanUseToolFn
   onChangeAPIKey: () => void

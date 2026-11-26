@@ -15,7 +15,7 @@ import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import type { useComposerCrewmate } from '../tasks/useCrewmateView.js'
 import type { OverlaySurface } from './composerOverlay.js'
 import { useSetPromptOverlayDialog } from '../overlays/promptOverlay.js'
-import { crewmateCommandReceipt, openCrewmateModelPickerFor } from './crewmateCommands.js'
+import { requestCommandDispatch } from '../cockpit/helmFocus.js'
 import type { ComposerProps } from './Composer.js'
 import type { ComposerAttachments } from './useComposerAttachments.js'
 import type { useComposerModelDoors } from './useComposerModelDoors.js'
@@ -160,10 +160,7 @@ export function composerSurface({
               setShowCommandPalette(false)
               const crewmate = commandCrewmateRef.current
               if (crewmate !== null) {
-                void openCrewmateModelPickerFor(crewmate, {
-                  setAppState,
-                  receipt: crewmateCommandReceipt(addNotification),
-                })
+                requestCommandDispatch('/model')
                 return
               }
               setOverlay('model-picker')

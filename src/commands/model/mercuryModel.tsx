@@ -1,4 +1,6 @@
 import * as React from 'react'
+import type { CrewmatePickerSeat } from '../../screen/composer/crewmateCommands.js'
+import { errorMessage } from '../../platform/errors/errors.js'
 import { hostEndpointChoice, hostRunModelRows } from '../../models/hosting/door.js'
 import type { CommandResultDisplay } from '../catalogue/commands.js'
 import { MercuryModelPicker, type ModelChoice } from './picker/MercuryModelPicker.js'
@@ -70,7 +72,9 @@ function MercuryModelWrapper({
   messages,
   onDone,
   ask,
+  seat,
 }: {
+  seat?: CrewmatePickerSeat
   messages: Message[]
   onDone: (
     result?: string,
@@ -88,18 +92,23 @@ function MercuryModelWrapper({
   const focusedModelKey = React.useSyncExternalStore(subscribeFocusedModelFeed, getFocusedModelKey, getFocusedModelKey)
   const focusedSeat = focusedSessionModelFacts()
   void focusedModelKey
-  const servedModel = focusedSeat !== null ? focusedSeat.effective : (engineModelForSession ?? getEngineModel())
+  const servedModel = seat?.model ?? focusedSeat?.effective ?? engineModelForSession ?? getEngineModel()
 
   const liveModel = servedModel
   const efforts = modelSupportsEffort(liveModel) ? [...selectableEffortLevels(liveModel)] : []
-  const seatEffort = focusedSeat?.effort != null ? parseEffortValue(focusedSeat.effort) : undefined
+  const word = seat === undefined ? focusedSeat?.effort : seat.effort
+  const seatEffort = word != null ? parseEffortValue(word) : undefined
   const initialEffort =
     seatEffort !== undefined
       ? resolveStampedEffortTruth(liveModel, seatEffort).label
-      : getDisplayedEffortLabel(liveModel, effortValue)
+      : getDisplayedEffortLabel(liveModel, seat === undefined ? effortValue : undefined)
   const [effort, setEffort] = React.useState<string>(initialEffort)
 
   function handleEffort(mode: string): void {
+    if (seat !== undefined) {
+      void seat.setEffort(mode).then(words => { setEffort(mode); setNotice(words) }, error => setNotice(errorMessage(error)))
+      return
+    }
     setEffort(mode)
     unpinAllLaunchEffort()
     const persistable = toPersistableEffort(mode as EffortValue)
@@ -135,12 +144,12 @@ function MercuryModelWrapper({
     return true
   }
 
-  const options = getModelOptions()
-  const current = focusedSeat?.effective ?? engineModelForSession ?? engineModel ?? getEngineModel()
+  const options = getModelOptions().filter(option => seat === undefined || !isProviderActionRow(option.value) || isCatalogueDoorRow(option.value))
+  const current = seat?.model ?? focusedSeat?.effective ?? engineModelForSession ?? engineModel ?? getEngineModel()
   const tensorFold = useModelTensorFoldFacts(current, words => {
     if (pickerOpen.current) setNotice(words)
   })
-  const tensorfold = tensorFold?.picker
+  const tensorfold = seat === undefined ? tensorFold?.picker : undefined
   const tensorFoldPods = React.useMemo(() => tensorFoldPodEndpoints(tensorfold?.pods ?? []), [tensorfold])
   const listedModels: ModelChoice[] = options.flatMap(opt => hostEndpointChoice(modelChoiceOf(opt, betas))).filter(choice => !servedByTensorFold(choice, tensorFoldPods))
   const pickerOpen = React.useRef(true)
@@ -153,10 +162,10 @@ function MercuryModelWrapper({
   const expandRows = (group: string): ModelChoice[] => expandRowsOf(group, betas)
   const labelOf = (id: string): string => pickLabelOf(options, id)
   const currentRowId = resolveCurrentRowId(listedModels, current)
-  const models = [...orderedModelChoices(listedModels, currentRowId), ...hostRunModelRows()]
+  const models = [...orderedModelChoices(listedModels, currentRowId), ...(seat === undefined ? hostRunModelRows() : [])]
   const topGroup = seatGroupOf(listedModels, currentRowId)
   const pendingSwitch = useAppState(s => s.pendingModelSwitch)
-  const pendingNext =
+  const pendingNext = seat !== undefined ? undefined :
     focusedSeat !== null
       ? focusedSeat.pendingSwitch
         ? resolveCurrentRowId(models, parseUserSpecifiedModel(focusedSeat.pendingSwitch.setting ?? getDefaultEngineModel()))
@@ -215,8 +224,12 @@ function MercuryModelWrapper({
   }
   const pickCtx: PickContext = { messages, onDone, store, setAppState, setNotice, setTransitionConfirm, applySelection, labelOf, flipDoorNote }
   function handleSelect(id: string, door?: string): void {
-    if (selectHostRow(pickCtx, id)) return
     if (isCatalogueDoorRow(id)) return
+    if (seat !== undefined) {
+      void seat.setModel(id).then(words => onDone(words), error => setNotice(errorMessage(error)))
+      return
+    }
+    if (selectHostRow(pickCtx, id)) return
     const otherDoor = door !== undefined && !isProviderActionRow(id) && headings[ANTHROPIC_MODEL_GROUP]?.doors.some(candidate => candidate.door === door && candidate.active !== true)
     const pick: PickRoad = { flip: otherDoor === true, ...(door !== undefined ? { door } : {}) }
     const value = id
@@ -316,7 +329,7 @@ function MercuryModelWrapper({
     <MercuryModelPicker
       models={models}
       current={currentRowId}
-      ctxPct={ctxPct}
+      ctxPct={seat === undefined ? ctxPct : seat.contextPercent}
       efforts={efforts}
       effort={effort}
       onEffort={handleEffort}
@@ -333,7 +346,7 @@ function MercuryModelWrapper({
       onSelect={handleSelect}
       onClose={() =>
         onDone(
-          focusedSeat === null && engineModelForSession
+          seat === undefined && focusedSeat === null && engineModelForSession
             ? `Kept model as ${renderModelName(engineModelForSession)} (session override)`
             : `Kept model as ${renderModelName(servedModel)}`,
           { display: 'system' },
@@ -347,10 +360,19 @@ function MercuryModelWrapper({
 
 export const call: LocalJSXCommandCall = async (onDone, context, args) => {
   const typed = args?.trim() ?? ''
+  const seat = await context.crewmateSeat?.('model')
   let ask: ModelNameAsk | undefined
   if (typed !== '') {
     const lowered = typed.toLowerCase()
+    if (seat !== undefined && COMMON_INFO_ARGS.includes(lowered)) {
+      onDone(seat.modelStatus())
+      return null
+    }
     const matched = COMMON_INFO_ARGS.includes(lowered) || COMMON_HELP_ARGS.includes(lowered) ? null : matchReachableModelName(typed)
+    if (seat !== undefined && !COMMON_HELP_ARGS.includes(lowered) && (matched === null || matched.kind === 'exact' || matched.kind === 'match')) {
+      onDone(await seat.setModel(matched?.id ?? typed))
+      return null
+    }
     if (matched === null || matched.kind === 'exact') {
       const base = await import('./model.js')
       return base.call(onDone, context, matched === null ? typed : matched.id, typed)
@@ -366,7 +388,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
   return (
     <ModelPickerPopupLease>
       <MercuryModelLandingGate>
-        <MercuryModelWrapper messages={context.messages ?? []} onDone={onDone} {...(ask !== undefined ? { ask } : {})} />
+        <MercuryModelWrapper seat={seat} messages={context.messages ?? []} onDone={onDone} {...(ask !== undefined ? { ask } : {})} />
       </MercuryModelLandingGate>
     </ModelPickerPopupLease>
   )
