@@ -110,7 +110,7 @@ const BEHIND_THE_LAST_TURN: ReadonlyArray<{ what: string; attachment: Attachment
 ]
 
 try {
-  for (const name of [...LEAF_SCENES.filter(scene => scene !== 'large'), LEAF_UNFINISHED_SCENE] as const) {
+  for (const name of [...LEAF_SCENES, LEAF_UNFINISHED_SCENE] as const) {
     section(`${name}: the lite listing of the picker, filled`)
     const scene = await writeLeafScene(name)
     const lite = await liteListingOf(scene)
