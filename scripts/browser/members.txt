@@ -34,6 +34,7 @@ prove-browser-frames-reached.ts
 prove-browser-gone.ts
 prove-browser-identity-pages.ts
 prove-browser-idle-lease.ts
+prove-browser-layer-named.ts
 prove-browser-lifecycle.ts
 prove-browser-locale-identity.ts
 prove-browser-marked-names.ts

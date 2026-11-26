@@ -79,8 +79,9 @@ const A = await serve(0, (req: http.IncomingMessage, res: http.ServerResponse) =
 
 const GATE = 'clickGateWhenClear in src/tools/browser/ops/targets.ts decides how long a covered click watches its cover; clickOp in src/tools/browser/ops/pointerOps.ts prints the answer'
 const TODAY = /^click #expand refused: the click point \(\d+, \d+\) is covered by (div#wall|div#band|p#terms|div#lid); click the covering element to dismiss it, or scroll the target into view; after reading the overlay, force: true dispatches a DOM click to the target — nothing clicked/
-const STILL = / — nothing clicked \(watched \d+ms: the cover did not move\)$/
-const watchedFor = (reason: string): RegExp => new RegExp(` — nothing clicked \\(watched \\d+ms because ${reason}: the target stayed covered\\)$`)
+const LAYER = '(\\n  note: a layer covers most of the viewport: [^\\n]*)?$'
+const STILL = new RegExp(` — nothing clicked \\(watched \\d+ms: the cover did not move\\)${LAYER}`)
+const watchedFor = (reason: string): RegExp => new RegExp(` — nothing clicked \\(watched \\d+ms because ${reason}: the target stayed covered\\)${LAYER}`)
 const WAITED = /\n {2}note: the click waited \d+ms for (div#wall|p#terms), which covered the target, to leave/
 const marks = (): Promise<{ clicks: number; underWall: number }> => pageOf().evaluate(() => (window as unknown as { __marks: { clicks: number; underWall: number } }).__marks)
 const closing = (how: string, ms: number): Promise<void> => pageOf().evaluate((h: string, m: number) => (window as unknown as { __close: (how: string, ms: number) => void }).__close(h, m), how, ms)
@@ -209,10 +210,10 @@ section('S9 a page whose whole shell is one fixed box: a click in it is no reaso
 
 section('S10 a cover whose id holds a line break and 300 characters: its name is one cut line in the tool’s answer')
 {
-  const NAME = 'the cover’s name is built in coverOf in src/tools/browser/ops/targets.ts: one line, control characters out, cut at COVER_NAME_CAP'
+  const NAME = 'the cover’s name is built by elementName in src/tools/browser/ops/page.ts: one line, control characters out, cut at 80 characters'
   await open('veil=1')
   const refused = await run(expand)
-  check('a refusal that names it is one line', refused.outcome === 'failed' && refused.result.split('\n').length === 1 && STILL.test(refused.result) && refused.result.length < 500, `${JSON.stringify(refused.result)} — change: ${NAME}`)
+  check('a refusal that names it holds the name on one line', refused.outcome === 'failed' && STILL.test(refused.result) && refused.result.split('\n').filter(line => line.includes('forged')).length === 1 && (refused.result.split('\n')[0] ?? '').length < 500, `${JSON.stringify(refused.result)} — change: ${NAME}`)
   await closing('fade', 700)
   const landed = await run(expand)
   const lines = landed.result.split('\n')

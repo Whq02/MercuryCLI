@@ -3,7 +3,7 @@ import { type CheckedTarget, approveWebOrigin, consumeCheckedActOrigin, forgetCl
 import type { OwnerKey } from '../../../engine/run-owner/ownerKey.js'
 import { type Input, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './schema.js'
 import { isDriverTimeout } from './failures.js'
-import { type LiveSession, actOrigin, bounded, heldFrameOrigin, targetSurface } from './page.js'
+import { LAYER_ROOT, type LiveSession, MISS_LOOK_MS, actOrigin, bounded, coveringLayerNote, elementName, heldFrameOrigin, targetSurface } from './page.js'
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
 import { withDeadline } from '../../../platform/async/deadline.js'
 
@@ -69,8 +69,6 @@ export function actDeadline(input: Input): number {
   return Math.min(Math.max(input.timeoutMs ?? WAIT_DEFAULT_MS, 250), WAIT_CAP_MS)
 }
 
-export const MISS_LOOK_MS = 1000
-
 async function framedOnly(s: LiveSession, selector: string): Promise<string | null> {
   try {
     const children = s.page.frames().filter(f => f.parentFrame() !== null)
@@ -97,14 +95,15 @@ export async function selectorMissWords(
   watched: 'visible' | 'attached',
   absentNote = '',
 ): Promise<string> {
-  const [attached, framed] = await Promise.all([
+  const [attached, framed, layer] = await Promise.all([
     watched === 'visible' ? withDeadline(targetSurface(s, frame).$(selector).then(found => found !== null, passedOverAs(false)), MISS_LOOK_MS, () => null, { unref: true }) : false,
     frame === undefined ? framedOnly(s, selector) : null,
+    coveringLayerNote(s),
   ])
-  if (attached === true) return `${selector} is present but never became visible within the ${deadline}ms deadline (hidden or zero-sized — acts need a visible target; waitFor state:"attached" can read its arrival)`
+  if (attached === true) return `${selector} is present but never became visible within the ${deadline}ms deadline (hidden or zero-sized — acts need a visible target; waitFor state:"attached" can read its arrival)${layer}`
   if (framed !== null) return framedTargetWords(selector, framed)
   if (attached === null) return `${selector} did not become visible within the ${deadline}ms deadline, and the page did not answer within ${MISS_LOOK_MS}ms when asked whether it is there (its script may be busy)`
-  return `no element for selector ${selector} within the ${deadline}ms deadline${absentNote}${framesDiagnosis(s)}`
+  return `no element for selector ${selector} within the ${deadline}ms deadline${absentNote}${framesDiagnosis(s)}${layer}`
 }
 
 export async function resolveActTarget(
@@ -164,7 +163,6 @@ export async function settleBoundingBox(handle: ElementHandle<Element>, deadline
 
 const ENCLOSING_CONTROL =
   'button, a, label, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"]'
-const COVER_NAME_CAP = 80
 
 export async function isDisabledTarget(handle: ElementHandle<Element>): Promise<boolean> {
   return handle.evaluate(
@@ -191,7 +189,7 @@ async function coverOf(handle: ElementHandle<Element>): Promise<Cover | null> {
     const x = point.x - (box?.x ?? 0) - border.x
     const y = point.y - (box?.y ?? 0) - border.y
     const occluder = await current.evaluate(
-      (el, px, py, allowEnclosing, control, cap) => {
+      (el, px, py, allowEnclosing, control) => {
         let hit = document.elementFromPoint(px, py)
         while (hit?.shadowRoot) {
           const inner = hit.shadowRoot.elementFromPoint(px, py)
@@ -208,18 +206,14 @@ async function coverOf(handle: ElementHandle<Element>): Promise<Cover | null> {
           }
         }
         if (!hit) return 'the viewport edge'
-        const id = hit.id ? `#${hit.id}` : ''
-        const cls = typeof hit.className === 'string' && hit.className.trim() !== '' ? `.${hit.className.split(/\s+/).filter(Boolean).slice(0, 2).join('.')}` : ''
-        const name = `${hit.tagName.toLowerCase()}${id}${cls}`.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ')
-        return name.length > cap ? `${name.slice(0, cap)}…` : name
+        return { tag: hit.tagName.toLowerCase(), id: hit.id, cls: typeof hit.className === 'string' ? hit.className : '' }
       },
       x,
       y,
       current === handle,
       ENCLOSING_CONTROL,
-      COVER_NAME_CAP,
     )
-    if (occluder) return { hop: current, x, y, point, occluder }
+    if (occluder) return { hop: current, x, y, point, occluder: typeof occluder === 'string' ? occluder : elementName(occluder) }
     current = container
   }
   return null
@@ -287,7 +281,7 @@ async function coverHoldsClick(s: LiveSession, cover: Cover): Promise<boolean> {
   if (clicked === null || clicked.target.frame !== cover.hop.frame || Date.now() >= clicked.at + COVER_CLICKED_MS) return false
   return clicked.target
     .evaluate(
-      (last, target, px, py) => {
+      (last, target, px, py, roots) => {
         const above = (el: Element): Element | null => el.assignedSlot ?? el.parentElement ?? (el.getRootNode() instanceof ShadowRoot ? (el.getRootNode() as ShadowRoot).host : null)
         const line = (el: Element): Element[] => {
           const up: Element[] = []
@@ -295,7 +289,7 @@ async function coverHoldsClick(s: LiveSession, cover: Cover): Promise<boolean> {
           return up
         }
         const layer = (up: Element[]): Element | undefined =>
-          up.findLast(el => el !== document.body && el !== document.documentElement && (getComputedStyle(el).position === 'fixed' || el.matches('dialog, [role="dialog"], [role="alertdialog"], [aria-modal="true"]')))
+          up.findLast(el => el !== document.body && el !== document.documentElement && (getComputedStyle(el).position === 'fixed' || el.matches(roots)))
         let hit = document.elementFromPoint(px, py)
         while (hit?.shadowRoot) {
           const inner = hit.shadowRoot.elementFromPoint(px, py)
@@ -312,6 +306,7 @@ async function coverHoldsClick(s: LiveSession, cover: Cover): Promise<boolean> {
       cover.hop,
       cover.x,
       cover.y,
+      LAYER_ROOT,
     )
     .catch(passedOverAs(false))
 }

@@ -19,10 +19,10 @@ import { carryEmulation, emulationActive, emulationSummary } from '../../../inte
 import { ensureScratchpadDir } from '../../../platform/files/scratchpad.js'
 import { getScratchpadDir } from '../../../permissions/rules/filesystem.js'
 import { RECOVERED_NOTE, isDriverTimeout, relayNamedFailure } from './failures.js'
-import { type LiveSession, deepTextOf, failedNavigationWords, pageWhere, preview, targetSurface } from './page.js'
+import { type LiveSession, MISS_LOOK_MS, coveringLayerNote, deepTextOf, failedNavigationWords, pageWhere, preview, targetSurface } from './page.js'
 import { downloadWords } from './downloads.js'
 import { errorPageSettled, markAct, settleAfterAct } from './settle.js'
-import { MISS_LOOK_MS, actOriginGate, selectorMissWords } from './targets.js'
+import { actOriginGate, selectorMissWords } from './targets.js'
 import type { OpDone, OpRun } from './ops.js'
 import type { OwnerKey } from '../../../engine/run-owner/ownerKey.js'
 import type { Input } from './schema.js'
@@ -142,7 +142,7 @@ export async function openOp({ input, owner, tab, context, sessionAtEntry, crash
     landed !== target && landed.startsWith('http')
       ? `\n  note: landed on ${landed} (a redirect crossed origins${originApproved(owner, landed) ? '' : ' — acts there will ask'})`
       : ''
-  }${census}${lease}${crashedAtEntry && s === sessionAtEntry ? RECOVERED_NOTE : ''}`
+  }${census}${await coveringLayerNote(s)}${lease}${crashedAtEntry && s === sessionAtEntry ? RECOVERED_NOTE : ''}`
   if (s === sessionAtEntry) s.crashed = false
   outcome = 'succeeded'
   return { result, outcome }

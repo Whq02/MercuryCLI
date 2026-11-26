@@ -3,7 +3,7 @@ import type { ToolEffectOutcome, ToolUseContext } from '../../kit/tool.js'
 import type { UploadSource } from '../../../integrations/browser/browserUploads.js'
 import { ensureScratchpadDir } from '../../../platform/files/scratchpad.js'
 import type { ToolPermissionContext } from '../../../permissions/rules/permissions.js'
-import { type LiveSession, pageWhere, targetOrigin } from './page.js'
+import { type LiveSession, coveringLayerNote, pageWhere, targetOrigin } from './page.js'
 import { actConsequences, markAct, settleAfterAct } from './settle.js'
 import { actDeadline, actOriginGate, clickGate, clickGateWhenClear, heldFrameRefusal, rememberClick, resolveActTarget, settleBoundingBox } from './targets.js'
 import { humanClickPoint, humanMoveTo, pickTargetPoint } from './human.js'
@@ -37,7 +37,7 @@ export async function clickOp(s: LiveSession, { input, owner, signalFor }: OpRun
     const gate = input.force === true ? null : await clickGateWhenClear(s, handle, marks.at + deadline)
     const refusal = gate === null ? await clickGate(handle) : gate.clear ? null : gate.refusal
     if (refusal !== null && !(input.force === true && refusal.includes('covered by'))) {
-      result = `click ${input.selector} refused: ${refusal} — nothing clicked${gate === null || gate.clear ? '' : gate.stood}`
+      result = `click ${input.selector} refused: ${refusal} — nothing clicked${gate === null || gate.clear ? '' : gate.stood}${refusal.includes('covered by') ? await coveringLayerNote(s) : ''}`
       outcome = 'failed'
       return { result, outcome }
     }
