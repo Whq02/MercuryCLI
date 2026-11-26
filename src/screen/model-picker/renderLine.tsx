@@ -98,10 +98,10 @@ export function pickerLineRenderer({ i, headings, inner, selectRow, commitCurren
       const memory = truncateToWidth(choice.memory?.text ?? '', cells.tail)
       const [idText, stateText] = idAndState(m.id, choice.state?.text ?? '', cells, memory === '' ? spareOf(cells) : 0, listed)
       return (
-        <InteractiveRow key={line.key} id={`model:row:${line.key}`} selected={on} onSelect={() => selectRow(idx)} onActivate={commitCurrent} flexDirection="column" selectionBand={compact}>
-          <Box borderStyle={on && !compact ? 'round' : undefined} borderColor={on && !compact ? TERRA : undefined} paddingLeft={on && !compact ? 1 : 2} paddingRight={1} flexDirection="column">
+        <InteractiveRow key={line.key} id={`model:row:${line.key}`} selected={on} onSelect={() => selectRow(idx)} onActivate={commitCurrent} flexDirection="column" selectionBand={true}>
+          <Box paddingLeft={compact ? 2 : 0} paddingRight={1} flexDirection="column">
             <Text wrap="truncate-end">
-              {compact ? <Text color={on ? TERRA : FAINT}>{on ? `${figures.pointer} ` : '  '}</Text> : null}
+              <Text color={on ? TERRA : FAINT}>{on ? `${figures.pointer} ` : '  '}</Text>
               {m.action === true ? (
                 <>
                   <Text bold color={IVORY}>{m.name}</Text>
@@ -118,7 +118,7 @@ export function pickerLineRenderer({ i, headings, inner, selectRow, commitCurren
                 </>
               )}
             </Text>
-            {on && !compact ? <TensorFoldCard lines={choice.card(cardWidth)} tokens={tokens} accent={TERRA} /> : null}
+            {on && !compact ? <Box flexDirection="column" paddingLeft={2}><TensorFoldCard lines={choice.card(cardWidth)} tokens={tokens} accent={TERRA} /></Box> : null}
           </Box>
         </InteractiveRow>
       )
@@ -138,11 +138,11 @@ export function pickerLineRenderer({ i, headings, inner, selectRow, commitCurren
         onSelect={() => selectRow(idx)}
         onActivate={commitCurrent}
         flexDirection="column"
-        selectionBand={compact}
+        selectionBand={true}
       >
-        <Box borderStyle={on && !compact ? 'round' : undefined} borderColor={on && !compact ? TERRA : undefined} paddingLeft={on && !compact ? 1 : 2} paddingRight={1} flexDirection="column">
+        <Box paddingLeft={compact ? 2 : 0} paddingRight={1} flexDirection="column">
           <Text wrap="truncate-end">
-            {compact ? <Text color={on ? TERRA : FAINT}>{on ? `${figures.pointer} ` : '  '}</Text> : null}
+            <Text color={on ? TERRA : FAINT}>{on ? `${figures.pointer} ` : '  '}</Text>
             {model ? (
               <>
                 <Text bold color={m.gated ? SAND : hasAlias(m) ? IVORY : FAINT}>{cell(alias, columns.alias)}</Text>
@@ -157,7 +157,7 @@ export function pickerLineRenderer({ i, headings, inner, selectRow, commitCurren
               <Text color={tokens.info}>{tail}</Text>
             </> : null}
           </Text>
-          {on && !compact && m.tag !== '' ? <Text color={SAND}>{m.tag}</Text> : null}
+          {on && !compact && m.tag !== '' ? <Text color={SAND}>{`  ${m.tag}`}</Text> : null}
         </Box>
       </InteractiveRow>
     )

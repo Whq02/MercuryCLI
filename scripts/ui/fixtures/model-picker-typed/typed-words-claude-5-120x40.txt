@@ -11,11 +11,9 @@ FILES · project         │ │   Fable 5.1           claude-fable-5-1         
   ↵ or click · browse   │ │   Fable 5             claude-fable-5                         1M ctx                      │ │
                         │ │   Sonnet 5.5          claude-sonnet-5-5                      1M ctx                      │ │
 VITALS                  │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
-  · spend —             │ │ ╭──────────────────────────────────────────────────────────────────────────────────────╮ │ │
-  · ctx — · —           │ │ │ Opus 5.5            claude-opus-5-5           current      1M ctx                    │ │ │
-  · health — run /health│ │ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │ │
-                        │ │   Opus 5              claude-opus-5                          1M ctx                      │ │
-                        │ │   Haiku 5.5           claude-haiku-5-5                       1M ctx                      │ │
+  · spend —             │ │ ❯ Opus 5.5            claude-opus-5-5           current      1M ctx                      │ │
+  · ctx — · —           │ │   Opus 5              claude-opus-5                          1M ctx                      │ │
+  · health — run /health│ │   Haiku 5.5           claude-haiku-5-5                       1M ctx                      │ │
                         │ │   Haiku 4.5           claude-haiku-4-5-20251001              200k ctx                    │ │
                         │ │ ▾ Z.AI · no Z.AI API key — /logins zai (or ZAI_API_KEY) · 3 of 3                         │ │
                         │ │   GLM-5.3             glm-5.3                   unavailable  1M ctx                      │ │
@@ -23,7 +21,9 @@ VITALS                  │ │   Sonnet 5            claude-sonnet-5           
                         │ │   GLM-5.2             glm-5.2                   unavailable  1M ctx                      │ │
                         │ │ ▾ RUN A MODEL · 0 of 0                                                                   │ │
                         │ │   Beam 1.0 501B-A23B                                                                     │ │
-                        │ │   ↓ 10 more                                                                              │ │
+                        │ │   GLM-5.3                                                                                │ │
+                        │ │   GLM-5.3-Flash                                                                          │ │
+                        │ │   ↓ 8 more                                                                               │ │
                         │ │                                                                                          │ │
                         │ │ context —                                                                                │ │
                         │ │ effort  low [medium] high xhigh max · ctrl+e changes it                                  │ │

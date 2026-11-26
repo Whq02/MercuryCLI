@@ -181,7 +181,7 @@ const pickerWindow = (lines: string[]): string[] => {
 const innerOf = (line: string): string => line.replace(/^.*?│ ?/, '').replace(/\s*│\s*$/, '').trim()
 const headingOf = (lines: string[], name: string): string => innerOf(lines.find(l => new RegExp(`[▾▸❯] ${name} · `).test(l)) ?? '')
 const headingRow = (lines: string[], name: string): number => lines.findIndex(l => new RegExp(`[▾▸❯] ${name} · `).test(l))
-const boxedRow = (lines: string[]): string => innerOf(lines.find(l => l.includes('│ │ ')) ?? '')
+const boxedRow = (lines: string[]): string => innerOf(lines.find(l => l.includes('│ ❯ ')) ?? '').replace(/^❯ /, '')
 const rowOf = (lines: string[], id: string): string => innerOf(lines.find(l => l.includes(`  ${id}  `) || l.includes(`  ${id}`)) ?? '')
 const groupRows = (lines: string[], name: string): string[] => {
   const at = headingRow(lines, name)
