@@ -11,7 +11,7 @@ import { logError } from '../../platform/logs/errorLog.js'
 import { PROJECT_CONFIG_DIR_NAMES } from '../../platform/settings/projectConfig.js'
 import { getProjectsDir } from '../../sessions/transcripts/paths.js'
 import { historyHead } from '../../sessions/transcripts/historyParts.js'
-import { compareSessionRecency, readSessionLastUsedMsCachedSync, RECENCY_CLOCK_SLACK_MS } from '../../sessions/transcripts/sessionIndex.js'
+import { compareSessionRecency, isAuthFailureHuskText, readSessionLastUsedMsCachedSync, RECENCY_CLOCK_SLACK_MS } from '../../sessions/transcripts/sessionIndex.js'
 import { getProjectDir, validateUuid } from '../../sessions/transcripts/sessionStoragePortable.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { foldPathCase } from '../../platform/host-os/paths.js'
@@ -112,13 +112,7 @@ function readHuskCheck(file: string, size: number): { husk: boolean; fullText?: 
   try {
     if (historyHead(file).before > 0) return { husk: false }
     const text = readHead(file, HUSK_MAX_BYTES)
-    let outputs = 0
-    for (const line of text.split('\n')) {
-      if (!line.includes('"kind":"output"')) continue
-      outputs += 1
-      if (!line.includes('"error":"authentication_failed"')) return { husk: false, fullText: text }
-    }
-    return { husk: outputs > 0, fullText: text }
+    return { husk: isAuthFailureHuskText(text), fullText: text }
   } catch (error) {
     passedOver(error)
     return { husk: false }

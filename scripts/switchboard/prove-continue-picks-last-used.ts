@@ -55,7 +55,7 @@ const { daemonControlRpc } = await import('../../src/daemon/control/controlSocke
 const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.ts')
 const paths = await import('../../src/sessions/transcripts/paths.ts')
 const { lastConversationActivityMs, readSessionLastUsedMsCachedSync } = await import('../../src/sessions/transcripts/sessionIndex.ts')
-const { listProjectSessions, listRepoSessions, listSessions, sessionAtIndex, invalidateSessionListingMemo } = await import('../../src/sessions/transcripts/sessionListings.ts')
+const { lastSession, listProjectSessions, listRepoSessions, listSessions, sessionAtIndex, invalidateSessionListingMemo } = await import('../../src/sessions/transcripts/sessionListings.ts')
 const { readListedSessions } = await import('../../src/sessions/transcripts/listedSessions.ts')
 const { resumableNewestFirst, projectSessionPickerRows } = await import('../../src/screen/widgets/faces/sessionPickerModel.ts')
 const { scanBootCardFacts, parkedSessionsOf, projectIdentity, PARKED_WEEK_MS } = await import('../../src/screen/boot-face/bootCardFacts.ts')
@@ -798,6 +798,54 @@ try {
     const idBurst = projectIdentity(P_BURST)
     const idOld = projectIdentity(deadOnlyDir)
     check('§4 Boot face projectIdentity ageMs reflects last use (newer project has smaller ageMs than older restamped project)', (idBurst.newestChat?.ageMs ?? Infinity) < (idOld.newestChat?.ageMs ?? 0), `burst=${idBurst.newestChat?.ageMs} old=${idOld.newestChat?.ageMs}`)
+
+    const pHusk = join(SCRATCH, 'proj-husk-align')
+    mkdirSync(pHusk, { recursive: true })
+    const huskDir = paths.getProjectDir(pHusk)
+    mkdirSync(huskDir, { recursive: true })
+    const sidAnswered = sid('701')
+    const sidHusk = sid('702')
+    const fAns = join(huskDir, `${sidAnswered}.jsonl`)
+    const fHsk = join(huskDir, `${sidHusk}.jsonl`)
+    const hT = Date.now()
+    writeFileSync(
+      fAns,
+      encodeSeedTranscript(
+        [
+          makeRow(sidAnswered, hT - 90_000, { cwd: pHusk, type: 'user', message: { role: 'user', content: 'answered prompt' } }),
+          makeRow(sidAnswered, hT - 85_000, {
+            cwd: pHusk,
+            type: 'assistant',
+            message: { id: 'm_ans', type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'real answer' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+          }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidAnswered,
+      ),
+    )
+    utimesSync(fAns, new Date(hT - 84_000), new Date(hT - 84_000))
+    writeFileSync(
+      fHsk,
+      encodeSeedTranscript(
+        [
+          makeRow(sidHusk, hT - 5_000, { cwd: pHusk, type: 'user', message: { role: 'user', content: 'failed sign in prompt' } }),
+          makeRow(sidHusk, hT - 3_000, {
+            cwd: pHusk,
+            isApiErrorMessage: true,
+            error: 'authentication_failed',
+            type: 'assistant',
+            message: { id: 'm_hsk', type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'Please sign in' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+          }),
+        ] as Parameters<typeof encodeSeedTranscript>[0],
+        sidHusk,
+      ),
+    )
+    utimesSync(fHsk, new Date(hT - 2_000), new Date(hT - 2_000))
+    setGround(pHusk)
+    const huskCli0 = await sessionAtIndex(0)
+    const huskBoot = scanBootCardFacts(pHusk)
+    const huskRepo = await listRepoSessions([pHusk])
+    const huskExplicit = await lastSession(sidHusk as Parameters<typeof lastSession>[0])
+    check('§4 auth-failure husk ranks below answered session across all implicit doors while explicit resume keeps husk', huskCli0?.sessionId === sidAnswered && huskBoot.cwdProject?.sessionId === sidAnswered && huskRepo[0]?.sessionId === sidAnswered && huskExplicit?.sessionId === sidHusk, `cli=${huskCli0?.sessionId?.slice(-3)} boot=${huskBoot.cwdProject?.sessionId?.slice(-3)} explicit=${huskExplicit?.sessionId?.slice(-3)}`)
   }
 } finally {
   clearTimeout(watchdog)

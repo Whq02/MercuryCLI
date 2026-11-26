@@ -1,7 +1,7 @@
 import { getListingDisplayTitle } from '../../platform/logs/errorLog.js'
 import { enrichSessionListings, sessionIdOfListing } from './sessionListings.js'
-import { compareSessionRecency, RECENCY_CLOCK_SLACK_MS } from './sessionIndex.js'
-import type { SessionListing } from './transcriptEntries.js'
+import { RECENCY_CLOCK_SLACK_MS } from './sessionIndex.js'
+import { compareSessionListings, type SessionListing } from './transcriptEntries.js'
 
 const SUBSTANTIVE_FILE_SIZE = 4096
 
@@ -63,12 +63,7 @@ function compareStampDesc(a: string, b: string): number {
 }
 
 function compareListedSessions(a: SessionListing, b: SessionListing): number {
-  return (
-    compareSessionRecency(
-      { lastUsedMs: a.lastUsedAt ?? null, mtimeMs: a.modified.getTime(), sessionId: a.sessionId },
-      { lastUsedMs: b.lastUsedAt ?? null, mtimeMs: b.modified.getTime(), sessionId: b.sessionId },
-    ) || compareStampDesc(a.date, b.date)
-  )
+  return compareSessionListings(a, b) || compareStampDesc(a.date, b.date)
 }
 
 const RESTAMP_BURST_CAP = 32
@@ -88,7 +83,7 @@ export async function readListedSessions(lite: SessionListing[], count: number):
   while (listed.length >= count && next < lite.length && extraKept < RESTAMP_BURST_CAP && scanned < RESTAMP_SCAN_GUARD) {
     listed.sort(compareListedSessions)
     const boundary = listed[count - 1]!
-    const threshold = boundary.lastUsedAt ?? null
+    const threshold = boundary.isAuthFailureHusk ? null : (boundary.lastUsedAt ?? null)
     const candidateMtime = lite[next]!.modified.getTime()
     if (threshold !== null && candidateMtime + RECENCY_CLOCK_SLACK_MS < threshold && candidateMtime !== boundary.modified.getTime()) break
     const batch = await enrichSessionListings(lite, next, 1)

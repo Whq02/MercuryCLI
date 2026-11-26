@@ -126,6 +126,16 @@ const FUTURE_SKEW_GRACE_MS = 5_000
 export const RECENCY_CLOCK_SLACK_MS = FUTURE_SKEW_GRACE_MS
 const BACKWARD_SCAN_BYTE_BUDGET = 2 * 1024 * 1024
 
+export function isAuthFailureHuskText(text: string): boolean {
+  let outputs = 0
+  for (const line of text.split('\n')) {
+    if (!line.includes('"kind":"output"')) continue
+    outputs += 1
+    if (!line.includes('"error":"authentication_failed"')) return false
+  }
+  return outputs > 0
+}
+
 type ActivityLineResult =
   | { kind: 'match'; ms: number }
   | { kind: 'future'; validAtMs: number }
@@ -342,10 +352,13 @@ export async function readSessionLabelFacts(
   const { head, tail } = await readHeadAndTail(filePath, fileSize, buffer, onReadError)
   if (!head) return { firstPrompt: '', isSidechain: false }
   const facts = sessionLabelFacts(head, tail, builtIn)
+  const isCandidateHusk = fileSize <= LITE_READ_BUF_SIZE && isAuthFailureHuskText(head)
+  const hasSealed = facts.lastUsedAt === undefined || isCandidateHusk ? historyHead(filePath).before > 0 : false
   const lastUsedAt =
     facts.lastUsedAt ??
-    (fileSize > LITE_READ_BUF_SIZE || historyHead(filePath).before > 0
+    (fileSize > LITE_READ_BUF_SIZE || hasSealed
       ? scanLastConversationActivityMsSync(filePath) ?? undefined
       : undefined)
-  return { ...facts, lastUsedAt }
+  const isAuthFailureHusk = isCandidateHusk && !hasSealed ? true : undefined
+  return { ...facts, lastUsedAt, ...(isAuthFailureHusk ? { isAuthFailureHusk } : {}) }
 }

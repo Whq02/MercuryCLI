@@ -917,6 +917,7 @@ type LiteLabelFacts = {
   prUrl?: string
   prRepository?: string
   endedOnError?: boolean
+  isAuthFailureHusk?: boolean
   lastTimestamp?: string
   lastUsedAt?: number
 }
@@ -964,6 +965,7 @@ async function enrichListing(
     ...(facts.prUrl !== undefined ? { prUrl: facts.prUrl } : {}),
     ...(facts.prRepository !== undefined ? { prRepository: facts.prRepository } : {}),
     ...(facts.endedOnError !== undefined ? { endedOnError: facts.endedOnError } : {}),
+    ...(facts.isAuthFailureHusk === true ? { isAuthFailureHusk: true } : {}),
     ...(facts.lastUsedAt !== undefined ? { lastUsedAt: facts.lastUsedAt } : {}),
     ...(projectPath !== undefined ? { projectPath } : {}),
   }
