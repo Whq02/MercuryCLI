@@ -10,12 +10,14 @@ import type { localRecordFor } from '../../models/roads/local/localCatalogue.js'
 import { localWindowChoiceLine, localWindowNoticeKind } from '../../models/roads/local/localWindow.js'
 import type { ModelChoice } from './choice.js'
 
+export const ROW_PAD_RIGHT = 1
+export const TAG_LEAD = 2
+
 type GeometryArgs = {
   inner: number
   lines: PickerLine<ModelChoice>[]
   compact: boolean
   i: number
-  panelWidth: number
   focusedModel: ModelChoice | undefined
   listed: ModelChoice[]
   currentRow: string
@@ -37,8 +39,9 @@ type GeometryArgs = {
   totalLines: number
 }
 
-export function pickerGeometry({ inner, lines, compact, i, panelWidth, focusedModel, listed, currentRow, current, pendingNext, focusedLocal, windowTyping, tokens, ctxNotice, notice, panelView, live, shedMeters, hasEffort, efforts, effort, availRows, localOffer, totalLines }: GeometryArgs) {
+export function pickerGeometry({ inner, lines, compact, i, focusedModel, listed, currentRow, current, pendingNext, focusedLocal, windowTyping, tokens, ctxNotice, notice, panelView, live, shedMeters, hasEffort, efforts, effort, availRows, localOffer, totalLines }: GeometryArgs) {
   const cardWidth = inner - 4
+  const tagWidth = Math.max(1, inner - ROW_PAD_RIGHT - TAG_LEAD)
   const linePaint = (idx: number): number => {
     const line = lines[idx]
     if (!line) return 0
@@ -46,7 +49,7 @@ export function pickerGeometry({ inner, lines, compact, i, panelWidth, focusedMo
     if (compact || idx !== i) return 1
     if (line.row.tensorfold !== undefined) return 1 + line.row.tensorfold.card(cardWidth).length
     const tag = line.row.tag
-    return tag === '' ? 1 : 1 + wrapText(tag, panelWidth - 8, 'wrap').split('\n').length
+    return tag === '' ? 1 : 1 + wrapText(tag, tagWidth, 'wrap').split('\n').length
   }
   const reasonLines: string[] | null =
     focusedModel !== undefined && (focusedModel.gated || focusedModel.pending) && focusedModel.gatedReason
@@ -103,5 +106,5 @@ export function pickerGeometry({ inner, lines, compact, i, panelWidth, focusedMo
     return sum
   }
   const win = fitMeasuredWindow(totalLines, paintBudget, span => paneWindow(totalLines, i, span), windowPaint)
-  return { cardWidth, reasonLines, pendingLine, localWindowLine, noticeInk, noticeLines, liveLine, shedPageHint, shedEffort, paintBudget, markersOn, headingAbove, windowPaint, win }
+  return { cardWidth, tagWidth, reasonLines, pendingLine, localWindowLine, noticeInk, noticeLines, liveLine, shedPageHint, shedEffort, paintBudget, markersOn, headingAbove, windowPaint, win }
 }

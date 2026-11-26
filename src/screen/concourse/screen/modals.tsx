@@ -139,8 +139,8 @@ export function ConcourseKeyAtlas({ cols, rows, chat, reducedStage = false, spli
   const listStage = selection !== undefined && selection !== 'none' ? { ...stage, selection } : stage
   const sections: Array<{ title: string; keys: ReadonlyArray<{ keys: string; label: string }> }> = [
     { title: 'BROWSE', keys: [...browseKeysFor({ chatPresent: chat }), CONCOURSE_HELP_KEY] },
-    { title: 'NEEDS YOU (rail)', keys: regionKeysFor('rail', stage) },
-    { title: 'SESSIONS (list)', keys: [...managerPaneKeysFor({ ...stage, paused: selection === 'paused' }), ...withoutManagerPaneKeys(regionKeysFor('list', listStage))] },
+    { title: 'needs you (rail)', keys: regionKeysFor('rail', stage) },
+    { title: 'sessions (list)', keys: [...managerPaneKeysFor({ ...stage, paused: selection === 'paused' }), ...withoutManagerPaneKeys(regionKeysFor('list', listStage))] },
     { title: 'LIVE VIEW (its composer)', keys: regionKeysFor('live', stage) },
     ...(!reducedStage && splitAvailableAt(cols, rows)
       ? [

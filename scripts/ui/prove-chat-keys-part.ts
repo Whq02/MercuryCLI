@@ -31,7 +31,7 @@ check(
 )
 const submit = async (): Promise<void> => {}
 await t.plant({ onSubmit: submit, dialogOwnsKeys: false, screen: 'prompt', searchBarOpen: false })
-check('the command handler is handed the submit and the commands, and is active while no dialog owns the keys', t.handed.command?.onSubmit === submit && t.handed.command.commands === t.props().commands && t.handed.command.isActive === true, said('command'))
+check('the command handler is handed the submit, receipt painter and commands, and is active while no dialog owns the keys', t.handed.command?.onSubmit === submit && t.handed.command.paintScreenCommandReceipt === t.props().paintScreenCommandReceipt && t.handed.command.commands === t.props().commands && t.handed.command.isActive === true, said('command'))
 await t.plant({ dialogOwnsKeys: true })
 check('a dialog that owns the keys stands the command handler down', t.handed.command?.isActive === false, said('command'))
 await t.plant({ dialogOwnsKeys: false })

@@ -220,7 +220,7 @@ export function Chat({ commands: initialCommands, initialTools, debug = false, d
     searchBarOpen, helpOpen, isSearchingHistory, messageCursorActive, messageActions, messageActionsDisabled,
     focusedInputDialog, toolUseConfirmQueue, showRewindPicker, showBashesDialog, vimMode,
     dialogOwnsKeys, centredModalUp, permissionOverlay, viewStreamMode, seatLive,
-    onSubmit, commands, scrollRef, modalScrollRef, onScroll, onTranscriptScroll,
+    onSubmit, paintScreenCommandReceipt, commands, scrollRef, modalScrollRef, onScroll, onTranscriptScroll,
   };
 
   if (legacyTranscript) {

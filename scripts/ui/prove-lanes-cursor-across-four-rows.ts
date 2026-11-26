@@ -137,22 +137,42 @@ for (const [columns, rows] of [[160, 50], [177, 49], [213, 60]] as const) {
     const direct12 = (await resizePane(12)).join('\n')
     await resizeRest()
 
-    await resizePane(4)
-    check(`${tag}: shrinking to 4 rows unpublishes all lanes rows`, getHelmRows('lanes').length === 0)
-    const afterFour6Lines = await resizePane(6)
-    if (frameDir) writeFileSync(join(frameDir, `${tag}-pane-6-after-4.txt`), afterFour6Lines.join('\n') + '\n')
+    const fourLines = await resizePane(4)
+    if (frameDir) writeFileSync(join(frameDir, `${tag}-pane-4.txt`), fourLines.join('\n') + '\n')
+    const fourRailWhole =
+      /^╭─+╮╭/.test(fourLines[0] ?? '') &&
+      /^│[^│]*workbench[^│]*││/.test(fourLines[1] ?? '') &&
+      /^│[^│]*no prompts yet[^│]*││/.test(fourLines[2] ?? '') &&
+      /^╰─+╯╰/.test(fourLines[3] ?? '')
     check(
-      `${tag}: growing from 4 rows to 6 keeps the resting workbench:last row instead of switching to files:browse`,
-      getHelmRows('lanes').length === 1 && getHelmRows('lanes')[0]?.label === 'workbench:last' && afterFour6Lines.join('\n') === direct6,
+      `${tag}: at 4 rows the lanes rail paints one whole workbench box and publishes only workbench:last`,
+      fourRailWhole && getHelmRows('lanes').length === 1 && getHelmRows('lanes')[0]?.label === 'workbench:last',
+      `whole=${fourRailWhole} rows=${JSON.stringify(getHelmRows('lanes'))}`,
+    )
+    await resizeRest()
+
+    const threeLines = await resizePane(3)
+    if (frameDir) writeFileSync(join(frameDir, `${tag}-pane-3.txt`), threeLines.join('\n') + '\n')
+    const threeRailNoBox = !threeLines.slice(0, 3).some(l => l.startsWith('╭') || l.startsWith('╰'))
+    check(
+      `${tag}: shrinking to 3 rows unpublishes all lanes rows`,
+      getHelmRows('lanes').length === 0 && threeRailNoBox,
+      `noBox=${threeRailNoBox} rows=${JSON.stringify(getHelmRows('lanes'))}`,
+    )
+    const afterThree6Lines = await resizePane(6)
+    if (frameDir) writeFileSync(join(frameDir, `${tag}-pane-6-after-3.txt`), afterThree6Lines.join('\n') + '\n')
+    check(
+      `${tag}: growing from 3 rows to 6 keeps the resting workbench:last row instead of switching to files:browse`,
+      getHelmRows('lanes').length === 1 && getHelmRows('lanes')[0]?.label === 'workbench:last' && afterThree6Lines.join('\n') === direct6,
       `rows=${JSON.stringify(getHelmRows('lanes'))}`,
     )
 
-    const afterFour12Lines = await resizePane(12)
-    if (frameDir) writeFileSync(join(frameDir, `${tag}-pane-12-after-4.txt`), afterFour12Lines.join('\n') + '\n')
+    const afterThree12Lines = await resizePane(12)
+    if (frameDir) writeFileSync(join(frameDir, `${tag}-pane-12-after-3.txt`), afterThree12Lines.join('\n') + '\n')
     check(
-      `${tag}: growing through 4 rows to 12 matches a direct resize from rest to 12 byte for byte`,
-      afterFour12Lines.join('\n') === direct12,
-      afterFour12Lines.slice(0, 12).map(l => l.slice(0, 30)).join('\n'),
+      `${tag}: growing through 3 rows to 12 matches a direct resize from rest to 12 byte for byte`,
+      afterThree12Lines.join('\n') === direct12,
+      afterThree12Lines.slice(0, 12).map(l => l.slice(0, 30)).join('\n'),
     )
 
     await resizeRest()
@@ -160,10 +180,10 @@ for (const [columns, rows] of [[160, 50], [177, 49], [213, 60]] as const) {
     const lastIdx = getHelmRows('lanes').length - 1
     moveHelmCursor('lanes', lastIdx)
     check(`${tag}: focused cursor placed on files:browse`, getHelmCursor('lanes') === lastIdx && currentHelmRow('lanes')?.label === 'files:browse')
-    await resizePane(4)
+    await resizePane(3)
     await resizeRest()
     check(
-      `${tag}: shrinking to 4 rows and growing back restores the focused files:browse cursor`,
+      `${tag}: shrinking to 3 rows and growing back restores the focused files:browse cursor`,
       getHelmCursor('lanes') === lastIdx && currentHelmRow('lanes')?.label === 'files:browse',
       `cursor=${getHelmCursor('lanes')} row=${JSON.stringify(currentHelmRow('lanes'))}`,
     )
