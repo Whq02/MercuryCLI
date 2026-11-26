@@ -146,7 +146,7 @@ for (const [cols, rows] of SIZES) {
       check(`${cols}x${rows}: the pane's bottom border is one whole row`, paneBottom > bandRule, `${WHERE_FACE} | row ${paneBottom}`)
       const edges = chatFull.slice(1, paneBottom).map((r, i) => [i + 1, r[cols - 1]] as const).filter(([, ch]) => ch !== '│')
       check(`${cols}x${rows}: every pane row between the borders ends with the pane's right edge (no tail shifted off its row)`, edges.length === 0, `${WHERE_FACE} | rows ${edges.map(([i, ch]) => `${i}:${JSON.stringify(ch)}`).join(' ')}`)
-      check(`${cols}x${rows}: the hint row is whole on one row`, chat.some(r => r.includes('/crewmates  /saturn  /health  /trace')), `${WHERE_FACE} | ${chat.filter(r => r.includes('/crewmates')).join(' | ')}`)
+      check(`${cols}x${rows}: the hint row is whole on one row`, chat.some(r => r.includes('/crewmates  /schedule  /health  /trace')), `${WHERE_FACE} | ${chat.filter(r => r.includes('/crewmates')).join(' | ')}`)
       check(`${cols}x${rows}: the model row names the model`, chat.some(r => /│\s+model\s+Opus 5\.5/.test(r)), `${WHERE_FACE} | ${chat.filter(r => r.includes('model')).join(' | ')}`)
       check(`${cols}x${rows}: the memory row says what loaded at start`, chat.some(r => /│\s+memory\s+1 of 1 note loaded/.test(r)), `${WHERE_FACE} | ${chat.filter(r => r.includes('memory')).join(' | ')}`)
       const recent = chat.filter(r => /^\s+○ /.test(r))

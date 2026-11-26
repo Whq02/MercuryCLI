@@ -99,6 +99,7 @@ type LocalJSXCommand = CommandBase & {
   type: 'local-jsx'
   load: () => Promise<{ call: LocalJSXCommandCall }>
   headlessVerbs?: readonly string[]
+  promptWithArgs?: true
 }
 
 export type Command = PromptCommand | LocalCommand | LocalJSXCommand
@@ -151,4 +152,8 @@ export function getCommandName(command: Command): string {
 
 export function isCommandEnabled(command: Command): boolean {
   return command.isEnabled?.() ?? true
+}
+
+export function runsPromptWithArgs(command: Command | undefined, args: string): boolean {
+  return command !== undefined && command.type === 'local-jsx' && command.promptWithArgs === true && args.trim() !== ''
 }
