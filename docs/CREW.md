@@ -349,6 +349,12 @@ background run alike: the wait names a ceiling (at most an hour, the same as
 the session's own) and ends the moment the shells that crewmate launched
 settle, so the notice is read at that boundary and never after a full timer.
 `/crew` shows the directory with presence and external seat attach/detach.
+To use an installed ACP v1 agent, run `/crew attach opencode`, `/crew attach goose`, or
+`/crew attach devin`. For Devin, **Logins/Keys → Devin CLI (external agent)** opens the CLI’s
+own sign-in; Mercury does not store that credential or add a Devin model to `/model`.
+Send work with `/crew send <seat-id> <prompt>`, read the last reply with `/crew seats`,
+and interrupt it with `/crew cancel <seat-id>`. The agent runs its own tools; Mercury
+shows the permission requests it sends.
 `/sessions` manages this project's sessions.
 
 ## Saved conversations

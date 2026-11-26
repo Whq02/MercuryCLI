@@ -20,7 +20,7 @@ import {
   resetSovereignCheck,
 } from '../../permissions/rules/sovereignKillswitch.js'
 import { resetUserCache } from '../../platform/environment/user.js'
-import { loginFamilyFocusFor } from '../../models/sign-in/flow-cards/loginFamilyRows.js'
+import { DEVIN_EXTERNAL_AGENT_VALUE, loginFamilyFocusFor } from '../../models/sign-in/flow-cards/loginFamilyRows.js'
 
 export function Login({
   onDone,
@@ -59,6 +59,7 @@ export function Login({
       <Box flexDirection="column">
         {receipt ? <LoginReceipt receipt={receipt.receipt} onDone={() => settleOpenai(receipt)} /> : (
           <ConsoleOAuthFlow
+            externalAgents
             onDone={() => settle(true)}
             onCancel={() => settle(false)}
             onAccountChange={message => { accountReceipt.current = message }}
@@ -140,6 +141,8 @@ export function parseFamilyFocus(token: string | undefined): LoginFamilyFocus | 
       return 'fireworks'
     case 'qwen':
       return 'qwen'
+    case 'devin':
+      return DEVIN_EXTERNAL_AGENT_VALUE
     default:
       return undefined
   }

@@ -10,7 +10,7 @@ import { checker } from '../engine-durability/harness.ts'
 import type { AccountSlot, FamilySlotGroup } from '../../src/models/roads/accountSlots.ts'
 import type { ProviderId, ProviderUsability } from '../../src/models/roads/providerUsability.ts'
 import type { ProviderFamilyPresence } from '../../src/models/roads/providerUsage.ts'
-import type { LoginsArmV1, LoginsScreenFactsV1 } from '../../src/screen/boot-face/logins/facts.ts'
+import type { LoginsArmV1, LoginsRosterRowV1, LoginsScreenFactsV1 } from '../../src/screen/boot-face/logins/facts.ts'
 import type { FaceKeyLegId } from '../../src/screen/boot-face/logins/pickLines.ts'
 
 const previousCwd = process.cwd()
@@ -57,10 +57,24 @@ let faultForceArm: LoginsArmV1 | null = null
 
 const realPicks = await import('../../src/screen/boot-face/logins/picks.ts')
 const origOpenFlowOf = realPicks.openFlowOf
+const origOpenRosterFlowOf = realPicks.openRosterFlowOf
 mock.module('../../src/screen/boot-face/logins/picks.ts', () => ({
   ...realPicks,
   openFlowOf: (ctx: Parameters<typeof origOpenFlowOf>[0], arm: LoginsArmV1) => {
     const chosen = faultForceArm ?? arm
+    openedArms.push(chosen.row.value)
+    return origOpenFlowOf(ctx, chosen)
+  },
+  openRosterFlowOf: (ctx: Parameters<typeof origOpenRosterFlowOf>[0], row: LoginsRosterRowV1) => {
+    if (row.kind === 'external-agent') {
+      if (faultForceArm !== null) {
+        openedArms.push(faultForceArm.row.value)
+        return origOpenFlowOf(ctx, faultForceArm)
+      }
+      openedArms.push(row.value)
+      return origOpenRosterFlowOf(ctx, row)
+    }
+    const chosen = faultForceArm ?? row.arm
     openedArms.push(chosen.row.value)
     return origOpenFlowOf(ctx, chosen)
   },
@@ -85,6 +99,9 @@ const {
   keyLegTitle,
   loginsCatalogue,
   loginsFamilyCounts,
+  loginsRosterRowLabel,
+  loginsRosterRowValue,
+  loginsRosterRows,
   loginsSortedArms,
 } = await import('../../src/screen/boot-face/BootLoginsScreen.tsx')
 
@@ -315,32 +332,35 @@ async function mountLogins(
   return settleFrame()
 }
 
-function focusedArmOf(frame: string, arms: readonly LoginsArmV1[]): { pointerLines: string[]; matched: LoginsArmV1[] } {
+function focusedRowOf(frame: string, rows: readonly LoginsRosterRowV1[]): { pointerLines: string[]; matched: LoginsRosterRowV1[] } {
   const pointerLines = frame.split('\n').filter(line => line.includes('❯ '))
-  const byValue = new Map<string, LoginsArmV1>()
+  const byValue = new Map<string, LoginsRosterRowV1>()
   for (const line of pointerLines) {
     const after = line.slice(line.indexOf('❯ ') + 2)
     const token = (after.split(/\s{2,}|│/)[0] ?? '').trim()
-    for (const arm of arms) {
+    for (const row of rows) {
+      const label = loginsRosterRowLabel(row)
+      const value = loginsRosterRowValue(row)
       if (
-        line.includes(`❯ ${arm.row.label}`) ||
-        (token.endsWith('…') && token.length >= 12 && arm.row.label.startsWith(token.slice(0, -1)))
+        line.includes(`❯ ${label}`) ||
+        (token.endsWith('…') && token.length >= 12 && label.startsWith(token.slice(0, -1)))
       ) {
-        byValue.set(arm.row.value, arm)
+        byValue.set(value, row)
       }
     }
   }
   return { pointerLines, matched: [...byValue.values()] }
 }
 
-function expectedFlowNeedle(armValue: string): string {
-  if (armValue in PICK_GROUP_TITLE) return PICK_GROUP_TITLE[armValue]!
-  return keyLegTitle(armValue as FaceKeyLegId)
+function expectedFlowNeedle(rowValue: string): string {
+  if (rowValue === 'external/devin') return 'Devin CLI (external agent)'
+  if (rowValue in PICK_GROUP_TITLE) return PICK_GROUP_TITLE[rowValue]!
+  return keyLegTitle(rowValue as FaceKeyLegId)
 }
 
 async function runLoginsScenario(scenario: LoginsScenario): Promise<void> {
   const facts = buildFacts(scenario.signedMask, scenario.expiredIdx)
-  const arms = loginsSortedArms(facts)
+  const rows = loginsRosterRows(facts)
   let frame = await mountLogins(scenario.viewport, facts)
   if (!frame.includes('logins')) {
     throw new Error(`BootLoginsScreen did not paint title:\n${frame}`)
@@ -354,14 +374,14 @@ async function runLoginsScenario(scenario: LoginsScenario): Promise<void> {
     }
   }
 
-  const assertPointerInvariant = (phase: string, current: string): LoginsArmV1 => {
+  const assertPointerInvariant = (phase: string, current: string): LoginsRosterRowV1 => {
     if (closedCount !== 0) throw new Error(`${phase}: closed before Esc/Left (closed=${closedCount})`)
     if (signedInCount !== 0) throw new Error(`${phase}: onSignedIn fired during navigation`)
     if (openedArms.length !== 0) throw new Error(`${phase}: flow opened before Enter (${openedArms.join(',')})`)
-    const { pointerLines, matched } = focusedArmOf(current, arms)
+    const { pointerLines, matched } = focusedRowOf(current, rows)
     const expectedPointers = 1
     if (pointerLines.length !== expectedPointers || matched.length !== 1) {
-      throw new Error(`${phase}: expected ${expectedPointers} pointer line(s) matching 1 arm, got lines=${pointerLines.length} matched=${matched.map(a => a.row.value).join(',')}:\n${current}`)
+      throw new Error(`${phase}: expected ${expectedPointers} pointer line(s) matching 1 row, got lines=${pointerLines.length} matched=${matched.map(r => loginsRosterRowValue(r)).join(',')}:\n${current}`)
     }
     return matched[0]!
   }
@@ -382,25 +402,26 @@ async function runLoginsScenario(scenario: LoginsScenario): Promise<void> {
     return
   }
 
+  const focusedValue = loginsRosterRowValue(focused)
   frame = await sendKey(KEYS.enter)
-  if (closedCount !== 0) throw new Error(`Enter on ${focused.row.value} closed screen instead of opening provider flow`)
+  if (closedCount !== 0) throw new Error(`Enter on ${focusedValue} closed screen instead of opening flow`)
   if (openedArms.length !== 1) {
-    throw new Error(`Enter on ${focused.row.value} expected 1 openFlowOf call, got ${openedArms.length}`)
+    throw new Error(`Enter on ${focusedValue} expected 1 open call, got ${openedArms.length}`)
   }
-  if (openedArms[0] !== focused.row.value) {
-    throw new Error(`wrong provider opened: painted row ${focused.row.value} != opened (${openedArms[0]})`)
+  if (openedArms[0] !== focusedValue) {
+    throw new Error(`wrong provider opened: painted row ${focusedValue} != opened (${openedArms[0]})`)
   }
-  const isPick = focused.row.value in PICK_GROUP_TITLE
-  const needle = expectedFlowNeedle(focused.row.value)
+  const isPick = focusedValue === 'external/devin' || focusedValue in PICK_GROUP_TITLE
+  const needle = expectedFlowNeedle(focusedValue)
   const flowVisible = hasSummaryBox || isPick ? frame.includes(needle) : frame.includes('↵ store key · esc back')
   if (!flowVisible) {
-    throw new Error(`opened flow for ${focused.row.value} missing expected UI marker '${hasSummaryBox || isPick ? needle : '↵ store key · esc back'}':\n${frame}`)
+    throw new Error(`opened flow for ${focusedValue} missing expected UI marker '${hasSummaryBox || isPick ? needle : '↵ store key · esc back'}':\n${frame}`)
   }
   frame = await sendKey(KEYS.esc)
-  if (closedCount !== 0) throw new Error(`Esc from ${focused.row.value} flow closed whole screen instead of returning to roster`)
-  const { matched: afterBack } = focusedArmOf(frame, arms)
-  if (afterBack.length !== 1 || afterBack[0]!.row.value !== focused.row.value) {
-    throw new Error(`Esc from ${focused.row.value} flow did not restore roster focus (got=${afterBack.map(a => a.row.value).join(',')})`)
+  if (closedCount !== 0) throw new Error(`Esc from ${focusedValue} flow closed whole screen instead of returning to roster`)
+  const { matched: afterBack } = focusedRowOf(frame, rows)
+  if (afterBack.length !== 1 || loginsRosterRowValue(afterBack[0]!) !== focusedValue) {
+    throw new Error(`Esc from ${focusedValue} flow did not restore roster focus (got=${afterBack.map(r => loginsRosterRowValue(r)).join(',')})`)
   }
   await sendKey(KEYS.esc)
   if (closedCount !== 1) throw new Error(`second Esc after returning to roster did not close BootLoginsScreen (closed=${closedCount})`)
@@ -448,11 +469,11 @@ try {
     const result = await fc.check(
       fc.asyncProperty(keyDraftArb, async ({ family, secretTail }) => {
         const facts = buildFacts([], null)
-        const arms = loginsSortedArms(facts)
+        const rows = loginsRosterRows(facts)
         let frame = await mountLogins({ cols: 120, rows: 40 }, facts, family)
-        const { matched } = focusedArmOf(frame, arms)
-        if (matched.length !== 1 || matched[0]!.row.value !== family) {
-          throw new Error(`initial family=${family} did not focus ${family} on mount (got=${matched.map(a => a.row.value).join(',')})`)
+        const { matched } = focusedRowOf(frame, rows)
+        if (matched.length !== 1 || loginsRosterRowValue(matched[0]!) !== family) {
+          throw new Error(`initial family=${family} did not focus ${family} on mount (got=${matched.map(r => loginsRosterRowValue(r)).join(',')})`)
         }
         frame = await sendKey(KEYS.enter)
         const expectedTitle = keyLegTitle(family)

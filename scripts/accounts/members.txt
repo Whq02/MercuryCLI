@@ -50,3 +50,4 @@ prove-xai-login.ts
 prove-zen-login.ts
 prove-roles-account-drive.ts
 prove-auth-logout-built.ts
+prove-devin-cli-login-action.ts
