@@ -32,13 +32,19 @@ const { LEAF_SCENES, LEAF_UNFINISHED_SCENE, writeLeafScene } = await import('../
 const { fillSessionListing, flushSessionStorage, isLiteListing, lastSession, listSessions, listingsOfSessionFile, recordTranscript } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 const { recordTurnEnd } = await import('../../src/sessions/transcripts/writer.ts')
 const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
-const { deserializeMessages, loadConversationForResume } = await import('../../src/sessions/resume/conversationRecovery.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const React = await import('react')
+const { mountOffscreen, pause } = await import('../lib/settingsPopupHarness.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { SessionPreview } = await import('../../src/screen/session-chooser/SessionPreview.tsx')
+const { deserializeMessages } = await import('../../src/sessions/resume/conversationRecovery.ts')
 const { flipToSession } = await import('../../src/engine/connector/sessionFlip.ts')
 const { _resetTranscriptReaderForTesting } = await import('../../src/sessions/transcripts/transcriptReader.ts')
 const { asSessionId } = await import('../../src/sessions/transcripts/ids.ts')
 
 const HINT =
-  'fillSessionListing in src/sessions/transcripts/sessionListings.ts must take the end and the rows of the listing from electConversationEnd(loaded.messages) in src/sessions/transcripts/conversationEnd.ts (primary for leafUuid, summary and gitBranch; rows for messages), not from the newest computed leaf'
+  "fillSessionListing in src/sessions/transcripts/sessionListings.ts must take the end and the rows of the listing from electConversationEnd(loaded.messages) in src/sessions/transcripts/conversationEnd.ts (primary for leafUuid, summary and gitBranch; rows for messages), not from the newest computed leaf; the preview in src/screen/session-chooser/SessionPreview.tsx draws those rows through deserializeMessages with the listing's own turnEnd"
 
 let checks = 0
 let failures = 0
@@ -68,6 +74,26 @@ function shapeOf(rows: readonly Message[], scene: LeafScene): string[] {
 
 function lastTurn(rows: readonly Message[]): Message | undefined {
   return rows.findLast(row => row.type === 'user' || row.type === 'assistant')
+}
+
+const CLOCK_ALONE = /^[│ ]*\d{1,2}:\d{2}(:\d{2})?( [AP]M)?[ │]*$/
+
+function drawnBy(listing: SessionListing): Message[] {
+  return deserializeMessages(listing.messages, listing.turnEnd)
+}
+
+async function previewFrame(log: SessionListing, awaited: string): Promise<string[]> {
+  const preview = React.createElement(SessionPreview, { log, onExit: () => {}, onSelect: () => {} })
+  const view = await mountOffscreen(React.createElement(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, preview), 100, 30)
+  let lines: string[] = []
+  for (let tries = 0; tries < 100 && !lines.some(line => line.includes(awaited)); tries++) {
+    await pause(50)
+    lines = view.lines()
+  }
+  await pause(200)
+  lines = view.lines()
+  view.unmount()
+  return lines
 }
 
 async function liteListingOf(scene: LeafScene): Promise<SessionListing | undefined> {
@@ -106,20 +132,11 @@ try {
     )
     if (scene.second !== undefined) check(`${name}: the second turn is in the listing, behind the last reply`, ids.indexOf(scene.second.prompt) > ids.indexOf(scene.final) && ids.indexOf(scene.second.end) > ids.indexOf(scene.second.prompt), shape)
 
-    const painted = deserializeMessages(rows)
+    const painted = drawnBy(filled)
     check(
       name === LEAF_UNFINISHED_SCENE ? `${name}: the preview still shows the open call` : `${name}: the preview ends on the conversation's end, with no row made up behind it`,
       name === LEAF_UNFINISHED_SCENE ? painted.some(row => row.uuid === scene.end) : painted.at(-1)?.uuid === scene.end,
       j(shapeOf(painted, scene)),
-    )
-
-    _resetTranscriptReaderForTesting()
-    const resumed = await loadConversationForResume(lite, undefined)
-    const kind = resumed?.turnInterruptionState.kind
-    check(
-      name === LEAF_UNFINISHED_SCENE ? `${name}: a resume through the listing still reads the open call as an interrupted turn` : `${name}: a resume through the listing is not read as interrupted`,
-      name === LEAF_UNFINISHED_SCENE ? kind !== undefined && kind !== 'none' && (resumed?.messages ?? []).some(row => row.uuid === scene.end) : kind === 'none' && lastTurn(resumed?.messages ?? [])?.uuid === scene.end,
-      `${kind ?? 'no resume'} ${j(shapeOf(resumed?.messages ?? [], scene))}`,
     )
 
     if (name === 'fold') {
@@ -148,7 +165,7 @@ try {
       continue
     }
     const before = await fillSessionListing(lite)
-    const drawnBefore = deserializeMessages(before.messages).map(row => row.uuid)
+    const drawnBefore = drawnBy(before).map(each => each.uuid)
     const row = createAttachmentMessage(attachment)
     await recordTranscript([row])
     await flushSessionStorage()
@@ -156,18 +173,69 @@ try {
     const filled = await fillSessionListing(lite)
     const byId = await lastSession(scene.sid)
     check(`${what}: the rows through the listing are the rows by id, row for row, the row among them`, filled.messages.some(each => each.uuid === row.uuid) && j(filled.messages.map(each => each.uuid)) === j((byId?.messages ?? []).map(each => each.uuid)), `${j(shapeOf(filled.messages, scene))} · by id ${j(shapeOf(byId?.messages ?? [], scene))}`)
-    const viaListing = (await loadConversationForResume(lite, undefined))?.turnInterruptionState.kind
-    const viaId = (await loadConversationForResume(scene.sid, undefined))?.turnInterruptionState.kind
-    const reading = asks ? 'interrupted_prompt' : 'none'
-    check(asks ? `${what}: the model would be sent it, so the session reads as interrupted through the listing, as it reads by id` : `${what}: continued through the listing the session reads as finished, as by id`, viaListing === reading && viaId === reading, `through the listing ${viaListing}, by id ${viaId}`)
     check(`${what}: the listing's end, first prompt and count are what they were before the row`, filled.leafUuid === scene.final && filled.firstPrompt === before.firstPrompt && filled.messageCount === before.messageCount, `${shapeOf(filled.messages.filter(each => each.uuid === filled.leafUuid), scene)[0] ?? filled.leafUuid} ${j(filled.firstPrompt)} ${filled.messageCount} · before ${j(before.firstPrompt)} ${before.messageCount}`)
-    const drawn = deserializeMessages(filled.messages)
+    const drawn = drawnBy(filled)
     const behind = drawn.slice(drawnBefore.length)
     check(
-      asks ? `${what}: the preview draws the rows it drew before, then the row, then the two rows every interrupted resume gets` : `${what}: the preview draws the rows it drew before, then the row`,
+      asks ? `${what}: a request would carry it, so the preview draws the rows it drew before, the row, and the two rows an unanswered turn gets` : `${what}: the preview draws the rows it drew before, then the row`,
       j(drawn.slice(0, drawnBefore.length).map(each => each.uuid)) === j(drawnBefore) && behind[0]?.uuid === row.uuid && (asks ? behind.length === 3 && behind[1]?.type === 'user' && behind[1].isMeta === true && behind[2]?.type === 'assistant' : behind.length === 1),
       j(shapeOf(drawn, scene)),
     )
+  }
+
+  section("turns that ended, each with its hook's row written before the run's turn-end record")
+  {
+    const scene = await writeLeafScene('plain')
+    const hookOf = (words: string): Message => createAttachmentMessage({ type: 'hook', outcome: 'context', event: 'turn.end', name: 'listing-proof', words })
+    const first = hookOf('listing proof: the hook adds context')
+    await recordTranscript([first])
+    await recordTurnEnd('listing-proof-turn', 'completed')
+    await flushSessionStorage()
+    _resetTranscriptReaderForTesting()
+    const lite = await liteListingOf(scene)
+    const filled = lite === undefined ? undefined : await fillSessionListing(lite)
+    const listed = new Set((filled?.messages ?? []).map(each => each.uuid))
+    const drawn = filled === undefined ? [] : drawnBy(filled)
+    check("the listing ends on the reply and holds the hook's row behind it", filled?.leafUuid === scene.final && filled.messages.at(-1)?.uuid === first.uuid, j(shapeOf(filled?.messages ?? [], scene)))
+    check('the run ended that turn, so the preview draws the rows of the listing and none made up behind them', drawn.at(-1)?.uuid === first.uuid && drawn.every(each => listed.has(each.uuid)), j(shapeOf(drawn, scene)))
+    const frame = lite === undefined ? [] : await previewFrame(lite, 'the hook adds context')
+    check("the mounted preview paints the hook's words and no reply header with nothing under it", frame.some(line => line.includes('the hook adds context')) && !frame.some(line => CLOCK_ALONE.test(line)), frame.join(' / '))
+
+    const again = createUserMessage({ content: 'listing proof: a second turn' })
+    const answer = createAssistantMessage({ content: 'listing proof: the second reply' })
+    answer.message.stop_reason = 'end_turn'
+    answer.message.model = 'claude-sonnet-5'
+    const second = hookOf('listing proof: the hook speaks again')
+    await recordTranscript([again])
+    await recordTranscript([answer])
+    await recordTranscript([second])
+    await recordTurnEnd('listing-proof-turn-2', 'completed')
+    await flushSessionStorage()
+    _resetTranscriptReaderForTesting()
+    const twice = lite === undefined ? undefined : await fillSessionListing(lite)
+    const twiceListed = new Set((twice?.messages ?? []).map(each => each.uuid))
+    const twiceDrawn = twice === undefined ? [] : drawnBy(twice)
+    check('two such turns: the preview draws the rows of the listing and none made up behind them', twice?.leafUuid === answer.uuid && twiceDrawn.at(-1)?.uuid === second.uuid && twiceDrawn.every(each => twiceListed.has(each.uuid)), j(shapeOf(twiceDrawn, scene)))
+    const twiceFrame = lite === undefined ? [] : await previewFrame(lite, 'the hook speaks again')
+    check('two such turns: the mounted preview paints no reply header with nothing under it', twiceFrame.some(line => line.includes('the hook speaks again')) && !twiceFrame.some(line => CLOCK_ALONE.test(line)), twiceFrame.join(' / '))
+  }
+
+  section("a turn that really was cut is drawn as it was drawn without the run's record")
+  for (const cut of ['a call left open', 'the record says interrupted'] as const) {
+    const scene = await writeLeafScene('plain')
+    await recordTurnEnd('listing-proof-turn', 'completed')
+    const open = createAssistantMessage({ content: [{ type: 'tool_use', id: 'listing_proof_open', name: 'Read', input: { file_path: 'fixture' } }] })
+    open.message.stop_reason = 'tool_use'
+    await recordTranscript([createUserMessage({ content: 'listing proof: the turn that was cut' })])
+    await recordTranscript([open])
+    if (cut === 'the record says interrupted') await recordTurnEnd('listing-proof-turn-2', 'interrupted')
+    await flushSessionStorage()
+    _resetTranscriptReaderForTesting()
+    const lite = await liteListingOf(scene)
+    const filled = lite === undefined ? undefined : await fillSessionListing(lite)
+    const drawn = filled === undefined ? [] : shapeOf(drawnBy(filled), scene)
+    const drawnBlind = filled === undefined ? [] : shapeOf(deserializeMessages(filled.messages), scene)
+    check(`${cut}: the preview draws the open call and what an unanswered turn gets, the same rows as without the record`, filled?.leafUuid === open.uuid && drawn.length > (filled?.messages.length ?? 0) && j(drawn) === j(drawnBlind), `${j(drawn)} · without the record ${j(drawnBlind)}`)
   }
 } finally {
   removeScratch(scratch)

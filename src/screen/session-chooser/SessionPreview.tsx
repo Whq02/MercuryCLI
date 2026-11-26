@@ -52,7 +52,7 @@ export function SessionPreview({
 
   const tools = useMemo(() => getTools(getEmptyToolPermissionContext()), [])
   const messages = useMemo(
-    () => (fullLog ? deserializeMessages(fullLog.messages) : []),
+    () => (fullLog ? deserializeMessages(fullLog.messages, fullLog.turnEnd) : []),
     [fullLog],
   )
 
