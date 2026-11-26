@@ -91,33 +91,45 @@ function assistantRows(parent: AssistantMessage, blocks: (ContentBlock | Content
 export function imageRowNumbersOf(
   blocks: readonly (ContentBlock | ContentBlockParam)[],
   imagePasteIds?: readonly number[],
-): readonly number[] {
-  if (imagePasteIds !== undefined) return imagePasteIds
+): readonly (number | null)[] {
   let imageCount = 0
   for (const block of blocks) {
     if (block.type === 'image') imageCount++
   }
   if (imageCount === 0) return []
-  const seen = new Set<number>()
+  const named = new Set<number>()
   for (const block of blocks) {
     if (block.type === 'text') {
       for (const ref of parseReferences(block.text)) {
-        if (ref.match.startsWith('[Image')) seen.add(ref.id)
+        if (ref.match.startsWith('[Image')) named.add(ref.id)
       }
     }
   }
-  for (let next = 1; seen.size < imageCount; next++) {
-    seen.add(next)
+  let ids: readonly number[]
+  if (imagePasteIds !== undefined) {
+    ids = imagePasteIds
+  } else {
+    const seen = new Set(named)
+    for (let next = 1; seen.size < imageCount; next++) {
+      seen.add(next)
+    }
+    ids = [...seen].sort((a, b) => a - b).slice(-imageCount)
   }
-  return [...seen].sort((a, b) => a - b).slice(-imageCount)
+  return Array.from({ length: imageCount }, (_, index) => {
+    const id = ids[index] ?? index + 1
+    return named.has(id) ? null : id
+  })
 }
 
 function userBlockRows(parent: UserMessage, blocks: (ContentBlock | ContentBlockParam)[], latched: boolean): NormalizedMessage[] {
   const numbers = imageRowNumbersOf(blocks, parent.imagePasteIds)
   let images = 0
-  return blocks.map((block, index) => {
+  const rows: NormalizedMessage[] = []
+  for (let index = 0; index < blocks.length; index++) {
+    const block = blocks[index]!
     const pasteId = block.type === 'image' ? numbers[images++] : undefined
-    return {
+    if (pasteId === null) continue
+    rows.push({
       ...createUserMessage({
         content: [block],
         toolUseResult: parent.toolUseResult,
@@ -133,8 +145,9 @@ function userBlockRows(parent: UserMessage, blocks: (ContentBlock | ContentBlock
       ...(parent.heldFor === 'compaction' ? { heldFor: 'compaction' } : {}),
       uuid: uuidOfRow(parent, latched, index),
       sourceUuid: parent.uuid,
-    } as NormalizedMessage
-  })
+    } as NormalizedMessage)
+  }
+  return rows
 }
 
 type ToolUseRequestMessage = NormalizedAssistantMessage<ToolUseBlock>
