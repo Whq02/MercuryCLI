@@ -81,6 +81,7 @@ export function CommandCenter({
   view,
   subtitle,
   footer,
+  footerWarning,
   onClose,
   captureInput = true,
   bodyOwnsPageKeys = false,
@@ -94,6 +95,7 @@ export function CommandCenter({
   view: string
   subtitle?: string
   footer?: string
+  footerWarning?: string
   onClose: () => void
   captureInput?: boolean
   bodyOwnsPageKeys?: boolean
@@ -124,10 +126,14 @@ export function CommandCenter({
   const groundCwd = useCwdState()
   const dir = groundCwd.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || groundCwd
   const cols = useTerminalSize().columns
+  const warn = footerWarning !== undefined && footerWarning !== '' ? footerWarning : undefined
+  const warnPrefix = warn !== undefined ? `${warn} · ` : ''
+  const footerBudget = Math.max(0, cols - 4)
+  const plainBudget = Math.max(0, footerBudget - displayWidth(warnPrefix))
   const footerWords = composeFooterHint(footer ?? dir, { closeKeys, captureInput })
   const fullKeyGuide = footerWords.includes('pgup/pgdn')
-  const guideRows = fullKeyGuide ? wrapText(footerWords, Math.max(1, cols - 4), 'wrap').split('\n').length : 1
-  const footerText = fullKeyGuide ? footerWords : packFooter(footerWords, Math.max(0, cols - 4))
+  const guideRows = fullKeyGuide ? wrapText(`${warnPrefix}${footerWords}`, Math.max(1, footerBudget), 'wrap').split('\n').length : 1
+  const footerText = fullKeyGuide ? footerWords : packFooter(footerWords, plainBudget)
   const insideModal = useIsInsideModal()
   const chrome = useLayoutChrome()
   const popup = React.useContext(PopupFrameContext)
@@ -148,7 +154,7 @@ export function CommandCenter({
   }, [cursorFollow])
   const bodyWindow = usePopupScrollWindow(bodyRef)
   const bodyFooterText = bodyWindow.total > bodyWindow.rows && declaredRow.current === null && !bodyOwnsPageKeys && !topOverlayOwnsPageKeys()
-    ? packFooter(`↑↓ scroll · pgup/pgdn page · ${footerText}`, Math.max(0, cols - 4))
+    ? packFooter(`↑↓ scroll · pgup/pgdn page · ${footerText}`, plainBudget)
     : footerText
   useLayoutClaim(() => {
     if (!insideModal || embedded || !modalScrollRef) return
@@ -198,7 +204,18 @@ export function CommandCenter({
       <CursorDeclarationContext.Provider value={followCursor}>
         <PopupScrollViewport scrollRef={bodyRef}><ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap} minHeight={0} restsAtTop={bodyRestsAtTop}>{children}</ScrollBox></PopupScrollViewport>
       </CursorDeclarationContext.Provider>
-      {compactFooterRows > 0 ? <Box height={compactFooterRows} flexShrink={0} onClick={closable ? onClose : undefined}><Text dimColor wrap={fullKeyGuide ? 'wrap' : 'truncate-end'}>{bodyFooterText}</Text></Box> : null}
+      {compactFooterRows > 0 ? (
+        <Box height={compactFooterRows} flexShrink={0} onClick={closable ? onClose : undefined}>
+          {warn !== undefined ? (
+            <Text wrap={fullKeyGuide ? 'wrap' : 'truncate-end'}>
+              <Text color={t.warning}>{warn}</Text>
+              {bodyFooterText !== '' ? <Text dimColor> · {bodyFooterText}</Text> : null}
+            </Text>
+          ) : (
+            <Text dimColor wrap={fullKeyGuide ? 'wrap' : 'truncate-end'}>{bodyFooterText}</Text>
+          )}
+        </Box>
+      ) : null}
     </Box>
   )
   return (
@@ -226,7 +243,14 @@ export function CommandCenter({
         {}
         {hover => (
           <Box marginTop={1}>
-            <Text color={hover ? t.info : t.textMuted}>{bodyFooterText}</Text>
+            {warn !== undefined ? (
+              <Text>
+                <Text color={t.warning}>{warn}</Text>
+                {bodyFooterText !== '' ? <Text color={hover ? t.info : t.textMuted}> · {bodyFooterText}</Text> : null}
+              </Text>
+            ) : (
+              <Text color={hover ? t.info : t.textMuted}>{bodyFooterText}</Text>
+            )}
           </Box>
         )}
       </InteractiveRow>

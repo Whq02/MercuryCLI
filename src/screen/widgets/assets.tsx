@@ -40,7 +40,6 @@ export function Wordmark({
   version,
 }: {
   version?: string
-  greeting?: boolean
 }): React.ReactNode {
   const { accent } = useSessionAccent()
   const t = useMercuryTokens()
