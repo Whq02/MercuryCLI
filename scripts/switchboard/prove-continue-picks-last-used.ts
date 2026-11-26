@@ -445,8 +445,9 @@ try {
     )
     const graceSt = statSync(fGrace)
     const graceClamped = readSessionLastUsedMsCachedSync(fGrace, graceSt.mtimeMs, graceSt.size, undefined, graceNow)
+    const graceMid = readSessionLastUsedMsCachedSync(fGrace, graceSt.mtimeMs, graceSt.size, undefined, graceNow + 2_000)
     const graceExact = readSessionLastUsedMsCachedSync(fGrace, graceSt.mtimeMs, graceSt.size, undefined, graceNow + 4_000)
-    check('§3 time clamped inside 5s grace carries recheckAtMs and returns exact occurredAt once clock passes it', graceClamped === graceNow && graceExact === graceAt, `clamped=${String(graceClamped)} exact=${String(graceExact)} want=${graceAt}`)
+    check('§3 time clamped inside 5s grace advances with nowMs on cache hits and returns exact occurredAt after grace', graceClamped === graceNow && graceMid === graceNow + 2_000 && graceExact === graceAt, `clamped=${String(graceClamped)} mid=${String(graceMid)} exact=${String(graceExact)} want=${graceAt}`)
 
     const fSingle7M = join(SCRATCH, 'single-7m.jsonl')
     writeFileSync(

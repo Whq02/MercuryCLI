@@ -127,12 +127,12 @@ export const RECENCY_CLOCK_SLACK_MS = FUTURE_SKEW_GRACE_MS
 const BACKWARD_SCAN_BYTE_BUDGET = 2 * 1024 * 1024
 
 type ActivityLineResult =
-  | { kind: 'match'; ms: number; recheckAtMs?: number }
+  | { kind: 'match'; ms: number }
   | { kind: 'future'; validAtMs: number }
   | { kind: 'skip' }
 
 type ActivityScanResult = {
-  lastUsedMs: number | null
+  rawLastUsedMs: number | null
   recheckAtMs?: number
 }
 
@@ -140,6 +140,10 @@ function earlierAt(a: number | undefined, b: number | undefined): number | undef
   if (a === undefined) return b
   if (b === undefined) return a
   return Math.min(a, b)
+}
+
+function clampAcceptedMs(raw: number | null, nowMs: number): number | null {
+  return raw === null ? null : Math.min(raw, nowMs)
 }
 
 function hasAnyFlag(obj: unknown, keys: readonly string[]): boolean {
@@ -179,11 +183,11 @@ function parseConversationActivityLine(raw: string, nowMs: number): ActivityLine
   const ms = Date.parse(parsed.occurredAt)
   if (!Number.isFinite(ms)) return { kind: 'skip' }
   if (ms > nowMs + FUTURE_SKEW_GRACE_MS) return { kind: 'future', validAtMs: ms - FUTURE_SKEW_GRACE_MS }
-  return ms > nowMs ? { kind: 'match', ms: nowMs, recheckAtMs: ms } : { kind: 'match', ms }
+  return { kind: 'match', ms }
 }
 
 function scanTailActivity(tail: string, nowMs: number): ActivityScanResult {
-  if (!tail) return { lastUsedMs: null }
+  if (!tail) return { rawLastUsedMs: null }
   const lines = tail.split('\n')
   let earliestFuture: number | undefined
   for (let i = lines.length - 1; i >= 0; i--) {
@@ -193,15 +197,14 @@ function scanTailActivity(tail: string, nowMs: number): ActivityScanResult {
       continue
     }
     if (res.kind === 'match') {
-      const recheckAtMs = earlierAt(earliestFuture, res.recheckAtMs)
-      return recheckAtMs !== undefined ? { lastUsedMs: res.ms, recheckAtMs } : { lastUsedMs: res.ms }
+      return earliestFuture !== undefined ? { rawLastUsedMs: res.ms, recheckAtMs: earliestFuture } : { rawLastUsedMs: res.ms }
     }
   }
-  return earliestFuture !== undefined ? { lastUsedMs: null, recheckAtMs: earliestFuture } : { lastUsedMs: null }
+  return earliestFuture !== undefined ? { rawLastUsedMs: null, recheckAtMs: earliestFuture } : { rawLastUsedMs: null }
 }
 
 export function lastConversationActivityMs(tail: string, nowMs: number = Date.now()): number | null {
-  return scanTailActivity(tail, nowMs).lastUsedMs
+  return clampAcceptedMs(scanTailActivity(tail, nowMs).rawLastUsedMs, nowMs)
 }
 
 function scanBackwardActivitySync(filePath: string, nowMs: number = Date.now()): ActivityScanResult {
@@ -218,7 +221,6 @@ function scanBackwardActivitySync(filePath: string, nowMs: number = Date.now()):
         }
         if (res.kind === 'match') {
           found = res.ms
-          recheckAtMs = earlierAt(recheckAtMs, res.recheckAtMs)
           return true
         }
         return false
@@ -228,23 +230,23 @@ function scanBackwardActivitySync(filePath: string, nowMs: number = Date.now()):
   } catch (error) {
     passedOver(error)
   }
-  return recheckAtMs !== undefined ? { lastUsedMs: found, recheckAtMs } : { lastUsedMs: found }
+  return recheckAtMs !== undefined ? { rawLastUsedMs: found, recheckAtMs } : { rawLastUsedMs: found }
 }
 
 export function scanLastConversationActivityMsSync(filePath: string, nowMs: number = Date.now()): number | null {
-  return scanBackwardActivitySync(filePath, nowMs).lastUsedMs
+  return clampAcceptedMs(scanBackwardActivitySync(filePath, nowMs).rawLastUsedMs, nowMs)
 }
 
-const lastUsedCache = new Map<string, { mtimeMs: number; size: number; lastUsedMs: number | null; recheckAtMs?: number }>()
+const lastUsedCache = new Map<string, { mtimeMs: number; size: number; rawLastUsedMs: number | null; recheckAtMs?: number }>()
 const LAST_USED_CACHE_CAP = 2048
 
 function readSessionLastUsedSync(filePath: string, fileSize?: number, nowMs: number = Date.now()): ActivityScanResult {
   const fromTail = scanTailActivity(readTranscriptTailSync(filePath, LITE_READ_BUF_SIZE), nowMs)
-  if (fromTail.lastUsedMs !== null) return fromTail
+  if (fromTail.rawLastUsedMs !== null) return fromTail
   if ((fileSize !== undefined && fileSize > LITE_READ_BUF_SIZE) || historyHead(filePath).before > 0) {
     const back = scanBackwardActivitySync(filePath, nowMs)
     const recheckAtMs = earlierAt(fromTail.recheckAtMs, back.recheckAtMs)
-    return recheckAtMs !== undefined ? { lastUsedMs: back.lastUsedMs, recheckAtMs } : back
+    return recheckAtMs !== undefined ? { rawLastUsedMs: back.rawLastUsedMs, recheckAtMs } : back
   }
   return fromTail
 }
@@ -262,9 +264,9 @@ export function readSessionLastUsedMsCachedSync(
     held.mtimeMs === mtimeMs &&
     held.size === fileSize &&
     (held.recheckAtMs === undefined || nowMs < held.recheckAtMs) &&
-    (held.lastUsedMs === null || held.lastUsedMs <= nowMs)
+    (held.rawLastUsedMs === null || held.rawLastUsedMs <= nowMs + FUTURE_SKEW_GRACE_MS)
   ) {
-    return held.lastUsedMs
+    return clampAcceptedMs(held.rawLastUsedMs, nowMs)
   }
   const result =
     preReadText !== undefined
@@ -274,10 +276,10 @@ export function readSessionLastUsedMsCachedSync(
   lastUsedCache.set(filePath, {
     mtimeMs,
     size: fileSize,
-    lastUsedMs: result.lastUsedMs,
+    rawLastUsedMs: result.rawLastUsedMs,
     ...(result.recheckAtMs !== undefined ? { recheckAtMs: result.recheckAtMs } : {}),
   })
-  return result.lastUsedMs
+  return clampAcceptedMs(result.rawLastUsedMs, nowMs)
 }
 
 export function compareSessionRecency(
