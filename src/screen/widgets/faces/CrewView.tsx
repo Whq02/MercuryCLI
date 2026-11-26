@@ -217,7 +217,8 @@ export function CrewView({
   })
 
   const doorKeys = (target: CrewmateFacts | null): string[] =>
-    armedTarget !== null ? [crewStopHint(armedTarget.name)] : [...(target === null ? [] : target.running ? ['x x stop'] : crewSettled(target) ? ['r resume', CREW_CLEAR_KEY] : ['r resume']), pauseDoor]
+    [...(target === null ? [] : target.running ? ['x x stop'] : crewSettled(target) ? ['r resume', CREW_CLEAR_KEY] : ['r resume']), pauseDoor]
+  const armedWarning = armedTarget !== null ? crewStopHint(armedTarget.name) : undefined
 
   if (showingBoard && board !== null) {
     return <CommandCenter elevated view="crew" onClose={onClose} captureInput={false}>
@@ -230,9 +231,9 @@ export function CrewView({
     const work = workById.get(mode.id)!
     const facts = agents.find(a => a.id === mode.id)
     const back = (): void => setMode({ view: 'list' })
-    const cardFooter = [...doorKeys(facts ?? null), 'esc back'].join(' · ')
+    const cardFooter = [...(armedTarget !== null ? [] : doorKeys(facts ?? null)), 'esc back'].join(' · ')
     return (
-      <CommandCenter elevated view={`crew › ${facts?.name ?? work.name}`} onClose={back} footer={cardFooter} captureInput={false}>
+      <CommandCenter elevated view={`crew › ${facts?.name ?? work.name}`} onClose={back} footerWarning={armedWarning} footer={cardFooter} captureInput={false}>
         <Box marginTop={1} flexDirection="column">
           <RosterWorkDetail work={work} now={now} onBack={back} />
           {doorNote !== null ? <Text color={doorNote.tone === 'warning' ? tokens.warning : tokens.textMuted} wrap="truncate-middle">· {doorNote.text}</Text> : null}
@@ -244,7 +245,7 @@ export function CrewView({
   const width = popup ? Math.max(0, Math.min(columns, 120)) : Math.max(56, (columns || 80) - 6)
   const selectedRow = rows[sel]
   const footer = (armedTarget !== null
-    ? [crewStopHint(armedTarget.name), 'esc close']
+    ? ['esc close']
     : [
         '↑↓ move',
         'pgup/pgdn page',
@@ -256,7 +257,8 @@ export function CrewView({
       ])
     .filter(Boolean)
     .join(' · ')
-  const footerRows = wrapText(footer, Math.max(1, (columns || 80) - 4), 'wrap').split('\n').length
+  const footerMeasure = armedWarning !== undefined ? `${armedWarning} · ${footer}` : footer
+  const footerRows = wrapText(footerMeasure, Math.max(1, (columns || 80) - 4), 'wrap').split('\n').length
   const bodyRows = Math.max(1, (termRows || 24) - 5 - (footerRows - 1))
   const noticeRows = (presence === 'blank' || presence === 'dormant' ? 1 : 0) + (pauseChip !== null ? 1 : 0) + (doorNote !== null ? 1 : 0)
   const sectionRows = rows.length === 0 || bodyRows - 2 - noticeRows >= 0 ? 1 : 0
@@ -267,7 +269,7 @@ export function CrewView({
   )
 
   return (
-    <CommandCenter elevated view="crew" subtitle={crewCountLabel(crewmates)} onClose={onClose} footer={footer} bodyOwnsPageKeys captureInput={false}><Box marginTop={rowRoom <= 0 ? 0 : 1} flexDirection="column">
+    <CommandCenter elevated view="crew" subtitle={crewCountLabel(crewmates)} onClose={onClose} footerWarning={armedWarning} footer={footer} bodyOwnsPageKeys captureInput={false}><Box marginTop={rowRoom <= 0 ? 0 : 1} flexDirection="column">
         {presence === 'blank' ? (
           <Text color={tokens.textMuted}>no chat is focused — a session's crewmates list here</Text>
         ) : null}
