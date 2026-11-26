@@ -72,7 +72,7 @@ function lockOwnedUntilStale(path: string, stale: number): Promise<() => Promise
 
 function refreshLockFileStale(path: string, rule: RefreshLockFile, stamp: string): boolean {
   const [holder, stampedAt] = stamp.trim().split(/\s+/).map(Number)
-  if (rule === 'stale-by-holder' && holder !== undefined && Number.isSafeInteger(holder) && holder > 0) return !pidAlive(holder)
+  if (rule === 'stale-by-holder' && holder !== undefined && Number.isSafeInteger(holder) && holder > 0 && !pidAlive(holder)) return true
   const since = rule === 'stale-by-age' && stampedAt !== undefined && Number.isFinite(stampedAt) ? stampedAt : statSync(path).mtimeMs
   return Date.now() - since > REFRESH_LOCK_FILE_STALE_MS
 }

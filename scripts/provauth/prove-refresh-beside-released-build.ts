@@ -3,7 +3,7 @@ import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { spawn, spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const RELEASED_SRC_TREE = '73ff6d3d2c0978b79aa0adcccee8d6a658665492'
@@ -156,16 +156,28 @@ interface Outcome {
   secondAskedAfterMs: number | undefined
   ends: [Ended, Ended]
   lockLeft: boolean
+  firstPid: number
+  stampWhileHeld: string | undefined
 }
-async function twoProcesses(road: Road, first: Build, second: Build, heldMs: number): Promise<Outcome> {
+function aged(file: string, ms: number): void {
+  const then = new Date(Date.now() - ms)
+  utimesSync(file, then, then)
+}
+async function twoProcesses(road: Road, first: Build, second: Build, heldMs: number, standing?: string): Promise<Outcome> {
   const { home, store } = signedInHome(road)
+  const lockFile = `${store}.refresh-lock`
+  if (standing !== undefined) {
+    writeFileSync(lockFile, standing, { mode: 0o600 })
+    aged(lockFile, 31_000)
+  }
   const stand = provider()
   try {
     const a = start(first, road, home, stand.base)
     const b = start(second, road, home, stand.base)
     await reached('both processes have loaded their build', Promise.all([a.ready, b.ready]))
     a.go()
-    await reached('the first process has its refresh at the provider', stand.arrived(1))
+    await reached('the first process has its refresh at the provider, or has ended without one', Promise.race([stand.arrived(1), a.ended]))
+    const stampWhileHeld = existsSync(lockFile) ? readFileSync(lockFile, 'utf8') : undefined
     b.go()
     await reached('the second process has asked its build for the sign-in', b.about)
     const asked = Date.now()
@@ -177,7 +189,7 @@ async function twoProcesses(road: Road, first: Build, second: Build, heldMs: num
     }
     stand.answerAll()
     const ends = await Promise.all([a.ended, b.ended])
-    return { presented: stand.presented, live: stand.live(), stored: storedRefresh(store), secondAskedAfterMs, ends, lockLeft: existsSync(`${store}.lock`) || existsSync(`${store}.refresh-lock`) }
+    return { presented: stand.presented, live: stand.live(), stored: storedRefresh(store), secondAskedAfterMs, ends, lockLeft: existsSync(`${store}.lock`) || existsSync(lockFile), firstPid: await a.about, stampWhileHeld }
   } finally {
     stand.stop()
   }
@@ -231,6 +243,7 @@ async function lockHeldPastThePatience(road: Road): Promise<Outwaited> {
     await reached("this tree's process has loaded", waiter.ready)
     const stamp = road === 'openai' ? `${process.pid} ${Date.now()}\n` : `${process.pid} ${randomUUID()}`
     writeFileSync(`${store}.refresh-lock`, stamp, { mode: 0o600 })
+    aged(`${store}.refresh-lock`, 5_000)
     const asked = Date.now()
     waiter.go()
     const end = await waiter.ended
@@ -244,19 +257,20 @@ const beside = spawnSync('git', ['-C', repo, 'cat-file', '-e', `${RELEASED_SRC_T
 if (beside) unpackReleasedSource()
 else console.log(`the scenes that run 1.1.0 beside this tree are not staged: this clone does not hold the released source (the src tree of tag v1.1.0, ${RELEASED_SRC_TREE.slice(0, 10)}); a clone with its history does`)
 
-const scenes: Array<{ name: string; road: Road; first: Build; second: Build }> = [
+const scenes: Array<{ name: string; road: Road; first: Build; second: Build; standing?: string }> = [
   { name: 'ChatGPT, this tree first and 1.1.0 second', road: 'openai', first: 'tree', second: 'released' },
   { name: 'Grok, this tree first and 1.1.0 second', road: 'xai', first: 'tree', second: 'released' },
   { name: 'ChatGPT, two processes of this tree', road: 'openai', first: 'tree', second: 'tree' },
   { name: 'ChatGPT, 1.1.0 first and this tree second', road: 'openai', first: 'released', second: 'tree' },
   { name: 'Grok, 1.1.0 first and this tree second', road: 'xai', first: 'released', second: 'tree' },
   { name: 'Grok, two processes of this tree', road: 'xai', first: 'tree', second: 'tree' },
+  { name: 'Grok behind a stamp thirty-one seconds old whose pid is another live process, this tree first and 1.1.0 second', road: 'xai', first: 'tree', second: 'released', standing: `${process.pid} ${randomUUID()}` },
 ]
 const quick = scenes.filter(each => beside || (each.first === 'tree' && each.second === 'tree'))
 const slowProvider = beside ? twoProcesses('openai', 'tree', 'released', 11_000) : undefined
 const outwaited = Promise.all([lockHeldPastThePatience('openai'), lockHeldPastThePatience('xai')])
 const outcomes: Outcome[] = []
-for (const wave of [quick.slice(0, 3), quick.slice(3)]) outcomes.push(...(await Promise.all(wave.map(each => twoProcesses(each.road, each.first, each.second, 3_000)))))
+for (let at = 0; at < quick.length; at += 3) outcomes.push(...(await Promise.all(quick.slice(at, at + 3).map(each => twoProcesses(each.road, each.first, each.second, 3_000, each.standing)))))
 
 console.log('── one sign-in, two processes, the first refresh still out: the second asks the provider nothing, whichever build it is ──')
 quick.forEach((each, i) => {
@@ -265,6 +279,7 @@ quick.forEach((each, i) => {
   check(`${each.name}: one refresh reached the provider`, o.secondAskedAfterMs === undefined && o.presented.length === 1, JSON.stringify({ presented: o.presented, secondAskedAfterMs: o.secondAskedAfterMs }))
   check(`${each.name}: the home is signed in with the provider's live pair and both processes hold it`, o.live === 'rt-1' && o.stored === 'rt-1' && o.ends.every(end => end.answer === 'rt-1'), JSON.stringify({ live: o.live, stored: o.stored ?? null, ends: o.ends }))
   check(`${each.name}: no lock is left beside the store`, !o.lockLeft)
+  if (each.standing !== undefined) check(`${each.name}: while it holds, the lock file carries its own stamp and not the old one`, o.stampWhileHeld !== undefined && new RegExp(`^${o.firstPid} \\d{13}\\n$`).test(o.stampWhileHeld), JSON.stringify({ pid: o.firstPid, stamp: o.stampWhileHeld ?? null }))
 })
 
 console.log('── a process killed while it held the lock leaves a stamp 1.1.0 clears by its own rule ──')
@@ -285,7 +300,7 @@ if (slow) {
 console.log("── a 1.1.0 lock that a live process holds for longer than this tree waits: the provider is asked nothing and the lock file is not touched ──")
 const [chatgptWaited, grokWaited] = await outwaited
 check('ChatGPT: after its wait the call answers the pair that stands, having asked nothing', chatgptWaited.waitedMs > 15_000 && chatgptWaited.end.answer === 'rt-0' && chatgptWaited.presented.length === 0 && chatgptWaited.stored === 'rt-0' && chatgptWaited.stampStands, JSON.stringify(chatgptWaited))
-check("Grok: after its wait the call refuses in 1.1.0's own words, having asked nothing", grokWaited.waitedMs > 15_000 && grokWaited.end.threw === 'Another process is refreshing Grok; retry after it finishes.' && grokWaited.presented.length === 0 && grokWaited.stored === 'rt-0' && grokWaited.stampStands, JSON.stringify(grokWaited))
+check("Grok, the stamp five seconds old when the call began: after its wait the call refuses in 1.1.0's own words, having asked nothing", grokWaited.waitedMs > 15_000 && grokWaited.end.threw === 'Another process is refreshing Grok; retry after it finishes.' && grokWaited.presented.length === 0 && grokWaited.stored === 'rt-0' && grokWaited.stampStands, JSON.stringify(grokWaited))
 
 console.log(failures === 0 ? `\nREFRESH BESIDE THE RELEASED BUILD GREEN (${passes} checks; real processes of ${beside ? 'the released 1.1.0 source and of this tree' : 'this tree alone, the released source not being in this clone'}, loopback token servers, no live host)` : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

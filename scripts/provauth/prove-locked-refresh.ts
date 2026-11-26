@@ -290,14 +290,15 @@ try {
     writeRow(path, { email: EMAIL, tokens: { accessToken: 'at-of-rt-held', refreshToken: 'rt-held', expiresAtMs: Date.now() - 1_000 } })
     writeFileSync(`${path}.refresh-lock`, stamp)
   }
-  aged(`${heldByHolder}.refresh-lock`, 60_000)
+  aged(`${heldByHolder}.refresh-lock`, 5_000)
   before = server.grants.length
   const waited = await Promise.all([mine(byAge(heldByAge)), mine(byHolder(heldByHolder)), mine(byAge(heldUnstamped))])
-  check('a lock file not stale by the road\'s rule is waited on, never taken and never removed: by age a fresh stamp whose holder is gone, by holder a live pid in a file a minute old, and a file not yet stamped', waited.every(answer => answer.state === 'busy') && server.grants.length === before && standing.every(([path, stamp]) => readFileSync(`${path}.refresh-lock`, 'utf8') === stamp), JSON.stringify({ answers: waited.map(told), grants: server.grants.length - before }))
+  check('a lock file not stale by the road\'s rule is waited on, never taken and never removed: by age a fresh stamp whose holder is gone, by holder a live pid in a file five seconds old, and a file not yet stamped', waited.every(answer => answer.state === 'busy') && server.grants.length === before && standing.every(([path, stamp]) => readFileSync(`${path}.refresh-lock`, 'utf8') === stamp), JSON.stringify({ answers: waited.map(told), grants: server.grants.length - before }))
 
   const stale: Array<[string, (path: string) => LockedRefreshRoad<ProofPair>, string, number]> = [
     ['by age a stamp thirty-one seconds old whose holder is alive', byAge, `${process.pid} ${Date.now() - 31_000}\n`, 0],
     ['by holder a stamp whose pid is gone', byHolder, `${gonePid} ${randomUUID()}`, 0],
+    ['by holder a stamp of a live pid in a file thirty-one seconds old', byHolder, `${process.pid} ${randomUUID()}`, 31_000],
     ['by age a file never stamped and a minute old', byAge, '', 60_000],
     ['by holder a file never stamped and a minute old', byHolder, '', 60_000],
   ]
