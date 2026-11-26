@@ -11,6 +11,7 @@ import {
   getEphemeralProgressFrame,
   useEphemeralProgressVersion,
 } from '../app-state/ephemeralProgressStore.js'
+import { isRecord } from '../../platform/primitives/isRecord.js'
 import { ToolRowLead, toolRowStateOf } from './ToolRowLead.js'
 import { TranscriptNameplate } from './TranscriptNameplate.js'
 
@@ -81,9 +82,7 @@ export function GroupedToolUseContent({
   const anyErrored = items.some(
     item =>
       item.isErrored ||
-      (typeof item.rawResult === 'object' &&
-        item.rawResult !== null &&
-        (item.rawResult as { status?: unknown }).status === 'failed'),
+      (isRecord(item.rawResult) && item.rawResult['status'] === 'failed'),
   )
   const anyDenied = items.some(item => item.isDenied)
 
