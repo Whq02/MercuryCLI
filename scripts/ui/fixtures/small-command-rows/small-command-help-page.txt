@@ -1,19 +1,19 @@
-  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-workbench               │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+workbench               ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
   /crewmates off        │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
-                        │   ▀▄▄▄▀▄▄▄▀                                                                                                      │
-next                    │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
-  /health               │                                                                                                                  │
+                        │   ▄▄▄▄▄▄▄▄▄                                                                                                      │
+next                    │   ▀▄▄▄▀▄▄▄▀                                                                                                      │
+  /health               │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
   /memory               │                                                                                                                  │
-  /mission              │ 01:11:28 [sam] ❯ start                                                                                           │
+  /goal                 │                                                                                                                  │
+                        │ 18:12:12 [sam] ❯ start                                                                                           │
+files · project         │                                                                                                                  │
+  ↵ browse              │ 18:12:12 [Mercury] Command rows ready.                                                                           │
                         │                                                                                                                  │
-files · project         │ 01:11:28 [Mercury] Command rows ready.                                                                           │
-  ↵ browse              │                                                                                                                  │
-                        │ ❯ /crewmates off                                                                                                 │
-vitals                  │   └ crewmates off for this session                                                                               │
-  spend $0.00           │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
-  ctx 0% · 1000k        │     running finishes                                                                                             │
-  health — run /health  │                                                                                                                  │
+vitals                  │ ❯ /crewmates off                                                                                                 │
+  spend $0.00           │   └ crewmates off for this session                                                                               │
+  ctx 0% · 1000k        │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
+  health — run /health  │     running finishes                                                                                             │
+                        │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
@@ -28,8 +28,8 @@ vitals                  │   └ crewmates off for this session                
 │                                                                                                                                          │
 │   /diff                                                                                                                                ↑ │
 │     Review workspace over uncommitted + per-turn changes (sources · files · hunks)                                                       │
-│   /mission                                                                                                                               │
-│     Set a mission — keep working until the condition is met                                                                              │
+│   /goal                                                                                                                                  │
+│     Set a goal — keep working until the condition is met                                                                                 │
 │   /run                                                                                                                                   │
 │     Live run inspector — objective, deliverables, effects, evidence, next action                                                         │
 │   /runs                                                                                                                                  │

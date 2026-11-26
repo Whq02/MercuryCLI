@@ -1,17 +1,17 @@
-  lanes             ╭──────────────────────────────────────────────────────────────────────────────╮
-workbench           │                                                                              │
-  no prompts yet    │ ╭──────────────────────────────────────────────────────────────────────────╮ │
-                    │ │ Mercury · logins                                                         │ │
-next                │ │                                                                          │ │
+workbench           ╭──────────────────────────────────────────────────────────────────────────────╮
+  no prompts yet    │                                                                              │
+                    │ ╭──────────────────────────────────────────────────────────────────────────╮ │
+next                │ │ Mercury · logins                                                         │ │
   /health           │ │                                                                          │ │
-                    │ │ Sign in                                                                  │ │
-files · orchard     │ │                                                                          │ │
-  ↵ browse          │ │ Choose a provider to sign in.                                            │ │
                     │ │                                                                          │ │
-vitals              │ │   OpenAI — ChatGPT subscription or API key                               │ │
-  spend —           │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key           │ │
-  ctx — · —         │ │     ANTHROPIC_API_KEY (env) …-key                                        │ │
-  health — run…     │ │   OpenRouter — browser sign-in or API key                                │ │
+files · orchard     │ │ Sign in                                                                  │ │
+  ↵ browse          │ │                                                                          │ │
+                    │ │ Choose a provider to sign in.                                            │ │
+vitals              │ │                                                                          │ │
+  spend —           │ │   OpenAI — ChatGPT subscription or API key                               │ │
+  ctx — · —         │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key           │ │
+  health — run…     │ │     ANTHROPIC_API_KEY (env) …-key                                        │ │
+                    │ │   OpenRouter — browser sign-in or API key                                │ │
                     │ │   Google Gemini — Google sign-in, API key                                │ │
                     │ │   Hugging Face — sign-in or Hub token                                    │ │
                     │ │   Kimi (Moonshot) — device-code sign-in or API key                       │ │
