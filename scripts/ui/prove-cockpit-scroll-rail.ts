@@ -84,7 +84,7 @@ if (res.status === 0) {
 
   const recentRow = rowOf('recent')
   const bodyRow = lines.findIndex(l => /│\s+○ .+/.test(l.slice(0, 44)))
-  check('RECENT header pinned at the top (inside its panel border)', recentRow === 2, `row ${recentRow}`)
+  check('RECENT header pinned at the top (inside its panel border)', recentRow === 1, `row ${recentRow}`)
   check('the recent body directly under the header (never dragged)', bodyRow === recentRow + 1, `row ${bodyRow}`)
   if (bodyRow !== recentRow + 1) {
     console.log('  … rail rows 0-14 (first 44 cols):')
@@ -99,7 +99,7 @@ if (res.status === 0) {
   check('the bottom is back (the last reply on screen)', bottomRowOf('Reply 18:') > 0)
   const bottomRecentRow = bottomRowOf('recent')
   const bottomBodyRow = bottom.findIndex(l => /│\s+○ .+/.test(l.slice(0, 44)))
-  check('RECENT header still pinned after the return scroll', bottomRecentRow === 2, `row ${bottomRecentRow}`)
+  check('RECENT header still pinned after the return scroll', bottomRecentRow === 1, `row ${bottomRecentRow}`)
   check('the recent body still under its header after the return scroll', bottomBodyRow === bottomRecentRow + 1, `row ${bottomBodyRow}`)
   check('right rail still top-pinned after the return scroll', bottomRowOf('▆ usage') >= 0 && bottomRowOf('▆ usage') <= 2, `row ${bottomRowOf('▆ usage')}`)
 }

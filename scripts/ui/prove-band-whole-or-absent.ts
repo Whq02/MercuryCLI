@@ -68,7 +68,7 @@ type Reading = { paneLeft: number; paneRight: number; paneBottom: number; bandOp
 function readPane(lines: string[], columns: number): Reading | null {
   const screen = lines.map(line => { const cells = Array.from(line); while (cells.length < columns) cells.push(' '); return cells })
   const top = screen[0] ?? []
-  const paneLeft = top.indexOf('╭')
+  const paneLeft = top[0] === '╭' ? top.indexOf('╭', 1) : top.indexOf('╭')
   const paneRight = paneLeft < 0 ? -1 : top.indexOf('╮', paneLeft + 1)
   if (paneLeft < 0 || paneRight < 0) return null
   let paneBottom = -1
