@@ -3,14 +3,14 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { logForDebugging } from '../../../platform/logs/debugLog.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { startMicrotask, startTimeout, stopTimeout } from '../../../platform/async/timers.js'
-
+import { subprocessEnv } from '../../../platform/processes/subprocessEnv.js'
 const MAX_LINE_BUFFER_BYTES = 8 * 1024 * 1024
 const EXIT_CLOSE_BACKSTOP_MS = 1_500
 const STDERR_TAIL_BYTES = 4_096
 const KILL_ESCALATION_GRACE_MS = 1_500
 
 export interface NdjsonChildLike {
-  write(line: string): void
+  write(line: string): boolean | void
   onLine(listener: (line: string) => void): () => void
   onExit(listener: (code: number | null, reason?: string) => void): () => void
   kill(): void
@@ -19,12 +19,17 @@ export interface NdjsonChildLike {
   killAndWait?(graceMs?: number): Promise<void>
 }
 
-export type SpawnImpl = (cmd: string, args: string[], opts: { cwd?: string }) => NdjsonChildLike
+export type SpawnImpl = (cmd: string, args: string[], opts: { cwd?: string; env?: NodeJS.ProcessEnv }) => NdjsonChildLike
 
-export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: string }): NdjsonChildLike {
+export function realNdjsonChild(
+  cmd: string,
+  args: string[],
+  opts: { cwd?: string; env?: NodeJS.ProcessEnv },
+): NdjsonChildLike {
   const child: ChildProcess = spawn(cmd, args, {
     windowsHide: true,
     cwd: opts.cwd,
+    env: opts.env ?? subprocessEnv(),
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   const lineListeners = new Set<(line: string) => void>()
@@ -121,10 +126,15 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
   })
   return {
     write: line => {
+      if (settled || !child.stdin || child.stdin.destroyed || !child.stdin.writable) {
+        return false
+      }
       try {
-        child.stdin?.write(line.endsWith('\n') ? line : `${line}\n`)
+        child.stdin.write(line.endsWith('\n') ? line : `${line}\n`)
+        return true
       } catch (e) {
         logForDebugging(`[crew/ndjsonChild:${cmd}] write failed: ${e}`)
+        return false
       }
     },
     onLine: listener => {

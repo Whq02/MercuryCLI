@@ -1,3 +1,4 @@
+prove-acp-seat-client.ts
 prove-activity-classifier.ts
 prove-bounded-work.ts
 prove-continuity-handoffs.ts
