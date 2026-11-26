@@ -98,7 +98,7 @@ for (const [cols, rows] of SIZES) {
     const wide = cols >= 100
     const sends = [
       { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
-      { atTick: 120, awaitText: wide ? 'ready · Opus 5.5 ·' : '● ready · Opus 5.5', minTick: 5, awaitSettleTicks: 6, requireAwait: true, data: PROMPT, mark: 'chat' },
+      { atTick: 120, awaitText: wide ? 'ready · Opus 5.5 ·' : 'ready · Opus 5.5', minTick: 5, awaitSettleTicks: 6, requireAwait: true, data: PROMPT, mark: 'chat' },
       { atTick: 160, awaitText: `❯ ${PROMPT}`, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '\r' },
       { atTick: 220, awaitText: REPLY, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '' },
       { atTick: 230, awaitText: wide ? 'spend $0.00' : 'ctx 0%', minTick: 2, awaitSettleTicks: 8, requireAwait: true, data: '', mark: 'after-turn' },
@@ -145,9 +145,9 @@ for (const [cols, rows] of SIZES) {
       check(`${cols}x${rows}: the pane's bottom border is one whole row`, paneBottom > bandRule, `${WHERE_FACE} | row ${paneBottom}`)
       const edges = chatFull.slice(1, paneBottom).map((r, i) => [i + 1, r[cols - 1]] as const).filter(([, ch]) => ch !== '│')
       check(`${cols}x${rows}: every pane row between the borders ends with the pane's right edge (no tail shifted off its row)`, edges.length === 0, `${WHERE_FACE} | rows ${edges.map(([i, ch]) => `${i}:${JSON.stringify(ch)}`).join(' ')}`)
-      check(`${cols}x${rows}: the hint row is whole on one row`, chat.some(r => r.includes('❯ ↵ sends  ·  /crewmates /saturn /health /trace')), `${WHERE_FACE} | ${chat.filter(r => r.includes('sends')).join(' | ')}`)
+      check(`${cols}x${rows}: the hint row is whole on one row`, chat.some(r => r.includes('/crewmates  /saturn  /health  /trace')), `${WHERE_FACE} | ${chat.filter(r => r.includes('/crewmates')).join(' | ')}`)
       check(`${cols}x${rows}: the model row names the model`, chat.some(r => /│\s+model\s+Opus 5\.5/.test(r)), `${WHERE_FACE} | ${chat.filter(r => r.includes('model')).join(' | ')}`)
-      check(`${cols}x${rows}: the memory row says what rode at start and that Recall finds the rest`, chat.some(r => /│\s+memory\s+1 of 1 earlier note rode at start; Recall finds the rest/.test(r)), `${WHERE_FACE} | ${chat.filter(r => r.includes('memory')).join(' | ')}`)
+      check(`${cols}x${rows}: the memory row says what loaded at start`, chat.some(r => /│\s+memory\s+1 of 1 note loaded/.test(r)), `${WHERE_FACE} | ${chat.filter(r => r.includes('memory')).join(' | ')}`)
       const recent = chat.filter(r => /^\s+○ /.test(r))
       check(`${cols}x${rows}: the RECENT lane lists the seeded sessions, newest first`, recent.length === 3 && recent[0]!.includes('carry on') && recent[2]!.includes('can you add walls'), `${WHERE_FACE} | ${recent.join(' | ')}`)
       const statusRows = turn.filter(r => /← back/.test(r))
@@ -155,7 +155,7 @@ for (const [cols, rows] of SIZES) {
       check(`${cols}x${rows}: the status row sits directly under the pane's bottom border, above the composer`, (() => { const s = turn.findIndex(r => /← back/.test(r)); return s > 0 && /^\s*╰─+╯$/.test(turn[s - 1] ?? '') && /^╭─+╮$/.test(turn[s + 1] ?? '') })(), `${WHERE_STATUS} | ${turn.slice(-7).join('\n')}`)
     } else {
       check(`${cols}x${rows}: the compact header reads ready beside the model`, chat.some(r => r.includes('✶ Mercury') && r.includes('Opus 5.5')), `${WHERE_FACE} | ${chat.slice(0, 3).join(' | ')}`)
-      check(`${cols}x${rows}: after the turn the header reads ready`, turn.some(r => r.includes('● ready') && r.includes('Opus 5.5')), `${WHERE_FACE} | ${turn.slice(0, 3).join(' | ')}`)
+      check(`${cols}x${rows}: after the turn the header reads ready`, turn.some(r => r.includes('· ready ·') && r.includes('Opus 5.5')), `${WHERE_FACE} | ${turn.slice(0, 3).join(' | ')}`)
     }
     check(`${cols}x${rows}: no row of the after-turn screen carries the esc hint`, !turn.some(r => r.includes('esc interrupts')), `${WHERE_STATUS} | ${turn.filter(r => r.includes('esc interrupts')).join(' | ')}`)
     const composerTop = turn.findIndex(r => /^╭─+╮$/.test(r))

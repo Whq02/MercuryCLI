@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useCallback, useRef, useSyncExternalStore } from 'react'
 import type { DOMElement } from '../themedRenderer.js'
-import { Box, Text, useAnimationValue } from '../themedRenderer.js'
+import { Box, useAnimationValue } from '../themedRenderer.js'
 import { nodeCache } from '../renderer/node-cache.js'
 import { getInitialSettings } from '../../platform/settings/settings.js'
 import { useIdleMotion } from '../effects/useIdleMotion.js'
@@ -15,9 +15,6 @@ import {
   subscribePointerCell,
 } from '../cockpit/pointerCell.js'
 import {
-  BREATH_BUCKETS,
-  BREATH_TICK_MS,
-  breathBucket,
   critterIdleTickMs,
   EYE_OPEN,
   EYE_SHUT,
@@ -29,9 +26,7 @@ import {
   critterSleepSince,
   subscribeCritterSleep,
 } from '../cockpit-gauges/critterSleep.js'
-import { lerpHex } from '../theme/theme.js'
 import { effectiveSwayPhase, type ArtForm, type CritterDef } from '../cockpit/critterData.js'
-import { FAINT, TEAL } from '../theme/mercuryPalette.js'
 import { CritterArt } from './CritterArt.js'
 
 function useIdleAnimation<T extends string | number>(
@@ -126,21 +121,6 @@ export function AnimatedCritterArt({ def, chunky = false, square = false, specim
   return (
     <Box flexDirection="column" ref={frame.ref}>
       <CritterArt def={def} pupil={frame.pupil} gazeKey={frame.gazeKey} swayPhase={frame.swayPhase} sleepPhase={frame.sleepPhase} chunky={chunky} square={square} {...ground} />
-    </Box>
-  )
-}
-
-export function BreathingDot(): React.ReactNode {
-  const motionLevel = useIdleMotion('critter')
-  const { animate, ref, value: bucket } = useIdleAnimation(
-    motionLevel === 'full' ? BREATH_TICK_MS : null,
-    breathBucket,
-  )
-  if (!animate) return <Text color={TEAL}>●</Text>
-  const color = lerpHex(FAINT, TEAL, 0.45 + 0.55 * (bucket / BREATH_BUCKETS))
-  return (
-    <Box ref={ref}>
-      <Text color={color}>●</Text>
     </Box>
   )
 }

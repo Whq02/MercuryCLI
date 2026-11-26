@@ -39,7 +39,7 @@ const LEAD_REPORT = [LEAD_DONE, ...Array.from({ length: 48 }, (_, i) => `${i + 1
 const NOTICE_PATTERN = '\\[Crewmate\\] fjord · completed'
 const FACE_PATTERN = `${BOOT_FACE_READY}[\\s\\S]*Model [\\s\\S]*Dir: fixture-cwd`
 const FOCUSED_WIDE_PATTERN = '\\n ready · [^\\n]*← back'
-const FOCUSED_NARROW_PATTERN = '● ready · [\\s\\S]*\\d+ sessions? on · '
+const FOCUSED_NARROW_PATTERN = '· ready · [\\s\\S]*\\d+ sessions? on · '
 const LOADING_WORDS = 'opening the conversation|no chat is focused|has not reported its work|counts unavailable|Initializing crewmate'
 const settledPattern = (pattern?: string): string => `\\A(?![\\s\\S]*(?:${LOADING_WORDS}))${pattern === undefined ? '' : `[\\s\\S]*(?:${pattern})`}`
 const BOARD_PATTERN = 'STATUS & TITLE|─sessions · \\d+ ─'
