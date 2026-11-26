@@ -102,7 +102,9 @@ async function runPosixCliScene(): Promise<void> {
   const home3 = `${configHome}3`
   const home4 = `${configHome}4`
   const home5 = `${configHome}5`
-  for (const dir of [home2, home3, home4, home5]) {
+  const home6 = `${configHome}6`
+  const home7 = `${configHome}7`
+  for (const dir of [home2, home3, home4, home5, home6, home7]) {
     assertUnderScratch(dir)
     mkdirSync(dir, { recursive: true })
   }
@@ -112,8 +114,10 @@ async function runPosixCliScene(): Promise<void> {
   writeFileSync(join(home3, 'profile.json'), `${JSON.stringify({ first: configHome, id: 3 })}\n`)
   writeFileSync(join(home4, 'profile.json'), `${JSON.stringify({ first: configHome, id: 4 })}\n`)
   writeFileSync(join(home5, 'profile.json'), `${JSON.stringify({ first: configHome, id: 5 })}\n`)
+  writeFileSync(join(home6, 'profile.json'), `${JSON.stringify({ first: configHome, id: 6 })}\n`)
+  writeFileSync(join(home7, 'profile.json'), `${JSON.stringify({ first: configHome, id: 7 })}\n`)
   const recordPath = join(configHome, 'profiles.json')
-  const recordText = `${JSON.stringify({ profiles: [{ id: 2, name: 'Work' }, { id: 3 }, { id: 4 }, { id: 5 }] }, null, 2)}\n`
+  const recordText = `${JSON.stringify({ profiles: [{ id: 2, name: 'Work' }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 6 }, { id: 7 }] }, null, 2)}\n`
   writeFileSync(recordPath, recordText)
 
   const roots: LayoutRoots = { versionsDir, binDir: staged.bin, shimPath: staged.command, isWindows: false }
@@ -121,11 +125,14 @@ async function runPosixCliScene(): Promise<void> {
   const expected2 = commandFiles(installDesc, 2, home2)[0]!
   const staleMarked2 = `#!/bin/sh\n# mercury-managed-profile 2\nMERCURY_CONFIG_DIR=${shQuote(home2)} exec ${shQuote(staged.command)} "$@"\n`
   const unmarked3 = `#!/bin/sh\n# custom user wrapper (marker removed)\nMERCURY_CONFIG_DIR=${shQuote(home3)} MERCURY_VERSIONS_DIR=${shQuote(versionsDir)} exec ${shQuote(staged.command)} "$@"\n`
+  const suffixOnly6 = `#!/bin/sh\necho mercury-managed-profile 6\nMERCURY_CONFIG_DIR=${shQuote(home6)} exec ${shQuote(staged.command)} "$@"\n`
   const linkTarget = join(scratch, 'posix-link-target')
   const word2 = join(staged.bin, 'mercury2')
   const word3 = join(staged.bin, 'mercury3')
   const word4 = join(staged.bin, 'mercury4')
   const word5 = join(staged.bin, 'mercury5')
+  const word6 = join(staged.bin, 'mercury6')
+  const word7 = join(staged.bin, 'mercury7')
   const word9 = join(staged.bin, 'mercury9')
   writeFileSync(word2, staleMarked2)
   chmodSync(word2, 0o755)
@@ -133,11 +140,15 @@ async function runPosixCliScene(): Promise<void> {
   chmodSync(word3, 0o755)
   writeFileSync(linkTarget, `#!/bin/sh\n# mercury-managed-profile 4\nexit 0\n`)
   symlinkSync(linkTarget, word4)
+  writeFileSync(word6, suffixOnly6)
+  chmodSync(word6, 0o755)
+  spawnSync('mkfifo', [word7])
   const unreg9 = `#!/bin/sh\n# mercury-managed-profile 9\nexit 0\n`
   writeFileSync(word9, unreg9)
   chmodSync(word9, 0o755)
 
   const stamp3Before = stampOf(word3)
+  const stamp6Before = stampOf(word6)
   const stamp9Before = stampOf(word9)
   const dryEnv: NodeJS.ProcessEnv = {
     ...staged.env,
@@ -193,6 +204,8 @@ async function runPosixCliScene(): Promise<void> {
     const second = await spawnAsync(staged.command, ['update'], updateEnv)
     check('second mercury update pass performs zero rewrite/mtime churn on current mercury2', second.status === 0 && stampOf(word2) === stamp2AfterFirst, show([stamp2AfterFirst, stampOf(word2)]))
     check('unmarked mercury3 (marker removed by user) stays untouched with zero writes', readFileSync(word3, 'utf8') === unmarked3 && stampOf(word3) === stamp3Before, show([stamp3Before, stampOf(word3)]))
+    check('non-marker suffix mercury6 (echo mercury-managed-profile 6) stays untouched with zero writes', readFileSync(word6, 'utf8') === suffixOnly6 && stampOf(word6) === stamp6Before, show([stamp6Before, stampOf(word6)]))
+    check('FIFO at mercury7 does not block reconcile and stays a FIFO', lstatSync(word7).isFIFO())
     check('symlinked mercury4 stays a symlink and target stays untouched', lstatSync(word4).isSymbolicLink() && readFileSync(linkTarget, 'utf8').includes('# mercury-managed-profile 4'))
     check('intentionally deleted mercury5 stays absent', !existsSync(word5))
     check('unregistered mercury9 stays untouched', readFileSync(word9, 'utf8') === unreg9 && stampOf(word9) === stamp9Before)
@@ -278,7 +291,7 @@ function runWindowsBytesScene(): void {
   writeShimSet(winRoots)
 
   const homes = new Map<number, string>()
-  for (const id of [2, 3, 4, 5]) {
+  for (const id of [2, 3, 4, 5, 6, 7]) {
     const dir = `${configHome}${id}`
     assertUnderScratch(dir)
     mkdirSync(dir, { recursive: true })
@@ -288,7 +301,7 @@ function runWindowsBytesScene(): void {
   const keepFile = join(homes.get(2)!, 'keep-me.txt')
   writeFileSync(keepFile, 'keep-win-profile-2\n')
   const recordPath = join(configHome, 'profiles.json')
-  const recordText = `${JSON.stringify({ profiles: [{ id: 2, name: 'Work' }, { id: 3 }, { id: 4 }, { id: 5 }] }, null, 2)}\n`
+  const recordText = `${JSON.stringify({ profiles: [{ id: 2, name: 'Work' }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 6 }, { id: 7 }] }, null, 2)}\n`
   writeFileSync(recordPath, recordText)
 
   const winInstall = { bin: binDir, command: winRoots.shimPath, program: { MERCURY_VERSIONS_DIR: versionsDir }, isWindows: true, userHome }
@@ -313,6 +326,9 @@ function runWindowsBytesScene(): void {
   ].join('\r\n')
   const unmarkedSh3 = `#!/bin/sh\n# user-owned\nMERCURY_CONFIG_DIR=${shQuote(homes.get(3)!)} exec "$(dirname "$0")/mercury" "$@"\n`
   const unmarkedPs13 = `\uFEFF# user-owned\r\nexit 0\r\n`
+  const suffixCmd6 = `@echo off\r\necho mercury-managed-profile 6\r\n`
+  const suffixSh6 = `#!/bin/sh\necho mercury-managed-profile 6\n`
+  const suffixPs16 = `\uFEFFWrite-Output mercury-managed-profile 6\r\n`
 
   const cmd2Path = join(binDir, 'mercury2.cmd')
   const sh2Path = join(binDir, 'mercury2')
@@ -320,10 +336,14 @@ function runWindowsBytesScene(): void {
   writeFileSync(cmd2Path, staleCmd2)
   writeFileSync(sh2Path, `#!/bin/sh\n# mercury-managed-profile 2\nMERCURY_CONFIG_DIR=${shQuote(homes.get(2)!)} exec "$(dirname "$0")/mercury" "$@"\n`)
   chmodSync(sh2Path, 0o644)
-  writeFileSync(ps12Path, `# mercury-managed-profile 2\r\nexit 0\r\n`)
+  writeFileSync(ps12Path, `\uFEFF# mercury-managed-profile 2\r\nexit 0\r\n`)
   writeFileSync(join(binDir, 'mercury3.cmd'), unmarkedCmd3)
   writeFileSync(join(binDir, 'mercury3'), unmarkedSh3)
   writeFileSync(join(binDir, 'mercury3.ps1'), unmarkedPs13)
+  writeFileSync(join(binDir, 'mercury6.cmd'), suffixCmd6)
+  writeFileSync(join(binDir, 'mercury6'), suffixSh6)
+  writeFileSync(join(binDir, 'mercury6.ps1'), suffixPs16)
+  spawnSync('mkfifo', [join(binDir, 'mercury7.cmd')])
   const linkTarget = join(scratch, 'win-link-target.cmd')
   writeFileSync(linkTarget, staleCmd2.replace('profile 2', 'profile 4'))
   symlinkSync(linkTarget, join(binDir, 'mercury4.cmd'))
@@ -332,6 +352,7 @@ function runWindowsBytesScene(): void {
   writeFileSync(unregPath, staleCmd2.replace('profile 2', 'profile 9'))
 
   const stamp3 = [stampOf(join(binDir, 'mercury3.cmd')), stampOf(join(binDir, 'mercury3')), stampOf(join(binDir, 'mercury3.ps1'))]
+  const stamp6 = [stampOf(join(binDir, 'mercury6.cmd')), stampOf(join(binDir, 'mercury6')), stampOf(join(binDir, 'mercury6.ps1'))]
   const stampUnreg = stampOf(unregPath)
 
   process.env.MERCURY_VERSIONS_DIR = versionsDir
@@ -344,7 +365,7 @@ function runWindowsBytesScene(): void {
   const afterCmd2 = readFileSync(cmd2Path, 'utf8')
   check('SUBMIT 493: marked old 6ce324b43d mercury2.cmd becomes exact current commandFiles bytes (+23 bytes chcp 65001 >nul 2>nul)', out1 !== null && afterCmd2 === exp2[0]!.text && Buffer.byteLength(afterCmd2) - Buffer.byteLength(staleCmd2) === 23, show([Buffer.byteLength(staleCmd2), Buffer.byteLength(afterCmd2)]))
   check('marked stale Windows Git Bash mercury2 becomes exact current bytes with execute mode', readFileSync(sh2Path, 'utf8') === exp2[1]!.text && (statSync(sh2Path).mode & 0o777) === 0o755)
-  check('marked stale Windows mercury2.ps1 becomes exact current bytes (BOM + CRLF + marker)', readFileSync(ps12Path, 'utf8') === exp2[2]!.text && readFileSync(ps12Path, 'utf8').startsWith('\uFEFF# mercury-managed-profile 2\r\n'))
+  check('marked stale Windows mercury2.ps1 (with BOM) becomes exact current bytes (BOM + CRLF + marker)', readFileSync(ps12Path, 'utf8') === exp2[2]!.text && readFileSync(ps12Path, 'utf8').startsWith('\uFEFF# mercury-managed-profile 2\r\n'))
 
   const stampsAfterFirst = [stampOf(cmd2Path), stampOf(sh2Path), stampOf(ps12Path)]
   reconcileManagedCommands(winRoots)
@@ -352,6 +373,9 @@ function runWindowsBytesScene(): void {
 
   const stamp3After = [stampOf(join(binDir, 'mercury3.cmd')), stampOf(join(binDir, 'mercury3')), stampOf(join(binDir, 'mercury3.ps1'))]
   check('unmarked .cmd, sh and .ps1 (marker absent) are preserved byte-for-byte with zero writes', readFileSync(join(binDir, 'mercury3.cmd'), 'utf8') === unmarkedCmd3 && readFileSync(join(binDir, 'mercury3'), 'utf8') === unmarkedSh3 && readFileSync(join(binDir, 'mercury3.ps1'), 'utf8') === unmarkedPs13 && show(stamp3After) === show(stamp3))
+  const stamp6After = [stampOf(join(binDir, 'mercury6.cmd')), stampOf(join(binDir, 'mercury6')), stampOf(join(binDir, 'mercury6.ps1'))]
+  check('non-marker suffix .cmd, sh and .ps1 (echo/Write-Output ending in marker text) survive untouched with zero writes', readFileSync(join(binDir, 'mercury6.cmd'), 'utf8') === suffixCmd6 && readFileSync(join(binDir, 'mercury6'), 'utf8') === suffixSh6 && readFileSync(join(binDir, 'mercury6.ps1'), 'utf8') === suffixPs16 && show(stamp6After) === show(stamp6))
+  check('FIFO at mercury7.cmd does not block reconcile and stays a FIFO', lstatSync(join(binDir, 'mercury7.cmd')).isFIFO())
   check('symlinked mercury4.cmd stays a symlink and target stays untouched', lstatSync(join(binDir, 'mercury4.cmd')).isSymbolicLink() && readFileSync(linkTarget, 'utf8').includes('profile 4'))
   check('intentionally deleted mercury5.cmd stays absent while marked stale mercury5.ps1 refreshes', !existsSync(join(binDir, 'mercury5.cmd')) && readFileSync(join(binDir, 'mercury5.ps1'), 'utf8') === commandFiles(winInstall, 5, homes.get(5)!)[2]!.text)
   check('unregistered mercury9.cmd stays untouched', readFileSync(unregPath, 'utf8') === staleCmd2.replace('profile 2', 'profile 9') && stampOf(unregPath) === stampUnreg)
