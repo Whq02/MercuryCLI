@@ -231,7 +231,7 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
       `${stages.length} of ${WIDTHS.length}`,
     )
 
-    const cockpitOpen = (lines: string[]): boolean => /\blanes\b/.test(lines[0] ?? '') && (lines[0] ?? '').includes('╭')
+    const cockpitOpen = (lines: string[]): boolean => /\bLanes\b/.test(lines[0] ?? '') && (lines[0] ?? '').includes('╭')
     const hex = (h: string): string => h.replace('#', '').toLowerCase()
     const octopusHues = new Set([hex(critterDefForKey('octopus').hue), hex(critterDefForKey('octopus').hueDeep)])
     const crabHues = new Set([hex(critterDefForKey('crab').hue), hex(critterDefForKey('crab').hueDeep)])
@@ -397,7 +397,7 @@ t.section('§5 — REAL BINARY, LIVE ACTIVITY: the density pipe at rendered grid
       (payload.marks?.find(m => m.label === label)?.grid ?? []).map(row => row.map(c => c.c).join(''))
     const hintRows = (lines: string[]): number => lines.filter(l => /^  \/[a-z]+(?:…|   |\s*│)/.test(l)).length
     t.check('hint counting keeps whole-word rail clips', hintRows(['  /health…               │', '  /health                │', '  /memory                │', '  /mission               │']) === 4, 'four commands')
-    t.check('hint counting excludes commands outside the rail', hintRows(['next                    │ /health — health cert', '                        │  ❯ /crewmates /health']) === 0, 'rail rows only')
+    t.check('hint counting excludes commands outside the rail', hintRows(['Next                    │ /health — health cert', '                        │  ❯ /crewmates /health']) === 0, 'rail rows only')
 
     const calm = gridLines('calm')
     const active = gridLines('active')

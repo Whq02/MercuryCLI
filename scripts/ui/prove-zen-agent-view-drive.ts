@@ -167,7 +167,7 @@ async function compactLeg(cols: number, rows: number, zen: boolean): Promise<voi
   for (const [label, frame] of Object.entries(marks)) keep(`${cols}x${rows}${zen ? '-zen' : ''}-${label}`, frame)
   check(`${tag}: every send became due (the frames the sends waited on all painted)`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
   const launched = marks['launched'] ?? ''
-  check(`${tag}: the layout is the compact one (no rail; the band wears the session's own identity; the strip counts the crewmate)`, !has(launched, 'crew ·') && bandRow(launched).includes('✶ Mercury') && has(launched, '1 crewmate here'), flat(launched).slice(0, 300))
+  check(`${tag}: the layout is the compact one (no rail; the band wears the session's own identity; the strip counts the crewmate)`, !has(launched, 'Crew ·') && bandRow(launched).includes('✶ Mercury') && has(launched, '1 crewmate here'), flat(launched).slice(0, 300))
   const activity = marks['activity'] ?? ''
   check(`${tag}: ctrl+t then ↵ opens the activity screen with the sleeper as its crewmate row`, has(activity, ACTIVITY_TITLE) && rowsOf(activity).some(row => row.includes('❯') && row.includes(SEAT_NAME)), flat(activity).slice(0, 300))
   const view = marks['strip-view'] ?? ''
@@ -225,7 +225,7 @@ async function cockpitLeg(cols: number, rows: number): Promise<void> {
   for (const [label, frame] of Object.entries(marks)) keep(`${cols}x${rows}-cockpit-${label}`, frame)
   check(`${tag}: every send became due`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
   const launched = marks['launched'] ?? ''
-  check(`${tag}: the rails are shown (the CREW lane lists Mercury Lead and the sleeper)`, has(launched, 'crew ·') && has(launched, LEAD_ROW) && has(launched, SEAT_NAME), flat(launched).slice(0, 300))
+  check(`${tag}: the rails are shown (the CREW lane lists Mercury Lead and the sleeper)`, has(launched, 'Crew ·') && has(launched, LEAD_ROW) && has(launched, SEAT_NAME), flat(launched).slice(0, 300))
   const popupView = marks['popup-view'] ?? ''
   check(`${tag}: /crewmates' ↵ opens the sleeper in the view — its rows take the centre, the berth card names it`, crewmateRowsTakeTheCentre(popupView) && has(popupView, `◉ ${SEAT_NAME}`), flat(popupView).slice(0, 300))
   check(`${tag}: the wide card drops both goes-back clauses`, !has(popupView, RAIL_BACK) && !has(popupView, COMPACT_BACK), rowsOf(popupView).filter(row => row.includes('goes back')).map(row => row.trim()).join(' | ').slice(0, 200))

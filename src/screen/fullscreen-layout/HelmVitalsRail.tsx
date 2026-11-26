@@ -264,11 +264,11 @@ function HelmVitalsRailImpl({ width, availRows }: { width: number; availRows?: n
           </ValueGlow>
           {focused ? (
             <>
-              <Text color={accent} bold>{'vitals'}</Text>
+              <Text color={accent} bold>{'Vitals'}</Text>
               <Text color={tok.textMuted}>{' · ↑↓ ↵ tab esc'}</Text>
             </>
           ) : (
-            <Text color={tok.textMuted}>{'vitals'}</Text>
+            <Text color={tok.textMuted}>{'Vitals'}</Text>
           )}
         </Text>
       </Box>

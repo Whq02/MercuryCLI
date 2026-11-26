@@ -218,7 +218,7 @@ section(`§1 ${COLS}x${ROWS}: m on the Boot face, then /model in the chat born f
   const sheetRule = session.findIndex(line => /^▔+$/.test(line.trim()) && line.trim().length >= COLS - 2)
   check('no full-width sheet rule crosses the terminal', sheetRule < 0, `the picker must paint as a bordered window, not a full-width rule; ${PICKER_WHERE}; rule at row ${sheetRule}`)
   check('the composer stays on screen under the picker', session.some(l => l.includes(COMPOSER)), `the composer placeholder is not on screen; the picker window must not cover it, see ${PICKER_WHERE}`)
-  check('the lanes rail stays on screen beside the picker', session.some(l => l.includes('lanes')), `the picker window must not cover the lanes rail, see ${PICKER_WHERE}; top rows: ${session.slice(0, 4).join(' | ')}`)
+  check('the lanes rail stays on screen beside the picker', session.some(l => l.includes('Lanes')), `the picker window must not cover the lanes rail, see ${PICKER_WHERE}; top rows: ${session.slice(0, 4).join(' | ')}`)
   if (faceWindow !== null && sessionWindow !== null) {
     check(`the window's left edge equals the Boot face's (${faceWindow.left})`, sessionWindow.left === faceWindow.left, `the session picker must start at the same column as the Boot face picker, see ${PICKER_WHERE}; session ${sessionWindow.left}`)
     check(`the window's top row equals the Boot face's (${faceWindow.top})`, sessionWindow.top === faceWindow.top, `the session picker must start at the same row as the Boot face picker, see ${PICKER_WHERE}; session ${sessionWindow.top}`)

@@ -138,7 +138,7 @@ for (const [cols, rows] of SIZES) {
     check(`${cols}x${rows}: the realm row names the project, its branch and its uncommitted state on one row`, wide ? dirRow !== undefined && /gridgame\s+\S\s*master · uncommitted/.test(dirRow) : chat.some(r => r.includes(PROJECT)), `fix the realm row in src/screen/fullscreen-layout/MercuryHome.tsx | ${dirRow ?? chat.slice(0, 4).join(' | ')}`)
     if (wide) {
       const top = chatFull[0] ?? ''
-      check(`${cols}x${rows}: the top row carries the pane's top border — not a copy of the header below it`, top.includes('╭') && top.trimEnd().endsWith('╮') && top.includes('lanes'), `${WHERE_FACE} | ${chat[0] ?? ''}`)
+      check(`${cols}x${rows}: the top row carries the pane's top border — not a copy of the header below it`, top.includes('╭') && top.trimEnd().endsWith('╮') && top.includes('Lanes'), `${WHERE_FACE} | ${chat[0] ?? ''}`)
       const bandRule = chat.findIndex(r => /│ ─+ │/.test(r))
       check(`${cols}x${rows}: the status band ends on one hairline three rows under the pane top`, bandRule === 4, `${WHERE_FACE} | rule ${bandRule}`)
       const paneBottom = chat.findIndex(r => /^\s*╰─+╯$/.test(r))

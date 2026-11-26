@@ -11,7 +11,7 @@ function rawBlockRuns(raw: string[], title: string): string[] {
   const runs = raw.map(run => run.trim())
   const start = runs.indexOf(title)
   if (start < 0) return []
-  const end = runs.findIndex((run, index) => index > start && (run.endsWith(' usage') || /^[^\p{L}\p{N}] (?:usage|health)(?:$| ·)/u.test(run)))
+  const end = runs.findIndex((run, index) => index > start && (run.endsWith(' usage') || /^[^\p{L}\p{N}] (?:Usage|Health)(?:$| ·)/u.test(run)))
   return raw.slice(start, end < 0 ? undefined : end)
 }
 

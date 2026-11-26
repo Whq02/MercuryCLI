@@ -252,7 +252,7 @@ for (const [cols, rows] of SIZES) {
   save(`effort-${cols}x${rows}`, frame)
   const window = frameReadsRight(`${cols}x${rows}`, frame, cols, rows, false)
   if (window !== null && cols >= 100) {
-    const lanesRow = frame.findIndex(line => line.includes('lanes'))
+    const lanesRow = frame.findIndex(line => line.includes('Lanes'))
     check(`${cols}x${rows}: the lanes rail stays visible left of the window`, lanesRow >= 0 && Array.from(frame[window.top + 2] ?? '').slice(0, window.left).join('').trim() !== '', 'nothing painted left of the window · the popup must leave the lanes rail visible at 100 columns and wider; see src/screen/overlays/PopupGutter.tsx')
   }
   await scene.close()

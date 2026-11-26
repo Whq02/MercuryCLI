@@ -82,7 +82,7 @@ if (res.status === 0) {
     rowOf(bannerRow) >= 0 || rowOf('Mercury') >= 0,
   )
 
-  const recentRow = rowOf('recent')
+  const recentRow = rowOf('Recent')
   const bodyRow = lines.findIndex(l => /│\s+○ .+/.test(l.slice(0, 44)))
   check('RECENT header pinned at the top (inside its panel border)', recentRow === 2, `row ${recentRow}`)
   check('the recent body directly under the header (never dragged)', bodyRow === recentRow + 1, `row ${bodyRow}`)
@@ -91,17 +91,17 @@ if (res.status === 0) {
     lines.slice(0, 15).forEach((l, i) => console.log(`  ${String(i).padStart(2)}│${l.slice(0, 44)}`))
   }
   check('no SEAT box in the rail (the retired presence estate)', rowOf('SEAT ·') === -1 && !lines.some(l => /\(you\)/.test(l)))
-  check('NEXT section present', rowOf('▸ next') > 0)
+  check('NEXT section present', rowOf('▸ Next') > 0)
 
-  check('right rail present (USAGE panel)', rowOf('▆ usage') >= 0 && rowOf('▆ usage') <= 2, `row ${rowOf('▆ usage')}`)
+  check('right rail present (USAGE panel)', rowOf('▆ Usage') >= 0 && rowOf('▆ Usage') <= 2, `row ${rowOf('▆ Usage')}`)
 
   check('PageDown back to the bottom clears the pill', bottomRowOf('back to the bottom') === -1 && !bottom.some(l => / \d+ new message/.test(l)))
   check('the bottom is back (the last reply on screen)', bottomRowOf('Reply 18:') > 0)
-  const bottomRecentRow = bottomRowOf('recent')
+  const bottomRecentRow = bottomRowOf('Recent')
   const bottomBodyRow = bottom.findIndex(l => /│\s+○ .+/.test(l.slice(0, 44)))
   check('RECENT header still pinned after the return scroll', bottomRecentRow === 2, `row ${bottomRecentRow}`)
   check('the recent body still under its header after the return scroll', bottomBodyRow === bottomRecentRow + 1, `row ${bottomBodyRow}`)
-  check('right rail still top-pinned after the return scroll', bottomRowOf('▆ usage') >= 0 && bottomRowOf('▆ usage') <= 2, `row ${bottomRowOf('▆ usage')}`)
+  check('right rail still top-pinned after the return scroll', bottomRowOf('▆ Usage') >= 0 && bottomRowOf('▆ Usage') <= 2, `row ${bottomRowOf('▆ Usage')}`)
 }
 
 cleanupScenario('cockpit-scrolled')

@@ -123,7 +123,7 @@ const surfaces = [
   { view: 'logins', open: () => logins.call(() => {}, context) },
 ]
 const cell = (lines: string[], x: number, y: number): string => Array.from(lines[y] ?? '')[x] ?? ' '
-const header = /^\s*(?:❯ )?lanes\b.*╭/
+const header = /^\s*(?:❯ )?Lanes\b.*╭/
 for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
   for (const surface of surfaces) {
     initializeSurfaceRoute(ROOT_CHAT_ROUTE)
@@ -134,7 +134,7 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
     let baselineStill = 0
     check(`${columns}x${rows} ${surface.view}: the real centre header and scaffold settle before opening`, await waitFor(() => {
       const now = scene.screen()
-      baselineStill = now === baseline && header.test(now) && ['transcript row', 'workbench', 'files · orchard', 'Type a prompt'].every(mark => now.includes(mark)) ? baselineStill + 1 : 0
+      baselineStill = now === baseline && header.test(now) && ['transcript row', 'Workbench', 'Files · orchard', 'Type a prompt'].every(mark => now.includes(mark)) ? baselineStill + 1 : 0
       baseline = now
       return baselineStill >= 3
     }, 8000), '', 'the chat scaffold never settled with the centre header, transcript, WORKBENCH, FILES and prompt rows on screen; look at src/screen/fullscreen-layout/FullscreenLayout.tsx and the harness in scripts/lib/settingsPopupHarness.ts')

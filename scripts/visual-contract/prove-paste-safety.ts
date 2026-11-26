@@ -104,7 +104,7 @@ t.section('§1 — composer echo: a control-sequence paste renders printables on
   )
   t.check(
     'the frame survived the paste (the 2J inside the paste never executed)',
-    r.lines.some(l => /\blanes\b[^\n]*╭/.test(l)) && r.lines.some(l => l.includes('↵ sends')),
+    r.lines.some(l => /\bLanes\b[^\n]*╭/.test(l)) && r.lines.some(l => l.includes('↵ sends')),
     'chrome rows present',
   )
   t.check('tee captured child output', r.tee.length > 0, `${r.tee.length} bytes`)
@@ -200,7 +200,7 @@ t.section('§2 — resumed history: persisted control bytes replay inert')
   )
   t.check(
     'the frame survived the replay (history 2J never executed)',
-    r.lines.some(l => /\blanes\b[^\n]*╭/.test(l)) && r.lines.some(l => l.includes('? for shortcuts')),
+    r.lines.some(l => /\bLanes\b[^\n]*╭/.test(l)) && r.lines.some(l => l.includes('? for shortcuts')),
     'the lanes label + pane border and the shortcuts footer present after replay',
   )
   t.check(

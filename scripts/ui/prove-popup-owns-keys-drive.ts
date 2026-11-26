@@ -295,7 +295,7 @@ async function filesLeg(): Promise<void> {
   const { home, cwd } = seedWorld('files')
   const cap = await capture('files-178x51', cfgFor(178, 51, cwd, [
     ...boot(),
-    after(CLICK, 2, { targetText: 'files · fixture-cwd' }),
+    after(CLICK, 2, { targetText: 'Files · fixture-cwd' }),
     gated('', FILES_TITLE, { awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'open' }),
     after(LEFT, 1),
     after('', 6, { mark: 'after-left' }),

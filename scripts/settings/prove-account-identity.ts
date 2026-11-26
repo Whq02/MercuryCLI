@@ -327,7 +327,7 @@ async function paintRail(model: string): Promise<string> {
 }
 function railCells(frame: string): string[] {
   const lines = frame.split('\n')
-  const head = lines.findIndex(line => line.includes('▆ usage'))
+  const head = lines.findIndex(line => line.includes('▆ Usage'))
   if (head < 0) return []
   const cells: string[] = []
   for (const line of lines.slice(head + 1)) {

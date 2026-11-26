@@ -114,7 +114,7 @@ if (res.status === 0 && !undelivered) {
   const cockpit = text(payload.marks.find(m => m.label === 'cockpit')?.grid ?? [])
   const submodels = text(payload.marks.find(m => m.label === 'submodels')?.grid ?? [])
   const final = text(payload.grid)
-  check('the cockpit painted (a resumed session with the rail)', cockpit.replace(/\s/g, '').length >= 40 && /^(?:recent|next) {2,}│/m.test(cockpit), `the resumed cockpit did not paint its rail: see the vshot output above and the scenario resume-2turn in scripts/ui/renderScenarios.ts · ${cockpit.slice(0, 400)}`)
+  check('the cockpit painted (a resumed session with the rail)', cockpit.replace(/\s/g, '').length >= 40 && /^(?:Recent|Next) {2,}│/m.test(cockpit), `the resumed cockpit did not paint its rail: see the vshot output above and the scenario resume-2turn in scripts/ui/renderScenarios.ts · ${cockpit.slice(0, 400)}`)
   check('the retired card stays absent even with old notes on disk', !/TABULA|no notes — \/note/.test(cockpit), `the cockpit must not draw a notes card from old tabula files: remove the card where the cockpit rail is built, not the seeded files · ${cockpit.split('\n').filter(l => /TABULA/.test(l)).join(' | ')}`)
   check('neither the old note nor its refinement leaks into the cockpit', !/ship the telemetry|proof paths/.test(cockpit), 'the seeded old note text reached the cockpit: nothing on the cockpit may read the leftover tabula journal')
   check('nothing on the cockpit names the curator (its two product spellings)', !/MINERVA|Minerva/.test(cockpit), `the cockpit must not name the retired curator: remove the word from the screen text that draws it · ${cockpit.split('\n').filter(l => /MINERVA|Minerva/.test(l)).join(' | ')}`)
@@ -122,7 +122,7 @@ if (res.status === 0 && !undelivered) {
   check('/submodels opened on the Advisor', /ADVISOR — advises the working model, not you/.test(submodels), `the /submodels picker must open on the Advisor row: see src/commands/submodels/SubModelPicker.tsx and src/commands/submodels · ${submodels.split('\n').slice(4, 10).join(' | ')}`)
   check('…UNSET — the leftover minerva pick is never read', /ADVISOR — advises the working model, not you · unset · no model pinned/.test(submodels), `the Advisor row must read unset when only a leftover minerva pick is stored: see src/commands/submodels/SubModelPicker.tsx and src/models/catalogue/subModelSlots.ts · ${submodels.split('\n').filter(l => /ADVISOR/.test(l)).join(' | ')}`)
   check('…and the picker names no other container', !/MINERVA|Minerva/.test(submodels), 'the /submodels picker names the retired curator: remove the word in src/commands/submodels/SubModelPicker.tsx')
-  check('esc closes it back to the cockpit', /^(?:recent|next) {2,}│/m.test(final) && !/ADVISOR — advises the working model/.test(final), 'esc did not close the /submodels picker back to the cockpit: see src/commands/submodels/SubModelPicker.tsx')
+  check('esc closes it back to the cockpit', /^(?:Recent|Next) {2,}│/m.test(final) && !/ADVISOR — advises the working model/.test(final), 'esc did not close the /submodels picker back to the cockpit: see src/commands/submodels/SubModelPicker.tsx')
   const configPath = join(CONFIG_HOME, '.mercury.json')
   const conversationsPath = join(process.env.MERCURY_CREW_DIR!, `conversations-${projectKey}.json`)
   for (const [path, body] of seeded) {

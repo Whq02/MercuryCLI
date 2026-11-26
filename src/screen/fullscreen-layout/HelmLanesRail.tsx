@@ -538,10 +538,10 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
             {focused ? <Text bold>{`${GLYPH.prompt} `}</Text> : '  '}
           </ValueGlow>
           {!focused ? (
-            <Text color={tok.textMuted}>{'lanes'}</Text>
+            <Text color={tok.textMuted}>{'Lanes'}</Text>
           ) : (
             <>
-              <Text color={accent} bold>{'lanes'}</Text>
+              <Text color={accent} bold>{'Lanes'}</Text>
               <Text color={tok.textMuted}>{' · ↑↓ ↵ tab esc'}</Text>
             </>
           )}

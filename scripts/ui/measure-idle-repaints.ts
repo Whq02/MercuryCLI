@@ -148,7 +148,7 @@ for (const variant of wanted) {
         samples.set(key, (samples.get(key) ?? 0) + 1)
       }
     }
-    const chatOpen = /\blanes\b[^\n]*╭/.test(cap.text)
+    const chatOpen = /\bLanes\b[^\n]*╭/.test(cap.text)
     results.push({ variant, writes, bytes, secondsWithWrites: seconds.size, endReason: cap.endReason })
     console.log(`\n── ${variant} ──`)
     console.log(`  window: ${new Date(start).toISOString()} → +${WINDOW_MS / 1000}s · capture ended: ${cap.endReason} · cockpit header on screen: ${chatOpen ? 'yes' : 'NO'}`)

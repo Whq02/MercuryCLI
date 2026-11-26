@@ -310,7 +310,7 @@ async function mount(cols: number, rows: number): Promise<Scene> {
   const ink = new ScreenInstance({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(cols, rows) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Harness)))
-  const painted = await until(() => ink.lastFrameText() !== '' && stripAnsi(ink.lastFrameText()).includes('crew ·'))
+  const painted = await until(() => ink.lastFrameText() !== '' && stripAnsi(ink.lastFrameText()).includes('Crew ·'))
   check(`the cockpit painted with the crew lane at ${cols}x${rows}`, painted, stripAnsi(ink.lastFrameText()).slice(0, 300))
   await sleep(400)
   stdin.push(FOCUS_IN)
@@ -330,7 +330,7 @@ async function mount(cols: number, rows: number): Promise<Scene> {
 
 const cells = (line: string): string[] => Array.from(line)
 function railColsOf(lines: string[]): number {
-  const header = lines.find(line => line.includes('crew ·')) ?? ''
+  const header = lines.find(line => line.includes('Crew ·')) ?? ''
   const chars = cells(header)
   for (let x = 1; x < chars.length; x++) if (chars[x] === '│') return x + 1
   return 32
@@ -342,12 +342,12 @@ const railRowText = (lines: string[], needle: string, railCols: number): string 
   return row < 0 ? '(no row)' : railText(lines[row]!, railCols).replace(/[│]/g, '').trim()
 }
 function crewBox(lines: string[], railCols: number): { header: string; rows: string[] } | null {
-  const headerRow = railRow(lines, 'crew ·', railCols)
+  const headerRow = railRow(lines, 'Crew ·', railCols)
   if (headerRow < 0) return null
   const rows: string[] = []
   for (let y = headerRow + 1; y < lines.length; y++) {
     const text = railText(lines[y]!, railCols)
-    if (/[╰╭]/.test(text) || /^│\s*[▤◐◆◉✶◇○◌·]?\s*(work|runs|workbench|files|saturn|recent|mission|next)\b/.test(text.replace(/[│]/g, '│'))) break
+    if (/[╰╭]/.test(text) || /^│\s*[▤◐◆◉✶◇○◌·]?\s*(Work|Runs|Workbench|Files|Saturn|Recent|Mission|Next)\b/.test(text.replace(/[│]/g, '│'))) break
     const bare = text.replace(/[│]/g, '').trim()
     if (bare === '') break
     rows.push(bare)

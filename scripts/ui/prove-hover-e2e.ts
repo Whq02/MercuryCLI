@@ -206,7 +206,7 @@ if (rowA >= 0 && rowB >= 0) {
   const labelFg = (grid: Cell[][], y: number, x0: number): string[] =>
     (grid[y] ?? []).slice(x0, x0 + 6).map(c => (c as Cell & { fg?: string }).fg?.toLowerCase() ?? '')
 
-  const HEALTH_HEADING = '✓ health'
+  const HEALTH_HEADING = '✓ Health'
   const hdrBase = capture('hdr-base', [], 90, HEALTH_HEADING, W, H, {
     stableTicks: 8,
     region: [RIGHT_START, 0, W, H],

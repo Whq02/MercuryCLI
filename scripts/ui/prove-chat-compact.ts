@@ -306,7 +306,7 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
       const bytes = (g: Grid): string => g.map(row => row.map(c => `${c.c}|${c.fg}|${c.bg}|${c.bold ? 1 : 0}${c.rev ? 1 : 0}`).join('\t')).join('\n')
       check(`${tag}: the full cockpit returns byte-identical (every cell, colour and attribute)`, bytes(first.grid) === bytes(second.grid), 'the full cockpit must repaint identically after the resize round trip; differing rows: ' + textRows(second.grid).filter((l, i) => l !== textRows(first.grid)[i]).slice(0, 3).join(' | '))
       const fullText = joined(textRows(first.grid))
-      check(`${tag}: the full cockpit keeps its own chrome (the lanes label beside the pane's top border, the shortcut hint, no band rule), no title row and no SESSIONS card`, /\blanes\b[^\n]*╭/.test(fullText) && !fullText.includes('✶ VIEW') && !fullText.includes('⊞ SESSIONS') && fullText.includes('? for shortcuts') && !textRows(first.grid).some(l => /^─+$/.test(l)))
+      check(`${tag}: the full cockpit keeps its own chrome (the lanes label beside the pane's top border, the shortcut hint, no band rule), no title row and no SESSIONS card`, /\bLanes\b[^\n]*╭/.test(fullText) && !fullText.includes('✶ VIEW') && !fullText.includes('⊞ SESSIONS') && fullText.includes('? for shortcuts') && !textRows(first.grid).some(l => /^─+$/.test(l)))
     }
     check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0, 'the drive reached a non-loopback address; find the request in the leg netlog and stop the code that sends it')
   } finally {

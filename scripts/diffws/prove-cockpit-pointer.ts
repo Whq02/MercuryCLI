@@ -64,14 +64,14 @@ function columnOf(row: Cell[], needle: string, from: number): number {
 }
 function deriveAnchors(lines: string[], grid: Cell[][]): Anchors | null {
   const ctxRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('ctx '))
-  const healthHdrRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('✓ health'))
-  const usageHdrRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('▆ usage'))
+  const healthHdrRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('✓ Health'))
+  const usageHdrRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('▆ Usage'))
   if (ctxRow < 0 || healthHdrRow < 0 || usageHdrRow < 0) return null
   return {
     ctxRow,
     ctxCol: columnOf(grid[ctxRow]!, 'ctx ', RAIL_FROM),
     healthHdrRow,
-    healthHdrCol: columnOf(grid[healthHdrRow]!, '✓ health', RAIL_FROM),
+    healthHdrCol: columnOf(grid[healthHdrRow]!, '✓ Health', RAIL_FROM),
     usageHdrRow,
   }
 }
@@ -110,7 +110,7 @@ capture('warm', [], 52)
   const base = capture('sanity', [], 52)
   const a = base ? deriveAnchors(base.lines, base.grid) : null
   check('vitals anchors present (ctx row + HEALTH header)', !!a, a ? `ctx=${a.ctxRow} health=${a.healthHdrRow}` : '')
-  if (base) check('rail is unfocused at rest (no ❯ vitals banner)', !base.lines.some(l => l.includes('❯ vitals')))
+  if (base) check('rail is unfocused at rest (no ❯ Vitals banner)', !base.lines.some(l => l.includes('❯ Vitals')))
 }
 
 console.log('\n── A. hover paints exactly one vitals row ────────────────')
@@ -134,7 +134,7 @@ leg(
   a => [{ atTick: 44, data: click(a.ctxCol + 1, a.ctxRow + 1) }],
   58,
   (r, a) => {
-    const focusBanner = r.lines.some(l => l.includes('❯ vitals'))
+    const focusBanner = r.lines.some(l => l.includes('❯ Vitals'))
     const cursorInPanel = r.lines.some((l, y) => {
       if (y <= a.usageHdrRow || y >= a.healthHdrRow + 2) return false
       return l.slice(RAIL_FROM - 2).includes('❯')
