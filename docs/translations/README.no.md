@@ -212,7 +212,7 @@ Når du lukker alle chatter, kommer du tilbake til hjemskjermen. Bruk `--chat` f
 
 Åpne øktlisten med `/concourse` eller `Shift+→` fra hjemskjermen. Den viser først kjørende økter i gjeldende prosjekt, etterfulgt av lagrede chatter som ikke kjører, nyeste først.
 
-Hver kjørende økt har en NOW-celle som viser gjeldende aktivitet. Velg en rad og trykk `Enter` for å gå tilbake til chatten, mens de andre øktene fortsetter å kjøre. En krasjet økt blir stående i øktlisten som NEEDS YOU, med årsaken, til du frigjør den.
+Hver kjørende økt har en NOW-celle som viser gjeldende aktivitet. Velg en rad og trykk `Enter` for å gå tilbake til chatten, mens de andre øktene fortsetter å kjøre. En krasjet økt blir stående i øktlisten som needs you, med årsaken, til du frigjør den.
 
 [docs/SESSIONS.md](../SESSIONS.md) dekker øktens livssyklus.
 

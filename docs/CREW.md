@@ -367,7 +367,7 @@ and your custom definitions are the choices for a fresh launch.
 
 The Session Concourse (the board of the project you are in: the chosen
 session's live view beside the session list with its running sessions, its
-parked chats and NEEDS YOU, switching into a row, the live tiles, the
+parked chats and `needs you`, switching into a row, the live tiles, the
 navigation strip that walks only the screens that exist, and how chats are
 started, focused, closed and resumed) is covered in
 [SESSIONS.md](SESSIONS.md).
