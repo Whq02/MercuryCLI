@@ -34,7 +34,7 @@ function* beforeSealing(messages: Transcript): Generator<Transcript[number]> {
   for (const [i, message] of messages.entries()) {
     if (moved?.has(message.uuid)) continue
     const ids = isFoldBoundaryMessage(message) ? message.compactMetadata?.preservedSegment?.keptUuids : undefined
-    if (ids && i + 1 < messages.length) {
+    if (Array.isArray(ids) && i + 1 < messages.length) {
       const kept = new Set(ids)
       for (let j = i + 1; j < messages.length; j++) {
         const row = messages[j]!

@@ -330,8 +330,8 @@ function deserializeMessagesWithInterruptDetection(
   }
 }
 
-export function deserializeMessages(serialized: Message[]): Message[] {
-  return deserializeMessagesWithInterruptDetection(serialized).messages
+export function deserializeMessages(serialized: Message[], turnEnd?: TurnEnded): Message[] {
+  return deserializeMessagesWithInterruptDetection(serialized, turnEnd).messages
 }
 
 export function deserializeLiveMessages(serialized: readonly Message[]): Message[] {

@@ -154,7 +154,7 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
       return keptLine(listed, at => nodes.get(at)?.parent, at => notes.get(at) ?? []).filter(id => nodes.get(id)?.row)
     }
     for (const prior of segments) {
-      if (!nodes.has(prior.headUuid) || !nodes.has(prior.tailUuid) || prior.keptUuids?.every(id => nodes.get(id)?.row) === false) continue
+      if (!nodes.has(prior.headUuid) || !nodes.has(prior.tailUuid) || (prior.keptUuids !== undefined && (!Array.isArray(prior.keptUuids) || !prior.keptUuids.every(id => nodes.get(id)?.row)))) continue
       let parent: string = prior.anchorUuid
       for (const id of prior.keptUuids ? lineOf(prior.keptUuids, prior.at) : [prior.headUuid]) {
         nodes.get(id)!.parent = parent

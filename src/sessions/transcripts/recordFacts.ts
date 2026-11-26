@@ -52,7 +52,7 @@ function writtenFact(id: string, line: Buffer, position: number): RecordFact | u
   let linked = (line.at(-1) === NEWLINE ? line.length - 1 : line.length) - 1
   if (shape !== 'notice"' && boundary === undefined) {
     linked = line.indexOf(ANNOTATIONS, kindAt)
-    if (linked < 0 || linked !== line.lastIndexOf(ANNOTATIONS)) return undefined
+    if (linked < 0 || linked !== line.lastIndexOf(ANNOTATIONS) || line.indexOf(PARENT_ID, linked) >= 0) return undefined
   } else if (line[linked] !== BRACE_CLOSE) return undefined
   const parent = parentBefore(line, linked, kindAt)
   if (parent === undefined) return undefined

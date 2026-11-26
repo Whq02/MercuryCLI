@@ -25,6 +25,7 @@ prove-decision-rows-thread.ts
 prove-insert-adversarial.ts
 prove-discovery-scan-pool.ts
 prove-listing-memo.ts
+prove-listing-fills-from-the-live-end.ts
 prove-history-read-economy.ts
 prove-history-walk-fresh.ts
 prove-cleared-mark-wired.ts
