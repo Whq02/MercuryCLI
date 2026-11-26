@@ -337,13 +337,10 @@ export async function fillSessionListing(log: SessionListing): Promise<SessionLi
   if (!isLiteListing(log) || !log.fullPath) return log
   try {
     const loaded = await loadTranscriptFile(log.fullPath)
-    if (loaded.messages.size === 0) return log
-    const leaf = findLatestMessage(
-      loaded.messages.values(),
-      msg => loaded.leafUuids.has(msg.uuid) && (msg.type === 'user' || msg.type === 'assistant'),
-    )
-    if (!leaf) return log
-    const chain = buildConversationChain(loaded.messages, leaf)
+    const end = electConversationEnd(loaded.messages)
+    if (end === undefined) return log
+    const leaf = end.primary
+    const chain = [...end.rows]
     const first = chain[0]
     const sessionId = (leaf.sessionId || log.sessionId) as UUID
     const summary = loaded.summaries.get(leaf.uuid)
