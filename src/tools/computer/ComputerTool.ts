@@ -76,7 +76,7 @@ export const ComputerTool = buildTool({
   },
   maxResultSizeChars: 20_000,
   async description() {
-    return "Drive the operator's screen: screenshot, click, type, press keys, scroll and drag in the application in front, on every model route that receives images"
+    return "Drive the operator's screen: find controls by role/name, screenshot, click, type, press keys, scroll and drag, on every model route that receives images"
   },
   async prompt() {
     return COMPUTER_PROMPT

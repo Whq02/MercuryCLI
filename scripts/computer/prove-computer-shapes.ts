@@ -78,11 +78,101 @@ const unseenRegion = resultOf(await ComputerTool.call({ action: 'screenshot', re
 check('a region of that unseen screenshot is refused with the same words', unseenRegion.outcome === 'failed' && unseenRegion.result.includes('taken in this same message'), unseenRegion.result)
 const elsewhere = resultOf(await ComputerTool.call({ action: 'click', x: 10, y: 10, capture: false } as never, toolContext(), allowEverything, toolUseTurn('shapes-later-act', 'Computer', { action: 'click', x: 10, y: 10 }) as never))
 check('a screenshot that left the conversation keeps its own words', elsewhere.outcome === 'failed' && elsewhere.result.includes('no longer in the conversation') && !elsewhere.result.includes('same message'), elsewhere.result)
-if (process.platform === 'darwin') {
-  const frontmost = driver.frontmostApplication.bind(driver)
-  driver.frontmostApplication = async () => { const front = await frontmost(); return front.ok ? { ok: true, value: { ...front.value, identity: 'com.apple.Terminal' } } : front }
-  driver.focusedText = async () => ({ ok: true, value: { text: 'visible terminal text', title: 'shell', role: 'AXTextArea' } })
-  const terminal = await call({ action: 'sequence', steps: [{ action: 'screenshot' }] })
-  check('screenshot steps preserve the terminal text road', terminal.outcome === 'succeeded' && !terminal.imagePath && terminal.result.includes('visible terminal text'), terminal.result)
+section('E3: explicit pixels is accepted on capture-producing acts, focusApp and sequence while preserving terminal-text default and refusing non-capture paths')
+{
+  type ComputerInput = import('../../src/tools/computer/ComputerTool.ts').Input
+  const runTyped = async (input: ComputerInput) => {
+    const id = `shapes-e3-${++serial}`
+    const parent = createAssistantMessage({ content: [{ type: 'tool_use', id, name: 'Computer', input }] })
+    return resultOf(await ComputerTool.call(input, context, allowEverything, parent))
+  }
+  const caps = () => driver.acts.filter(a => a.act === 'capture').length
+  const frontOrig = driver.frontmostApplication.bind(driver)
+  const findOrig = driver.findApplication
+  const activateOrig = driver.activateApplication
+  const frontNow = await frontOrig()
+  if (!frontNow.ok) throw new Error('missing fake frontmost')
+  driver.findApplication = async () => ({ ok: true, value: { ...frontNow.value } })
+  driver.activateApplication = async () => ({ ok: true, value: { ...frontNow.value } })
+
+  const capBeforeClick = caps()
+  const clickPixValid = await ComputerTool.validateInput!({ action: 'click', target, capture: true, pixels: true, settleMs: 0 }, context)
+  const clickPix = await runTyped({ action: 'click', target, capture: true, pixels: true, settleMs: 0 })
+  check('act with capture:true and pixels:true succeeds in one call with one capture', clickPixValid.result && clickPix.outcome === 'succeeded' && clickPix.imagePath !== undefined && caps() === capBeforeClick + 1, `${JSON.stringify(clickPixValid)} caps=${caps() - capBeforeClick}\n${clickPix.result}`)
+
+  const capBeforeFocus = caps()
+  const focusPixValid = await ComputerTool.validateInput!({ action: 'focusApp', focusApp: { name: 'TextEdit' }, capture: true, pixels: true, settleMs: 0 }, context)
+  const focusPix = await runTyped({ action: 'focusApp', focusApp: { name: 'TextEdit' }, capture: true, pixels: true, settleMs: 0 })
+  check('focusApp with capture:true and pixels:true succeeds in one call with one capture', focusPixValid.result && focusPix.outcome === 'succeeded' && focusPix.imagePath !== undefined && caps() === capBeforeFocus + 1, `${JSON.stringify(focusPixValid)} caps=${caps() - capBeforeFocus}\n${focusPix.result}`)
+
+  const capBeforeSeq = caps()
+  const seqPixValid = await ComputerTool.validateInput!({ action: 'sequence', steps: [{ action: 'key', key: 'Enter' }], pixels: true, settleMs: 0 }, context)
+  const seqPix = await runTyped({ action: 'sequence', steps: [{ action: 'key', key: 'Enter' }], pixels: true, settleMs: 0 })
+  check('sequence with implicit capture and pixels:true succeeds in one call with one capture', seqPixValid.result && seqPix.outcome === 'succeeded' && seqPix.imagePath !== undefined && caps() === capBeforeSeq + 1, `${JSON.stringify(seqPixValid)} caps=${caps() - capBeforeSeq}\n${seqPix.result}`)
+
+  const rejectedInputs: ComputerInput[] = [
+    { action: 'click', target, pixels: true },
+    { action: 'click', target, capture: false, pixels: true },
+    { action: 'focusApp', focusApp: { name: 'TextEdit' }, pixels: true },
+    { action: 'focusApp', focusApp: { name: 'TextEdit' }, capture: false, pixels: true },
+    { action: 'sequence', steps: [{ action: 'key', key: 'Enter' }], capture: false, pixels: true },
+    { action: 'find', target, pixels: true },
+    { action: 'read', target, pixels: true },
+    { action: 'frontmost', pixels: true },
+  ]
+  const capBeforeRefused = caps()
+  for (const input of rejectedInputs) {
+    const verdict = await ComputerTool.validateInput!(input, context)
+    check(`${input.action} refuses pixels when capture is absent or suppressed`, verdict.result === false && verdict.message.includes('pixels'), JSON.stringify(verdict))
+  }
+  check('no capture ran for refused pixels inputs', caps() === capBeforeRefused)
+
+  if (process.platform === 'darwin') {
+    const termApp = { ...frontNow.value, identity: 'com.apple.Terminal', name: 'Terminal' }
+    let focusedTextReads = 0
+    driver.frontmostApplication = async () => ({ ok: true, value: { ...termApp } })
+    driver.findApplication = async () => ({ ok: true, value: { ...termApp } })
+    driver.focusedText = async () => { focusedTextReads++; return { ok: true, value: { text: 'visible terminal text', title: 'shell', role: 'AXTextArea' } } }
+    const termFocusDefault = await runTyped({ action: 'focusApp', focusApp: { name: 'Terminal' }, capture: true, settleMs: 0 })
+    check('focusApp capture:true on a terminal preserves prior pixel output with zero terminal-text reads when pixels is omitted', termFocusDefault.outcome === 'succeeded' && termFocusDefault.imagePath !== undefined && focusedTextReads === 0, `focusedTextReads=${focusedTextReads}\n${termFocusDefault.result}`)
+    const termFocusPixels = await runTyped({ action: 'focusApp', focusApp: { name: 'Terminal' }, capture: true, pixels: true, settleMs: 0 })
+    check('focusApp capture:true with pixels:true on a terminal returns pixels with zero terminal-text reads', termFocusPixels.outcome === 'succeeded' && termFocusPixels.imagePath !== undefined && focusedTextReads === 0, `focusedTextReads=${focusedTextReads}\n${termFocusPixels.result}`)
+    const termSeqDefault = await runTyped({ action: 'sequence', steps: [{ action: 'wait', durationMs: 0 }], settleMs: 0 })
+    check('sequence implicit final capture on a terminal preserves prior pixel output with zero terminal-text reads when pixels is omitted', termSeqDefault.outcome === 'succeeded' && termSeqDefault.imagePath !== undefined && focusedTextReads === 0, `focusedTextReads=${focusedTextReads}\n${termSeqDefault.result}`)
+    const termSeqPixels = await runTyped({ action: 'sequence', steps: [{ action: 'wait', durationMs: 0 }], pixels: true, settleMs: 0 })
+    check('sequence implicit final capture with pixels:true on a terminal returns pixels with zero terminal-text reads', termSeqPixels.outcome === 'succeeded' && termSeqPixels.imagePath !== undefined && focusedTextReads === 0, `focusedTextReads=${focusedTextReads}\n${termSeqPixels.result}`)
+    const standaloneTerm = await runTyped({ action: 'screenshot' })
+    check('standalone screenshot preserves terminal-text default when pixels is omitted', standaloneTerm.outcome === 'succeeded' && standaloneTerm.imagePath === undefined && standaloneTerm.result.includes('visible terminal text') && focusedTextReads === 1, standaloneTerm.result)
+    const terminal = await call({ action: 'sequence', steps: [{ action: 'screenshot' }] })
+    check('explicit screenshot step preserves terminal-text default when pixels is omitted', terminal.outcome === 'succeeded' && !terminal.imagePath && terminal.result.includes('visible terminal text') && focusedTextReads === 2, terminal.result)
+    const terminalPixels = await runTyped({ action: 'sequence', steps: [{ action: 'screenshot' }], pixels: true })
+    check('sequence pixels:true overrides explicit screenshot step terminal-text default to return pixels', terminalPixels.outcome === 'succeeded' && terminalPixels.imagePath !== undefined && focusedTextReads === 2, terminalPixels.result)
+    const { toolResultTurn } = await import('./computerToolKit.ts')
+    const baseTermCtx = toolContext()
+    const seedId = `shapes-term-seen-${++serial}`
+    const seedInput: ComputerInput = { action: 'screenshot', pixels: true }
+    const seedParent = createAssistantMessage({ content: [{ type: 'tool_use', id: seedId, name: 'Computer', input: seedInput }] })
+    const seedAnswer = await ComputerTool.call(seedInput, baseTermCtx, allowEverything, seedParent)
+    const seedBlock = ComputerTool.mapToolResultToToolResultBlockParam(seedAnswer.data, seedId)
+    const termCtx = { ...baseTermCtx, messages: [...baseTermCtx.messages, seedParent, toolResultTurn(seedBlock)] }
+    const runTerm = async (input: ComputerInput) => {
+      const id = `shapes-e3-term-${++serial}`
+      const parent = createAssistantMessage({ content: [{ type: 'tool_use', id, name: 'Computer', input }] })
+      return resultOf(await ComputerTool.call(input, termCtx, allowEverything, parent))
+    }
+    const clicksBeforeOverride = driver.acts.filter(a => a.act === 'click').length
+    const overrideInput: ComputerInput = { action: 'sequence', pixels: true, steps: [{ action: 'screenshot', pixels: false }, { action: 'click', x: 20, y: 20 }] }
+    const overrideValid = await ComputerTool.validateInput!(overrideInput, termCtx)
+    const overrideRan = await runTerm(overrideInput)
+    check('sequence pixels:true with explicit screenshot step pixels:false on a terminal returns terminal text and allows a following coordinate click from the seen map', overrideValid.result && overrideRan.outcome === 'succeeded' && overrideRan.result.includes('visible terminal text') && focusedTextReads === 3 && driver.acts.filter(a => a.act === 'click').length === clicksBeforeOverride + 1, `${JSON.stringify(overrideValid)}\n${overrideRan.result}`)
+    const clicksBeforeUnseen = driver.acts.filter(a => a.act === 'click').length
+    const unseenTermInput: ComputerInput = { action: 'sequence', pixels: true, steps: [{ action: 'screenshot' }, { action: 'click', x: 20, y: 20 }] }
+    const unseenTermValid = await ComputerTool.validateInput!(unseenTermInput, termCtx)
+    const unseenTermRan = await runTerm(unseenTermInput)
+    check('genuinely unseen pixel screenshot in sequence pixels:true still refuses a following coordinate click before acting', unseenTermValid.result === false && unseenTermRan.outcome === 'failed' && unseenTermRan.result.includes('taken in this same message') && driver.acts.filter(a => a.act === 'click').length === clicksBeforeUnseen, `${JSON.stringify(unseenTermValid)}\n${unseenTermRan.result}`)
+  }
+  driver.frontmostApplication = frontOrig
+  driver.findApplication = findOrig
+  driver.activateApplication = activateOrig
 }
 finish('prove-computer-shapes')
