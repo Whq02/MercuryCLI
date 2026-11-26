@@ -85,7 +85,15 @@ async function openAtlasFor(
   row: ConcourseRowV1,
   groupId: ConcourseSnapshotV1['groups'][number]['id'],
   groupLabel: string,
-): Promise<{ legend: string; atlasLines: string[]; screen: string }> {
+): Promise<{
+  legend: string
+  atlasLines: string[]
+  screen: string
+  boardListHeading: string
+  boardRailHeading: string
+  atlasListTitle: string
+  atlasRailTitle: string
+}> {
   _resetConcourseCapsuleForTesting()
   const snapshot = boardSnapshot([row], groupId, groupLabel)
   const mounted = await mountOffscreen(
@@ -100,6 +108,17 @@ async function openAtlasFor(
     await waitFor(() => mounted.screen().includes('status & title') && mounted.screen().includes(row.title), 5000)
     const beforeLines = mounted.lines()
     const legend = (beforeLines[beforeLines.length - 1] ?? '').trim()
+    const rightPaneCol = (beforeLines[0] ?? '').lastIndexOf('╭')
+    const rightCell = (line: string): string => {
+      const inner = rightPaneCol >= 0 ? line.slice(rightPaneCol + 1) : ''
+      const end = inner.lastIndexOf('│')
+      return (end >= 0 ? inner.slice(0, end) : inner).trim()
+    }
+    const listHeaderRow = rightCell(beforeLines[1] ?? '')
+    const boardListHeading = listHeaderRow.split(/\s+\+/)[0]?.trim() ?? ''
+    const paneLegendIdx = beforeLines.findIndex(l => rightCell(l).includes('↑↓ choose'))
+    const railHeaderRow = paneLegendIdx > 0 ? rightCell(beforeLines[paneLegendIdx - 1] ?? '') : ''
+    const boardRailHeading = railHeaderRow.split(/\s*·\s*/)[0]?.trim() ?? ''
     mounted.push('?')
     await waitFor(() => mounted.screen().includes('CONCOURSE — keys'), 5000)
     const lines = mounted.lines()
@@ -110,9 +129,18 @@ async function openAtlasFor(
     const top = lines.findIndex(l => l.includes('CONCOURSE — keys'))
     const bot = lines.findIndex((l, i) => i > top && l.includes('esc close'))
     const atlasLines = top >= 0 && bot >= top ? lines.slice(top, bot + 1) : []
+    const atlasLeft = (lines[top] ?? '').lastIndexOf('│', (lines[top] ?? '').indexOf('CONCOURSE — keys'))
+    const atlasInner = (line: string): string => {
+      const open = atlasLeft >= 0 ? line.indexOf('│', atlasLeft) : -1
+      const close = open >= 0 ? line.indexOf('│', open + 1) : -1
+      return open >= 0 && close > open ? line.slice(open + 1, close).trim() : ''
+    }
+    const atlasCells = atlasLines.map(atlasInner)
+    const atlasRailTitle = atlasCells.find(c => c.endsWith('(rail)')) ?? ''
+    const atlasListTitle = atlasCells.find(c => c.endsWith('(list)')) ?? ''
     mounted.push(KEY.esc)
     await waitFor(() => !mounted.screen().includes('CONCOURSE — keys'), 5000)
-    return { legend, atlasLines, screen: atlasLines.join('\n') }
+    return { legend, atlasLines, screen: atlasLines.join('\n'), boardListHeading, boardRailHeading, atlasListTitle, atlasRailTitle }
   } finally {
     mounted.unmount()
   }
@@ -171,6 +199,16 @@ try {
     check(`live row: bottom-legend chord "${chord}" is named in ?`, live.atlasLines.some(l => l.includes(k) && l.includes(label.split(' ')[0]!)), `legend="${live.legend}"`)
   }
   check('live row at 120×40: no section is hidden in ?', !live.screen.includes('more section'), live.atlasLines.slice(-4).join(' | '))
+  check(
+    'live row: atlas rail block title starts with the exact heading painted on the board',
+    live.boardRailHeading.length > 0 && live.atlasRailTitle === `${live.boardRailHeading} (rail)`,
+    `board="${live.boardRailHeading}" atlas="${live.atlasRailTitle}"`,
+  )
+  check(
+    'live row: atlas list block title starts with the exact heading painted on the board',
+    live.boardListHeading.length > 0 && live.atlasListTitle === `${live.boardListHeading} (list)`,
+    `board="${live.boardListHeading}" atlas="${live.atlasListTitle}"`,
+  )
 
   const paused = await openAtlasFor('paused', rowOf('s-paused', 'Paused task', 'paused'), 'paused', 'paused')
   for (const [k, word] of [
