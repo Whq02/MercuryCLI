@@ -8,9 +8,10 @@ import * as pendingInput from './input-core/pending-input.js'
 import type { AppState } from '../app-state/AppState.js'
 import type { AppStateStore } from '../app-state/AppStateStore.js'
 import { composerTargetTaskId } from '../app-state/selectors.js'
-import { CREWMATE_BETWEEN_TURNS_DETAIL, LEAD_ROW_NAME, crewmateCommandUnreachableWords, crewmateGlobalCommandWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, crewmateUnknownCommandWords, operatorLinePlate } from '../cockpit/crewmateWords.js'
+import { CREWMATE_BETWEEN_TURNS_DETAIL, LEAD_ROW_NAME, crewmateCommandUnreachableWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, operatorLinePlate } from '../cockpit/crewmateWords.js'
 import { queueCrewmateLine, refuseCrewmateLine } from '../tasks/crewmateQueue.js'
 import { classifyCrewmateViewSubmission } from './promptIntent.js'
+import { unknownCommandLine } from '../../engine/user-input/processSlashCommand.js'
 import { crewmateCommandReceipt, runCrewmateCommand } from './crewmateCommands.js'
 import { isManageableTask } from '../tasks/taskStatus.js'
 import { appendMessageToCrewmate, isCrewmateTask, queueOperatorMessage } from '../../engine/tasks/local-agent/crewmateTask.js'
@@ -26,7 +27,6 @@ import type { CompactWorkControls } from '../tasks/CompactWorkSummary.js'
 import type { useComposerCrewmate } from '../tasks/useCrewmateView.js'
 import { startMicrotask } from '../../platform/async/timers.js'
 
-const DOUBLED_SLASH = '//'
 const CREWMATE_IMAGE_DETAIL = `a crewmate cannot read images; send the image to ${LEAD_ROW_NAME}, or describe it in words`
 
 type ComposerSubmitOptions = { fromKeybinding?: boolean; isSlashPick?: boolean }
@@ -268,7 +268,6 @@ export function useComposerSubmit({
             ? composerCrewmate.name
             : targetTaskId
         const commandCrewmate = commandCrewmateRef.current
-        const commandName = commandCrewmate?.name ?? targetName
 
         const takeLine = (submitted: string): void => {
           pendingInput.clearForSubmit(submitted)
@@ -296,41 +295,22 @@ export function useComposerSubmit({
         )
 
         switch (intent.kind) {
-          case 'session-command': {
-            addNotification({
-              key: 'crewmate-command-global',
-              text: crewmateGlobalCommandWords(getCommandName(intent.command), commandName),
-              priority: 'medium',
-              timeoutMs: 6000,
-            })
-            await onSubmit(text, helpers, undefined, {
-              fromKeybinding: options.fromKeybinding,
-            })
+          case 'unknown-command':
+            notifyCrewmate(unknownCommandLine(intent.bareName, commands), 'warning')
             return
-          }
+          case 'session-command':
           case 'agent-command': {
+            if (intent.kind === 'session-command' || intent.command.name === 'model' || intent.command.name === 'effort') {
+              await onSubmit(text, helpers, undefined, { fromKeybinding: options.fromKeybinding })
+              return
+            }
             takeLine(text)
             const receipt = crewmateCommandReceipt(addNotification)
             if (commandCrewmate === null) {
-              receipt(
-                crewmateCommandUnreachableWords(targetName, getCommandName(intent.command)),
-                'warning',
-              )
+              receipt(crewmateCommandUnreachableWords(targetName, getCommandName(intent.command)), 'warning')
               return
             }
-            await runCrewmateCommand(intent.command, text, commandCrewmate, {
-              setAppState,
-              receipt,
-            })
-            return
-          }
-          case 'unknown-command': {
-            addNotification({
-              key: 'agent-view-unknown-command',
-              text: crewmateUnknownCommandWords(intent.bareName, commandName, DOUBLED_SLASH),
-              priority: 'medium',
-              timeoutMs: 6000,
-            })
+            await runCrewmateCommand(intent.command, text, commandCrewmate, { setAppState, receipt })
             return
           }
           case 'agent-literal':

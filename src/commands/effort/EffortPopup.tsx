@@ -114,9 +114,9 @@ function effortPopupLayout(frameRows: number, rowCount: number, envLine: boolean
   return { blanks: false, modelLine: false, envLine: false, listRows: Math.max(1, frameRows - bare) }
 }
 
-export function effortPopupShape(model: string): CommandPopupShape {
+export function effortPopupShape(model: string, session = true): CommandPopupShape {
   const rowCount = effortPopupRows(model).length
-  const envLine = effortPopupEnvLine() !== null
+  const envLine = session && effortPopupEnvLine() !== null
   return {
     view: EFFORT_POPUP_VIEW,
     width: columns => panelWidth(columns, MODEL_PICKER_PANEL),
@@ -125,12 +125,11 @@ export function effortPopupShape(model: string): CommandPopupShape {
 }
 
 type EffortApplier = (value: EffortValue | typeof EFFORT_POPUP_AUTO) => string | Promise<string>
-export const EffortApplyContext = React.createContext<EffortApplier>(() => '')
 
-export function EffortPopup({ onDone }: { onDone: (message: string) => void }): React.ReactNode {
+export function EffortPopup({ onDone, apply, seat }: { onDone: (message: string) => void; apply: EffortApplier; seat?: { model: string; effort: string | null } }): React.ReactNode {
   const servedModel = useFocusedServedModel()
   const processModel = useEngineModel()
-  const model = servedModel ?? processModel
+  const model = seat?.model ?? servedModel ?? processModel
   const tok = useMercuryTokens()
   const { accent } = useSessionAccent()
   const elevatedRef = useElevatedSurface()
@@ -141,15 +140,18 @@ export function EffortPopup({ onDone }: { onDone: (message: string) => void }): 
   const frameRows = frame?.rows ?? slot.rows
   const inner = Math.max(8, width - 4)
 
-  const sessionEffortValue = useAppState((s: AppState) => s.effortValue)
-  const seatEffort = useFocusedServedEffort()
-  const sentEffort = useFocusedSentEffort()
-  const standingLabel = focusedEffortLabelOf(model, seatEffort, sentEffort, sessionEffortValue)
+  const mainEffort = useAppState((s: AppState) => s.effortValue)
+  const servedEffort = useFocusedServedEffort()
+  const sent = useFocusedSentEffort()
+  const sessionEffortValue = seat === undefined ? mainEffort : undefined
+  const seatEffort = seat === undefined ? servedEffort : seat.effort
+  const sentEffort = seat === undefined ? sent : undefined
+  const standingLabel = seat === undefined ? focusedEffortLabelOf(model, seatEffort, sentEffort, sessionEffortValue) : seat.effort ?? 'default'
   const rows = React.useMemo(() => effortPopupRows(model), [model])
   const currentLevel = model.startsWith('compat/') && (standingLabel === 'default' || !modelSupportsEffort(model)) ? EFFORT_POPUP_AUTO : effortPopupOpeningLevel(model, sessionEffortValue, undefined, seatEffort, sentEffort)
   const [cursor, setCursor] = useState(() => currentLevel === EFFORT_POPUP_AUTO ? 0 : effortPopupOpeningRow(model, sessionEffortValue, undefined, seatEffort, sentEffort))
   const cursorIndex = Math.min(cursor, Math.max(0, rows.length - 1))
-  const envLine = effortPopupEnvLine()
+  const envLine = seat === undefined ? effortPopupEnvLine() : null
   const thinkingNote = effortPopupThinkingNote(model)
   const layout = effortPopupLayout(frameRows, rows.length, envLine !== null, thinkingNote !== null)
   const win = popupListWindow(rows.length, cursorIndex, layout.listRows)
@@ -158,7 +160,6 @@ export function EffortPopup({ onDone }: { onDone: (message: string) => void }): 
 
   const pastOpenEvent = useOpenEventGate()
   const token = useRegisterOverlay('effort-popup')
-  const apply = React.useContext(EffortApplyContext)
   const [done, setDone] = useState(false)
   const finish = (message: string): void => {
     setDone(true)
@@ -201,7 +202,7 @@ export function EffortPopup({ onDone }: { onDone: (message: string) => void }): 
 
   const supported = modelSupportsEffort(model) && rows.length > 1
   const ladder = supported ? `effort ${rows[1]!.word}…${rows[rows.length - 1]!.word}` : model.startsWith('compat/') ? 'this server has no effort dial' : 'takes no effort setting'
-  const modelLine = supported ? `${renderModelName(model)} · ${ladder} · running ${standingLabel}` : model.startsWith('compat/') ? `${ladder} · ${renderModelName(model)}` : `${renderModelName(model)} · ${ladder}`
+  const modelLine = supported ? `${renderModelName(model)} · ${ladder} · ${seat === undefined ? 'running' : 'next turn'} ${standingLabel}` : model.startsWith('compat/') ? `${ladder} · ${renderModelName(model)}` : `${renderModelName(model)} · ${ladder}`
   const descriptionWidth = Math.max(1, listWidth - LEAD_COLUMN - WORD_COLUMN - STATE_COLUMN)
   const renderRow = (row: EffortPopupRow, index: number): React.ReactNode => {
     const selected = index === cursorIndex

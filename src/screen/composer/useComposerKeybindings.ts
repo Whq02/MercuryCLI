@@ -20,7 +20,7 @@ import type { OverlaySurface } from './composerOverlay.js'
 import type { ComposerAttachments } from './useComposerAttachments.js'
 import type { useComposerCrewmate } from '../tasks/useCrewmateView.js'
 import { crewmateThinkingKeyWords } from '../cockpit/crewmateWords.js'
-import { crewmateCommandReceipt, openCrewmateModelPickerFor } from './crewmateCommands.js'
+import { requestCommandDispatch } from '../cockpit/helmFocus.js'
 import { hostEnv } from '../../platform/environment/hostEnv.js'
 
 type ComposerKeybindingsInput = {
@@ -272,10 +272,7 @@ export function useComposerKeybindings({
         setHelpOpen(false)
         const crewmate = commandCrewmateRef.current
         if (crewmate !== null) {
-          void openCrewmateModelPickerFor(crewmate, {
-            setAppState,
-            receipt: crewmateCommandReceipt(addNotification),
-          })
+          requestCommandDispatch('/model')
           return
         }
         setOverlay(prev => (prev === 'model-picker' ? null : 'model-picker'))

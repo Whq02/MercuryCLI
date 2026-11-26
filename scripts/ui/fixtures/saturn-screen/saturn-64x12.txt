@@ -1,4 +1,4 @@
-  (>_) MERCURY · saturn scheduler
+  MERCURY · saturn scheduler
 
 
   journey session
