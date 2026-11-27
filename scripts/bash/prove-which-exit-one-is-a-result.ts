@@ -25,18 +25,21 @@ process.env.MERCURY_TMPDIR = join(SCRATCH, 'tmp')
 mkdirSync(process.env.MERCURY_TMPDIR, { recursive: true })
 const FRAMES = join(SCRATCH, 'frames')
 const HOME = join(SCRATCH, 'home')
-const WORK = join(SCRATCH, 'work')
-for (const dir of [FRAMES, HOME, WORK]) mkdirSync(dir)
+const WORK_FOLDER = join(SCRATCH, 'work')
+for (const dir of [FRAMES, HOME, WORK_FOLDER]) mkdirSync(dir)
 process.env.TMPDIR = FRAMES
+if (process.platform === 'win32') process.env.TEMP = process.env.TMP = FRAMES
 process.env.HOME = HOME
 const PROFILE = "fixture_precheck() { printf 'precheck ran\\n'; exit 1; }\nfixture_helper() { return 1; }\n"
 for (const name of ['.bash_profile', '.bashrc', '.profile']) writeFileSync(join(HOME, name), PROFILE)
-const LEFT = join(WORK, 'left')
-const EQUAL = join(WORK, 'equal')
-const DIFFERENT = join(WORK, 'different')
-writeFileSync(LEFT, 'same\n')
-writeFileSync(EQUAL, 'same\n')
-writeFileSync(DIFFERENT, 'other\n')
+const { nativePathToShell, shellPathToNative } = await import('../../src/platform/host-os/paths.ts')
+const WORK = nativePathToShell(WORK_FOLDER)
+const LEFT = `${WORK}/left`
+const EQUAL = `${WORK}/equal`
+const DIFFERENT = `${WORK}/different`
+writeFileSync(shellPathToNative(LEFT), 'same\n')
+writeFileSync(shellPathToNative(EQUAL), 'same\n')
+writeFileSync(shellPathToNative(DIFFERENT), 'other\n')
 
 let failures = 0
 let checks = 0
@@ -48,7 +51,10 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 
 const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
-const { interpretCommandResult } = await import('../../src/tools/shell/commandSemantics.ts')
+const { closingTableCommand, interpretCommandResult } = await import('../../src/tools/shell/commandSemantics.ts')
+const { parseCommandRaw, preparedCommandRoot } = await import('../../src/platform/shell/bash/parser.ts')
+const rootOf = (command: string) => parseCommandRaw(command)
+const table = async (command: string, code: number) => interpretCommandResult(command, code, '', '', undefined, await rootOf(command))
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 
 let appState = getDefaultAppState()
@@ -110,20 +116,22 @@ if (listed.ok) {
 section('§4 exit 2 and above stay errors; other words are untouched')
 const two = await drive('which() { return 2; }; which x')
 check('a which that exits 2 is still an error ending `Exited with code 2`', !two.ok && /Exited with code 2/.test(two.ok ? '' : two.error), `${two.ok ? JSON.stringify(two.content.slice(0, 120)) : two.error.slice(0, 120)} — only exit 1 of which is a result; interpretCommandResult in src/tools/shell/commandSemantics.ts must leave exit 2 an error`)
-check('the table reads which exit 2 as an error', interpretCommandResult('which foo', 2, '', '').isError === true, 'interpretCommandResult in src/tools/shell/commandSemantics.ts must treat which exit 2 as an error')
-check('the table reads which exit 1 as a result with the label', JSON.stringify(interpretCommandResult('which foo', 1, '', '')) === JSON.stringify({ isError: false, message: 'a name was not found' }))
-check('the table reads command -v exit 1 as a result with the label', JSON.stringify(interpretCommandResult('command -v foo', 1, '', '')) === JSON.stringify({ isError: false, message: 'a name was not found' }))
-check('the table reads command -V exit 1 the same way', interpretCommandResult('command -V foo', 1, '', '').isError === false)
-check('a bare `command foo` (no -v) keeps the default reading: exit 1 is an error', interpretCommandResult('command foo', 1, '', '').isError === true)
-check('which through env and assignments is still which', interpretCommandResult('FOO=1 env -i which foo', 1, '', '').isError === false)
-check('grep exit 1 keeps its own label', JSON.stringify(interpretCommandResult('grep x y', 1, '', '')) === JSON.stringify({ isError: false, message: 'no matches found' }))
+check('the table reads which exit 2 as an error', (await table('which foo', 2)).isError === true, 'interpretCommandResult in src/tools/shell/commandSemantics.ts must treat which exit 2 as an error')
+check('the table reads which exit 1 as a result with the label', JSON.stringify((await table('which foo', 1))) === JSON.stringify({ isError: false, message: 'a name was not found' }))
+check('the table reads command -v exit 1 as a result with the label', JSON.stringify((await table('command -v foo', 1))) === JSON.stringify({ isError: false, message: 'a name was not found' }))
+check('the table reads command -V exit 1 the same way', (await table('command -V foo', 1)).isError === false)
+check('a bare `command foo` (no -v) keeps the default reading: exit 1 is an error', (await table('command foo', 1)).isError === true)
+check('which through env and assignments is still which', (await table('FOO=1 env -i which foo', 1)).isError === false)
+check('grep exit 1 keeps its own label', JSON.stringify((await table('grep x y', 1))) === JSON.stringify({ isError: false, message: 'no matches found' }))
 const plainFail = await drive('cat /mercury-no-such-file-0x')
 check('an ordinary non-zero exit is still an error ending `Exited with code 1`', !plainFail.ok && /Exited with code 1/.test(plainFail.ok ? '' : plainFail.error), `${plainFail.ok ? 'settled as a result' : plainFail.error.slice(-80)} — only the lookup commands in the table in src/tools/shell/commandSemantics.ts may read exit 1 as a result`)
 
 const WIRED_HINT = 'the shell marks that it reached the closing command and that the script then ended on 1 (marksTheClosing and marksAnEndOnOne in src/platform/shell/bashProvider.ts, read by readClosingMarks in src/platform/shell/shellExec.ts); interpretCommandResult in src/tools/shell/commandSemantics.ts reads exit 1 as a result only with both marks'
 
-if (process.platform === 'win32') {
-  console.log('\n  [SKIP — LOUD] §5 to §9 run the closing marks in the bashes of this machine and stay shut on Windows until its bash road has been walked there; §9 holds that road\'s frame from any other machine')
+const { systemShellAt, systemShellRecord } = await import('../../src/platform/shell/shellRecord.ts')
+const served = await systemShellRecord()
+if (served.origin === 'engine') {
+  console.log('\n  [SKIP — LOUD] §5 to §9 run the closing marks in the bashes of this machine, and no bash serves here: the bundled engine carries none')
 } else {
   section('§5 compound scripts with variables, substitutions, loops and short-circuit guards')
   const varGrepNoMatch = await drive("F=$(printf 'alpha\\nbeta\\n'); printf '%s\\n' \"$F\" | grep -c nomatch")
@@ -254,14 +262,12 @@ if (process.platform === 'win32') {
 
   section("§7 the user's traps, options and output are the same with the marks as without them (the same frame twice, in each bash)")
   const { createBashShellProvider } = await import('../../src/platform/shell/bashProvider.ts')
-  const { systemShellAt, systemShellRecord } = await import('../../src/platform/shell/shellRecord.ts')
-  const { closingTableCommand } = await import('../../src/tools/shell/commandSemantics.ts')
-  const SIDE = join(WORK, 'side')
-  const TRACE = join(WORK, 'trace')
-  const INSTALL = join(WORK, 'install')
-  writeFileSync(INSTALL, `trap 'echo "$BASH_COMMAND rc=$?" >> ${SIDE}' DEBUG\n`)
-  const STATUS = join(WORK, 'status')
-  writeFileSync(STATUS, `fixture_status() { echo "rc=$?" >> ${SIDE}; }\nfixture_run() { "$@"; }\n`)
+  const SIDE = `${WORK}/side`
+  const TRACE = `${WORK}/trace`
+  const INSTALL = `${WORK}/install`
+  writeFileSync(shellPathToNative(INSTALL), `trap 'echo "$BASH_COMMAND rc=$?" >> ${SIDE}' DEBUG\n`)
+  const STATUS = `${WORK}/status`
+  writeFileSync(shellPathToNative(STATUS), `fixture_status() { echo "rc=$?" >> ${SIDE}; }\nfixture_run() { "$@"; }\n`)
   type Scene = [string, string, ('unmarked' | 'bound')?]
   const SCENES: Scene[] = [
     ['a plain miss', `grep missing ${LEFT}`],
@@ -374,25 +380,26 @@ if (process.platform === 'win32') {
     ['a function from a sourced file, called by the closing test, reads $? as 0 too', `. ${STATUS}; false; test "$(fixture_status)" = ""`, 'bound'],
     ['a function from a sourced file that runs its words sets a DEBUG trap that does the same', `. ${STATUS}; fixture_run trap 'echo "rc=$?" >> ${SIDE}' DEBUG; false; grep missing ${LEFT}`, 'bound'],
   ]
-  const served = await systemShellRecord()
   const shells = [...new Set([served.path, '/bin/bash'].filter(path => existsSync(path)).map(path => realpathSync(path)))]
   let frames = 0
   for (const shell of shells) {
-    const provider = await createBashShellProvider(systemShellAt(shell), { skipSnapshot: true })
+    const provider = await createBashShellProvider(systemShellAt(shell), { skipSnapshot: process.platform !== 'win32' })
     const version = spawnSync(shell, ['-c', 'printf %s "$BASH_VERSION"'], { encoding: 'utf8' }).stdout
     for (const [label, command, kind] of SCENES) {
-      await BashTool.prepare?.({ command } as never)
-      const closing = closingTableCommand(command)
+      const closing = closingTableCommand(command, await rootOf(command))
       const runs: string[] = []
       let marked = false
       for (const withMarks of [false, true]) {
-        for (const file of [SIDE, TRACE]) rmSync(file, { force: true })
+        for (const file of [SIDE, TRACE]) rmSync(shellPathToNative(file), { force: true })
         const id = `frame${++frames}`
         const built = await provider.buildExecCommand(command, { id, ...(withMarks && closing !== undefined ? { closing } : {}) })
         if (withMarks) marked = built.closingMarks !== undefined
-        const ran = spawnSync(shell, ['-c', built.commandString], { cwd: WORK, encoding: 'utf8', timeout: 10_000 })
-        const written = [SIDE, TRACE].map(file => (existsSync(file) ? readFileSync(file, 'utf8') : ''))
-        for (const file of [built.cwdFilePath, built.pipelineStatusPath, built.closingMarks?.reached, built.closingMarks?.endedOnOne]) if (file !== undefined) rmSync(file, { force: true })
+        const start = built.handOver?.({ ...process.env }, WORK_FOLDER)
+        if (start?.file !== undefined) writeFileSync(start.file.path, start.file.text)
+        const ran = spawnSync(shell, start?.args ?? ['-c', built.commandString], { cwd: start?.startIn ?? WORK_FOLDER, encoding: 'utf8', timeout: 10_000 })
+        const written = [SIDE, TRACE].map(file => (existsSync(shellPathToNative(file)) ? readFileSync(shellPathToNative(file), 'utf8') : ''))
+        for (const file of [built.cwdFilePath, built.pipelineStatusPath, built.jobsPath, built.closingMarks?.reached, built.closingMarks?.endedOnOne]) if (file !== undefined) rmSync(shellPathToNative(file), { force: true })
+        if (start?.file !== undefined) rmSync(start.file.path, { force: true })
         runs.push(JSON.stringify({ stdout: ran.stdout, stderr: ran.stderr, status: ran.status, signal: ran.signal, written }).replaceAll(id, 'ID'))
       }
       const hint = `bash ${version}: ${JSON.stringify(command)}\n      without: ${runs[0]}\n      with:    ${runs[1]}\n      the marks are marksTheClosing and marksAnEndOnOne in src/platform/shell/bashProvider.ts; a script that can see them is left unmarked by closingTableCommand in src/tools/shell/commandSemantics.ts, which asks watchesItsShell in src/permissions/rules/decision/command-analysis/commandSpans.ts`
@@ -409,8 +416,7 @@ if (process.platform === 'win32') {
 
   const engine = await createBashShellProvider({ ...systemShellAt(served.path), origin: 'engine' }, { skipSnapshot: true })
   const plain = `grep missing ${LEFT}`
-  await BashTool.prepare?.({ command: plain } as never)
-  const underEngine = await engine.buildExecCommand(plain, { id: 'engine', closing: closingTableCommand(plain) })
+  const underEngine = await engine.buildExecCommand(plain, { id: 'engine', closing: closingTableCommand(plain, await rootOf(plain)) })
   check('a frame built for the bundled engine carries no marks (it has no pipeline record to read them with)', underEngine.closingMarks === undefined, `${underEngine.commandString} — buildExecCommand in src/platform/shell/bashProvider.ts marks only a bash, never a record whose origin is engine`)
 
   section('§8 the marks are gone when the command has settled')
@@ -446,7 +452,7 @@ if (process.platform === 'win32') {
       `    const frame = await roads[road].buildExecCommand(command, { id, ...(marks && closing !== undefined ? { closing } : {}) })`,
       `    const file = frame.handOver?.({ MSYS: 'noglob' })`,
       `    const native = [frame.cwdFilePath, frame.closingMarks?.reached, frame.closingMarks?.endedOnOne].map(path => (path === undefined ? undefined : shellPathToNative(path)))`,
-      `    return { text: frame.commandString, cwd: frame.cwdFilePath, pipeline: frame.pipelineStatusPath, marks: frame.closingMarks, native, start: frame.handOver?.({}).args.slice(0, -1), far: frame.handOver?.({}, process.argv[3]).args.at(-1), carried: file?.file, loader: file?.args }`,
+      `    return { text: frame.commandString, cwd: frame.cwdFilePath, pipeline: frame.pipelineStatusPath, marks: frame.closingMarks, native, start: frame.handOver?.({}).args.slice(0, -1), line: frame.handOver?.({}).args.at(-1), far: frame.handOver?.({}, process.argv[3]).args.at(-1), carried: file?.file, loader: file?.args }`,
       `  }`,
       `  frames.push({ id, command, closing, bare: await built('plain', false), plain: await built('plain', true), login: await built('login', true), engine: await built('engine', true) })`,
       `}`,
@@ -454,17 +460,16 @@ if (process.platform === 'win32') {
       `process.exit(0)`,
     ].join('\n'),
   )
-  type Built = { text: string; cwd: string; pipeline?: string; marks?: { reached: string; endedOnOne: string }; native: Array<string | null>; start?: string[]; far?: string; carried?: { path: string; text: string }; loader?: string[] }
+  type Built = { text: string; cwd: string; pipeline?: string; marks?: { reached: string; endedOnOne: string }; native: Array<string | null>; start?: string[]; line?: string; far?: string; carried?: { path: string; text: string }; loader?: string[] }
   type Framed = { id: string; command: string; closing?: { at: number }; bare: Built; plain: Built; login: Built; engine: Built }
   const framedOnWindows = async (temp: string, far: string, tag: string, commands: string[]): Promise<{ rows: Framed[]; detail: string }> => {
     const asked: Array<{ id: string; command: string; closing: ReturnType<typeof closingTableCommand> }> = []
     for (const [i, command] of commands.entries()) {
-      await BashTool.prepare?.({ command } as never)
-      asked.push({ id: `${tag}${i}`, command, closing: closingTableCommand(command) })
+      asked.push({ id: `${tag}${i}`, command, closing: closingTableCommand(command, await rootOf(command)) })
     }
     const inputs = join(STAND_IN, `${tag}.json`)
     writeFileSync(inputs, JSON.stringify(asked))
-    const child = spawnSync(process.execPath, ['run', standIn, inputs, far], { cwd: STAND_IN, encoding: 'utf8', timeout: 120_000, env: { ...process.env, TMPDIR: temp, MERCURY_CONFIG_DIR: 'home' } })
+    const child = spawnSync(process.execPath, ['run', standIn, inputs, far], { cwd: STAND_IN, encoding: 'utf8', timeout: 120_000, env: { ...process.env, TMPDIR: temp, TEMP: temp, TMP: temp, MERCURY_CONFIG_DIR: 'home' } })
     const line = (child.stdout ?? '').split('\n').find(l => l.startsWith('FRAMES '))
     return { rows: line === undefined ? [] : (JSON.parse(line.slice(7)) as Framed[]), detail: `the child ended ${String(child.status)}: ${String(child.stderr ?? '').trim().slice(-400)}` }
   }
@@ -477,6 +482,7 @@ if (process.platform === 'win32') {
   const there = await framedOnWindows(WINDOWS_TEMP, FAR_THERE, 'there', [...MARKED_THERE, ...UNMARKED_THERE])
   check('the child that stands in for win32 answers with a frame for every command', there.rows.length === MARKED_THERE.length + UNMARKED_THERE.length, there.detail)
   const count = (text: string, part: string): number => text.split(part).length - 1
+  const asHanded = (frame: Built): string => (process.platform === 'win32' ? (frame.line ?? frame.text) : frame.text)
   const inEval = (text: string): string => text.replaceAll("'", "'\\''")
   for (const { id, command, closing, bare, plain, login, engine } of there.rows) {
     const cwd = `${TEMP_IN_BASH}/mercury-cwd-${id}`
@@ -500,7 +506,7 @@ if (process.platform === 'win32') {
     for (const shell of shells) {
       const carried = join(STAND_IN, 'carried')
       writeFileSync(carried, plain.carried?.text ?? plain.text)
-      const parsed = [spawnSync(shell, ['-n', '-c', plain.text], { encoding: 'utf8', timeout: 10_000 }), spawnSync(shell, ['-n', carried], { encoding: 'utf8', timeout: 10_000 })]
+      const parsed = [spawnSync(shell, ['-n', '-c', asHanded(plain)], { encoding: 'utf8', timeout: 10_000 }), spawnSync(shell, ['-n', nativePathToShell(carried)], { encoding: 'utf8', timeout: 10_000 })]
       check(`…${shell} reads that frame, and the file that carries it, without a syntax error`, plain.marks !== undefined && parsed.every(run => run.status === 0 && run.stderr === ''), `${parsed.map(run => run.stderr).join('')}${show}`)
     }
   }
@@ -508,7 +514,7 @@ if (process.platform === 'win32') {
   const LOGOUT_HOME = join(STAND_IN, 'login-home')
   const LOGOUT_READ = join(STAND_IN, 'logout-read')
   mkdirSync(LOGOUT_HOME)
-  writeFileSync(join(LOGOUT_HOME, '.bash_logout'), `echo read >> ${LOGOUT_READ}\n`)
+  writeFileSync(join(LOGOUT_HOME, '.bash_logout'), `echo read >> ${nativePathToShell(LOGOUT_READ)}\n`)
   const RUN_HERE: Array<[string, string, number, boolean, boolean]> = [
     ['a miss', `grep missing ${LEFT}`, 1, true, true],
     ['a match', `grep same ${LEFT}`, 0, true, false],
@@ -524,25 +530,82 @@ if (process.platform === 'win32') {
     const version = spawnSync(shell, ['-c', 'printf %s "$BASH_VERSION"'], { encoding: 'utf8' }).stdout
     const ranIn = (frame: Built, args: string[], env?: NodeJS.ProcessEnv): { said: string; status: number | null; marks: boolean[] } => {
       if (frame.carried !== undefined) writeFileSync(frame.carried.path, frame.carried.text)
-      const run = spawnSync(shell, args, { cwd: WORK, encoding: 'utf8', timeout: 10_000, ...(env === undefined ? {} : { env }) })
-      const marks = [frame.marks?.reached, frame.marks?.endedOnOne].map(file => file !== undefined && existsSync(file))
-      for (const file of [frame.cwd, frame.pipeline, frame.marks?.reached, frame.marks?.endedOnOne, frame.carried?.path]) if (file !== undefined) rmSync(file, { force: true })
+      const run = spawnSync(shell, args, { cwd: WORK_FOLDER, encoding: 'utf8', timeout: 10_000, ...(env === undefined ? {} : { env }) })
+      const marks = [frame.marks?.reached, frame.marks?.endedOnOne].map(file => file !== undefined && existsSync(shellPathToNative(file)))
+      for (const file of [frame.cwd, frame.pipeline, frame.marks?.reached, frame.marks?.endedOnOne]) if (file !== undefined) rmSync(shellPathToNative(file), { force: true })
+      if (frame.carried !== undefined) rmSync(frame.carried.path, { force: true })
       return { said: JSON.stringify({ stdout: run.stdout, stderr: run.stderr, status: run.status }), status: run.status, marks }
     }
     for (const [i, { command, bare, plain, login }] of here.rows.entries()) {
       const [label, , status, reached, endedOnOne] = RUN_HERE[i]!
       const want = JSON.stringify([reached, endedOnOne])
-      const onTheLine = [ranIn(bare, [...(bare.start ?? []), bare.text]), ranIn(plain, [...(plain.start ?? []), plain.text])]
+      const onTheLine = [ranIn(bare, [...(bare.start ?? []), asHanded(bare)]), ranIn(plain, [...(plain.start ?? []), asHanded(plain)])]
       const byFile = [ranIn(bare, bare.loader ?? []), ranIn(plain, plain.loader ?? [])]
       const behindCd = [ranIn(bare, [...(bare.start ?? []), bare.far ?? '']), ranIn(plain, [...(plain.start ?? []), plain.far ?? ''])]
-      const told = `${JSON.stringify(command)}${[['on the command line', onTheLine], ['carried by its file', byFile], ['behind the cd of a long start folder', behindCd]].map(([road, [without, withMarks]]) => `\n      ${String(road)}, without: ${without!.said}\n      with: ${withMarks!.said} marks ${JSON.stringify(withMarks!.marks)}`).join('')}\n      ${WINDOWS_HINT}`
-      check(`bash ${version} · the Windows frame, ${label}: exit ${status}, the same output with the marks as without, on the command line, carried by its file and behind the cd of a long start folder; reached ${String(reached)}, ended on 1 ${String(endedOnOne)}`, plain.far?.startsWith(`cd -- ${FAR_HERE} `) === true && [onTheLine, byFile, behindCd].every(([without, withMarks]) => without!.status === status && without!.said === withMarks!.said && JSON.stringify(withMarks!.marks) === want), told)
+      const roads: Array<[string, typeof onTheLine]> = [['on the command line', onTheLine], ['carried by its file', byFile], ['behind the cd of a long start folder', behindCd]]
+      const told = `${JSON.stringify(command)}${roads.map(([road, [without, withMarks]]) => `\n      ${road}, without: ${without!.said}\n      with: ${withMarks!.said} marks ${JSON.stringify(withMarks!.marks)}`).join('')}\n      ${WINDOWS_HINT}`
+      check(`bash ${version} · the Windows frame, ${label}: exit ${status}, the same output with the marks as without, on the command line, carried by its file and behind the cd of a long start folder; reached ${String(reached)}, ended on 1 ${String(endedOnOne)}`, plain.far?.startsWith(`cd -- ${nativePathToShell(FAR_HERE)} `) === true && [onTheLine, byFile, behindCd].every(([without, withMarks]) => without!.status === status && without!.said === withMarks!.said && JSON.stringify(withMarks!.marks) === want), told)
       if (status !== 2) continue
       rmSync(LOGOUT_READ, { force: true })
-      const asLogin = ranIn(login, [...(login.start ?? []), login.text], { ...process.env, HOME: LOGOUT_HOME })
+      const asLogin = ranIn(login, [...(login.start ?? []), asHanded(login)], { ...process.env, HOME: LOGOUT_HOME })
       check(`bash ${version} · the frame a bash started with -l gets ends on 2 without calling exit, so the user's ~/.bash_logout is not read (the marks leave a status of 2 or more through exit, which a login shell answers by reading that file)`, JSON.stringify(login.start) === '["-c","-l"]' && asLogin.status === 2 && !existsSync(LOGOUT_READ), `${asLogin.said}; the logout file was ${existsSync(LOGOUT_READ) ? 'read' : 'not read'} — ${WINDOWS_HINT}`)
     }
   }
+
+  section('§10 the reading rests on the tree the call itself holds: a collection between the permission check and the call changes no reading')
+  const ROOT_HINT = 'runShellCommand in src/tools/shell/BashTool.tsx hands the tree its own parse answered to closingTableCommand and interpretCommandResult (src/tools/shell/commandSemantics.ts); neither may look the command up by its text, whose entry names the newest parse and is gone when that tree is collected'
+  type Asker = { checkPermissions: (input: never, context: never) => Promise<{ behavior: string }> }
+  const turn = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 5))
+  const entryGoes = async (command: string): Promise<boolean> => {
+    for (let round = 0; round < 12; round++) {
+      await turn()
+      Bun.gc(true)
+      await turn()
+      const stands = preparedCommandRoot(command) !== null
+      await turn()
+      if (!stands) return true
+    }
+    return false
+  }
+  const readAs = (ran: Drive): string => (ran.ok ? (ran.out.code === 0 ? 'ok' : (ran.out.returnCodeInterpretation ?? `result with exit ${String(ran.out.code)}`)) : 'error')
+  const askedThenCalled = async (command: string): Promise<{ gone: boolean; said: string }> => {
+    const input = { command }
+    await BashTool.prepare?.(input as never)
+    await (BashTool as unknown as Asker).checkPermissions(input as never, toolContext)
+    const gone = await entryGoes(command)
+    try {
+      const result = await (BashTool as unknown as Caller).call(input as never, toolContext)
+      return { gone, said: readAs({ ok: true, out: result.data as Out, content: '' }) }
+    } catch {
+      return { gone, said: 'error' }
+    }
+  }
+  const HELD: Array<[string, string, Want]> = [
+    ['a variable, a pipe and a closing grep that misses', "F=$(printf 'alpha\\nbeta\\n'); printf '%s\\n' \"$F\" | grep -c nomatch", 'no matches found'],
+    ['a loop, then a closing grep', `for x in a b; do printf '%s\\n' "$x" >/dev/null; done; grep missing ${LEFT}`, 'no matches found'],
+    ['a job, then a closing grep', `sleep 0 & grep missing ${LEFT}`, 'no matches found'],
+    ['a script that sets a trap, which carries no marks', `trap 'exit 1' EXIT; grep same ${LEFT}`, 'no matches found'],
+    ['a script that turns verbose on, which carries no marks', `set -v\ngrep missing ${LEFT}`, 'no matches found'],
+    ['pipefail and a first stage that fails', `set -o pipefail; false | grep same ${LEFT}`, 'error'],
+    ['a closing grep that && skips', `false && grep missing ${LEFT}`, 'error'],
+  ]
+  for (const [label, command, want] of HELD) {
+    const before = readAs(await drive(command))
+    const again = await askedThenCalled(command)
+    check(`${label}: asked for again, its tree collected between the permission check and the call, it reads ${want} as the call before it did`, before === want && again.gone && again.said === want, `${JSON.stringify(command)} read ${before}, then ${again.said}${again.gone ? '' : ' (twelve collections did not take the tree, so this check shows nothing)'} — ${ROOT_HINT}`)
+  }
+  const handed = `true; grep missing ${LEFT}`
+  const kept = await rootOf(handed)
+  await (BashTool as unknown as Asker).checkPermissions({ command: handed } as never, toolContext)
+  const handedGone = await entryGoes(handed)
+  check("with the text's own entry gone, the closing statement is found in the tree that was handed over", handedGone && closingTableCommand(handed, kept)?.stage === `grep missing ${LEFT}`, `${handedGone ? JSON.stringify(closingTableCommand(handed, kept)) : 'twelve collections did not take the tree, so this check shows nothing'} — ${ROOT_HINT}`)
+  check('no tree at all leaves a script unmarked', closingTableCommand(handed, null) === undefined, ROOT_HINT)
+  check("…and its exit 1 is read by the whole text's first word", interpretCommandResult(`grep missing ${LEFT}`, 1, '', '', undefined, null).message === 'no matches found' && interpretCommandResult(handed, 1, '', '', undefined, null).isError === true, ROOT_HINT)
+  const pad = `# ${'x'.repeat(10_000)}`
+  check('a command longer than the parser reads has no tree', (await rootOf(`grep missing ${LEFT} ${pad}`)) === null)
+  const longMiss = readAs(await drive(`grep missing ${LEFT} ${pad}`))
+  const longScript = readAs(await drive(`true; grep missing ${LEFT} ${pad}`))
+  check("…and through the tool it is read by its first word: a grep that misses is a result, a longer script is an error", longMiss === 'no matches found' && longScript === 'error', `${longMiss}, ${longScript} — ${ROOT_HINT}`)
 }
 
 for (const dir of [SCRATCH, proofHome]) {

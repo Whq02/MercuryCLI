@@ -1,11 +1,18 @@
-import { preparedSecurityParse } from './ast.js'
+import { parseForSecurityFromRoot, preparedSecurityParse, type ParseForSecurityResult } from './ast.js'
 import { isOutputWriteOperator, pipeSpans, splitCommandWithOperators, splitListSegments, withoutRedirects } from '../../../permissions/rules/decision/command-analysis/sequence.js'
 
 export { pipeSpans, splitCommandWithOperators, splitListSegments }
 
-export function splitCommand(command: string): string[] {
-  const parsed = preparedSecurityParse(command)
+function partsOf(command: string, parsed: ParseForSecurityResult): string[] {
   return parsed.kind === 'simple' ? parsed.commands.map(simple => simple.text) : command.trim() === '' ? [] : [command]
+}
+
+export function splitCommand(command: string): string[] {
+  return partsOf(command, preparedSecurityParse(command))
+}
+
+export function splitCommandFromRoot(command: string, root: unknown): string[] {
+  return partsOf(command, parseForSecurityFromRoot(command, root))
 }
 
 type OutputRedirectionCapture = { target: string; operator: '>' | '>>' }

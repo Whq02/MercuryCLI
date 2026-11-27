@@ -3,6 +3,7 @@ import { parseCommandRaw, preparedCommandRoot } from './parser.js'
 import { parseForSecurityFromAst } from '../../../permissions/rules/decision/command-analysis/exactParse.js'
 import { EVALUATING_BUILTINS, quoteArgv, READ_DATA_FLAGS } from '../../../permissions/rules/decision/command-analysis/exactCommands.js'
 import { isKnown, NEWLINE_COMMENT_RE, PROCESS_ENVIRON_RE, SYSTEM_CALL_RE } from '../../../permissions/rules/decision/command-analysis/exactWords.js'
+import { asNode } from '../../../permissions/rules/decision/command-analysis/shellViews.js'
 import { peelWrappers } from '../../../permissions/rules/decision/command-analysis/wrappers.js'
 import type { ParseForSecurityResult, SimpleCommand } from '../../../permissions/rules/decision/command-analysis/reading.js'
 export { nodeTypeId, parseForSecurityFromAst } from '../../../permissions/rules/decision/command-analysis/exactParse.js'
@@ -28,6 +29,11 @@ function rememberCommands(commands: SimpleCommand[]): void {
       reclaimedCommands.register(command, { text, reference })
     }
   }
+}
+
+export function parseForSecurityFromRoot(command: string, root: unknown): ParseForSecurityResult {
+  const node = asNode(root)
+  return node === null ? { kind: 'parse-unavailable' } : parseForSecurityFromAst(command, node)
 }
 
 export function preparedSecurityParse(command: string): ParseForSecurityResult {

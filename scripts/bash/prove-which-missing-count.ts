@@ -3,10 +3,10 @@ import { pinSourceRef } from '../lib/settingsPopupHarness.js'
 
 pinSourceRef()
 const { interpretCommandResult } = await import('../../src/tools/shell/commandSemantics.js')
-const { parseForSecurity } = await import('../../src/permissions/rules/decision/commandAnalysis.js')
+const { pinnedCommandAnalysis } = await import('../../src/permissions/rules/decision/commandAnalysis.js')
 const result = async (command: string, code: number) => {
-  await parseForSecurity(command)
-  return interpretCommandResult(command, code, '', '')
+  const root = await pinnedCommandAnalysis.parseCommandRaw(command)
+  return interpretCommandResult(command, code, '', '', undefined, root)
 }
 for (const [command, code] of [
   ['which missing-one missing-two', 2],
