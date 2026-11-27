@@ -121,10 +121,47 @@ if os.environ.get("VSHOT_ACTIVE"):
     sys.exit(
         "vshot refusing to run under vshot (VSHOT_ACTIVE set): a render proof "
         "re-entered its PARENT branch inside the PTY child — its child-branch "
-        "env marker never arrived. Pass the marker via the spawn env option "
-        "(cfg['env'] is NOT applied)."
+        "env marker never arrived. Pass the marker in the environment vshot.py "
+        "is started with (a config that carries env is refused)."
     )
 os.environ["VSHOT_ACTIVE"] = "1"
+
+cfg = json.load(open(sys.argv[1]))
+
+
+def _child_config_home():
+    named = os.environ.get("MERCURY_CONFIG_DIR", "").strip() or os.environ.get("MERCURY_HOME", "").strip()
+    home = named or os.path.join(os.environ.get("HOME") or _real_home() or "", ".mercury")
+    return os.path.abspath(os.path.join(cfg.get("cwd") or "", home))
+
+
+def _operators_own_store(path):
+    account = _real_home() or os.environ.get("HOME")
+    at = os.sep
+    for part in path.split(os.sep):
+        try:
+            if account and part.lower().startswith(".mercury") and os.path.samefile(at, account):
+                return True
+        except OSError:
+            return False
+        at = os.path.join(at, part)
+    return False
+
+
+if "env" in cfg:
+    sys.exit(
+        "vshot refusing a config that carries env: its child runs on the "
+        "environment vshot.py itself was started with, so hand those variables "
+        "to the process that starts vshot.py and take env out of the config."
+    )
+_config_home = _child_config_home()
+_own_store = next((path for path in (_config_home, os.path.realpath(_config_home)) if _operators_own_store(path)), None)
+if _own_store:
+    sys.exit(
+        "vshot refusing to start its child on the operator's own config home "
+        "(%s): set MERCURY_CONFIG_DIR to a scratch folder in the environment "
+        "vshot.py is started with." % _own_store
+    )
 
 def _acquire_capture_slot():
     try:
@@ -150,7 +187,6 @@ def _acquire_capture_slot():
 
 _capture_slot = _acquire_capture_slot()
 
-cfg = json.load(open(sys.argv[1]))
 cols, rows, total = int(cfg["cols"]), int(cfg["rows"]), int(cfg.get("total", 30))
 try:
     _scale = float(os.environ.get("MERCURY_VSHOT_BUDGET_SCALE", "1"))
