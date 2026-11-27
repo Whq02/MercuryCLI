@@ -95,15 +95,28 @@ t.section('§3 — baked capability truth equals the canonical law')
     if (colorterm !== null) env.COLORTERM = colorterm ?? undefined
     if (program !== null) env.TERM_PROGRAM = program ?? undefined
     const termVal = term ?? ''
-    const want = shouldHonorNoColor(env)
-      ? 'plain'
-      : !termVal || termVal === 'dumb'
+    const fp = truecolorFingerprint(env) !== null
+    const noTermTc = colorterm === 'truecolor' || program === 'iTerm.app'
+    const want =
+      shouldHonorNoColor(env) || (fc !== null && !['', '1', '2', '3', 'true'].includes(fc))
         ? 'plain'
-        : termVal !== 'linux' && mt !== '0' && (isEnvTruthy(mt ?? undefined) || truecolorFingerprint(env) !== null)
-          ? 'truecolor'
-          : /-(?:256color|256)$/.test(termVal)
-            ? '256'
-            : '16'
+        : fc === '3'
+          ? mt === '0' ? '256' : 'truecolor'
+          : fc === '2'
+            ? mt !== '0' && (isEnvTruthy(mt ?? undefined) || fp) ? 'truecolor' : '256'
+            : /^dumb$/i.test(termVal)
+              ? 'plain'
+              : !/^linux$/i.test(termVal) && mt !== '0' && (termVal !== '' ? (fp || isEnvTruthy(mt ?? undefined)) : noTermTc)
+                ? 'truecolor'
+                : mt === '0' && (termVal !== '' ? fp : noTermTc)
+                  ? '256'
+                  : program === 'Apple_Terminal'
+                    ? '256'
+                    : !termVal
+                      ? 'plain'
+                      : /-(?:256color|256)$/i.test(termVal)
+                        ? '256'
+                        : '16'
     if (mode !== want) allOk = false
     if (splashTierOf(env, 'linux') !== mode) allOk = false
     if (truecolorFingerprintOf(env) !== truecolorFingerprint(env)) splashOk = false

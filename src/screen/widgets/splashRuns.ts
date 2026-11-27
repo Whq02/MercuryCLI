@@ -65,6 +65,8 @@ export function parseSplashRuns(line: string): SplashRun[] {
         if (p === 38) fg = hex
         else bg = hex
         i += 4
+      } else if (p !== undefined && ((p >= 30 && p <= 37) || (p >= 90 && p <= 97))) {
+        fg = `ansi:${['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'][p % 10]}${p < 90 ? '' : 'Bright'}`
       } else {
         throw new Error(`splashRuns: SGR parameter ${p} is outside the core's emitter vocabulary (${m[0].slice(1)})`)
       }

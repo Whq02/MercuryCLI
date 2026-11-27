@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { getCwd } from '../../platform/files/cwd.js';
 import { useInput } from '../themedRenderer.js';
-import { bootMenuAsks, createSplashCore, fmtAge, WORD_W } from '../../../assets/splash/splash-core.mjs';
+import { bootMenuAsks, fmtAge, WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { isProjectSession } from '../session-chooser/sessionFilter.js';
 import type { BootProjectFact } from './bootCardFacts.js';
 import { getSessionId } from '../../boot/process-state/processState.js';
@@ -28,7 +28,7 @@ import { bootEnvironment } from './bootEnvironment.js';
 import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList, type AsyncListNote } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
-import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
+import { splashCoreFor, useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
 import { useBootComposition } from './useBootComposition.js';
 import { resumeView, type SelectableRow } from './resume/resumeView.js';
 
@@ -445,7 +445,7 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
 
   const { accent: coreAccent, rampStops } = useSplashCoreAccent();
   const core = useMemo(
-    () => createSplashCore({ nocolor: false, truecolor: true, accent: coreAccent }),
+    () => splashCoreFor(coreAccent),
     [coreAccent],
   );
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);

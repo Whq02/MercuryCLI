@@ -208,14 +208,18 @@ function paintNearest(str: string, r: number, g: number, b: number, type: ColorT
   return chalk.bgAnsi256(depth === '256' ? rgbToXterm256(r, g, b) : rgbToAnsi8(r, g, b))(str)
 }
 
+export function ansi16InkCode(r: number, g: number, b: number): number {
+  const index = rgbToAnsi16(r, g, b)
+  return index < 8 ? 30 + index : 82 + index
+}
+
 export function rgbSgr(r: number, g: number, b: number, type: ColorType): string {
   const depth = colorDepth()
   const channel = type === 'foreground' ? 38 : 48
   if (depth === 'truecolor') return `\x1b[${channel};2;${r};${g};${b}m`
   if (depth !== '16') return `\x1b[${channel};5;${rgbToXterm256(r, g, b)}m`
   if (type === 'background') return `\x1b[${40 + rgbToAnsi8(r, g, b)}m`
-  const index = rgbToAnsi16(r, g, b)
-  return `\x1b[${index < 8 ? 30 + index : 82 + index}m`
+  return `\x1b[${ansi16InkCode(r, g, b)}m`
 }
 
 export function colorize(
