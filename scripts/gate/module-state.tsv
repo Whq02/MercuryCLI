@@ -3199,15 +3199,12 @@ src/platform/logs/profiling.ts	perf	process	module	cached reference to globalThi
 src/platform/logs/runPhases.ts	RUN_PHASES	process	module	Load-time list with no local writer
 src/platform/logs/runPhases.ts	stamps	process	module	single headless OS process boot-to-exit 12-phase latency instrument (process_start=0, graph_load/cli_parse stamped before --resume switches sessionId in loadSession.ts
 src/platform/logs/slowOperations.ts	NOOP_DISPOSABLE	process	module	Derived collection initialized at load
-src/platform/native/color-diff/index.ts	CHANNEL_THRESHOLDS	process	module	Load-time list with no local writer
-src/platform/native/color-diff/index.ts	CUBE_LEVELS	process	module	Load-time list with no local writer
 src/platform/native/color-diff/index.ts	DARK_SCOPES	process	module	Load-time table with no local writer
 src/platform/native/color-diff/index.ts	FILENAME_LANGUAGES	process	module	Load-time table with no local writer
 src/platform/native/color-diff/index.ts	LIGHT_SCOPES	process	module	Load-time table with no local writer
 src/platform/native/color-diff/index.ts	PROSE_LANGUAGES	process	module	Load-time list with no local writer
 src/platform/native/color-diff/index.ts	STORAGE_KEYWORDS	process	module	Load-time lookup with no local writer
 src/platform/native/color-diff/index.ts	TERMINAL_DEFAULT	process	module	Load-time table with no local writer
-src/platform/native/color-diff/index.ts	__test	process	module	Load-time table with no local writer
 src/platform/native/color-diff/index.ts	emitterShapeErrorLogged	process	module	one-time process diagnostic dedup flag for unexpected highlight.js emitter shape
 src/platform/native/color-diff/index.ts	highlighter	process	module	lazy one-time require('highlight.js') singleton for process lifetime
 src/platform/native/file-index/index.ts	BOUNDARY_CHARS	process	module	Load-time lookup with no local writer
@@ -4284,7 +4281,9 @@ src/screen/renderer/cell-grid.ts	OSC8_FORM	process	module	Load-time lookup with 
 src/screen/renderer/cell-grid.ts	TRUECOLOR_FORM	process	module	Load-time table with no local writer
 src/screen/renderer/cell-grid.ts	UNDERLINE_CODE	process	module	Load-time table with no local writer
 src/screen/renderer/cell-grid.ts	VISIBLE_ON_SPACE	process	module	Load-time lookup with no local writer
+src/screen/renderer/cell-grid.ts	XTERM256_OKLAB	process	module	load-time data; no local writer
 src/screen/renderer/cell-grid.ts	clearRegion	reset-export
+src/screen/renderer/cell-grid.ts	nearestMemo	process	module	pure memo of the nearest palette index keyed by packed RGB, emptied at 4096 colours
 src/screen/renderer/cell-grid.ts	packedBlankBuffer	process	module	reusable 8-byte scratch ArrayBuffer for synchronous blankCell64ForStyle packing
 src/screen/renderer/cell-grid.ts	packedBlankCell64	process	module	reusable BigInt64Array view over packedBlankBuffer for synchronous cell packing
 src/screen/renderer/cell-grid.ts	packedBlankWords	process	module	reusable Int32Array view over packedBlankBuffer for synchronous cell packing
