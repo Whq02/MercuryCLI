@@ -30,7 +30,7 @@ import { useMouseHandedBack } from '../../models/sign-in/flow-cards/SignInCopyLi
 import { postLoginSettleOf, startDeviceRunOf, openGuideStepOf, startHandlesRunOf, startOpenaiDeviceRunOf, startDevinCliRunOf } from './logins/runs.js';
 import { openRosterFlowOf, resolvePickOf } from './logins/picks.js';
 import { submitKeyOf, keyEscapeOf } from './logins/keyLegs.js';
-import { receiptFlowKeys, deviceFlowKeys, handlesFlowKeys, opdeviceFlowKeys, clientFlowKeys, keyFlowKeys, anthropicFlowKeys, plainKey } from './logins/flowKeys.js';
+import { receiptFlowKeys, deviceFlowKeys, handlesFlowKeys, opdeviceFlowKeys, clientFlowKeys, keyFlowKeys, anthropicFlowKeys, addressDragGesture, type AddressPress } from './logins/flowKeys.js';
 import type { LoginsFlowContext } from './logins/context.js';
 import { devinCliMissingOutcome, type DevinCliAction } from './logins/devinCliAction.js';
 export type { LoginsScreenFactsV1, LoginsArmV1, LoginsRowStateV1, LoginsEntry, LoginsRosterRowV1 } from './logins/facts.js';
@@ -257,10 +257,8 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     },
     { isActive: flow !== null && flow.kind !== 'pick' },
   );
-  const copyOnAddressPress = (gesture: TextGesture): boolean => {
-    if (gesture.kind === 'release') routeFlowKey('c', plainKey());
-    return true;
-  };
+  const addressPress = useRef<AddressPress | null>(null);
+  const copyOnAddressDrag = (gesture: TextGesture): boolean => addressDragGesture(ctx, addressPress, gesture);
   useInput(
     (_input, key, event) => {
       if (!key.leftArrow) return;
@@ -337,7 +335,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
           );
         }
         return (
-          <Box key={`loginsline-${i}`} height={1} flexShrink={0} {...(addressRows?.has(i) === true ? { onTextGesture: copyOnAddressPress } : {})}>
+          <Box key={`loginsline-${i}`} height={1} flexShrink={0} {...(addressRows?.has(i) === true ? { onTextGesture: copyOnAddressDrag } : {})}>
             {line.length > 0 ? renderSceneLine(line) : null}
           </Box>
         );

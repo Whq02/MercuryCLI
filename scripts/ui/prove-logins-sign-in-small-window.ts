@@ -135,7 +135,7 @@ const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
 
 const FIX_PANE = 'src/screen/boot-face/logins/menuModel.ts marks a waiting sign-in must-read-whole and hands the composer loginsFlowNoticeOf(flow) as detailOverrideWhole; assets/splash/splash-core.mjs paints those words in the block and leaves the wide layout where the pane still does not fit'
 const FIX_FLOOR = 'src/screen/boot-face/logins/menuModel.ts hands the composer detailOverrideWholeElse (loginsFlowNoticeWhereCutOf) while the unconfirmed sentence stands; composeBootMenuClassic in assets/splash/splash-core.mjs then lets the notice take the list rows it needs and paints those words where the address still does not fit; the other ending is signInCopyNoteWhereCut in src/models/sign-in/signInCopy.ts'
-const FIX_LINE = 'src/screen/boot-face/logins/lentTerminal.ts: showSignInAddressLine lends the terminal (lendTerminal), writes the address alone on its line and waits for Enter or Esc by a listener (returnPressed), never by a blocking read; flowKeys.ts, SignInFlow.tsx and SignInCopyLine.tsx call it on a second c; BootLoginsScreen.tsx claims a press on a row that holds the address (loginsAddressRows) and routes it as c'
+const FIX_LINE = 'src/screen/boot-face/logins/lentTerminal.ts: showSignInAddressLine lends the terminal (lendTerminal), writes the address alone on its line and waits for Enter or Esc by a listener (returnPressed), never by a blocking read; flowKeys.ts, SignInFlow.tsx and SignInCopyLine.tsx call it on a second c; BootLoginsScreen.tsx claims a press on a row that holds the address (loginsAddressRows): a drag from it copies by copyFlowAddress in flowKeys.ts, never by the keys, and a click does nothing; a resize while the line is up writes it again'
 const FIX_COPY = 'src/models/sign-in/signInCopy.ts decides what c may say (signInCopyAnswerOf) and words it; boot-face/logins/flowKeys.ts, widgets/faces/anthropicLoginModel.ts and flow-cards/SignInCopyLine.tsx read it, and SignInCopyLine and BootLoginsScreen hand the mouse back while the sentence stands'
 let fix = FIX_PANE
 let failures = 0
@@ -778,11 +778,12 @@ try {
       24,
       { mouseTracking: true },
     )
-    const [out, ink] = [...screenInstances.entries()].at(-1) as unknown as [{ writes: string[] }, { options: { stdin: NodeJS.ReadStream; stdout: NodeJS.WriteStream }; isMouseTrackingEnabled(): boolean }]
+    const [out, ink] = [...screenInstances.entries()].at(-1) as unknown as [{ writes: string[]; emit(event: string): boolean; listenerCount(event: string): number }, { options: { stdin: NodeJS.ReadStream; stdout: NodeJS.WriteStream }; isMouseTrackingEnabled(): boolean }]
     const streams = { stdin: ink.options.stdin, stdout: ink.options.stdout }
     await waitFor(() => m.screen().includes('stream row 2'), 2000)
     for (const [key, name] of [[KEY.esc, 'Esc'], [KEY.enter, 'Enter']] as const) {
       const from = out.writes.length
+      const listening = out.listenerCount('resize')
       const startedAt = Date.now()
       let returned: boolean | null = null
       const up = showLine === undefined ? Promise.resolve(false) : showLine(OPENAI_URL, streams).then(lent => (returned = lent))
@@ -809,8 +810,25 @@ try {
       m.push('x')
       await settle(120)
       check(`…a focus report and a stray key do not end it (${name})`, returned === null)
+      const resizedAt = out.writes.length
+      out.emit('resize')
+      await settle(80)
+      const again = out.writes.slice(resizedAt)
+      check(
+        `the window resized while the line is up: the screen is cleared and the one write is written again, and nothing else is written (${name})`,
+        returned === null && again.length === 1 && again[0] === `\x1b[2J\x1b[H\n${OPENAI_URL}\n\nPress Enter to return to Mercury… `,
+        `${again.length} writes · ${JSON.stringify(again[0] ?? '').slice(0, 160)}`,
+      )
+      out.writes.splice(resizedAt, again.length)
+      const keyAt = out.writes.length
       m.push(key)
+      out.emit('resize')
       const ended = await Promise.race([up, settle(1500).then(() => null)])
+      check(
+        `…a resize in the instant of ${name} writes no line after the return, and off the line a resize is the screen's own again (${name})`,
+        ended === true && !out.writes.slice(keyAt).some(write => write.includes(OPENAI_URL)) && out.listenerCount('resize') === listening,
+        `ended=${String(ended)} listeners ${listening} → ${out.listenerCount('resize')}`,
+      )
       const last = stamps.length
       const back = await waitFor(() => m.screen().includes(`stream row ${last}`), 2000)
       check(
@@ -825,7 +843,7 @@ try {
     m.unmount()
   }
 
-  console.log('§8 — A PRESS OR A DRAG ON THE ADDRESS WHILE MERCURY HAS THE MOUSE IS c: THE WHOLE ADDRESS OR NOTHING, NEVER ONE ROW')
+  console.log('§8 — THE MOUSE ON THE ADDRESS: A DRAG COPIES THE WHOLE ADDRESS, NEVER ONE ROW; A CLICK DOES NOTHING; NOTHING OF A GESTURE IS EVER TYPED')
   {
     const withSelection = (columns: number, rows: number): React.ReactElement =>
       h(AppStateProvider, {
@@ -845,6 +863,14 @@ try {
         }),
       })
     const mouse = (code: number, col: number, row: number, up = false): string => `\x1b[<${code};${col + 1};${row + 1}${up ? 'm' : 'M'}`
+    const span = (m: Mounted): { first: number; last: number; col: number; lastCol: number } => {
+      const lines = m.screen().split('\n')
+      const first = lines.findIndex(row => row.includes(OPENAI_URL.slice(0, 30)))
+      const col = lines[first]!.indexOf('https://')
+      let last = first
+      while (last + 1 < lines.length && OPENAI_URL.includes(lines[last + 1]!.slice(col).trim()) && lines[last + 1]!.slice(col).trim().length > 0) last++
+      return { first, last, col, lastCol: lines[last]!.trimEnd().length - 1 }
+    }
     const waiting = async (columns: number, rows: number): Promise<{ m: Mounted; first: number; last: number; col: number; lastCol: number }> => {
       const m = await mountOffscreen(withSelection(columns, rows), columns, rows, { mouseTracking: true })
       await waitFor(() => m.screen().includes('logins') && cursorRow(m.screen()) !== '', 2000)
@@ -852,12 +878,7 @@ try {
       await painted(160)
       m.push(KEY.enter)
       await waitFor(() => m.screen().includes('paste:'), 2000)
-      const lines = m.screen().split('\n')
-      const first = lines.findIndex(row => row.includes(OPENAI_URL.slice(0, 30)))
-      const col = lines[first]!.indexOf('https://')
-      let last = first
-      while (last + 1 < lines.length && OPENAI_URL.includes(lines[last + 1]!.slice(col).trim()) && lines[last + 1]!.slice(col).trim().length > 0) last++
-      return { m, first, last, col, lastCol: lines[last]!.trimEnd().length - 1 }
+      return { m, ...span(m) }
     }
     const drag = async (at: { m: Mounted; first: number; last: number; col: number; lastCol: number }): Promise<void> => {
       at.m.push(mouse(0, at.col + 2, at.first))
@@ -868,6 +889,13 @@ try {
       }
       at.m.push(mouse(0, at.lastCol, at.last, true))
     }
+    const click = async (m: Mounted, col: number, row: number): Promise<void> => {
+      m.push(mouse(0, col, row))
+      await painted(40)
+      m.push(mouse(0, col, row, true))
+      await settle(500)
+    }
+    const draft = (frame: string): number => /paste: (•*)▌/.exec(frame)?.[1]?.length ?? -1
     for (const [columns, rows] of [[80, 24], [120, 40]] as const) {
       takeRoad('confirmed')
       const at = await waiting(columns, rows)
@@ -881,33 +909,64 @@ try {
         `rows ${at.first}..${at.last} · clipboard ${clipboardHeld().length} of ${OPENAI_URL.length} chars ${JSON.stringify(clipboardHeld().slice(0, 60))} · copies ${receipts - copies}`,
       )
       rmSync(clipboardFile, { force: true })
-      at.m.push(mouse(0, at.col + 5, at.first + 1))
-      await painted(40)
-      at.m.push(mouse(0, at.col + 5, at.first + 1, true))
-      const clicked = await waitFor(() => clipboardHeld() === OPENAI_URL, 2000)
-      check(`${columns}x${rows}: a click on a row of the address copies the whole address`, clicked && receipts === copies + 2, `clipboard ${clipboardHeld().length} chars · copies ${receipts - copies}`)
+      await click(at.m, at.col + 5, at.first + 1)
+      check(`${columns}x${rows}: a click on a row of the address does nothing: no copy, and no row of it handed to the clipboard`, clipboardHeld() === '' && receipts === copies + 1 && at.m.screen().includes('paste:'), `clipboard ${clipboardHeld().length} chars · copies ${receipts - copies}`)
+      if (at.col > 40) {
+        await click(at.m, 8, at.first + 1)
+        check(`${columns}x${rows}: a click on the roster's cells of a row that holds the address does nothing either`, clipboardHeld() === '' && receipts === copies + 1 && at.m.screen().includes('paste:'), `clipboard ${clipboardHeld().length} chars · copies ${receipts - copies}`)
+      }
       at.m.unmount()
     }
+    takeRoad('confirmed')
+    const sure = await waiting(80, 24)
+    const answered = receipts
+    for (let n = 1; n <= 3; n++) {
+      sure.m.push('c')
+      await waitFor(() => receipts === answered + n, 2000)
+    }
+    await click(sure.m, sure.col + 5, sure.first)
+    check('a clipboard that answers: c, c, c, then one click on the address: three copies, not four', receipts === answered + 3, `copies ${receipts - answered}`)
+    sure.m.push('x')
+    sure.m.push('y')
+    const typed = await waitFor(() => draft(sure.m.screen()) === 2, 2000)
+    const withDraft = receipts
+    rmSync(clipboardFile, { force: true })
+    await click(sure.m, sure.col + 5, sure.first)
+    check(
+      'two letters in the paste field, then a click on the address: the draft is still two letters and nothing was copied',
+      typed && draft(sure.m.screen()) === 2 && receipts === withDraft && clipboardHeld() === '',
+      `draft ${draft(sure.m.screen())} · copies ${receipts - withDraft}`,
+    )
+    await drag({ m: sure.m, ...span(sure.m) })
+    const dragged = await waitFor(() => clipboardHeld() === OPENAI_URL, 2000)
+    await settle(300)
+    check(
+      "…and a drag from the address's first row to its last with those two letters typed: one copy of the whole address, the draft still two",
+      dragged && receipts === withDraft + 1 && draft(sure.m.screen()) === 2,
+      `draft ${draft(sure.m.screen())} · copies ${receipts - withDraft} · clipboard ${clipboardHeld().length} chars`,
+    )
+    sure.m.unmount()
     takeRoad('unconfirmed')
     const at = await waiting(80, 24)
     const asked = shown.length
     await drag(at)
     const told = await waitFor(() => words(at.m.screen()).includes(SENT_URL), 2000)
-    check('with no clipboard in reach a press on the address says the sentence, as c does', told && shown.length === asked && clipboardHeld() === '', words(at.m.screen()).slice(0, 260))
-    const moved = at.m.screen().split('\n').findIndex(row => row.includes(OPENAI_URL.slice(0, 30)))
-    at.m.push(mouse(0, at.col + 5, moved))
-    await painted(40)
-    at.m.push(mouse(0, at.col + 5, moved, true))
+    check('with no clipboard in reach a drag over the address says the sentence, as c does', told && shown.length === asked && clipboardHeld() === '', words(at.m.screen()).slice(0, 260))
+    await click(at.m, at.col + 5, span(at.m).first)
+    check('…a click while the sentence stands does nothing: the one-line screen is not shown', shown.length === asked && words(at.m.screen()).includes(SENT_URL), `asked=${shown.length - asked}`)
+    await drag({ m: at.m, ...span(at.m) })
     const second = await waitFor(() => shown.length === asked + 1, 2000)
-    check('…and a second press is the second c: the whole address on one line', second && shown.at(-1) === OPENAI_URL, `asked=${shown.length - asked}`)
+    check('…and a second drag is the second c: the whole address on one line', second && shown.at(-1) === OPENAI_URL, `asked=${shown.length - asked}`)
     const roster = at.m.screen().split('\n').findIndex(row => row.includes('❯'))
     const copies = receipts
     const askedAgain = shown.length
     at.m.push(mouse(0, 8, roster))
     await painted(40)
-    at.m.push(mouse(0, 8, roster, true))
+    at.m.push(mouse(32, 30, roster + 1))
+    await painted(40)
+    at.m.push(mouse(0, 30, roster + 1, true))
     await settle(400)
-    check('a press on a row that holds no address is not c', receipts === copies && shown.length === askedAgain, `copies=${receipts - copies} asked=${shown.length - askedAgain}`)
+    check('a drag that begins on a row that holds no address is not c', receipts === copies && shown.length === askedAgain, `copies=${receipts - copies} asked=${shown.length - askedAgain}`)
     at.m.unmount()
   }
 } finally {

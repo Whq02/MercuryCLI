@@ -4,6 +4,7 @@ import { passedOver } from '../../../platform/errors/passedOver.js'
 import { markConsoleLent, markConsoleReturned } from '../../../platform/processes/process.js'
 import { reclaimTerminalAfterChild } from '../../../platform/shell/terminalHandback.js'
 import { drainStdin } from '../../renderer/instance/stdin.js'
+import { CURSOR_HOME, ERASE_SCREEN } from '../../renderer/termio/csi.js'
 import instances from '../../renderer/instances.js'
 
 type LentStreams = { stdin?: NodeJS.ReadStream; stdout?: NodeJS.WriteStream }
@@ -55,11 +56,12 @@ export async function lendTerminal<T>(
   }
 }
 
-function returnPressed(stdin: NodeJS.ReadStream): Promise<void> {
+function returnPressed(stdin: NodeJS.ReadStream, stdout: NodeJS.WriteStream, onResize: () => void): Promise<void> {
   return new Promise(resolve => {
     const wasRaw = stdin.isRaw === true
     const done = (): void => {
       stdin.removeListener('readable', onReadable)
+      stdout.removeListener('resize', onResize)
       if (!wasRaw) {
         try {
           stdin.setRawMode(false)
@@ -84,13 +86,17 @@ function returnPressed(stdin: NodeJS.ReadStream): Promise<void> {
       passedOver(error)
     }
     stdin.on('readable', onReadable)
+    stdout.on('resize', onResize)
   })
 }
 
 export async function showSignInAddressLine(address: string, streams: LentStreams = {}): Promise<boolean> {
   const shown = await lendTerminal(async (stdout, stdin) => {
-    stdout.write(`\n${address}\n\n${RETURN_TO_MERCURY_WORDS} `)
-    await returnPressed(stdin)
+    const line = `\n${address}\n\n${RETURN_TO_MERCURY_WORDS} `
+    stdout.write(line)
+    await returnPressed(stdin, stdout, () => {
+      stdout.write(ERASE_SCREEN + CURSOR_HOME + line)
+    })
   }, streams)
   return shown !== null
 }

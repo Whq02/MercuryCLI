@@ -85,7 +85,7 @@ function freshHome(id: string): string {
   return home
 }
 
-async function capture(opts: { id: string; home: string; keyed: boolean; sends: Send[]; rows?: number; total?: number; env?: Record<string, string> }): Promise<Capture> {
+async function capture(opts: { id: string; home: string; keyed: boolean; sends: Send[]; rows?: number; total?: number; env?: Record<string, string>; resizes?: Send[] }): Promise<Capture> {
   const api = await startFixtureApi([{ kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }])
   const cfgPath = join(SCRATCH, `cfg-${opts.id}.json`)
   const outPath = join(SCRATCH, `grid-${opts.id}.json`)
@@ -97,6 +97,7 @@ async function capture(opts: { id: string; home: string; keyed: boolean; sends: 
       cols: 120,
       rows: opts.rows ?? 40,
       sends: opts.sends,
+      ...(opts.resizes ? { resizes: opts.resizes } : {}),
       total: opts.total ?? 300,
       out: outPath,
     }),
@@ -392,6 +393,7 @@ console.log('L4 — the face’s OpenAI browser leg: c copies and the masked pas
 const AGAIN = 'press c again'
 const RETURN_WORDS = 'Press Enter to return to Mercury…'
 const NO_CLIPBOARD = { MERCURY_CLIPBOARD_FILE: '' }
+const NARROW = 97
 function lineScreen(frame: string): { address: string; rows: number; alone: boolean } {
   const lines = frame.split('\n')
   let end = 1
@@ -418,6 +420,7 @@ console.log('L5 — the face with no clipboard in reach: c says so, a second c w
     keyed: false,
     rows: 24,
     env: NO_CLIPBOARD,
+    resizes: [{ afterMark: 'kept', afterMs: 400, cols: NARROW, rows: 24 }],
     sends: [
       ...FACE_TO_ROSTER(),
       g(ROSTER_LEGEND, ENTER, { mark: 'roster', awaitSettleTicks: 3 }),
@@ -426,7 +429,8 @@ console.log('L5 — the face with no clipboard in reach: c says so, a second c w
       g(AGAIN, 'c', { mark: 'said', awaitSettleTicks: 3 }),
       g(RETURN_WORDS, '\x1b[O', { mark: 'line', awaitSettleTicks: 3 }),
       g(RETURN_WORDS, 'x', { mark: 'still', awaitSettleTicks: 3 }),
-      g(RETURN_WORDS, ENTER, { mark: 'kept', awaitSettleTicks: 3 }),
+      g(RETURN_WORDS, '', { mark: 'kept', awaitSettleTicks: 3 }),
+      g(RETURN_WORDS, ENTER, { mark: 'narrow', awaitPattern: `(?m)^.{${NARROW}}$`, awaitSettleTicks: 5 }),
       g(AGAIN, ESC, { mark: 'returned', awaitSettleTicks: 3 }),
       g(ROSTER_LEGEND, ESC, { mark: 'back', awaitSettleTicks: 3 }),
       ...QUIT,
@@ -436,7 +440,7 @@ console.log('L5 — the face with no clipboard in reach: c says so, a second c w
   const line = lineScreen(markText(c, 'line'))
   const returned = markText(c, 'returned')
   const before = failures
-  check('L5 the drive walked every screen', marksLanded(c, ['roster', 'pick', 'wait', 'said', 'line', 'still', 'kept', 'returned', 'back']), `exit ${c.status}`)
+  check('L5 the drive walked every screen', marksLanded(c, ['roster', 'pick', 'wait', 'said', 'line', 'still', 'kept', 'narrow', 'returned', 'back']), `exit ${c.status}`)
   check('L5 c with no clipboard in reach never says copied: the sentence names the second c', said.includes(AGAIN) && !said.includes(FACE_ACK) && draftDots(said, 'paste:') === 0, '', 'src/models/sign-in/signInCopy.ts words the unconfirmed copy; src/screen/boot-face/logins/flowKeys.ts reads it')
   check(
     'L5 the second c leaves Mercury’s screen for the address alone: from the first column, on rows the terminal itself wrapped, a blank row above, the return words under a blank row, nothing else',
@@ -446,6 +450,13 @@ console.log('L5 — the face with no clipboard in reach: c says so, a second c w
   )
   check('L5 it is the address the pane painted', said.replace(/\s+/g, '').includes(line.address), '', 'the second c in src/screen/boot-face/logins/flowKeys.ts must hand showSignInAddressLine the pane’s own address')
   check('L5 a focus report and a stray key leave the line up', lineScreen(markText(c, 'still')).address === line.address && lineScreen(markText(c, 'kept')).address === line.address, '', 'returnPressed in src/screen/boot-face/logins/lentTerminal.ts must end on Enter or a lone Esc only')
+  const narrow = lineScreen(markText(c, 'narrow'))
+  check(
+    `L5 the window made narrower while the line is up (120 to ${NARROW} columns): the line is written again at that width, the whole address and nothing else`,
+    narrow.alone && narrow.address === line.address && narrow.rows === Math.ceil(line.address.length / NARROW),
+    `${narrow.rows} rows · ${narrow.address.length} of ${line.address.length} chars · alone ${narrow.alone}`,
+    'showSignInAddressLine in src/screen/boot-face/logins/lentTerminal.ts must clear the screen and write the line again on a resize while it waits',
+  )
   check('L5 Enter returns to the waiting sign-in as it was: the sentence, an empty paste line', returned.includes(AGAIN) && draftDots(returned, 'paste:') === 0 && returned.includes('logins'), String(draftDots(returned, 'paste:')), 'lendTerminal in src/screen/boot-face/logins/lentTerminal.ts must give the screen and the keys back')
   check('L5 esc then returns to the roster', markText(c, 'back').includes(ROSTER_LEGEND))
   report('l5', c, ['paste:', AGAIN, RETURN_WORDS], failures > before)
