@@ -53,8 +53,38 @@ suite_env_guard() {
   exit 78
 }
 
+suite_home_physical() {
+  local path="$1" rest="" hops=0 link
+  while [ -n "$path" ] && [ "$path" != / ]; do
+    if [ -L "$path" ] && [ "$hops" -lt 40 ]; then
+      link="$(readlink "$path")"
+      hops=$((hops + 1))
+      case "$link" in /*) path="$link" ;; *) path="$(dirname "$path")/$link" ;; esac
+    else
+      rest="/$(basename "$path")$rest"
+      path="$(dirname "$path")"
+    fi
+  done
+  printf '%s\n' "${rest:-/}"
+}
+
+suite_home_under_account() {
+  local path="$1" account="$2" at="" part
+  local -a parts
+  IFS=/ read -r -a parts <<<"$path"
+  for part in ${parts[@]+"${parts[@]}"}; do
+    case "$part" in
+      ''|.) continue ;;
+      ..) at="${at%/*}"; continue ;;
+      .[mM][eE][rR][cC][uU][rR][yY]*) [ "${at:-/}" -ef "$account" ] && return 0 ;;
+    esac
+    at="$at/$part"
+  done
+  return 1
+}
+
 suite_home_guard() {
-  local runner="${1:?suite_home_guard: the path of the runner}" suite root pin own p o cand base was bun seeded temp
+  local runner="${1:?suite_home_guard: the path of the runner}" suite root pin own p o cand base was bun seeded temp account named
   pin="${MERCURY_CONFIG_DIR:-}"
   own=""
   [ -n "${HOME:-}" ] && own="${HOME%/}/.mercury"
@@ -68,6 +98,13 @@ suite_home_guard() {
       for base in "$own" "$o"; do
         [ -n "$cand" ] && [ -n "$base" ] && case "$cand" in "$base"|"$base"/*) was="named the operator's own home" ;; esac
       done
+    done
+  fi
+  if [ -n "$pin" ] && [ -z "$was" ]; then
+    account="$(env -u HOME "$BASH" -c 'printf %s ~' 2>/dev/null)"
+    case "$pin" in /*) named="$pin" ;; *) named="$PWD/$pin" ;; esac
+    for cand in "$named" "$(suite_home_physical "$named")"; do
+      suite_home_under_account "$cand" "$account" && was="named the operator's own home"
     done
   fi
   [ -n "$was" ] || return 0

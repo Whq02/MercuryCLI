@@ -82,6 +82,22 @@ home="$(first)"
 check "MERCURY_HOME alone is no pin: the run still gets a scratch home" "$([ "$rc" = 0 ] && under_temp "$home" && echo 0 || echo 1)" "rc=$rc home=$home"
 check "nothing was written under \$HOME/.mercury" "$(own_empty && echo 0 || echo 1)" "$(ls -A "$scratch/home/.mercury" | tr '\n' ' ')"
 
+echo "── every store under the account's own home is the operator's, whatever HOME says"
+account="$(env -u HOME bash -c 'printf %s ~')"
+pin_probe='. "$1" || exit 78; suite_env_guard "$2"; printf "%s\n" "${MERCURY_CONFIG_DIR:-}"'
+probe_pin() { clean BUN=/usr/bin/false MERCURY_CONFIG_DIR="$1" bash -c "$pin_probe" _ "$guard" "$wards" >"$scratch/out" 2>"$scratch/err"; }
+shown() { case "$1" in "$account"*) printf "<the account's home>%s" "${1#"$account"}" ;; *) printf '%s' "${1#"$scratch"}" ;; esac; }
+ln -s "$account/.mercury2" "$scratch/to-a-profile"
+for spelling in "$account/.mercury" "$account/.mercury2" "$account/.mercury2/sessions" "$account/absent/../.MERCURY2" "$scratch/to-a-profile"; do
+  probe_pin "$spelling"; rc=$?
+  home="$(first)"
+  check "MERCURY_CONFIG_DIR=$(shown "$spelling") is replaced by a scratch home" "$([ "$rc" = 0 ] && under_temp "$home" && echo 0 || echo 1)" "rc=$rc home=$(shown "$home"); suite_home_guard in scripts/lib/suite-env.sh asks the system for the account's home and takes every name there that begins .mercury, the pin as given and then its physical path"
+done
+for spelling in "$scratch/home/.mercury2" "$account/mercury2"; do
+  probe_pin "$spelling"; rc=$?
+  check "MERCURY_CONFIG_DIR=$(shown "$spelling") is kept: a store beside a stand-in HOME's own, or a name that does not begin .mercury, is not the operator's" "$([ "$rc" = 0 ] && [ "$(first)" = "$spelling" ] && echo 0 || echo 1)" "rc=$rc home=$(shown "$(first)")"
+done
+
 echo "── a pinned scratch home is kept as it is"
 probe_runner "$wards" BUN=/usr/bin/false MERCURY_CONFIG_DIR="$scratch/pinned"; rc=$?
 check "the pinned home is exported unchanged" "$([ "$rc" = 0 ] && [ "$(first)" = "$scratch/pinned" ] && echo 0 || echo 1)" "rc=$rc home=$(first)"
