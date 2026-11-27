@@ -101,6 +101,41 @@ export function resumeStdin(this: ResumeStdinReads): void {
   this.armScreenWatchdog()
 }
 
+export function returnPressedWhileLent(this: Pick<ScreenInstance, 'options'>, onResize: () => void): Promise<void> {
+  const { stdin, stdout } = this.options
+  return new Promise(resolve => {
+    const wasRaw = rawModeOn(stdin)
+    const done = (): void => {
+      stdin.removeListener('readable', onReadable)
+      stdout.removeListener('resize', onResize)
+      if (!wasRaw) {
+        try {
+          stdin.setRawMode(false)
+        } catch (error) {
+          passedOver(error)
+        }
+      }
+      resolve()
+    }
+    const onReadable = (): void => {
+      for (let chunk: unknown = stdin.read(); chunk !== null; chunk = stdin.read()) {
+        const keys = typeof chunk === 'string' ? chunk : Buffer.from(chunk as Uint8Array).toString('latin1')
+        if (keys === '\x1b' || /[\r\n\x03\x04]/.test(keys)) {
+          done()
+          return
+        }
+      }
+    }
+    try {
+      stdin.setRawMode(true)
+    } catch (error) {
+      passedOver(error)
+    }
+    stdin.on('readable', onReadable)
+    stdout.on('resize', onResize)
+  })
+}
+
 type RecoverStdinReads = Pick<
   ScreenInstance,
   | 'options' | 'isTTY' | 'currentTree' | 'isUnmounted' | 'storedReadableListeners' | 'wasRawMode' | 'consoleReadHeld' | 'stdinRecoveryArmed' | 'render'
