@@ -1,4 +1,5 @@
 import { createSplashCore, HEADSTD, WORD, mixc } from '../../assets/splash/splash-core.mjs'
+import { rgbToXterm256 } from '../../src/screen/renderer/cell-grid.ts'
 import { AnsiEmulator } from '../ink-runtime/ansiEmulator.js'
 
 let failures = 0
@@ -81,8 +82,32 @@ console.log('\n§2 the wordmark carries no two-colour cell and is unchanged')
   check('the wordmark is drawn with ▀ ▄ █ and spaces only, no cell with a background', glyphs.every(ch => ' ▀▄█'.includes(ch)) && lines.every(line => !line.includes('\x1b[48;')))
 }
 
-console.log('\n§3 the 256-colour and plain faces keep the upper-half glyph: without a painted background the top pixel is the one that shows')
-for (const [label, core] of [['256-colour', createSplashCore({ truecolor: false, accent: 'crab' })], ['plain', createSplashCore({ nocolor: true, accent: 'crab' })]] as const) {
+console.log('\n§3 the 256-colour head paints two-colour cells as ▄ with both 256 inks; the plain face keeps ▀ with no background')
+{
+  const c256 = createSplashCore({ truecolor: false, accent: 'crab' })
+  const grid = pairs(HEADSTD)
+  const { lines, width } = c256.rasterHard(HEADSTD)
+  const wrong256: string[] = []
+  let twoCount = 0
+  lines.forEach((line, y) => {
+    const cells = cellsOf(line, width)
+    grid[y]!.forEach((pair, x) => {
+      if (pair.kind !== 'two') return
+      twoCount++
+      const cell = cells[x]!
+      const topRgb = ink[pair.top]!
+      const botRgb = ink[pair.bottom]!
+      const wantFg = `38;5;${rgbToXterm256(botRgb[0]!, botRgb[1]!, botRgb[2]!)}`
+      const wantBg = `48;5;${rgbToXterm256(topRgb[0]!, topRgb[1]!, topRgb[2]!)}`
+      if (!(cell.ch === '▄' && cell.fg === wantFg && cell.bg === wantBg)) {
+        wrong256.push(`(${x},${y}) ${cell.ch} fg ${cell.fg} bg ${cell.bg} want ${wantFg}/${wantBg}`)
+      }
+    })
+  })
+  check('256-colour: the seventeen two-colour cells go out as ▄ with both 256 inks from rgbToXterm256', twoCount === 17 && wrong256.length === 0, wrong256.slice(0, 4).join(' · '))
+}
+{
+  const core = createSplashCore({ nocolor: true, accent: 'crab' })
   const grid = pairs(HEADSTD)
   const { lines, width } = core.rasterHard(HEADSTD)
   let twoAsUpper = 0
@@ -95,7 +120,7 @@ for (const [label, core] of [['256-colour', createSplashCore({ truecolor: false,
       if (cells[x]!.bg !== 'default') withBackground++
     })
   })
-  check(`${label}: the seventeen two-colour cells stay ▀ with no background`, twoAsUpper === 17 && withBackground === 0, `${twoAsUpper} as ▀, ${withBackground} with a background`)
+  check('plain: the seventeen two-colour cells stay ▀ with no background', twoAsUpper === 17 && withBackground === 0, `${twoAsUpper} as ▀, ${withBackground} with a background`)
 }
 
 console.log(`\n${failures === 0 ? '[PASS]' : '[FAIL]'} face lower half: ${checks - failures}/${checks} checks`)

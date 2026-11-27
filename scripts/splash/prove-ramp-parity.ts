@@ -280,7 +280,24 @@ t.section('§7 — GLOW: accent families + the mirrored greeting law')
       `${hexOf(f.main)} ${hexOf(f.deep)} ${hexOf(f.soft)}`,
     )
   }
-  t.check('crab keeps the authored 256 pair (T256.red 167 / T256.dimred 95)', fams.crab!.t256 === 167 && fams.crab!.t256deep === 95, `${fams.crab!.t256}/${fams.crab!.t256deep}`)
+  const { rgbToXterm256 } = await import('../../src/screen/renderer/cell-grid.ts')
+  const to256 = (t2: number[]): number => rgbToXterm256(t2[0]!, t2[1]!, t2[2]!)
+  const sampleOf = (ramp: number[][], u: number): number[] => {
+    const s = Math.min(1, Math.max(0, u)) * (ramp.length - 1)
+    const i = Math.min(ramp.length - 2, Math.floor(s))
+    return mixc(ramp[i]!, ramp[i + 1]!, s - i)
+  }
+  const fams256Ok = Object.entries(fams).every(([, f]) => {
+    const ext = f as typeof f & { t256mid?: number; wordR256?: number[]; wordD256?: number[] }
+    const wantR = Array.from({ length: core.WORD_W }, (_, x) => to256(sampleOf(f.ramp, x / (core.WORD_W - 1))))
+    const wantD = Array.from({ length: core.WORD_W }, (_, x) => to256(mixc(f.deep, sampleOf(f.ramp, x / (core.WORD_W - 1)), 0.5)))
+    return f.t256 === to256(f.main) &&
+      f.t256deep === to256(f.deep) &&
+      ext.t256mid === to256(mixc(f.deep, f.main, 0.5)) &&
+      JSON.stringify(ext.wordR256) === JSON.stringify(wantR) &&
+      JSON.stringify(ext.wordD256) === JSON.stringify(wantD)
+  })
+  t.check('all four families bake t256, t256deep, t256mid, wordR256 and wordD256 from rgbToXterm256', fams256Ok)
   t.check(
     'DEFAULT_CRITTER == critterData.DEFAULT_CRITTER_KEY (a fresh splash and its booted session wear the same creature)',
     core.DEFAULT_CRITTER === cd.DEFAULT_CRITTER_KEY,
