@@ -2,7 +2,8 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, symlinkSync, unlinkSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, readdirSync, symlinkSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -91,6 +92,27 @@ const fixtureHint = 'fix looksLikeProofFixtureKey in src/models/roads/account-sl
   check('the Gemini stored-key slot exists', storedSlot !== undefined, JSON.stringify(gemini?.slots.map(s => s.id)) + ' — deriveFamilySlotGroups in src/models/roads/accountSlots.ts must yield a gemini:stored-key slot for a stored key')
   check('its state note says the key is a test key, not a real Gemini API key, and names the removal gesture', (storedSlot?.stateNote ?? '') === 'a test key (zz-SECRE…), not a real Gemini API key — ⌫ removes it', (storedSlot?.stateNote ?? '<none>') + ' — the stored-key note is built in src/models/roads/account-slots/gemini.ts')
   writeStoredGeminiApiKey(null)
+}
+
+{
+  const root = join(import.meta.dir, '..', '..')
+  const standIn = mkdtempSync(join(tmpdir(), 'prove-fixture-account-'))
+  mkdirSync(join(standIn, 'tmp'))
+  const proofWrites = (store: string): { said: string; left: string[] } => {
+    mkdirSync(store, { recursive: true })
+    const script = `globalThis.MACRO = { VERSION: '1.0.0' }; process.env.NODE_ENV = 'test'; const { writeStoredGeminiApiKey } = await import(${JSON.stringify(join(root, 'src', 'models', 'sign-in', 'account-ledger', 'providerSecrets.ts'))}); try { writeStoredGeminiApiKey(${JSON.stringify(FIXTURE)}); console.log('written') } catch (error) { console.log(error?.code ?? 'threw') }`
+    const ran = spawnSync(process.execPath, ['--eval', script], { cwd: root, encoding: 'utf8', env: { PATH: process.env.PATH ?? '', HOME: standIn, USERPROFILE: standIn, TMPDIR: join(standIn, 'tmp'), MERCURY_CONFIG_DIR: store, MERCURY_PROOF: 'prove-a-store-write.ts', MERCURY_CREDENTIAL_STORE: 'file', MERCURY_GEMINI_API_BASE: 'http://127.0.0.1:1', MERCURY_LOCAL_PROBE_TARGETS: 'none' } })
+    return { said: ran.stdout.trim().split('\n').at(-1) || ran.stderr.trim().slice(-200), left: readdirSync(store) }
+  }
+  const productHint = "homeIsAccountStore in src/models/roads/proofHomeGuard.ts must take the first store under homedir() and every home homeOf in src/platform/profiles/profiles.ts spells beside it, and no other folder"
+  for (const name of ['.mercury', '.mercury2', '.mercury10', join('.mercury3', 'nested')]) {
+    const got = proofWrites(join(standIn, name))
+    check(`the product refuses a proof's write of the fixture key into ${name} under the home it was started in (a store of the account's own), and nothing is written`, got.said === 'EPROOFHOME' && got.left.length === 0, `${JSON.stringify(got)} — ${productHint}`)
+  }
+  for (const name of ['.mercury-account-b', '.mercury02', 'mercury2', join('scratch', '.mercury2')]) {
+    const got = proofWrites(join(standIn, name))
+    check(`the same write into ${name} goes through: a folder that only begins .mercury, or stands elsewhere, is no profile's store`, got.said === 'written' && got.left.length > 0, `${JSON.stringify(got)} — ${productHint}`)
+  }
 }
 
 
