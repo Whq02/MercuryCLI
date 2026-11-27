@@ -44,7 +44,7 @@ const escSends = (run: ArenaRun): number[] =>
 section('provision — the card for the one-time browser download names the build, its size and where it lands, and asks for a download')
 {
   const QUESTION = 'Download this browser build?'
-  const CARD_UP = 'tell Mercury what to do differently'
+  const CARD_UP = 'differently'
   const run = await runArtifactArena({
     cols: 120,
     rows: 36,
@@ -86,7 +86,7 @@ section('provision — the card for the one-time browser download names the buil
 section('first visit — the origin card says what a yes covers: the origin for the session, linked pages read without asking, a new address asked')
 {
   const ORIGIN = 'http://127.0.0.1:65530'
-  const CARD_UP = 'tell Mercury what to do differently'
+  const CARD_UP = 'differently'
   const run = await runArtifactArena({
     cols: 120,
     rows: 36,
@@ -126,7 +126,7 @@ section('first visit — the origin card says what a yes covers: the origin for 
 section('attach — the card names the endpoint, says what Mercury will see, and asks to attach')
 {
   const ENDPOINT = 'http://127.0.0.1:65531'
-  const CARD_UP = 'tell Mercury what to do differently'
+  const CARD_UP = 'differently'
   const attachCardFix = 'the attach card is drawn by src/permissions/cards/browser/BrowserPermissionRequest.tsx with words from src/integrations/browser/browserWords.ts'
   const run = await runArtifactArena({
     cols: 120,

@@ -37,7 +37,7 @@ console.log('\n── §2 REAL BINARY: CI=true, zero credentials, seeded home �
     out,
     cwd: process.cwd(),
     sends: [
-      { atTick: 999, awaitText: 'sign in to providers', minTick: 5, awaitSettleTicks: 2, data: '', mark: 'boot' },
+      { atTick: 999, awaitText: 'no sign-in yet', minTick: 5, awaitSettleTicks: 2, data: '', mark: 'boot' },
     ],
   }
   const cfgPath = join(scratch, 'boot-cfg.json')
@@ -76,7 +76,7 @@ console.log('\n── §2 REAL BINARY: CI=true, zero credentials, seeded home �
     painted = boot.replace(/\s/g, '').length
   } catch {
   }
-  check('the Logins row adverts the way in (sign in to providers)', boot.includes('Logins') && boot.includes('sign in to providers'), '', 'the Logins row text comes from loginsGlance in src/screen/boot-face/logins/facts.ts; the boot face must paint it when no provider is signed in')
+  check('the face names the way in and says no provider is signed in (Logins/Keys, no sign-in yet)', boot.includes('Logins/Keys') && boot.includes('no sign-in yet'), '', 'the model line under the list reads NO_SIGN_IN_ROW (src/models/catalogue/computedDefault.ts) when no provider is signed in, and Logins/Keys is a row of the list (assets/splash/splash-core.mjs); the boot face must paint both on a keyless start')
   check('the face is live (New Session standing — never an error screen, never a wedge)', boot.includes('New Session'), '', 'the boot face did not paint New Session; rerun with CI_KEYLESS_KEEP_SCRATCH=1 and look at the captured boot.json grid for an error screen or an empty frame')
   check('a real paint, not a near-blank grid', painted > 200, `${painted} painted glyphs`, 'the captured frame is near blank; the app drew little or nothing before the capture ended, so check that dist/mercury.mjs is current and that the vshot capture saw the boot face')
 
