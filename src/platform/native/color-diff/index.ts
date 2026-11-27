@@ -1,7 +1,6 @@
 import { shouldSkipHighlight } from '../../../screen/highlighted-code/cliHighlight.js'
 import { diffArrays } from 'diff'
-import { rgbToXterm256 } from '../../../screen/renderer/cell-grid.js'
-import { truecolorActive } from '../../../screen/renderer/colorize.js'
+import { colorDepth, rgbSgr } from '../../../screen/renderer/colorize.js'
 import { stringWidth } from '../../../screen/renderer/stringWidth.js'
 import { expandTabs } from '../../../screen/renderer/tabstops.js'
 import { logError } from '../../logs/errorLog.js'
@@ -23,20 +22,13 @@ function paletteIndex(index: number): Color {
 
 const TERMINAL_DEFAULT: Color = { r: 0, g: 0, b: 0, a: 1 }
 
-type ColorMode = 'truecolor' | 'color256'
-
-function detectColorMode(): ColorMode {
-  return truecolorActive() ? 'truecolor' : 'color256'
-}
-
-
 const RESET = '\x1b[0m'
 const DIM = '\x1b[2m'
 const UNDIM = '\x1b[22m'
 
 type StyledBlock = { text: string; fg: Color; bg: Color }
 
-function fgEscape(color: Color, mode: ColorMode): string {
+function fgEscape(color: Color): string {
   if (color.a === 0) {
     const idx = color.r
     if (idx < 8) return `\x1b[${30 + idx}m`
@@ -44,11 +36,10 @@ function fgEscape(color: Color, mode: ColorMode): string {
     return `\x1b[38;5;${idx}m`
   }
   if (color.a === 1) return '\x1b[39m'
-  if (mode === 'truecolor') return `\x1b[38;2;${color.r};${color.g};${color.b}m`
-  return `\x1b[38;5;${rgbToXterm256(color.r, color.g, color.b)}m`
+  return rgbSgr(color.r, color.g, color.b, 'foreground')
 }
 
-function bgEscape(color: Color, mode: ColorMode): string {
+function bgEscape(color: Color): string {
   if (color.a === 0) {
     const idx = color.r
     if (idx < 8) return `\x1b[${40 + idx}m`
@@ -56,21 +47,19 @@ function bgEscape(color: Color, mode: ColorMode): string {
     return `\x1b[48;5;${idx}m`
   }
   if (color.a === 1) return '\x1b[49m'
-  if (mode === 'truecolor') return `\x1b[48;2;${color.r};${color.g};${color.b}m`
-  return `\x1b[48;5;${rgbToXterm256(color.r, color.g, color.b)}m`
+  return rgbSgr(color.r, color.g, color.b, 'background')
 }
 
 function emitBlocks(
   blocks: StyledBlock[],
-  mode: ColorMode,
   dim: boolean,
   skipBackgrounds: boolean,
 ): string {
   let out = RESET
   if (dim) out += DIM
   for (const block of blocks) {
-    out += fgEscape(block.fg, mode)
-    if (!skipBackgrounds) out += bgEscape(block.bg, mode)
+    out += fgEscape(block.fg)
+    if (!skipBackgrounds) out += bgEscape(block.bg)
     out += block.text
   }
   out += RESET
@@ -177,7 +166,7 @@ function buildDiffTheme(themeName: string): DiffTheme {
       scopes: LIGHT_SCOPES,
     }
   }
-  if (detectColorMode() === 'truecolor') {
+  if (colorDepth() === 'truecolor') {
     return {
       addedLineBg: rgb(8, 38, 32),
       addedWordBg: rgb(14, 64, 54),
@@ -575,7 +564,7 @@ function renderLines(
   hasMarkers: boolean,
   wordRanges: Map<number, CharRange[]>,
 ): string[] {
-  const mode = detectColorMode()
+  const plain = !hasMarkers || colorDepth() === '16'
   const theme = buildDiffTheme(themeName)
   const language = detectLanguage(filePath, firstLine)
   const effectiveWidth = Math.max(1, width - gutterWidth - 2 - (hasMarkers ? 1 : 0))
@@ -645,7 +634,7 @@ function renderLines(
       if (!marked && !dim) {
         gutter = { ...gutter, text: `${DIM}${gutter.text}${UNDIM}` }
       }
-      out.push(emitBlocks([gutter, ...withMarker], mode, dim, !hasMarkers))
+      out.push(emitBlocks([gutter, ...withMarker], dim, plain))
     })
   })
   return out

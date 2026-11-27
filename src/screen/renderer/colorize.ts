@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { rgbToXterm256 } from './cell-grid.js'
+import { rgbToAnsi16, rgbToAnsi8, rgbToXterm256 } from './cell-grid.js'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { isEnvTruthy } from '../../platform/environment/envUtils.js'
 import instances from './instances.js'
@@ -134,6 +134,11 @@ export function colorDepthWhy(): string {
   return 'the terminal advertises fewer than 256 colors'
 }
 
+export function colorDepth(): 'truecolor' | '256' | '16' | 'none' {
+  if (colorStripped()) return 'none'
+  return chalk.level >= 3 ? 'truecolor' : chalk.level === 2 ? '256' : '16'
+}
+
 type Painter = { fg: (s: string) => string; bg: (s: string) => string }
 
 const NAMED_PAINTERS: Record<string, Painter> = {
@@ -165,9 +170,19 @@ function hexChannels(color: string): [number, number, number] {
   return [(value >> 16) & 255, (value >> 8) & 255, value & 255]
 }
 
-function paintNearest256(str: string, r: number, g: number, b: number, type: ColorType): string {
-  const index = rgbToXterm256(r, g, b)
-  return type === 'foreground' ? chalk.ansi256(index)(str) : chalk.bgAnsi256(index)(str)
+function paintNearest(str: string, r: number, g: number, b: number, type: ColorType, depth: '256' | '16'): string {
+  if (type === 'foreground') return chalk.ansi256(depth === '256' ? rgbToXterm256(r, g, b) : rgbToAnsi16(r, g, b))(str)
+  return chalk.bgAnsi256(depth === '256' ? rgbToXterm256(r, g, b) : rgbToAnsi8(r, g, b))(str)
+}
+
+export function rgbSgr(r: number, g: number, b: number, type: ColorType): string {
+  const depth = colorDepth()
+  const channel = type === 'foreground' ? 38 : 48
+  if (depth === 'truecolor') return `\x1b[${channel};2;${r};${g};${b}m`
+  if (depth !== '16') return `\x1b[${channel};5;${rgbToXterm256(r, g, b)}m`
+  if (type === 'background') return `\x1b[${40 + rgbToAnsi8(r, g, b)}m`
+  const index = rgbToAnsi16(r, g, b)
+  return `\x1b[${index < 8 ? 30 + index : 82 + index}m`
 }
 
 export function colorize(
@@ -188,7 +203,8 @@ export function colorize(
   }
 
   if (color.startsWith('#')) {
-    if (chalk.level === 2) return paintNearest256(str, ...hexChannels(color), type)
+    const depth = colorDepth()
+    if (depth === '256' || depth === '16') return paintNearest(str, ...hexChannels(color), type, depth)
     return type === 'foreground' ? chalk.hex(color)(str) : chalk.bgHex(color)(str)
   }
 
@@ -205,7 +221,8 @@ export function colorize(
     const r = Number(match[1])
     const g = Number(match[2])
     const b = Number(match[3])
-    if (chalk.level === 2) return paintNearest256(str, r, g, b, type)
+    const depth = colorDepth()
+    if (depth === '256' || depth === '16') return paintNearest(str, r, g, b, type, depth)
     return type === 'foreground' ? chalk.rgb(r, g, b)(str) : chalk.bgRgb(r, g, b)(str)
   }
 

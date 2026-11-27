@@ -4278,10 +4278,10 @@ src/screen/renderer/cell-grid.ts	INVERSE_CODE	process	module	Load-time table wit
 src/screen/renderer/cell-grid.ts	MARKS_A_SPACE	process	module	Load-time lookup with no local writer
 src/screen/renderer/cell-grid.ts	MATCH_FG_CODE	process	module	Load-time table with no local writer
 src/screen/renderer/cell-grid.ts	OSC8_FORM	process	module	Load-time lookup with no local writer
+src/screen/renderer/cell-grid.ts	PALETTE_OKLAB	process	module	load-time data; no local writer
 src/screen/renderer/cell-grid.ts	TRUECOLOR_FORM	process	module	Load-time table with no local writer
 src/screen/renderer/cell-grid.ts	UNDERLINE_CODE	process	module	Load-time table with no local writer
 src/screen/renderer/cell-grid.ts	VISIBLE_ON_SPACE	process	module	Load-time lookup with no local writer
-src/screen/renderer/cell-grid.ts	XTERM256_OKLAB	process	module	load-time data; no local writer
 src/screen/renderer/cell-grid.ts	clearRegion	reset-export
 src/screen/renderer/cell-grid.ts	nearestMemo	process	module	pure memo of the nearest palette index keyed by packed RGB, emptied at 4096 colours
 src/screen/renderer/cell-grid.ts	packedBlankBuffer	process	module	reusable 8-byte scratch ArrayBuffer for synchronous blankCell64ForStyle packing

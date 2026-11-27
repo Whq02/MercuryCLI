@@ -1,3 +1,4 @@
+prove-16-colour-paint-is-basic.ts
 prove-256-paint-is-the-theme.ts
 prove-background-notice-fold.ts
 prove-backspace-burst.ts

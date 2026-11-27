@@ -1,5 +1,4 @@
-import chalk from 'chalk'
-import { CHALK_DISABLED_FOR_NO_COLOR, monochromeThemeActive } from '../renderer/colorize.js'
+import { colorDepth } from '../renderer/colorize.js'
 import type { RecessTransform } from '../renderer/cell-grid.js'
 import type { MercuryThemeTokens } from '../theme/mercuryTokens.js'
 import { flagEnabled } from '../../platform/substrate/flagRegistry.js'
@@ -13,8 +12,8 @@ function parseHex(c: string | undefined): [number, number, number] | null {
 
 export function recessBackdropEnabled(): boolean {
   if (!flagEnabled('MERCURY_RECESS')) return false
-  if (CHALK_DISABLED_FOR_NO_COLOR || monochromeThemeActive()) return false
-  return chalk.level >= 2
+  const depth = colorDepth()
+  return depth === 'truecolor' || depth === '256'
 }
 
 export function recessTargetFor(tokens: MercuryThemeTokens): RecessTransform | null {
@@ -22,5 +21,5 @@ export function recessTargetFor(tokens: MercuryThemeTokens): RecessTransform | n
   const canvas = parseHex(tokens.canvas) ?? parseHex(tokens.surface0)
   const ink = parseHex(tokens.textPrimary)
   if (!canvas || !ink) return null
-  return { canvas, ink, quantize256: chalk.level === 2 }
+  return { canvas, ink, quantize256: colorDepth() === '256' }
 }
