@@ -1,4 +1,4 @@
-const T256 = { cream: 230, red: 167, faint: 243, dim: 137, dimred: 95 }
+const T256 = {"cream":254,"ivory":254,"red":167,"faint":244,"dim":247,"dimred":88,"midred":124,"dune":238,"teal":72,"amber":179,"crimson":167,"dark":233,"black":16}
 const CREAM = [240, 232, 214]
 const RED = [221, 68, 68]
 const VOID = [13, 24, 27]
@@ -275,10 +275,10 @@ const rampSample = u => {
 }
 
 const ACCENT_FAMILIES = {
-  crab: { main: [221,68,68], deep: [123,50,50], soft: [229,132,132], ramp: [[221,68,68],[229,132,132],[232,183,175]], t256: 167, t256deep: 95 },
-  octopus: { main: [176,123,224], deep: [110,75,160], soft: [200,167,223], ramp: [[176,123,224],[200,167,223],[219,199,222]], t256: 140, t256deep: 61 },
-  jellyfish: { main: [111,199,232], deep: [63,126,150], soft: [161,212,228], ramp: [[111,199,232],[161,212,228],[199,222,224]], t256: 80, t256deep: 66 },
-  clam: { main: [22,216,176], deep: [14,147,119], soft: [108,222,194], ramp: [[22,216,176],[108,222,194],[173,227,208]], t256: 43, t256deep: 30 },
+  crab: { main: [221,68,68], deep: [123,50,50], soft: [229,132,132], ramp: [[221,68,68],[229,132,132],[232,183,175]], t256: 167, t256deep: 88, t256mid: 124, wordR256: [167,167,167,167,167,167,167,167,167,167,167,167,167,167,167,167,167,167,167,167,174,174,174,174,174,174,174,174,174,174,174,174,174,174,174,174,174,174,174,181,181,181,181,181,181,181,181,181,181,181,181,181,181], wordD256: [124,124,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,138] },
+  octopus: { main: [176,123,224], deep: [110,75,160], soft: [200,167,223], ramp: [[176,123,224],[200,167,223],[219,199,222]], t256: 140, t256deep: 61, t256mid: 97, wordR256: [140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,183,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,252,252,252], wordD256: [97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,139,139,139,139,139,139,139,139,139,139,139] },
+  jellyfish: { main: [111,199,232], deep: [63,126,150], soft: [161,212,228], ramp: [[111,199,232],[161,212,228],[199,222,224]], t256: 81, t256deep: 31, t256mid: 74, wordR256: [81,81,81,81,117,117,117,117,117,117,117,117,117,117,117,117,117,117,117,116,116,116,116,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,188,253], wordD256: [74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,73,73,73,73,73,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109] },
+  clam: { main: [22,216,176], deep: [14,147,119], soft: [108,222,194], ramp: [[22,216,176],[108,222,194],[173,227,208]], t256: 43, t256deep: 29, t256mid: 36, wordR256: [43,43,43,43,43,43,43,43,43,43,43,43,43,79,79,79,79,79,79,79,79,79,79,79,79,79,79,79,115,115,115,115,115,115,115,115,115,115,115,115,115,115,116,116,116,116,116,151,152,152,152,152,152], wordD256: [36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72] },
 }
 const DEFAULT_CRITTER = "crab"
 
@@ -586,21 +586,16 @@ function hexFg(hex, fb) {
   if (!TRUECOLOR) return `\x1b[38;5;${fb}m`
   return rgbFg([parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)])
 }
-function fg256ish(px) {
-  if (NOCOLOR) return ''
-  const [r, g, b] = px
-  const is = a => a[0] === r && a[1] === g && a[2] === b
-  if (is(ACC.main) || is(ACC_MID)) return `\x1b[38;5;${ACC.t256}m`
-  if (is(ACC.deep)) return `\x1b[38;5;${ACC.t256deep}m`
-  if (r > 180 && g > 160) return `\x1b[38;5;${T256.cream}m`
-  if (r > 140 && g < 90) return `\x1b[38;5;${T256.red}m`
-  if (r > 90 && g < 60) return `\x1b[38;5;${T256.dimred}m`
-  return `\x1b[38;5;${T256.dim}m`
-}
-
-function paint(px) { return TRUECOLOR ? rgbFg(px) : fg256ish(px) }
-function paintBg(px) { return TRUECOLOR ? rgbBg(px) : '' }
-
+const BY256 = new Map([
+  [CREAM.join(), T256.cream], [MIDCREAM.join(), T256.dim], [RED.join(), T256.red],
+  [DEEPRED.join(), T256.dimred], [MIDRED.join(), T256.midred], [DUNE.join(), T256.dune],
+  [TEALC.join(), T256.teal], [AMBERC.join(), T256.amber], [CRIMSONC.join(), T256.crimson],
+  [GROUND_FAMILIES.dark.join(), T256.dark], [GROUND_FAMILIES['true-black'].join(), T256.black],
+  [ACC.main.join(), ACC.t256], [ACC.deep.join(), ACC.t256deep], [ACC_MID.join(), ACC.t256mid ?? ACC.t256],
+])
+const code256Of = px => (typeof px === 'number' ? px : BY256.get(px.join()) ?? T256.dim)
+function paint(px) { return NOCOLOR ? '' : TRUECOLOR ? rgbFg(px) : `\x1b[38;5;${code256Of(px)}m` }
+function paintBg(px) { return NOCOLOR ? '' : TRUECOLOR ? rgbBg(px) : `\x1b[48;5;${code256Of(px)}m` }
 const PXA = { E: CREAM, e: MIDCREAM, R: ACC.main, r: ACC.deep, d: ACC_MID }
 
 function rasterHard(grid, toneAt) {
@@ -620,7 +615,7 @@ function rasterHard(grid, toneAt) {
       else if (t !== '.' && b === '.') { sgr = paint(px(t, x)); cell = '▀' }
       else if (t === '.' && b !== '.') { sgr = paint(px(b, x)); cell = '▄' }
       else if (t === b) { sgr = paint(px(t, x)); cell = '█' }
-      else if (TRUECOLOR) { sgr = paint(px(b, x)) + paintBg(px(t, x)); cell = '▄' }
+      else if (!NOCOLOR) { sgr = paint(px(b, x)) + paintBg(px(t, x)); cell = '▄' }
       else { sgr = paint(px(t, x)) + paintBg(px(b, x)); cell = '▀' }
       if (sgr !== run) { line += R + sgr; run = sgr }
       line += cell
@@ -644,7 +639,12 @@ const sampleFace = u => {
 }
 
 const wordTone = (ch, x, W, phase = null) => {
-  if (!TRUECOLOR || (ch !== 'R' && ch !== 'd')) return PXA[ch]
+  if (ch !== 'R' && ch !== 'd') return PXA[ch]
+  if (!TRUECOLOR) {
+    if (NOCOLOR) return PXA[ch]
+    const tbl = ch === 'R' ? ACC.wordR256 : ACC.wordD256
+    return tbl ? tbl[W === tbl.length ? x : Math.min(tbl.length - 1, Math.max(0, Math.round((x / Math.max(1, W - 1)) * (tbl.length - 1))))] : ch === 'R' ? ACC.t256 : ACC.t256deep
+  }
   let u = x / (W - 1)
   const boost = glowBoostAt(x, phase)
   if (boost > 0) u = u + boost * (1 - u)
@@ -653,18 +653,17 @@ const wordTone = (ch, x, W, phase = null) => {
 }
 const wordToneGlow = phase => (ch, x, W) => wordTone(ch, x, W, phase)
 function rampLabel(text) {
-  if (!TRUECOLOR) return hexFg(IVORY, T256.cream) + text
+  if (NOCOLOR) return text
   let out = ''
   let run = null
   for (let i = 0; i < text.length; i++) {
     const u = (i + 0.5) / text.length
-    const sgr = rgbFg(sampleFace(u))
+    const sgr = TRUECOLOR ? rgbFg(sampleFace(u)) : `\x1b[38;5;${ACC.wordR256 ? ACC.wordR256[Math.min(ACC.wordR256.length - 1, Math.max(0, Math.round(u * (ACC.wordR256.length - 1))))] : ACC.t256}m`
     if (sgr !== run) { out += sgr; run = sgr }
     out += text[i]
   }
   return out
 }
-
 const PLATE_TONE = VOID
 const onPlate = s => {
   const p = paintBg(PLATE_TONE)
@@ -1461,7 +1460,7 @@ function composeCompactFace(cols, rows, opts) {
 
   return {
     R, BOLD, BOLD_UL, DIM,
-    rgbFg, rgbBg, hexFg, fg256ish, paint, paintBg,
+    rgbFg, rgbBg, hexFg, paint, paintBg,
     rasterHard, dividerLine, wordTone, wordToneGlow, rampLabel, rampSample, sampleFace,
     boxTop, boxBot, boxSep, boxRow, clipVis,
     composeHint, composeCard, composeStrip, composeProjects, composeLockup, composeCompactFace, placeBlock,

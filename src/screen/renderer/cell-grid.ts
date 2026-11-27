@@ -280,6 +280,8 @@ function oklab(r: number, g: number, b: number): Lab {
 
 const XTERM256_OKLAB: readonly Lab[] = Array.from({ length: 240 }, (_, i) => oklab(...(i < 216 ? cubeRgb(i) : grayRgb(i + 16))))
 
+const XTERM256_CHROMA_WEIGHT = 2
+
 const NEAREST_MEMO_LIMIT = 4096
 
 const nearestMemo = new Map<number, number>()
@@ -295,7 +297,7 @@ export function rgbToXterm256(r: number, g: number, b: number): number {
   let least = Infinity
   for (let i = 0; i < XTERM256_OKLAB.length; i++) {
     const [pl, pa, pb] = XTERM256_OKLAB[i]!
-    const distance = (pl - l) ** 2 + (pa - a) ** 2 + (pb - bb) ** 2
+    const distance = (pl - l) ** 2 + XTERM256_CHROMA_WEIGHT * (pa - a) ** 2 + XTERM256_CHROMA_WEIGHT * (pb - bb) ** 2
     if (distance < least) {
       least = distance
       nearest = i
