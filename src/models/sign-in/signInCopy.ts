@@ -12,9 +12,16 @@ export function signInCopyAnswerOf(receipt: Pick<ClipboardReceipt, 'settled' | '
   return receipt.noRoad ? 'none' : 'offered'
 }
 
+const selectAbove = (what: SignInCopied): string => `select the ${what} above`
+
 export function signInCopyNote(answer: SignInCopyAnswer, what: SignInCopied): string | null {
   if (answer === 'copied') return null
-  return answer === 'none' ? `nothing copied — select the ${what} above` : `sent to your terminal — if nothing pastes, select the ${what} above`
+  return answer === 'none' ? `nothing copied — ${selectAbove(what)}` : `sent to your terminal — if nothing pastes, ${selectAbove(what)}`
+}
+
+export function signInCopyNoteWhereCut(note: string): string {
+  const what = (['URL', 'code'] as const).find(word => note.endsWith(selectAbove(word)))
+  return what === undefined ? note : `${note.slice(0, -selectAbove(what).length)}make this window taller to read the whole ${what}`
 }
 
 export function signInCopySaid(answer: SignInCopyAnswer, what: SignInCopied): SignInCopySaid {

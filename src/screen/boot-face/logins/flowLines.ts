@@ -3,6 +3,7 @@ import { GEMINI_CLIENT_STORED_UNVERIFIED_NOTE } from '../../../models/roads/gemi
 import { geminiGuidePaneLines, geminiGuideStep, type GeminiGuideOpenState, GEMINI_PLAN_LEG_DETAIL, GEMINI_PLAN_LEG_TITLE } from '../../../models/sign-in/gemini-connect/geminiConnectGuide.js';
 import { wrapPlain } from '../BootHealthScreen.js';
 import { META_LOGIN_FAMILY_LABEL } from '../../../models/sign-in/flow-cards/loginFamilyRows.js';
+import { signInCopyNoteWhereCut } from '../../../models/sign-in/signInCopy.js';
 import { clampText, DETAIL_W } from './facts.js';
 import { receiptPaneLines, signedInStatusWayOut, maskedDraftLine, anthropicFlowLegendOf, anthropicFlowStatusOf, anthropicFlowPaneLines, wrapHard } from './anthropicLines.js';
 import { keyPromptPaneLines, type FaceKeyLegId, type LoginsPickId, keyLegTitle, loginsPickPaneLines } from './pickLines.js';
@@ -275,19 +276,29 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
   }
 }
 
-export function loginsFlowCopyUnconfirmed(pane: LoginsFlowPaneV1): boolean {
+function loginsFlowCopyNoteOf(pane: LoginsFlowPaneV1): string | null {
   switch (pane.kind) {
     case 'anthropic':
-      return pane.snap.flow.name === 'waiting' && typeof pane.snap.copyNote === 'string';
+      return pane.snap.flow.name === 'waiting' ? pane.snap.copyNote ?? null : null;
     case 'device':
-      return pane.device.phase === 'waiting' && typeof pane.device.copyNote === 'string';
+      return pane.device.phase === 'waiting' ? pane.device.copyNote ?? null : null;
     case 'handles':
-      return pane.handles.phase === 'waiting' && typeof pane.handles.copyNote === 'string';
+      return pane.handles.phase === 'waiting' ? pane.handles.copyNote ?? null : null;
     case 'opdevice':
-      return typeof pane.opdevice.copyNote === 'string';
+      return pane.opdevice.copyNote ?? null;
     default:
-      return false;
+      return null;
   }
+}
+
+export function loginsFlowCopyUnconfirmed(pane: LoginsFlowPaneV1): boolean {
+  return loginsFlowCopyNoteOf(pane) !== null;
+}
+
+export function loginsFlowNoticeWhereCutOf(pane: LoginsFlowPaneV1): string | null {
+  const note = loginsFlowCopyNoteOf(pane);
+  const words = note === null ? null : loginsFlowNoticeOf(pane);
+  return note === null || words === null ? null : words.replace(note, () => signInCopyNoteWhereCut(note));
 }
 
 export function loginsFlowNoticeOf(pane: LoginsFlowPaneV1): string | null {

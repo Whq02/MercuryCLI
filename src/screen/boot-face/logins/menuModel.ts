@@ -2,7 +2,7 @@ import type { BootMenuData } from '../../../../assets/splash/splash-core.mjs';
 import { loginsSwitchableFamily, loginsRosterEntryOf, loginsLegendOf, loginsSummaryRows, loginsStatusLine, type LoginsScreenFactsV1, loginsRosterRows, loginsRosterDetailLines } from './facts.js';
 import { loginsPickOptions } from './pickLines.js';
 import type { useAnthropicLoginModel } from '../../widgets/faces/anthropicLoginModel.js';
-import { type LoginsFlowPaneV1, loginsFlowPaneLines, type OpenFlowState, loginsFlowStatusOf, loginsFlowLegendOf, loginsFlowNoticeOf } from './flowLines.js';
+import { type LoginsFlowPaneV1, loginsFlowPaneLines, type OpenFlowState, loginsFlowStatusOf, loginsFlowLegendOf, loginsFlowNoticeOf, loginsFlowNoticeWhereCutOf } from './flowLines.js';
 
 export function loginsMenuModelOf(
   facts: LoginsScreenFactsV1,
@@ -20,12 +20,14 @@ export function loginsMenuModelOf(
   const selected = opts.selIdx >= 0 ? roster[opts.selIdx] : undefined;
   const pick = opts.flow?.kind === 'pick' ? opts.flow : null;
   const signIn = opts.flow !== undefined ? loginsFlowNoticeOf(opts.flow) : null;
+  const signInWhereCut = opts.flow !== undefined ? loginsFlowNoticeWhereCutOf(opts.flow) : null;
   const flowPane =
     opts.flow !== undefined
       ? {
           detailOverride: loginsFlowPaneLines(opts.flow),
           ...((opts.flow.kind === 'key' && (opts.flow.leg === 'xai' || opts.flow.leg === 'xai-management' || opts.flow.leg === 'mistral' || opts.flow.leg === 'mistral-admin')) || (opts.flow.kind === 'receipt' && opts.flow.external === true) || signIn !== null ? { detailOverrideConfirms: true } : {}),
           ...(signIn !== null ? { detailOverrideWhole: signIn } : {}),
+          ...(signInWhereCut !== null ? { detailOverrideWholeElse: signInWhereCut } : {}),
           legend: loginsFlowLegendOf(opts.flow),
           statusRight: loginsFlowStatusOf(opts.flow),
         }

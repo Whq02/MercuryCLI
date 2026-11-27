@@ -75,9 +75,10 @@ const nousLogin = await import('../../src/models/roads/nous/nousLogin.js')
 const orcarouterLogin = await import('../../src/models/roads/orcarouter/orcarouterLogin.js')
 const kimiLogin = await import('../../src/models/roads/moonshot/moonshotLogin.js')
 const hfLogin = await import('../../src/models/roads/huggingface/huggingfaceLogin.js')
+let openaiUrl = OPENAI_URL
 mock.module('../../src/models/roads/openai/openaiAccounts.js', () => ({
   ...openaiAccounts,
-  beginOpenaiBrowserConnect: handlesOf(OPENAI_URL),
+  beginOpenaiBrowserConnect: () => handlesOf(openaiUrl)(),
   beginOpenaiDeviceConnect: async () => ({ userCode: OPENAI_DEVICE_CODE, verifyHint: OPENAI_DEVICE_HINT, result: never() }),
 }))
 mock.module('../../src/models/roads/openrouter/openrouterAccounts.js', () => ({ ...openrouterAccounts, beginOpenrouterConnect: handlesOf(OPENROUTER_URL) }))
@@ -117,6 +118,7 @@ const { loginsFlowPaneLines } = await import('../../src/screen/boot-face/logins/
 const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
 
 const FIX_PANE = 'src/screen/boot-face/logins/menuModel.ts marks a waiting sign-in must-read-whole and hands the composer loginsFlowNoticeOf(flow) as detailOverrideWhole; assets/splash/splash-core.mjs paints those words in the block and leaves the wide layout where the pane still does not fit'
+const FIX_FLOOR = 'src/screen/boot-face/logins/menuModel.ts hands the composer detailOverrideWholeElse (loginsFlowNoticeWhereCutOf) while the unconfirmed sentence stands; composeBootMenuClassic in assets/splash/splash-core.mjs then lets the notice take the list rows it needs and paints those words where the address still does not fit; the other ending is signInCopyNoteWhereCut in src/models/sign-in/signInCopy.ts'
 const FIX_COPY = 'src/models/sign-in/signInCopy.ts decides what c may say (signInCopyAnswerOf) and words it; boot-face/logins/flowKeys.ts, widgets/faces/anthropicLoginModel.ts and flow-cards/SignInCopyLine.tsx read it, and SignInCopyLine and BootLoginsScreen hand the mouse back while the sentence stands'
 let fix = FIX_PANE
 let failures = 0
@@ -333,35 +335,34 @@ try {
       others.map(([name, flow]) => `${name}: ${String(handed(flow))}`).join(' / '),
     )
   }
+  const bootHosted = (columns: number, rows: number): React.ReactElement =>
+    h(AppStateProvider, {
+      children: h(ThemeProvider, {
+        children: h(KeybindingSetup, {
+          children: h(
+            AlternateScreen,
+            { mouseTracking: isMouseTrackingEnabled() },
+            h(Box, { width: columns, height: rows, flexDirection: 'column' }, h(BootLoginsScreen, { facts, family: 'openai', fullScene: { columns, rows } })),
+          ),
+        }),
+      }),
+    })
+  const waitingChatgpt = async (columns: number, rows: number, device = false): Promise<Mounted> => {
+    const m = await mountOffscreen(bootHosted(columns, rows), columns, rows, { mouseTracking: true })
+    await waitFor(() => m.screen().includes('logins') && cursorRow(m.screen()) !== '', 2000)
+    m.push(KEY.enter)
+    await painted(160)
+    m.push(KEY.enter)
+    await waitFor(() => m.screen().includes('paste:'), 2000)
+    if (device) {
+      m.push('d')
+      await waitFor(() => m.screen().includes(OPENAI_DEVICE_CODE), 2000)
+    }
+    return m
+  }
   fix = FIX_COPY
   console.log('§3 — c ON A WAITING SIGN-IN, BOOT LOGINS UNDER THE HOST THE PRODUCT GIVES IT: IT SAYS ONLY WHAT IT KNOWS')
   {
-    const bootHosted = (columns: number, rows: number): React.ReactElement =>
-      h(AppStateProvider, {
-        children: h(ThemeProvider, {
-          children: h(KeybindingSetup, {
-            children: h(
-              AlternateScreen,
-              { mouseTracking: isMouseTrackingEnabled() },
-              h(Box, { width: columns, height: rows, flexDirection: 'column' }, h(BootLoginsScreen, { facts, family: 'openai', fullScene: { columns, rows } })),
-            ),
-          }),
-        }),
-      })
-    const waitingChatgpt = async (columns: number, rows: number, device = false): Promise<Mounted> => {
-      const m = await mountOffscreen(bootHosted(columns, rows), columns, rows, { mouseTracking: true })
-      await waitFor(() => m.screen().includes('logins') && cursorRow(m.screen()) !== '', 2000)
-      m.push(KEY.enter)
-      await painted(160)
-      m.push(KEY.enter)
-      await waitFor(() => m.screen().includes('paste:'), 2000)
-      if (device) {
-        m.push('d')
-        await waitFor(() => m.screen().includes(OPENAI_DEVICE_CODE), 2000)
-      }
-      return m
-    }
-
     takeRoad('unconfirmed')
     const m = await waitingChatgpt(80, 24)
     const screen = screenOf()
@@ -546,6 +547,151 @@ try {
     }
     takeRoad('unconfirmed')
     check("through the product's own clipboard function on the three roads: offered, none, copied", through.join(' ') === 'offered none copied', through.join(' '))
+  }
+  fix = FIX_FLOOR
+  console.log("§6 — UNDER THE BLOCK'S FLOOR: WHILE THE SENTENCE STANDS THE ADDRESS IS ON THE SCREEN WHOLE, OR THE SENTENCE SAYS WHAT GETS IT")
+  {
+    const TALLER = 'make this window taller to read the whole'
+    const rosterRows = (frame: string): number => frame.split('\n').filter(row => /not signed in|no key|CLI-managed|↓ \d+ more/.test(row)).length
+    for (const [columns, rows, length] of [[120, 14, 450], [80, 16, 450], [80, 17, 464]] as const) {
+      openaiUrl = OPENAI_URL.slice(0, length)
+      takeRoad('unconfirmed')
+      const m = await waitingChatgpt(columns, rows)
+      const before = m.screen()
+      m.push('c')
+      const told = await waitFor(() => words(m.screen()).includes('sent to your terminal'), 2000)
+      const after = m.screen()
+      check(
+        `boot ${columns}x${rows} ssh, ChatGPT's address at ${length} characters: the sentence says select the URL above and the address above it is whole`,
+        told && !joined(before).includes(openaiUrl) && words(after).includes(`${SENT} URL above`) && joined(after).includes(openaiUrl) && after.split('\n').length <= rows,
+        `before whole=${joined(before).includes(openaiUrl)} · after whole=${joined(after).includes(openaiUrl)} · ${words(after).slice(0, 260)}`,
+      )
+      check(`…it took its rows from the roster, and no more than it needed`, rosterRows(after) < rosterRows(before) && after.split('\n').filter(row => row.trim() !== '').length >= rows - 3, `roster rows ${rosterRows(before)} → ${rosterRows(after)}`)
+      takeRoad('confirmed')
+      m.push('c')
+      const copied = await waitFor(() => m.screen().includes('copied to clipboard'), 2000)
+      check(`…and a confirmed copy gives the roster its rows back`, copied && rosterRows(m.screen()) === rosterRows(before) && !joined(m.screen()).includes(openaiUrl), `roster rows ${rosterRows(m.screen())} of ${rosterRows(before)}`)
+      m.unmount()
+    }
+    openaiUrl = OPENAI_URL
+    takeRoad('unconfirmed')
+
+    const gemini = await mountOffscreen(
+      h(AppStateProvider, {
+        children: h(ThemeProvider, {
+          children: h(KeybindingSetup, { children: h(Box, { width: 80, height: 14, flexDirection: 'column' }, h(BootLoginsScreen, { facts, family: 'gemini', fullScene: { columns: 80, rows: 14 } })) }),
+        }),
+      }),
+      80,
+      14,
+    )
+    await waitFor(() => gemini.screen().includes('logins') && cursorRow(gemini.screen()) !== '', 2000)
+    gemini.push(KEY.enter)
+    await painted(160)
+    for (let step = 0; step < 8 && !/Sign in with Google/.test(cursorRow(gemini.screen())); step++) {
+      gemini.push(KEY.down)
+      await painted(80)
+    }
+    gemini.push(KEY.enter)
+    const waiting = await waitFor(() => words(gemini.screen()).includes('Sign in with Google:'), 2500)
+    gemini.push('c')
+    const answered = await waitFor(() => words(gemini.screen()).includes('sent to your terminal'), 2000)
+    const said = gemini.screen()
+    check(
+      "Gemini's plan sign-in at 80x14, where c was answered by silence: the sentence is painted, and it says select the URL above only over a whole address",
+      waiting && answered && (words(said).includes(`${SENT} URL above`) ? joined(said).includes(GEMINI_URL) : words(said).includes(`${TALLER} URL`)),
+      words(said).slice(0, 300),
+    )
+    gemini.unmount()
+
+    const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' })
+    const environment = { model: 'model', critter: 'crab', critterHue: 'crimson', dirBase: 'work', dirTail: '' }
+    const frame = (columns: number, rows: number, model: unknown): string => (core.composeBootMenu(columns, rows, model) as { lines: string[] }).lines.map(line => stripAnsi(line)).join('\n')
+    const noteOf = (answer: 'offered' | 'none', what: 'URL' | 'code'): string => signInCopy?.signInCopyNote(answer, what) ?? `${answer === 'none' ? NOTHING : SENT} ${what} above`
+    type Said = { copied: boolean; copyNote: string | null }
+    const panes: Array<{ name: string; what: 'URL' | 'code'; held: string; flow: (said: Said) => LoginsFlowPaneV1 }> = [
+      { name: 'ChatGPT browser, 464 characters', what: 'URL', held: OPENAI_URL, flow: said => ({ kind: 'handles', draftLen: 0, handles: { leg: 'openai-browser', phase: 'waiting', authorizeUrl: OPENAI_URL, ...said } }) },
+      { name: 'OpenRouter headless', what: 'URL', held: OPENROUTER_URL, flow: said => ({ kind: 'handles', draftLen: 0, handles: { leg: 'openrouter-headless', phase: 'waiting', authorizeUrl: OPENROUTER_URL, ...said } }) },
+      { name: 'Gemini own client', what: 'URL', held: GEMINI_URL, flow: said => ({ kind: 'handles', draftLen: 0, handles: { leg: 'gemini-oauth', phase: 'waiting', authorizeUrl: GEMINI_URL, ...said } }) },
+      { name: 'Gemini plan', what: 'URL', held: GEMINI_URL, flow: said => ({ kind: 'handles', draftLen: 0, handles: { leg: 'gemini-plan', phase: 'waiting', authorizeUrl: GEMINI_URL, ...said } }) },
+      {
+        name: 'Claude subscription',
+        what: 'URL',
+        held: CLAUDE_URL,
+        flow: said => ({ kind: 'anthropic', draftLen: 0, snap: { flow: { name: 'waiting', url: CLAUDE_URL, loginWithClaudeAi: true, forcedMethod: null }, pastePromptUp: true, noCodeYet: false, browserOpened: null, shadowWarning: null, accountLabel: null, ...said } }),
+      },
+      { name: 'Kimi device code', what: 'URL', held: DEVICE_URL, flow: said => ({ kind: 'device', nowMs: 0, device: { family: 'moonshot', phase: 'waiting', userCode: DEVICE_CODE, verificationUri: DEVICE_URL, expiresAtMs: 600_000, polls: 1, ...said } }) },
+      { name: 'ChatGPT device code', what: 'code', held: OPENAI_DEVICE_CODE, flow: said => ({ kind: 'opdevice', opdevice: { userCode: OPENAI_DEVICE_CODE, verifyHint: OPENAI_DEVICE_HINT, ...said } }) },
+    ]
+    const WIDTHS = [64, 72, 80, 90, 100, 110, 117, 121, 132, 150]
+    let frames = 0
+    let taller = 0
+    const broken: string[] = []
+    const overflow: string[] = []
+    for (const pane of panes) {
+      for (const answer of ['offered', 'none'] as const) {
+        const model = loginsMenuModelOf(facts, { selIdx: 0, environment, flow: pane.flow({ copied: false, copyNote: noteOf(answer, pane.what) }) })
+        for (const columns of WIDTHS) {
+          for (let rows = 13; rows <= 30; rows++) {
+            const painted = frame(columns, rows, model)
+            const select = words(painted).includes(`select the ${pane.what} above`)
+            const other = words(painted).includes(`${TALLER} ${pane.what}`)
+            const whole = pane.what === 'code' ? painted.includes(pane.held) : holdsAddress(painted, pane.held) && !painted.includes('taller terminal')
+            frames++
+            if (other) taller++
+            if (!((select && whole && !other) || (other && !select))) broken.push(`${pane.name} ${answer} ${columns}x${rows}`)
+            if (painted.split('\n').length > rows) overflow.push(`${pane.name} ${columns}x${rows}`)
+          }
+        }
+      }
+    }
+    check(`composed, ${panes.length} panes x two sentences x ${WIDTHS.length} widths x 13 to 30 rows: the sentence says select … above only over a whole address, else it says a taller window, and it is never missing`, broken.length === 0, `${broken.length} of ${frames}: ${broken.slice(0, 6).join(' · ')}`)
+    check('…no frame is taller than its window, and the other sentence is met only where the address cannot fit', overflow.length === 0 && taller > 0 && taller < frames / 10, `overflow ${overflow.slice(0, 4).join(' · ')} · taller ${taller} of ${frames}`)
+    const openai = panes[0]!
+    const standing = loginsMenuModelOf(facts, { selIdx: 0, environment, flow: openai.flow({ copied: false, copyNote: noteOf('offered', 'URL') }) }) as Record<string, unknown>
+    const plain = loginsMenuModelOf(facts, { selIdx: 0, environment, flow: openai.flow({ copied: false, copyNote: null }) }) as Record<string, unknown>
+    const confirmed = loginsMenuModelOf(facts, { selIdx: 0, environment, flow: openai.flow({ copied: true, copyNote: null }) }) as Record<string, unknown>
+    check(
+      'only the standing sentence hands the composer the field: with no c and with a confirmed copy it is absent, so nothing there can move',
+      typeof standing['detailOverrideWholeElse'] === 'string' && !('detailOverrideWholeElse' in plain) && !('detailOverrideWholeElse' in confirmed),
+      `standing=${typeof standing['detailOverrideWholeElse']} plain=${'detailOverrideWholeElse' in plain} confirmed=${'detailOverrideWholeElse' in confirmed}`,
+    )
+    const without = { ...standing, detailOverrideWholeElse: undefined }
+    check(
+      'where the sentence fits beside the roster the frame is the one without the field, cell for cell (80x24, 100x30, 120x40)',
+      ([[80, 24], [100, 30], [120, 40]] as const).every(([columns, rows]) => frame(columns, rows, standing) === frame(columns, rows, without)),
+    )
+    const claude450 = `${CLAUDE_URL}&state=${'fixtureState0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'.repeat(6)}`.slice(0, 450)
+    const claude = loginsMenuModelOf(facts, {
+      selIdx: 0,
+      environment,
+      flow: { kind: 'anthropic', draftLen: 0, snap: { flow: { name: 'waiting', url: claude450, loginWithClaudeAi: true, forcedMethod: null }, pastePromptUp: true, noCodeYet: false, browserOpened: null, copied: false, copyNote: noteOf('offered', 'URL'), shadowWarning: null, accountLabel: null } },
+    })
+    for (const [columns, rows] of [[120, 14], [80, 17]] as const) {
+      const painted = frame(columns, rows, claude)
+      check(
+        `boot ${columns}x${rows} ssh, Claude's address at 450 characters: the sentence says select the URL above and the address above it is whole`,
+        claude450.length === 450 && words(painted).includes(`${SENT} URL above`) && holdsAddress(painted, claude450) && !holdsAddress(frame(columns, rows, { ...claude, detailOverrideWholeElse: undefined }), claude450),
+        words(painted).slice(0, 260),
+      )
+    }
+    check(
+      'at 64x13 the address cannot fit: its end stands behind an ellipsis and the sentence says a taller window gets it',
+      !holdsAddress(frame(64, 13, standing), OPENAI_URL) && words(frame(64, 13, standing)).includes(`sent to your terminal — if nothing pastes, ${TALLER} URL`) && !words(frame(64, 13, standing)).includes('select the URL above'),
+      words(frame(64, 13, standing)).slice(0, 260),
+    )
+    check(
+      'the other ending is the same sentence with its last words changed, for both sentences and both things copied',
+      signInCopy !== null &&
+        'signInCopyNoteWhereCut' in signInCopy &&
+        (['offered', 'none'] as const).every(answer =>
+          (['URL', 'code'] as const).every(what => {
+            const note = signInCopy.signInCopyNote(answer, what)!
+            const cut = (signInCopy as unknown as { signInCopyNoteWhereCut(note: string): string }).signInCopyNoteWhereCut(note)
+            return cut === note.replace(`select the ${what} above`, `${TALLER} ${what}`) && cut !== note
+          }),
+        ),
+    )
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
