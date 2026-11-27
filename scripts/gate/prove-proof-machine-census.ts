@@ -2,7 +2,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { dirname, join, resolve, sep } from 'node:path'
+import { delimiter, dirname, join, resolve, sep } from 'node:path'
 import { defaultMercuryHome } from '../../src/platform/environment/envUtils.ts'
 import { accountStoreHome, homeIsAccountStore, refuseProofWriteIntoAccountStore } from '../../src/models/roads/proofHomeGuard.ts'
 
@@ -370,6 +370,37 @@ try {
   })
   const keptBySuite = gitNames(redirectedSuite.stdout)
   check(redirectedSuite.status === 0 && keptBySuite === KEPT, `a suite runner started under them hands its proofs ${KEPT} alone`, `rc=${redirectedSuite.status} set: ${keptBySuite || 'none read'}; a repository name left here joins the unset line of suite_env_guard in scripts/lib/suite-env.sh`)
+
+  section("a scripts/ entry started alone reaches neither the operator's keychain nor his browser, whether its caller left the two names unset or empty")
+  const toolBin = join(scratch, 'tool-bin')
+  const keychainCalls = join(scratch, 'security-calls.log')
+  mkdirSync(toolBin)
+  writeFileSync(join(toolBin, 'security'), `#!/bin/sh\necho "$@" >> ${JSON.stringify(keychainCalls)}\nexit 1\n`, { mode: 0o755 })
+  const NO_BROWSER = '/usr/bin/true'
+  const OWN = { MERCURY_CREDENTIAL_STORE: 'keychain', BROWSER: '/opt/own-browser' }
+  const PINS = 'the two defaults stand in the entry block of scripts/lib/proofHomePreload.ts and its last line prints what the entry holds'
+  const heldBy = (extra: Record<string, string>): { rc: number | null; store: string; browser: string } => {
+    const entry = spawnSync(BUN, ['scripts/lib/proofHomePreload.ts'], {
+      cwd: ROOT,
+      env: clean({ MERCURY_CONFIG_DIR: join(scratch, 'pinned'), PATH: `${toolBin}${delimiter}${process.env.PATH ?? ''}`, ...extra }),
+      encoding: 'utf8',
+    })
+    const lines = entry.stdout.split('\n')
+    return { rc: entry.status, store: lines[4] ?? '', browser: lines[5] ?? '' }
+  }
+  const bare = heldBy({})
+  check(bare.rc === 0 && bare.store === 'file', 'with neither name set the entry runs on the file-backed credential store', `rc=${bare.rc} store=${JSON.stringify(bare.store)}; ${PINS}`)
+  check(bare.browser === NO_BROWSER, `…and its BROWSER is ${NO_BROWSER}`, `BROWSER=${JSON.stringify(bare.browser)}; ${PINS}`)
+  const empty = heldBy({ MERCURY_CREDENTIAL_STORE: '', BROWSER: '' })
+  check(empty.rc === 0 && empty.store === 'file', 'with the store name set and empty, which the product reads as the keychain on a Mac, the entry still runs on the file', `rc=${empty.rc} store=${JSON.stringify(empty.store)}; ${PINS}`)
+  check(empty.browser === NO_BROWSER, `with BROWSER set and empty, which the product reads as unset, the entry still holds ${NO_BROWSER}`, `BROWSER=${JSON.stringify(empty.browser)}; ${PINS}`)
+  const own = heldBy(OWN)
+  check(own.rc === 0 && own.store === OWN.MERCURY_CREDENTIAL_STORE && own.browser === OWN.BROWSER, 'a value the caller set on purpose is left as it came, both names', `rc=${own.rc} store=${JSON.stringify(own.store)} BROWSER=${JSON.stringify(own.browser)}; ${PINS}`)
+  check(!existsSync(keychainCalls), 'none of the three entries started the keychain tool', existsSync(keychainCalls) ? `security ${readFileSync(keychainCalls, 'utf8').trim()}; a scripts/ entry reads a credential before the proof it starts has pinned its own store` : '')
+  if (process.platform !== 'win32') {
+    const handed = spawnSync(NO_BROWSER, ['https://example.invalid/'], { encoding: 'utf8' })
+    check(handed.status === 0 && `${handed.stdout}${handed.stderr}` === '', `${NO_BROWSER} handed an address ends 0 and says nothing`, `rc=${handed.status} ${handed.stdout}${handed.stderr}`)
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
