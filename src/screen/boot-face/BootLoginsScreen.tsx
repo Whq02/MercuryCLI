@@ -2,7 +2,9 @@ import React, { useMemo, useRef, useState } from 'react';
 import { useSignInEpoch } from '../../models/sign-in/account-ledger/useSignInEpoch.js';
 import { useCatalogueEpoch } from '../model-picker/useCatalogueEpoch.js';
 import { useClaim, useLoad } from '../effects/effects.js';
-import { Box, useInput } from '../themedRenderer.js';
+import { Box, useInput, type Key } from '../themedRenderer.js';
+import type { TextGesture } from '../renderer/events/text-gesture.js';
+import { parseSplashRuns } from '../widgets/splashRuns.js';
 import { createSplashCore, WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { useAnthropicLoginModel } from '../widgets/faces/anthropicLoginModel.js';
 import type { KimiRegion } from '../../models/roads/moonshot/moonshotAccounts.js';
@@ -22,13 +24,13 @@ import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
 import { useBootComposition } from './useBootComposition.js';
 import { loginsSwitchableFamily, loginsFlowReady, type LoginsScreenFactsV1, loginsRosterRows, loginsRosterRowValue, loginsRosterRowLabel, collectLoginsScreenFacts, type LoginsRosterRowV1 } from './logins/facts.js';
 import { loginsPickOptions, type FaceKeyLegId, type LoginsPickId } from './logins/pickLines.js';
-import { loginsFlowCopyUnconfirmed, type OpenFlowState, type FaceDeviceFamily, type HandlesLegId } from './logins/flowLines.js';
+import { loginsFlowCopyUnconfirmed, loginsFlowAddressOf, loginsAddressRows, type OpenFlowState, type FaceDeviceFamily, type HandlesLegId } from './logins/flowLines.js';
 import { loginsMenuModelOf, loginsFlowPaneOf } from './logins/menuModel.js';
 import { useMouseHandedBack } from '../../models/sign-in/flow-cards/SignInCopyLine.js';
 import { postLoginSettleOf, startDeviceRunOf, openGuideStepOf, startHandlesRunOf, startOpenaiDeviceRunOf, startDevinCliRunOf } from './logins/runs.js';
 import { openRosterFlowOf, resolvePickOf } from './logins/picks.js';
 import { submitKeyOf, keyEscapeOf } from './logins/keyLegs.js';
-import { receiptFlowKeys, deviceFlowKeys, handlesFlowKeys, opdeviceFlowKeys, clientFlowKeys, keyFlowKeys, anthropicFlowKeys } from './logins/flowKeys.js';
+import { receiptFlowKeys, deviceFlowKeys, handlesFlowKeys, opdeviceFlowKeys, clientFlowKeys, keyFlowKeys, anthropicFlowKeys, plainKey } from './logins/flowKeys.js';
 import type { LoginsFlowContext } from './logins/context.js';
 import { devinCliMissingOutcome, type DevinCliAction } from './logins/devinCliAction.js';
 export type { LoginsScreenFactsV1, LoginsArmV1, LoginsRowStateV1, LoginsEntry, LoginsRosterRowV1 } from './logins/facts.js';
@@ -218,40 +220,47 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     ],
   });
 
+  const routeFlowKey = (input: string, key: Key): void => {
+    const current = flowRef.current;
+    if (current === null) return;
+    if (current.kind === 'receipt') {
+      receiptFlowKeys(ctx, current, key);
+      return;
+    }
+    if (current.kind === 'device') {
+      deviceFlowKeys(ctx, current, input, key);
+      return;
+    }
+    if (current.kind === 'handles') {
+      handlesFlowKeys(ctx, current, input, key);
+      return;
+    }
+    if (current.kind === 'opdevice') {
+      opdeviceFlowKeys(ctx, current, input, key);
+      return;
+    }
+    if (current.kind === 'client') {
+      clientFlowKeys(ctx, current, input, key);
+      return;
+    }
+    if (current.kind === 'key') {
+      keyFlowKeys(ctx, current, input, key);
+      return;
+    }
+    if (current.kind === 'external-run') return;
+    anthropicFlowKeys(ctx, input, key);
+  };
   useInput(
     (input, key, event) => {
       event.stopImmediatePropagation();
-      const current = flowRef.current;
-      if (current === null) return;
-      if (current.kind === 'receipt') {
-        receiptFlowKeys(ctx, current, key);
-        return;
-      }
-      if (current.kind === 'device') {
-        deviceFlowKeys(ctx, current, input, key);
-        return;
-      }
-      if (current.kind === 'handles') {
-        handlesFlowKeys(ctx, current, input, key);
-        return;
-      }
-      if (current.kind === 'opdevice') {
-        opdeviceFlowKeys(ctx, current, input, key);
-        return;
-      }
-      if (current.kind === 'client') {
-        clientFlowKeys(ctx, current, input, key);
-        return;
-      }
-      if (current.kind === 'key') {
-        keyFlowKeys(ctx, current, input, key);
-        return;
-      }
-      if (current.kind === 'external-run') return;
-      anthropicFlowKeys(ctx, input, key);
+      routeFlowKey(input, key);
     },
     { isActive: flow !== null && flow.kind !== 'pick' },
   );
+  const copyOnAddressPress = (gesture: TextGesture): boolean => {
+    if (gesture.kind === 'release') routeFlowKey('c', plainKey());
+    return true;
+  };
   useInput(
     (_input, key, event) => {
       if (!key.leftArrow) return;
@@ -269,7 +278,9 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);
   const mainModel = useEngineModel();
 
-  useMouseHandedBack(flow !== null && loginsFlowCopyUnconfirmed(loginsFlowPaneOf(flow, model, draft, pickList, onSignedIn)));
+  const flowPane = flow !== null ? loginsFlowPaneOf(flow, model, draft, pickList, onSignedIn) : null;
+  useMouseHandedBack(flowPane !== null && flowPane.kind === 'opdevice' && loginsFlowCopyUnconfirmed(flowPane));
+  const address = flowPane !== null ? loginsFlowAddressOf(flowPane) : null;
   const menuM = useMemo(() => {
     return loginsMenuModelOf(facts, {
       selIdx: list.selectedIndex,
@@ -287,6 +298,10 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
   }, [facts, devinCliMissing, list.selectedIndex, list.note, mainModel, flow, pickList.selectedIndex, model.flow, model.pastePromptUp, model.copied, model.copyNote, model.shadowWarning, model.accountLabel, draft, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useBootComposition(core, columns, rows, menuM);
+  const addressRows = useMemo(
+    () => (address === null ? null : loginsAddressRows(composition.placed.map(line => parseSplashRuns(line).map(run => run.text).join('')), address)),
+    [composition.placed, address],
+  );
 
   return (
     <Box flexDirection="column" width={columns} height={rows}>
@@ -322,7 +337,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
           );
         }
         return (
-          <Box key={`loginsline-${i}`} height={1} flexShrink={0}>
+          <Box key={`loginsline-${i}`} height={1} flexShrink={0} {...(addressRows?.has(i) === true ? { onTextGesture: copyOnAddressPress } : {})}>
             {line.length > 0 ? renderSceneLine(line) : null}
           </Box>
         );

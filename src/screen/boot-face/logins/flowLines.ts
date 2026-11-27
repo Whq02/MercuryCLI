@@ -3,7 +3,6 @@ import { GEMINI_CLIENT_STORED_UNVERIFIED_NOTE } from '../../../models/roads/gemi
 import { geminiGuidePaneLines, geminiGuideStep, type GeminiGuideOpenState, GEMINI_PLAN_LEG_DETAIL, GEMINI_PLAN_LEG_TITLE } from '../../../models/sign-in/gemini-connect/geminiConnectGuide.js';
 import { wrapPlain } from '../BootHealthScreen.js';
 import { META_LOGIN_FAMILY_LABEL } from '../../../models/sign-in/flow-cards/loginFamilyRows.js';
-import { signInCopyNoteWhereCut } from '../../../models/sign-in/signInCopy.js';
 import { clampText, DETAIL_W } from './facts.js';
 import { receiptPaneLines, signedInStatusWayOut, maskedDraftLine, anthropicFlowLegendOf, anthropicFlowStatusOf, anthropicFlowPaneLines, wrapHard } from './anthropicLines.js';
 import { keyPromptPaneLines, type FaceKeyLegId, type LoginsPickId, keyLegTitle, loginsPickPaneLines } from './pickLines.js';
@@ -276,29 +275,55 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
   }
 }
 
-function loginsFlowCopyNoteOf(pane: LoginsFlowPaneV1): string | null {
+export function loginsFlowCopyUnconfirmed(pane: LoginsFlowPaneV1): boolean {
   switch (pane.kind) {
     case 'anthropic':
-      return pane.snap.flow.name === 'waiting' ? pane.snap.copyNote ?? null : null;
+      return pane.snap.flow.name === 'waiting' && typeof pane.snap.copyNote === 'string';
     case 'device':
-      return pane.device.phase === 'waiting' ? pane.device.copyNote ?? null : null;
+      return pane.device.phase === 'waiting' && typeof pane.device.copyNote === 'string';
     case 'handles':
-      return pane.handles.phase === 'waiting' ? pane.handles.copyNote ?? null : null;
+      return pane.handles.phase === 'waiting' && typeof pane.handles.copyNote === 'string';
     case 'opdevice':
-      return pane.opdevice.copyNote ?? null;
+      return typeof pane.opdevice.copyNote === 'string';
+    default:
+      return false;
+  }
+}
+
+export function loginsFlowAddressOf(pane: LoginsFlowPaneV1): string | null {
+  switch (pane.kind) {
+    case 'anthropic':
+      return pane.snap.flow.name === 'waiting' ? pane.snap.flow.url : null;
+    case 'device':
+      return pane.device.phase === 'waiting' ? pane.device.verificationUri ?? null : null;
+    case 'handles':
+      return pane.handles.phase === 'waiting' ? pane.handles.authorizeUrl ?? null : null;
     default:
       return null;
   }
 }
 
-export function loginsFlowCopyUnconfirmed(pane: LoginsFlowPaneV1): boolean {
-  return loginsFlowCopyNoteOf(pane) !== null;
-}
-
-export function loginsFlowNoticeWhereCutOf(pane: LoginsFlowPaneV1): string | null {
-  const note = loginsFlowCopyNoteOf(pane);
-  const words = note === null ? null : loginsFlowNoticeOf(pane);
-  return note === null || words === null ? null : words.replace(note, () => signInCopyNoteWhereCut(note));
+export function loginsAddressRows(rows: readonly string[], address: string): ReadonlySet<number> {
+  const held = new Set<number>();
+  let at = 0;
+  for (let i = 0; i < rows.length && at < address.length; i++) {
+    const tokens = rows[i]!.split(/[\s│]+/).filter(Boolean);
+    if (at === 0 && tokens.some(token => token.length > 1 && token.startsWith('…') && address.endsWith(token.slice(1)))) {
+      held.add(i);
+      break;
+    }
+    const start = at;
+    const next = tokens
+      .filter(token => address.startsWith(token, start) && (start > 0 || token.length >= Math.min(12, address.length)))
+      .sort((a, b) => b.length - a.length)[0];
+    if (next === undefined) {
+      if (at > 0) break;
+      continue;
+    }
+    held.add(i);
+    at += next.length;
+  }
+  return held;
 }
 
 export function loginsFlowNoticeOf(pane: LoginsFlowPaneV1): string | null {

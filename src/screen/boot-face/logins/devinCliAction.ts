@@ -1,15 +1,9 @@
 import { spawnSync } from 'node:child_process'
-import { readSync } from 'node:fs'
-import { startTimeout } from '../../../platform/async/timers.js'
 import { errorMessage } from '../../../platform/errors/errors.js'
-import { passedOver } from '../../../platform/errors/passedOver.js'
 import { devinCliInstallHintWords } from '../../../platform/host-os/words.js'
-import { markConsoleLent, markConsoleReturned } from '../../../platform/processes/process.js'
 import { hostSpawnWorld, spawnPlanOf, type SpawnWorld } from '../../../platform/processes/spawnPlan.js'
 import { devinCliChildEnv } from '../../../platform/processes/subprocessEnv.js'
-import { reclaimTerminalAfterChild } from '../../../platform/shell/terminalHandback.js'
-import { drainStdin } from '../../renderer/instance/stdin.js'
-import instances from '../../renderer/instances.js'
+import { lendTerminal, waitForReturnKey } from './lentTerminal.js'
 
 export const DEVIN_CLI_ACTION_TITLE = 'Devin CLI (external agent)'
 export const DEVIN_CLI_ACTION_SUMMARY = 'external agent · CLI-managed'
@@ -88,26 +82,6 @@ export function devinCliMissingOutcome(world: SpawnWorld = hostSpawnWorld()): De
   return !resolved.ok && resolved.outcome.kind === 'missing' ? resolved.outcome : null
 }
 
-function waitForReturnKey(stdout: NodeJS.WriteStream, label: string): void {
-  try {
-    stdout.write(`\n[${label}] Press Enter to return to Mercury… `)
-  } catch (error) {
-    passedOver(error)
-  }
-  const buf = Buffer.alloc(1)
-  while (true) {
-    try {
-      const n = readSync(0, buf, 0, 1, null)
-      if (n <= 0) break
-      const byte = buf[0]
-      if (byte === 10 || byte === 13 || byte === 3 || byte === 4 || byte === 27) break
-    } catch (error) {
-      passedOver(error)
-      break
-    }
-  }
-}
-
 function outcomeOf(
   action: DevinCliAction,
   result: { error?: Error; status: number | null; signal: NodeJS.Signals | null },
@@ -155,40 +129,29 @@ export async function runDevinCliAction(
   const resolved = resolveDevinPlan(action, world)
   if (!resolved.ok) return resolved.outcome
 
-  const stdin = options.stdin ?? process.stdin
-  const stdout = options.stdout ?? process.stdout
-  const instance = instances.get(stdout)
-  if (!stdin.isTTY || !stdout.isTTY || instance === undefined) {
+  const lent = await lendTerminal(
+    stdout => {
+      const result = spawnSync(resolved.plan.file, resolved.plan.args, {
+        stdio: 'inherit',
+        windowsHide: false,
+        windowsVerbatimArguments: resolved.plan.windowsVerbatimArguments,
+        env: devinCliChildEnv(world.platform),
+      })
+      const outcome = outcomeOf(action, result)
+      if (action !== 'login' && outcome.kind !== 'error' && outcome.kind !== 'cancelled') {
+        const codeLabel = result.status === 0 ? `devin auth ${action} exited 0` : `devin auth ${action} exited ${result.status ?? 'unknown'}`
+        waitForReturnKey(stdout, codeLabel)
+      }
+      return outcome
+    },
+    { ...(options.stdin !== undefined ? { stdin: options.stdin } : {}), ...(options.stdout !== undefined ? { stdout: options.stdout } : {}), child: 'Devin CLI' },
+  )
+  if (lent === null) {
     return {
       kind: 'refused',
       ok: false,
       receipt: `Devin CLI (${action}) needs an interactive terminal. Run \`devin auth ${action}\` in your terminal instead.`,
     }
   }
-
-  await instance.awaitTerminalQueries()
-  drainStdin(stdin)
-  markConsoleLent()
-  instance.enterAlternateScreen()
-  try {
-    const result = spawnSync(resolved.plan.file, resolved.plan.args, {
-      stdio: 'inherit',
-      windowsHide: false,
-      windowsVerbatimArguments: resolved.plan.windowsVerbatimArguments,
-      env: devinCliChildEnv(world.platform),
-    })
-    const outcome = outcomeOf(action, result)
-    if (action !== 'login' && outcome.kind !== 'error' && outcome.kind !== 'cancelled') {
-      const codeLabel = result.status === 0 ? `devin auth ${action} exited 0` : `devin auth ${action} exited ${result.status ?? 'unknown'}`
-      waitForReturnKey(stdout, codeLabel)
-    }
-    return outcome
-  } finally {
-    reclaimTerminalAfterChild('Devin CLI')
-    instance.exitAlternateScreen()
-    const release = startTimeout(() => {
-      markConsoleReturned()
-    }, 100)
-    release.unref?.()
-  }
+  return lent.value
 }

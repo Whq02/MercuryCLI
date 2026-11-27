@@ -5,6 +5,7 @@ import { ScreenInstanceContext } from '../../../screen/renderer/elements/ScreenI
 import { Text } from '../../../screen/themedRenderer.js'
 import { useMercuryTokens } from '../../../screen/widgets/useMercuryTokens.js'
 import { startTimeout } from '../../../platform/async/timers.js'
+import { showSignInAddressLine } from '../../../screen/boot-face/logins/lentTerminal.js'
 import { copyForSignIn, signInCopySaid, SIGN_IN_COPY_ACK_MS, type SignInCopied, type SignInCopySaid } from '../signInCopy.js'
 
 export function useMouseHandedBack(active: boolean): void {
@@ -23,9 +24,13 @@ export function useSignInCopy(): SignInCopySaid & { copy: (text: string, what?: 
     mounted.current = false
   })
   const copy = (text: string, what: SignInCopied = 'URL'): void => {
+    if (what === 'URL' && said.copyNote !== null) {
+      void showSignInAddressLine(text)
+      return
+    }
     void copyForSignIn(text).then(answer => {
       if (!mounted.current) return
-      setSaid(signInCopySaid(answer, what))
+      setSaid({ ...signInCopySaid(answer, what), what })
       if (answer !== 'copied') return
       startTimeout(() => {
         if (mounted.current) setSaid(current => ({ ...current, copied: false }))
@@ -37,7 +42,7 @@ export function useSignInCopy(): SignInCopySaid & { copy: (text: string, what?: 
 
 export function SignInCopyLine({ said, address, quiet }: { said: SignInCopySaid; address?: string | undefined; quiet?: boolean }): React.ReactNode {
   const tokens = useMercuryTokens()
-  useMouseHandedBack(said.copyNote !== null)
+  useMouseHandedBack(said.copyNote !== null && said.what === 'code')
   if (said.copied) return quiet === true ? null : <Text color={tokens.success}>Copied to clipboard</Text>
   if (said.copyNote === null) return null
   return (

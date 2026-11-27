@@ -1150,19 +1150,19 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
   })
   const noticeText = m.detailOverrideWhole ?? (m.detailOverride && m.detailOverrideConfirms ? m.detailOverride.filter(Boolean).join(' ') : m.noticeLine)
   const noticeW = Math.max(20, cols - 4)
-  const overList = m.detailOverrideWholeElse !== undefined
+  const overList = m.detailOverrideOverList === true
   const noticeRoom = Math.max(1, rowsAvail - 4 - (overList ? 0 : 5))
   const cutToEnd = new Set()
-  const noticeOver = (text, endOnly) =>
-    wrapWords(text, noticeW).flatMap(l => {
+  const noticeOver = endOnly =>
+    wrapWords(noticeText, noticeW).flatMap(l => {
       if (vis(l) <= noticeW) return [l]
       if (!endOnly) return splitHardVis(l, noticeW)
       const kept = '…' + endVis(l, noticeW - 1)
       cutToEnd.add(kept)
       return [kept]
     })
-  const noticeWhole = noticeText ? noticeOver(noticeText, false) : []
-  const noticeWrapped = noticeWhole.length <= noticeRoom ? noticeWhole : noticeOver(m.detailOverrideWholeElse ?? noticeText, true)
+  const noticeWhole = noticeText ? noticeOver(false) : []
+  const noticeWrapped = noticeWhole.length <= noticeRoom ? noticeWhole : noticeOver(true)
   const noticeBudget = Math.min(noticeWrapped.length, noticeRoom)
   const noticeClipped = noticeBudget < noticeWrapped.length
   const noticeLines = noticeWrapped.slice(0, noticeBudget).map((l, i) => {

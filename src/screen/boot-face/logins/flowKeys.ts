@@ -2,6 +2,7 @@ import { OPENAI_DEVICE_STOPPED_RECEIPT } from '../../../models/roads/openai/open
 import { writeGeminiOauthClientConfig } from '../../../models/roads/gemini/geminiAccounts.js';
 import { copyForSignIn, signInCopySaid, SIGN_IN_COPY_ACK_MS } from '../../../models/sign-in/signInCopy.js';
 import type { OpenFlowState } from './flowLines.js';
+import { showSignInAddressLine } from './lentTerminal.js';
 import type { LoginsFlowContext } from './context.js';
 import type { Key } from '../../themedRenderer.js';
 import { startTimeout } from '../../../platform/async/timers.js';
@@ -36,6 +37,10 @@ export function deviceFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFlow
     current.device.phase === 'waiting' &&
     current.device.verificationUri !== undefined
   ) {
+    if (typeof current.device.copyNote === 'string') {
+      void showSignInAddressLine(current.device.verificationUri);
+      return;
+    }
     const run = deviceRunRef.current;
     void copyForSignIn(current.device.verificationUri).then(answer => {
       if (run !== deviceRunRef.current) return;
@@ -71,6 +76,10 @@ export function handlesFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFlo
     return;
   }
   if (input === 'c' && !key.ctrl && !key.meta && h.phase === 'waiting' && draftRef.current === '' && h.authorizeUrl !== undefined) {
+    if (typeof h.copyNote === 'string') {
+      void showSignInAddressLine(h.authorizeUrl);
+      return;
+    }
     const run = deviceRunRef.current;
     void copyForSignIn(h.authorizeUrl).then(answer => {
       if (run !== deviceRunRef.current) return;
@@ -232,7 +241,8 @@ export function anthropicFlowKeys(ctx: LoginsFlowContext, input: string, key: Ke
     return;
   }
   if (input === 'c' && !key.ctrl && !key.meta && snap.name === 'waiting' && model.pastePromptUp && draftRef.current === '') {
-    model.copyUrl();
+    if (typeof model.copyNote === 'string') void showSignInAddressLine(snap.url);
+    else model.copyUrl();
     return;
   }
   if (key.backspace || key.delete) {
@@ -243,4 +253,30 @@ export function anthropicFlowKeys(ctx: LoginsFlowContext, input: string, key: Ke
   if (snap.name === 'waiting' && model.pastePromptUp && input.length > 0 && !/[\x00-\x1f\x7f]/.test(input)) {
     setDraft(d => d + input);
   }
+}
+
+export function plainKey(): Key {
+  return {
+    upArrow: false,
+    downArrow: false,
+    leftArrow: false,
+    rightArrow: false,
+    pageDown: false,
+    pageUp: false,
+    wheelUp: false,
+    wheelDown: false,
+    home: false,
+    end: false,
+    return: false,
+    escape: false,
+    ctrl: false,
+    shift: false,
+    fn: false,
+    tab: false,
+    backspace: false,
+    delete: false,
+    meta: false,
+    super: false,
+    isPasted: false,
+  };
 }
