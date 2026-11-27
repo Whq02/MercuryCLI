@@ -27,9 +27,9 @@ const libraries: {
   missingLibraryWords?: (
     failure: string,
     executablePath: string,
-    reads?: { platform?: NodeJS.Platform; run?: (file: string, args: string[]) => Promise<string>; lists?: string },
+    reads?: { platform?: NodeJS.Platform; run?: (file: string, args: string[]) => Promise<string>; lists?: string; uid?: number },
   ) => Promise<string | null>
-  missingArchiverWords?: (failure: string, reads?: { platform?: NodeJS.Platform; run?: (file: string, args: string[]) => Promise<string>; lists?: string }) => Promise<string | null>
+  missingArchiverWords?: (failure: string, reads?: { platform?: NodeJS.Platform; run?: (file: string, args: string[]) => Promise<string>; lists?: string; uid?: number }) => Promise<string | null>
 } = existsSync(join(ROOT, 'src/integrations/browser/browserLibraries.ts'))
   ? await import(join(ROOT, 'src/integrations/browser/browserLibraries.ts'))
   : {}
@@ -79,8 +79,8 @@ function probe(ldd: string, apt: string): Probe {
     },
   }
 }
-const words = async (failure: string, platform: NodeJS.Platform, reads: Probe, lists?: string): Promise<string | null> =>
-  libraries.missingLibraryWords === undefined ? 'this tree has no src/integrations/browser/browserLibraries.ts' : libraries.missingLibraryWords(failure, EXECUTABLE, { platform, run: reads.run, lists })
+const words = async (failure: string, platform: NodeJS.Platform, reads: Probe, lists?: string, uid = 1000): Promise<string | null> =>
+  libraries.missingLibraryWords === undefined ? 'this tree has no src/integrations/browser/browserLibraries.ts' : libraries.missingLibraryWords(failure, EXECUTABLE, { platform, run: reads.run, lists, uid })
 const installLine = (text: string | null): string[] => /\n {2}the operator runs: sudo apt-get install (.+)$/.exec(text ?? '')?.[1]?.split(' ') ?? []
 
 const libraryFailure = (buildId: string): string =>
@@ -89,8 +89,8 @@ const NO_UNZIP = 'this machine lacks unzip, which unpacks the browser\'s archive
 const SERVER_HOLDS = ['libglib2.0-0t64', 'libnspr4', 'libnss3', 'libdbus-1-3', 'libexpat1', 'libxcb1', 'libxkbcommon0', 'libx11-6', 'libxext6', 'libudev1']
 const SERVER_LACKS = ['libatk1.0-0t64', 'libatk-bridge2.0-0t64', 'libatspi2.0-0t64', 'libcups2t64', 'libasound2t64', 'libgbm1', 'libcairo2', 'libpango-1.0-0', 'libxcomposite1', 'libxdamage1', 'libxfixes3', 'libxrandr2']
 const APT_SERVER = [stanza('unzip', '6.0-28ubuntu7'), ...SERVER_HOLDS.map(name => stanza(name, '1.0-1', '1.0-1')), ...SERVER_LACKS.map(name => stanza(name, '1.0-1')), ...RENAMED.map(name => stanza(name, '(none)'))].join('')
-const archiverWords = async (failure: string, platform: NodeJS.Platform, reads: Probe, lists?: string): Promise<string | null> =>
-  libraries.missingArchiverWords === undefined ? 'this tree words no failure to unpack' : libraries.missingArchiverWords(failure, { platform, run: reads.run, lists })
+const archiverWords = async (failure: string, platform: NodeJS.Platform, reads: Probe, lists?: string, uid = 1000): Promise<string | null> =>
+  libraries.missingArchiverWords === undefined ? 'this tree words no failure to unpack' : libraries.missingArchiverWords(failure, { platform, run: reads.run, lists, uid })
 
 const context = { agentId: 'missing-libraries', abortController: new AbortController() } as never
 const opened = async (): Promise<{ result: string; outcome: string }> => (await BrowserTool.call({ op: 'open', url: 'http://127.0.0.1:9/' }, context)).data
@@ -325,6 +325,25 @@ try {
     const other = probe(lddOutput(CLEAN_SERVER_MISSING), APT_ITSELF)
     check(`${platform}: no sentence and no program run`, (await words(LOADER_FAILURE, platform, other, asShipped)) === null && (await archiverWords(unpackFailure, platform, other, asShipped)) === null && other.calls.length === 0, JSON.stringify(other.calls))
   }
+
+  section('15. the process itself is root: the three lines without sudo; any other user as before')
+  const withoutSudo = (text: string | null): string => (text ?? '').replace('the operator runs: sudo apt-get ', 'the operator runs: apt-get ')
+  const rootLaunch = await words(LOADER_FAILURE, 'linux', probe(lddOutput(CLEAN_SERVER_MISSING), APT_2604), undefined, 0)
+  check('root, a launch: the install line is the plain user\'s without sudo', /\n {2}the operator runs: apt-get install \S/.test(rootLaunch ?? '') && rootLaunch === withoutSudo(serverWords) && rootLaunch.includes('sudo') === false, rootLaunch ?? '(none)')
+  const rootUnpack = await archiverWords(unpackFailure, 'linux', probe('', APT_SERVER), undefined, 0)
+  check('root, a provision: the install line is the plain user\'s without sudo', rootUnpack?.includes('\n  the operator runs: apt-get install unzip ') === true && rootUnpack === withoutSudo(cleanWords) && !rootUnpack.includes('sudo'), rootUnpack ?? '(none)')
+  const rootFresh = await words(LOADER_FAILURE, 'linux', probe(lddOutput(CLEAN_SERVER_MISSING), APT_ITSELF), asShipped, 0)
+  const rootFreshUnpack = await archiverWords(unpackFailure, 'linux', probe('', APT_ITSELF), asShipped, 0)
+  check('root, no package list: the update line without sudo, in both sentences', rootFresh === withoutSudo(freshWords) && rootFreshUnpack === `${NO_UNZIP}${withoutSudo(UPDATE_LINE)}` && rootFreshUnpack.endsWith('the operator runs: apt-get update'), `${rootFresh}\n${rootFreshUnpack}`)
+  for (const uid of [1, 501, 1000, 65534]) {
+    const launch = await words(LOADER_FAILURE, 'linux', probe(lddOutput(CLEAN_SERVER_MISSING), APT_2604), undefined, uid)
+    const unpack = await archiverWords(unpackFailure, 'linux', probe('', APT_SERVER), undefined, uid)
+    const update = await archiverWords(unpackFailure, 'linux', probe('', APT_ITSELF), asShipped, uid)
+    check(`uid ${uid}: the three lines carry sudo, as before`, launch === serverWords && launch?.includes('\n  the operator runs: sudo apt-get install ') === true && unpack === cleanWords && unpack?.includes('\n  the operator runs: sudo apt-get install unzip ') === true && update === `${NO_UNZIP}${UPDATE_LINE}`, `${launch}\n${unpack}\n${update}`)
+  }
+  const own = process.getuid?.()
+  const ownWords = libraries.missingArchiverWords === undefined ? null : await libraries.missingArchiverWords(unpackFailure, { platform: 'linux', run: probe('', APT_ITSELF).run, lists: asShipped })
+  check(`no uid handed in: the process's own decides (${own === 0 ? 'root here: no sudo' : `uid ${own} here: sudo`})`, ownWords === `${NO_UNZIP}${own === 0 ? withoutSudo(UPDATE_LINE) : UPDATE_LINE}`, ownWords ?? '(none)')
 } finally {
   browser.setBrowserLaunchDriverForProof(null)
   await browser.closeBrowserSessionDetailed(owner)
