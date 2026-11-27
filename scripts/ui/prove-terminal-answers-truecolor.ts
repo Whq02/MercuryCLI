@@ -214,13 +214,15 @@ section('§7 the launcher\'s splash may have asked already: its receipt hands th
   const fix = 'decideSplashReceipt in src/platform/substrate/splashHandover.ts must hand on a boolean truecolor of a fresh receipt of this launch, and nothing else'
   check('a screen receipt that says true hands true on', handed({ screen: 'held', truecolor: true }) === true, fix)
   check('one that says false hands false on', handed({ screen: 'restored', truecolor: false }) === false, fix)
+  check('one that says pending hands pending on', handed({ screen: 'held', truecolor: 'pending' }) === 'pending', fix)
   check('beside an action it is handed on too', handed({ action: 'health', truecolor: true }) === true, fix)
   check('a receipt of a splash that did not ask hands nothing on', handed({ screen: 'held' }) === undefined, fix)
-  check('a field that is no boolean hands nothing on', handed({ screen: 'held', truecolor: 'yes' }) === undefined, fix)
+  check('a field that is neither boolean nor pending hands nothing on', handed({ screen: 'held', truecolor: 'yes' }) === undefined, fix)
   check('another launch\'s receipt hands nothing on', handed({ screen: 'held', truecolor: true, launchId: 'ops-1-1' }, 'ops-2-2') === undefined, fix)
+  check('another launch\'s pending receipt hands nothing on', handed({ screen: 'held', truecolor: 'pending', launchId: 'ops-1-1' }, 'ops-2-2') === undefined, fix)
   check('a stale receipt hands nothing on', handed({ screen: 'held', truecolor: true }, null, now - 600_000) === undefined, fix)
+  check('a stale pending receipt hands nothing on', handed({ screen: 'held', truecolor: 'pending' }, null, now - 600_000) === undefined, fix)
 }
-
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
   console.log(`\nprove-terminal-answers-truecolor: the terminal arms are SKIPPED — no POSIX pty capture driver on this host (${driver.kind})`)
@@ -239,7 +241,7 @@ const pty = driver
 type Cell = { c: string; fg: string; bg: string; bold: boolean; rev: boolean }
 type Grid = Cell[][]
 type Arm = { name: string; marks: Map<string, Grid>; bytes: string; status: number | null; log: string; settledAfterMs: number[]; importMs: number[] }
-type Plan = { name: string; env: Record<string, string | undefined>; reply?: string; lateReply?: string; upTo: 'boot' | 'typed'; verb?: { args: string[]; prints: string }; receipt?: boolean }
+type Plan = { name: string; env: Record<string, string | undefined>; reply?: string; unaskedReply?: string; lateReply?: string; upTo: 'boot' | 'typed'; verb?: { args: string[]; prints: string }; receipt?: boolean | 'pending' }
 
 async function capture(plan: Plan): Promise<Arm> {
   const world = fixture(scratch)
@@ -260,6 +262,7 @@ async function capture(plan: Plan): Promise<Arm> {
   const gate = { requireAwait: true, minTick: 3, awaitSettleTicks: 5 }
   const sends: Array<Record<string, unknown>> = []
   if (plan.reply !== undefined) sends.push({ requireAwait: true, awaitRaw: ASKED, data: plan.reply })
+  if (plan.unaskedReply !== undefined) sends.push({ requireAwait: true, awaitRaw: '\x1b[0m', data: plan.unaskedReply })
   if (plan.verb === undefined) {
     sends.push({ ...gate, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, data: '', mark: 'boot' })
     if (plan.upTo === 'typed') {
@@ -394,6 +397,12 @@ section('§11 a launch whose splash asked: the app asks nothing and takes the re
   check('receipt-false: the launch stays at 256 colours', count(no.bytes, /[34]8;2;\d/g) === 0 && count(no.bytes, /[34]8;5;\d/g) > 100, `a splash that asked and got no echo settles the session at the environment's depth; 24-bit ${count(no.bytes, /[34]8;2;\d/g)}, 256-colour ${count(no.bytes, /[34]8;5;\d/g)}`)
   const off = await capture({ name: 'receipt-true-flag-off', env: { TERM: 'xterm-256color', MERCURY_TRUECOLOR: '0' }, upTo: 'boot', receipt: true })
   check('receipt-true under MERCURY_TRUECOLOR=0: the override stands over the receipt', off.status === 0 && off.marks.has('boot') && asks(off) === 0 && count(off.bytes, /[34]8;2;\d/g) === 0, `takeTruecolorAnswer in ${COLORIZE} must not raise where truecolorAskable is false; 24-bit ${count(off.bytes, /[34]8;2;\d/g)}`)
+  const pendEcho = await capture({ name: 'receipt-pending-echo', env: { TERM: 'xterm-256color' }, upTo: 'boot', receipt: 'pending', unaskedReply: ECHO })
+  check('receipt-pending with unasked echo: no request written and the Boot face paints 24-bit', pendEcho.status === 0 && pendEcho.marks.has('boot') && asks(pendEcho) === 0 && count(pendEcho.bytes, /[34]8;2;\d/g) > 100 && count(pendEcho.bytes, /[34]8;5;\d/g) === 0, `startCapturingEarlyInput on pending must listen without writing TRUECOLOR_QUERY; requests ${asks(pendEcho)}, 24-bit ${count(pendEcho.bytes, /[34]8;2;\d/g)}, 256-colour ${count(pendEcho.bytes, /[34]8;5;\d/g)}`)
+  const pendSilent = await capture({ name: 'receipt-pending-silent', env: { TERM: 'xterm-256color' }, upTo: 'boot', receipt: 'pending' })
+  check('receipt-pending on a silent terminal: no request written and stays at 256 colours', pendSilent.status === 0 && pendSilent.marks.has('boot') && asks(pendSilent) === 0 && count(pendSilent.bytes, /[34]8;2;\d/g) === 0 && count(pendSilent.bytes, /[34]8;5;\d/g) > 100, `requests ${asks(pendSilent)}, 24-bit ${count(pendSilent.bytes, /[34]8;2;\d/g)}, 256-colour ${count(pendSilent.bytes, /[34]8;5;\d/g)}`)
+  const pendOff = await capture({ name: 'receipt-pending-flag-off', env: { TERM: 'xterm-256color', MERCURY_TRUECOLOR: '0' }, upTo: 'boot', receipt: 'pending', unaskedReply: ECHO })
+  check('receipt-pending under MERCURY_TRUECOLOR=0: override stands, no request, stays 256', pendOff.status === 0 && pendOff.marks.has('boot') && asks(pendOff) === 0 && count(pendOff.bytes, /[34]8;2;\d/g) === 0, `requests ${asks(pendOff)}, 24-bit ${count(pendOff.bytes, /[34]8;2;\d/g)}`)
 }
 
 section('§12 MERCURY_TRUECOLOR=1 is the override at TERM=xterm too')
