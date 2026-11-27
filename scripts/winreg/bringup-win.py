@@ -39,7 +39,7 @@ if seed.returncode != 0:
 
 READY = "❯"
 COMPOSER = "? for shortcuts"
-PLACEHOLDER = "Tab to focus the rails"
+PLACEHOLDER = "Type a prompt"
 
 FIRST_CLASS_ENV = {
     "TERM": "xterm-256color",
