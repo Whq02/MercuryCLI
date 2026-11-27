@@ -279,24 +279,24 @@ console.log('════ vshot observed-ready laws ════')
   mkdirSync(scratchHome)
   symlinkSync(store, linkToStore)
   symlinkSync(profile, linkToProfile)
-  const where = "the two refusals stand ahead of the capture slot in scripts/ui/vshot.py (_child_config_home, _operators_own_store); the tree's guard is configHomeIsReal in scripts/lib/loginDriverGuard.ts"
+  const where = "the two refusals stand ahead of the capture slot in scripts/ui/vshot.py (_child_config_home, _operators_own_store); the tree's two guards are configHomeIsReal in scripts/lib/loginDriverGuard.ts and suite_home_guard in scripts/lib/suite-env.sh"
   type Names = { HOME: string; MERCURY_CONFIG_DIR?: string; MERCURY_HOME?: string }
-  interface Row { name: string; names: Names; cfg?: Record<string, unknown>; own: boolean; guard?: { says: boolean; why: string } }
-  const firstStoreOnly = 'the guard knows the first store alone'
+  interface Row { name: string; names: Names; cfg?: Record<string, unknown>; own: boolean; guardStill?: string }
   const rows: Row[] = [
     { name: 'no pin, HOME the account home', names: { HOME: account }, own: true },
     { name: 'an empty pin, HOME the account home', names: { HOME: account, MERCURY_CONFIG_DIR: '' }, own: true },
     { name: 'a scratch pin, HOME the account home', names: { HOME: account, MERCURY_CONFIG_DIR: pinned }, own: false },
     { name: 'the pin names the store', names: { HOME: account, MERCURY_CONFIG_DIR: store }, own: true },
     { name: 'the pin is a link to the store', names: { HOME: account, MERCURY_CONFIG_DIR: linkToStore }, own: true },
-    { name: 'the pin names a profile store', names: { HOME: account, MERCURY_CONFIG_DIR: profile }, own: true, guard: { says: false, why: firstStoreOnly } },
-    { name: 'the pin is a link to a profile store', names: { HOME: account, MERCURY_CONFIG_DIR: linkToProfile }, own: true, guard: { says: false, why: firstStoreOnly } },
-    { name: 'the pin names the store under a scratch HOME', names: { HOME: scratchHome, MERCURY_CONFIG_DIR: store }, own: true, guard: { says: false, why: 'the guard takes HOME for the account home' } },
-    { name: 'no pin under a scratch HOME', names: { HOME: scratchHome }, own: false, guard: { says: true, why: 'the guard calls every missing pin real; the child lands under the scratch HOME' } },
-    { name: 'no pin, MERCURY_HOME on a scratch folder', names: { HOME: account, MERCURY_HOME: pinned }, own: false, guard: { says: true, why: 'the guard reads the first name alone; the product takes the second when the first is unset' } },
+    { name: 'the pin names a profile store', names: { HOME: account, MERCURY_CONFIG_DIR: profile }, own: true },
+    { name: 'the pin is a link to a profile store', names: { HOME: account, MERCURY_CONFIG_DIR: linkToProfile }, own: true },
+    { name: 'the pin names the store under a scratch HOME', names: { HOME: scratchHome, MERCURY_CONFIG_DIR: store }, own: true },
+    { name: 'no pin under a scratch HOME', names: { HOME: scratchHome }, own: false, guardStill: 'a proof entry with no pin is given a proof home wherever HOME points; the staged install drives stand on a scratch HOME with no pin' },
+    { name: 'no pin, MERCURY_HOME on a scratch folder', names: { HOME: account, MERCURY_HOME: pinned }, own: false, guardStill: 'MERCURY_HOME is the launcher word, an operator pin and never a proof pin' },
     { name: 'no pin, MERCURY_HOME on the store, a scratch HOME', names: { HOME: scratchHome, MERCURY_HOME: store }, own: true },
     { name: 'a scratch pin over MERCURY_HOME on the store', names: { HOME: account, MERCURY_CONFIG_DIR: pinned, MERCURY_HOME: store }, own: false },
-    { name: 'a relative pin from a config whose cwd is the account home', names: { HOME: account, MERCURY_CONFIG_DIR: '.mercury' }, cfg: { cwd: account }, own: true, guard: { says: false, why: "the guard resolves a relative pin from its own folder; the child starts in the config's cwd" } },
+    { name: 'a relative pin from a config whose cwd is the account home', names: { HOME: account, MERCURY_CONFIG_DIR: '.mercury' }, cfg: { cwd: account }, own: true },
+    { name: "the pin names .mercury under a scratch HOME", names: { HOME: scratchHome, MERCURY_CONFIG_DIR: join(scratchHome, '.mercury') }, own: false, guardStill: "the product's default store follows HOME, so the guard holds HOME's .mercury beside the account's" },
   ]
   let started = 0
   const start = (names: Names, cfg: Record<string, unknown> = {}): { refused: boolean; status: number | null; words: string; ran: boolean; left: string[] } => {
@@ -318,20 +318,33 @@ console.log('════ vshot observed-ready laws ════')
   const guardSays = new Map<Row, boolean>()
   for (const home of [account, scratchHome]) {
     const asked = rows.filter(row => row.names.HOME === home)
-    const script = `import { configHomeIsReal } from ${JSON.stringify(join(ROOT, 'scripts', 'lib', 'loginDriverGuard.ts'))}; console.log(JSON.stringify(${JSON.stringify(asked.map(row => row.names))}.map(names => configHomeIsReal(names))))`
+    const script = `import { configHomeIsReal } from ${JSON.stringify(join(ROOT, 'scripts', 'lib', 'loginDriverGuard.ts'))}; console.log(JSON.stringify(${JSON.stringify(asked.map(row => ({ names: row.names, cwd: row.cfg?.cwd })))}.map(row => configHomeIsReal(row.names, row.cwd))))`
     const said = spawnSync(process.execPath, ['--eval', script], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, HOME: home } }).stdout.trim().split('\n').at(-1) ?? ''
     const answers: boolean[] = said.startsWith('[') ? JSON.parse(said) : []
     asked.forEach((row, i) => { if (typeof answers[i] === 'boolean') guardSays.set(row, answers[i]) })
+  }
+  const shellTemp = join(work, 'shell-guard-tmp')
+  mkdirSync(shellTemp)
+  const shellSays = (row: Row): boolean | undefined => {
+    const env: Record<string, string> = { PATH: process.env.PATH ?? '', HOME: row.names.HOME, TMPDIR: shellTemp, BUN: '/usr/bin/false' }
+    for (const name of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME'] as const) {
+      const value = row.names[name]
+      if (value !== undefined) env[name] = value
+    }
+    const r = spawnSync('bash', ['-c', '. "$1" || exit 78; suite_home_guard "$2"; printf "%s\\n" "${MERCURY_CONFIG_DIR:-}"', '_', join(ROOT, 'scripts', 'lib', 'suite-env.sh'), join(ROOT, 'scripts', 'ui-2', 'run-all.sh')], { cwd: typeof row.cfg?.cwd === 'string' ? row.cfg.cwd : ROOT, encoding: 'utf8', env })
+    return r.status === 0 ? (r.stdout.trim().split('\n').at(-1) ?? '') !== (row.names.MERCURY_CONFIG_DIR ?? '') : undefined
   }
   const refusals: Array<ReturnType<typeof start>> = []
   for (const row of rows) {
     const got = start(row.names, row.cfg)
     if (got.refused) refusals.push(got)
     const guard = guardSays.get(row)
+    const shell = shellSays(row)
+    const real = row.own || row.guardStill !== undefined
     check(
-      `15. HOME: ${row.name}: the driver ${row.own ? 'refuses' : 'starts its child'}${row.guard ? `; the tree's guard says ${row.guard.says ? 'real' : 'not real'} on purpose (${row.guard.why})` : ", as the tree's guard says"}`,
-      got.refused === row.own && got.ran === !row.own && guard === (row.guard?.says ?? row.own),
-      `${JSON.stringify({ status: got.status, ran: got.ran, guard: guard ?? 'no answer', words: got.words.slice(0, 200) })}; ${where}`,
+      `15. HOME: ${row.name}: the driver ${row.own ? 'refuses' : 'starts its child'}${row.guardStill ? `; the tree's two guards still say real, the more careful (${row.guardStill})` : ", as the tree's two guards say"}`,
+      got.refused === row.own && got.ran === !row.own && guard === real && shell === real,
+      `${JSON.stringify({ status: got.status, ran: got.ran, guard: guard ?? 'no answer', shellGuard: shell ?? 'no answer', words: got.words.slice(0, 200) })}; ${where}`,
     )
   }
   check("15. HOME: every refusal is one sentence that names the operator's own config home and the name to set", refusals.length === rows.filter(row => row.own).length && refusals.every(got => /refusing to start its child on the operator's own config home \(.+\): set MERCURY_CONFIG_DIR to a scratch folder/.test(got.words) && !got.words.includes('\n')), `${JSON.stringify(refusals.map(got => got.words.slice(0, 160)))}; ${where}`)
