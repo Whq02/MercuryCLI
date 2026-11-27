@@ -104,15 +104,15 @@ if (driver.kind !== 'posix-pty') {
       { atTick: 60, data: '/logins', awaitText: 'Type a prompt', minTick: 5 },
       { afterPrevTicks: 4, data: '\r' },
       { requireAwait: true, awaitText: 'Mercury · logins', awaitStableTicks: 3, mark: 'top', data: '' },
-      { requireAwait: true, awaitText: 'OpenCode Zen — API key', awaitPattern: '(?s)(?=.*❯ OpenCode Zen — API key)(?=.*esc back)', awaitStableTicks: 3, repeatEveryTicks: 3, mark: 'paged', data: '\u001b[6~' },
+      { requireAwait: true, awaitText: 'Devin CLI (external agent)', awaitPattern: '(?s)(?=.*❯ Devin CLI \\(external agent\\))(?=.*esc back)', awaitStableTicks: 3, repeatEveryTicks: 3, mark: 'paged', data: '\u001b[6~' },
       { afterPrevTicks: 3, data: '\u001b' },
     ], 70)
     check('/logins drive delivered every send', r.status === 0, `exit ${r.status}: ${r.stderr.trim().slice(-200)}`)
     const top = r.marks.top ?? ''
     const paged = r.marks.paged ?? ''
     check('/logins at 100x30: the footer is on screen with the menu (esc back)', top.includes('esc back') && top.includes('Sign in'))
-    check('/logins at 100x30: the menu is the sign-in rows alone and its last family row starts below the fold', !top.includes('Provider readiness') && !top.includes('OpenCode Zen — API key'))
-    check('PageDown pages the family rows: the last one is selected, the footer stays and nothing stands below it', paged.includes('❯ OpenCode Zen — API key') && paged.includes('esc back') && !paged.includes('Provider readiness'))
+    check('/logins at 100x30: the menu is the sign-in rows alone and its last family row starts below the fold', !top.includes('Provider readiness') && !top.includes('OpenCode Zen — API key') && !top.includes('Devin CLI (external agent)'))
+    check('PageDown pages the family rows: the last one is selected, the footer stays and nothing stands below it', paged.includes('❯ Devin CLI (external agent)') && paged.includes('esc back') && !paged.includes('Provider readiness'))
   }
   {
     const r = capture('logins-wrap', [
@@ -120,14 +120,14 @@ if (driver.kind !== 'posix-pty') {
       { requireAwait: true, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 2, data: '/logins' },
       { requireAwait: true, awaitText: '❯ /logins', awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: 'Mercury · logins', awaitStableTicks: 3, data: '' },
-      { requireAwait: true, awaitText: 'OpenCode Zen', awaitPattern: '❯ OpenCode Zen', awaitStableTicks: 2, repeatEveryTicks: 3, mark: 'last', data: '\u001b[B' },
+      { requireAwait: true, awaitText: 'Devin CLI (external agent)', awaitPattern: '❯ Devin CLI \\(external agent\\)', awaitStableTicks: 2, repeatEveryTicks: 3, mark: 'last', data: '\u001b[B' },
       { requireAwait: true, awaitText: 'OpenAI — ChatGPT', awaitPattern: '❯ OpenAI — ChatGPT', awaitStableTicks: 3, mark: 'wrapped', data: '' },
       { requireAwait: true, awaitText: 'esc back', awaitSettleTicks: 2, data: '\u001b' },
     ], 150, 'Type a prompt')
     check('/logins wrap drive delivered every send', r.status === 0, `exit ${r.status}: ${r.stderr.trim().slice(-200)}`)
     const last = r.marks.last ?? ''
     const wrapped = r.marks.wrapped ?? ''
-    check('↓ walks the list to its last row with the body scrolled to show it', last.includes('❯ OpenCode Zen') && last.includes('esc back'))
+    check('↓ walks the list to its last row with the body scrolled to show it', last.includes('❯ Devin CLI (external agent)') && last.includes('esc back'))
     check('↓ on the last row wraps to the first row AND the body scrolls up to show it (a focused row is never off screen)', wrapped.includes('❯ OpenAI — ChatGPT') && wrapped.includes('esc back'))
   }
   {

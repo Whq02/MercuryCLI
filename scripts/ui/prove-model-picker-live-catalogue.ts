@@ -143,8 +143,8 @@ if (driver.kind !== 'posix-pty') {
           { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, requireAwait: true, awaitSettleTicks: 2, data: '\r' },
           { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true, awaitSettleTicks: 2 },
           { afterPrevTicks: 3, data: '\r' },
-          { requireAwait: true, awaitText: '│ │ Opus 5.5 ', awaitSettleTicks: 2, data: '\u001b[H' + '\u001b[B'.repeat(openrouterIndex) },
-          { requireAwait: true, awaitText: '│ │ OpenRouter — connecting…', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'pending', data: '' },
+          { requireAwait: true, awaitText: '│ ❯ Opus 5.5 ', awaitSettleTicks: 2, data: '\u001b[H' + '\u001b[B'.repeat(openrouterIndex) },
+          { requireAwait: true, awaitText: '│ ❯ OpenRouter — connecting…', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'pending', data: '' },
           { requireAwait: true, awaitText: `OPENROUTER · API key · …${OPENROUTER_KEY_TAIL} · ${FIXTURE_ROWS} live`, awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'landed', data: '' },
           { afterPrevTicks: 3, data: '\u001b' },
         ],
@@ -170,7 +170,7 @@ if (driver.kind !== 'posix-pty') {
     })
     check('the drive delivered every send (exit 0)', res.status === 0, `exit ${res.status}: ${(res.stderr ?? '').trim().slice(-300)}`)
     if (res.status !== 0) {
-      const frame = (res.stdout ?? '').split('\n').filter(l => l.includes('│ │') || /OPENROUTER|more\s*$/.test(l))
+      const frame = (res.stdout ?? '').split('\n').filter(l => l.includes('│ ❯') || /OPENROUTER|more\s*$/.test(l))
       console.log('  final frame (header · focus box · fold markers):\n' + frame.map(l => `    ${l.trimEnd()}`).join('\n'))
     }
     if (existsSync(grid)) {
@@ -190,7 +190,7 @@ if (driver.kind !== 'posix-pty') {
         check('both moments belong to ONE open (the picker never closed between them)', landed.atTick > pending.atTick && l.includes('Mercury · model') && p.includes('Mercury · model'), 'the picker closed or reopened between the two marks; the live catalogue must update the open /model picker in place (catalogueEpoch in src/models/roads/catalogueEpoch.ts)')
         const openrouterHeading = (t: string): string => (t.match(/[▾▸❯] OPENROUTER · [^│\n]+/)?.[0] ?? '').trim()
         check(`the OpenRouter heading counts the landed rows (${FIXTURE_ROWS} live, the fixture's lineup)`, openrouterHeading(l).endsWith(`· ${FIXTURE_ROWS} live`) && !/\d+ live/.test(openrouterHeading(p)), `${openrouterHeading(p)} → ${openrouterHeading(l)}; the group heading in src/models/facts/modelPickerGroups.ts must show the live row count once the rows land`)
-        check('the rows landed under the cursor (the focus box holds the first live row)', new RegExp(`│ │ \\S.*${idCellPattern('openrouter/anthropic/claude-opus-5')}`).test(l), l.split('\n').filter(line => line.includes('│ │ ')).map(line => line.trim()).join(' | '))
+        check('the rows landed under the cursor (the focused row is the first live row)', new RegExp(`│ ❯ \\S.*${idCellPattern('openrouter/anthropic/claude-opus-5')}`).test(l), l.split('\n').filter(line => line.includes('│ ❯ ')).map(line => line.trim()).join(' | '))
       }
     } else {
       check('the capture wrote its grid', false, 'scripts/ui/vshot.py wrote no grid file; read its stderr from the drive and rebuild with bun run build.ts')
