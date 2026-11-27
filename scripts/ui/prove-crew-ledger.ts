@@ -472,7 +472,7 @@ async function run(cols: number, rows: number): Promise<void> {
     console.log(`after esc on delta: viewing=${String(scene.state().viewingCrewmateTaskId)} · status row "${statusOf(scene.lines(), railCols)}" · ${footerOf(scene.lines()).replace(/\s+/g, ' ').slice(0, 200)}`)
     check('esc on the landed crewmate goes back to Mercury Lead (no crewmate viewed, the lead\'s rows back)', scene.state().viewingCrewmateTaskId === undefined && centreOf(scene.lines(), railCols).some(line => line.includes('LEAD-ROW')), `viewingAgentTaskId=${String(scene.state().viewingCrewmateTaskId)} · status row "${statusOf(scene.lines(), railCols)}"`)
     check('no stop was sent for the landed crewmate', stops().length === stopsBefore, JSON.stringify(stops().slice(stopsBefore)))
-    check('the receipt says delta is landed and the view is back on Mercury Lead — never "between turns — nothing to interrupt"', scene.lines().some(line => line.includes(`${DELTA.name} is landed`) && line.includes(LEAD_ROW)) && !scene.lines().some(line => line.includes('nothing to interrupt')), footerOf(scene.lines()).replace(/\s+/g, ' ').slice(0, 240))
+    check('the receipt says delta is landed and the view is back on Mercury Lead — never "between turns — nothing to interrupt"', scene.lines().some(line => line.includes(`${DELTA.name} is landed`) && line.includes(LEAD_ROW) && line.includes('in the crew panel until you clear it')) && !scene.lines().some(line => line.includes('nothing to interrupt')), footerOf(scene.lines()).replace(/\s+/g, ' ').slice(0, 240))
   }
 
   section(`§2 ${tag('the crewmates settle and the runner evicts their rows: the box keeps them, each with its state word')}`)
@@ -552,7 +552,7 @@ async function run(cols: number, rows: number): Promise<void> {
     check('esc on the crewmate that is not running goes back to Mercury Lead (no crewmate viewed)', scene.state().viewingCrewmateTaskId === undefined, `viewingAgentTaskId=${String(scene.state().viewingCrewmateTaskId)} · status row "${statusOf(scene.lines(), railCols)}"`)
     check('the lead\'s rows are back in the centre', centreOf(scene.lines(), railCols).some(line => line.includes('LEAD-ROW')) && !centreOf(scene.lines(), railCols).some(line => line.includes('BIRCH-ROW')))
     check('no stop was sent for the crewmate that was not running', stops().length === stopsBefore, JSON.stringify(stops().slice(stopsBefore)))
-    check('the receipt says birch is interrupted and the view is back on Mercury Lead', scene.lines().some(line => line.includes(`${BIRCH.name} is interrupted`) && line.includes(LEAD_ROW)), footerOf(scene.lines()).replace(/\s+/g, ' ').slice(0, 240))
+    check('the receipt says birch is interrupted and the view is back on Mercury Lead', scene.lines().some(line => line.includes(`${BIRCH.name} is interrupted`) && line.includes(LEAD_ROW) && line.includes('in the crew panel until you clear it')), footerOf(scene.lines()).replace(/\s+/g, ' ').slice(0, 240))
     check('birch keeps its row in the CREW box after the return', inBox('birch'), describeBox())
     const atlasRow = await clickRail(scene, 'atlas', railCols)
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('ATLAS-ROW')), 6000)
