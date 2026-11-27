@@ -36,6 +36,7 @@ function debianPackages(): ReadonlyMap<string, string> {
 const PROBE_TIMEOUT_MS = 5_000
 const NAMED_LIBRARIES_CAP = 40
 const LOADER_REFUSAL = /error while loading shared libraries: ([A-Za-z0-9._+-]{1,80}):/
+const NO_ARCHIVER = 'no zip archiver is available'
 const LDD_MISSING = /^\s*([A-Za-z0-9._+-]{1,80}) => not found$/gm
 const APT_STANZA = /^([a-z0-9][a-z0-9.+-]*):\n {2}Installed: (.+)\n {2}Candidate: (.+)$/gm
 
@@ -80,5 +81,21 @@ export async function missingLibraryWords(failure: string, executablePath: strin
 
 export async function launchFailure(error: unknown, executablePath: string): Promise<unknown> {
   const words = await missingLibraryWords(errorMessage(error), executablePath)
+  return words === null ? error : new Error(words, { cause: error })
+}
+
+export async function missingArchiverWords(failure: string, reads: LibraryReads = {}): Promise<string | null> {
+  if ((reads.platform ?? process.platform) !== 'linux') return null
+  if (!failure.includes(NO_ARCHIVER)) return null
+  const offered = await aptPackagesFor(['unzip', ...new Set(debianPackages().values())], reads.run ?? runProbe)
+  const lacking = offered.filter(pkg => !pkg.installed).map(pkg => pkg.name)
+  if (lacking[0] !== 'unzip') return `this machine lacks unzip, which unpacks the browser's archive`
+  const libraries = lacking.length - 1
+  const beside = libraries === 0 ? '' : `, and ${libraries} ${libraries === 1 ? 'package' : 'packages'} of libraries the browser loads`
+  return `this machine lacks unzip, which unpacks the browser's archive${beside}\n  the operator runs: sudo apt-get install ${lacking.join(' ')}`
+}
+
+export async function installFailure(error: unknown): Promise<unknown> {
+  const words = await missingArchiverWords(errorMessage(error))
   return words === null ? error : new Error(words, { cause: error })
 }

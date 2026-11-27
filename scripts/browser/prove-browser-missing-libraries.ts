@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { Browser, detectBrowserPlatform, getDownloadUrl } from '@puppeteer/browsers'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -13,17 +14,22 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_BROWSER = '1'
 process.env.MERCURY_BROWSER_NO_DISCOVERY = '1'
 process.env.MERCURY_BROWSER_PATH = process.execPath
+const CACHE = join(home, 'browsers')
+process.env.MERCURY_BROWSER_CACHE_DIR = CACHE
 
 const browser = await import(join(ROOT, 'src/integrations/browser/browserSession.ts'))
 const { BrowserTool } = await import(join(ROOT, 'src/tools/browser/BrowserTool.ts'))
 const { processOwnerForLane } = await import(join(ROOT, 'src/engine/run-owner/resolveOwner.ts'))
 const owner = processOwnerForLane('missing-libraries')
+const { installManagedBrowser } = await import(join(ROOT, 'src/integrations/browser/browserInstall.ts'))
+const { call: browserCommand } = await import(join(ROOT, 'src/commands/browser/browserCommand.ts'))
 const libraries: {
   missingLibraryWords?: (
     failure: string,
     executablePath: string,
     reads?: { platform?: NodeJS.Platform; run?: (file: string, args: string[]) => Promise<string> },
   ) => Promise<string | null>
+  missingArchiverWords?: (failure: string, reads?: { platform?: NodeJS.Platform; run?: (file: string, args: string[]) => Promise<string> }) => Promise<string | null>
 } = existsSync(join(ROOT, 'src/integrations/browser/browserLibraries.ts'))
   ? await import(join(ROOT, 'src/integrations/browser/browserLibraries.ts'))
   : {}
@@ -76,6 +82,15 @@ function probe(ldd: string, apt: string): Probe {
 const words = async (failure: string, platform: NodeJS.Platform, reads: Probe): Promise<string | null> =>
   libraries.missingLibraryWords === undefined ? 'this tree has no src/integrations/browser/browserLibraries.ts' : libraries.missingLibraryWords(failure, EXECUTABLE, { platform, run: reads.run })
 const installLine = (text: string | null): string[] => /\n {2}the operator runs: sudo apt-get install (.+)$/.exec(text ?? '')?.[1]?.split(' ') ?? []
+
+const libraryFailure = (buildId: string): string =>
+  `All providers failed for chrome ${buildId}:\n  - DefaultProvider: Extraction failed: no zip archiver is available. Install \`unzip\` (or \`tar.exe\`/Powershell on Windows), or add the optional \`yauzl\` dependency.`
+const NO_UNZIP = 'this machine lacks unzip, which unpacks the browser\'s archive'
+const SERVER_HOLDS = ['libglib2.0-0t64', 'libnspr4', 'libnss3', 'libdbus-1-3', 'libexpat1', 'libxcb1', 'libxkbcommon0', 'libx11-6', 'libxext6', 'libudev1']
+const SERVER_LACKS = ['libatk1.0-0t64', 'libatk-bridge2.0-0t64', 'libatspi2.0-0t64', 'libcups2t64', 'libasound2t64', 'libgbm1', 'libcairo2', 'libpango-1.0-0', 'libxcomposite1', 'libxdamage1', 'libxfixes3', 'libxrandr2']
+const APT_SERVER = [stanza('unzip', '6.0-28ubuntu7'), ...SERVER_HOLDS.map(name => stanza(name, '1.0-1', '1.0-1')), ...SERVER_LACKS.map(name => stanza(name, '1.0-1')), ...RENAMED.map(name => stanza(name, '(none)'))].join('')
+const archiverWords = async (failure: string, platform: NodeJS.Platform, reads: Probe): Promise<string | null> =>
+  libraries.missingArchiverWords === undefined ? 'this tree words no failure to unpack' : libraries.missingArchiverWords(failure, { platform, run: reads.run })
 
 const context = { agentId: 'missing-libraries', abortController: new AbortController() } as never
 const opened = async (): Promise<{ result: string; outcome: string }> => (await BrowserTool.call({ op: 'open', url: 'http://127.0.0.1:9/' }, context)).data
@@ -188,6 +203,76 @@ try {
     check('the stand-in ldd ran and left a child of its own holding its pipe', ran, programs)
     check(`the answer came within the 5 s bound and a second (${took} ms)`, took < 6_000, 'the probe was waited for past its bound')
     check('it reads as when ldd is absent: the one library the loader named and no line', bounded === 'the browser did not start — this machine lacks 1 shared library it loads: libglib-2.0.so.0', bounded ?? '(none)')
+  }
+
+  section('11. a provision with no unpacker, apt answering as on a clean Ubuntu Server 26.04: one line for both steps')
+  const clean = probe('', APT_SERVER)
+  const cleanWords = await archiverWords(libraryFailure('158.0.8127.88'), 'linux', clean)
+  check('the sentence is the tool\'s own', cleanWords?.startsWith(`${NO_UNZIP}, and 12 packages of libraries the browser loads\n`) === true, cleanWords ?? '(none)')
+  check('the line is unzip first, then the twelve packages the server lacks and none it holds', installLine(cleanWords)[0] === 'unzip' && JSON.stringify(installLine(cleanWords).slice(1).toSorted()) === JSON.stringify(SERVER_LACKS.toSorted()), installLine(cleanWords).join(' '))
+  check('nothing of Windows, of an optional package or of the library\'s own words is in it', cleanWords !== null && !/Windows|Powershell|tar\.exe|yauzl|DefaultProvider|All providers/.test(cleanWords), cleanWords ?? '(none)')
+  check('apt is asked once and nothing else is run', clean.calls.length === 1 && clean.calls[0]?.file === 'apt-cache', JSON.stringify(clean.calls.map(call => call.file)))
+  const whole = await archiverWords(libraryFailure('158.0.8127.88'), 'linux', probe('', [stanza('unzip', '6.0-28'), ...[...SERVER_HOLDS, ...SERVER_LACKS].map(name => stanza(name, '1.0-1', '1.0-1'))].join('')))
+  check('a machine that holds every library: unzip alone', whole === `${NO_UNZIP}\n  the operator runs: sudo apt-get install unzip`, whole ?? '(none)')
+  const plainNames = await archiverWords(libraryFailure('158.0.8127.88'), 'linux', probe('', [stanza('unzip', '6.0-26'), ...[...RENAMED, ...PLAIN].map(name => stanza(name, '1.0-1'))].join('')))
+  check('a release without the renamed packages: its own names', installLine(plainNames)[0] === 'unzip' && installLine(plainNames).includes('libasound2') && installLine(plainNames).every(name => !name.endsWith('t64')), installLine(plainNames).join(' '))
+  const bare = await archiverWords(libraryFailure('158.0.8127.88'), 'linux', probe('', ''))
+  check('no apt: the sentence and no line', bare === NO_UNZIP, bare ?? '(none)')
+  const unzipHeld = await archiverWords(libraryFailure('158.0.8127.88'), 'linux', probe('', [stanza('unzip', '6.0-28', '6.0-28'), ...SERVER_LACKS.map(name => stanza(name, '1.0-1'))].join('')))
+  check('apt reports unzip installed: the sentence and no line', unzipHeld === NO_UNZIP, unzipHeld ?? '(none)')
+  for (const platform of ['darwin', 'win32'] as const) {
+    const other = probe('', APT_SERVER)
+    check(`${platform}: no sentence and no program run`, (await archiverWords(libraryFailure('158.0.8127.88'), platform, other)) === null && other.calls.length === 0, JSON.stringify(other.calls))
+  }
+  const otherFailure = probe('', APT_SERVER)
+  check('another failure of the library: no sentence and no program run', (await archiverWords('All providers failed for chrome 158.0.8127.88:\n  - DefaultProvider: Extraction failed: End-of-central-directory signature not found.', 'linux', otherFailure)) === null && otherFailure.calls.length === 0, JSON.stringify(otherFailure.calls))
+
+  section('12. through the installer: the library makes the build folder, then finds no unpacker')
+  const libraryError = new Error(libraryFailure('158.0.8127.96'))
+  let made = ''
+  const thrown: unknown = await installManagedBrowser('158.0.8127.96', undefined, async (options: { cacheDir: string; platform: string; buildId: string }) => {
+    made = join(options.cacheDir, Browser.CHROME, `${options.platform}-${options.buildId}`)
+    mkdirSync(made, { recursive: true })
+    throw libraryError
+  }).then(() => null, (error: unknown) => error)
+  const said = thrown instanceof Error ? thrown.message : String(thrown)
+  if (process.platform === 'linux') {
+    check('linux: the installer throws the tool\'s sentence', said.startsWith(NO_UNZIP) && !/yauzl|Powershell/.test(said), said)
+    check('linux: the library\'s error is its cause', thrown instanceof Error && thrown.cause === libraryError, said)
+  } else {
+    check(`${process.platform}: the installer rethrows the library's error as it came`, thrown === libraryError, said)
+  }
+  check('the build folder the failed attempt made is gone', made.startsWith(CACHE) && !existsSync(made), made)
+
+  section('13. both doors, the real library, no unpacker in reach')
+  const hostPlatform = detectBrowserPlatform()
+  if (process.platform === 'win32' || hostPlatform === undefined) {
+    console.log('  (not run here: on Windows the library unpacks by the system\'s own tar.exe, found by its path)')
+  } else {
+    const stage = (buildId: string): string => {
+      const archive = decodeURIComponent(getDownloadUrl(Browser.CHROME, hostPlatform, buildId).toString()).split('/').pop() ?? ''
+      mkdirSync(join(CACHE, Browser.CHROME), { recursive: true })
+      writeFileSync(join(CACHE, Browser.CHROME, `${buildId}-${archive}`), 'an archive no program in reach unpacks')
+      return join(CACHE, Browser.CHROME, `${hostPlatform}-${buildId}`)
+    }
+    const told = (answer: string, door: string, buildId: string): boolean =>
+      process.platform === 'linux'
+        ? answer.startsWith(`${door}${NO_UNZIP}`) && !/Windows|Powershell|yauzl|DefaultProvider/.test(answer)
+        : answer === `${door}${libraryFailure(buildId)}`
+    const expected = process.platform === 'linux' ? 'the tool\'s sentence' : 'the library\'s words, as before'
+    const reach = process.env.PATH
+    const nowhere = join(home, 'no-programs')
+    mkdirSync(nowhere)
+    process.env.PATH = nowhere
+    const toolFolder = stage('158.0.8127.97')
+    const commandFolder = stage('158.0.8127.98')
+    const provisioned: { result: string; outcome: string } = (await BrowserTool.call({ op: 'provision', buildId: '158.0.8127.97' }, context)).data
+    const typed: unknown = await browserCommand('install 158.0.8127.98 confirm', {}).then(() => null, (error: unknown) => error)
+    process.env.PATH = reach
+    check(`${process.platform}: the tool's provision answers ${expected}`, provisioned.outcome === 'failed' && told(provisioned.result, 'provision failed: ', '158.0.8127.97'), provisioned.result)
+    check('the build folder the library made for it is gone', !existsSync(toolFolder), toolFolder)
+    check(`${process.platform}: /browser install throws ${expected}`, told(String(typed), 'Error: ', '158.0.8127.98'), String(typed))
+    check('the build folder the library made for it is gone', !existsSync(commandFolder), commandFolder)
   }
 } finally {
   browser.setBrowserLaunchDriverForProof(null)
