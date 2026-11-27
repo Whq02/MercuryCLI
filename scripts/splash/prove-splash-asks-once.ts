@@ -317,6 +317,7 @@ section('§2 no-ask environments — no request written, no truecolor field in r
     { label: 'NO_COLOR=1', env: { NO_COLOR: '1' } },
     { label: 'FORCE_COLOR=2', env: { FORCE_COLOR: '2' } },
     { label: 'TMUX set', env: { TMUX: '/tmp/tmux-1000/default,1,0' } },
+    { label: 'STY set (GNU screen)', env: { STY: '4242.pts-0.host' } },
     { label: 'MERCURY_SPLASH_ONESHOT=1', env: { MERCURY_SPLASH_ONESHOT: '1' }, sendEnter: false },
   ]
   for (const c of cases) {

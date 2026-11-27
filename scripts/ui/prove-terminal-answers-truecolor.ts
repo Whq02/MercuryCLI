@@ -12,7 +12,7 @@ const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'colour-answer-')))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'proof-home')
 process.env.NODE_ENV = 'test'
 process.env.TERM = 'xterm-256color'
-for (const name of ['COLORTERM', 'FORCE_COLOR', 'NO_COLOR', 'TMUX', 'TERM_PROGRAM', 'MERCURY_TRUECOLOR', 'WT_SESSION', 'KITTY_WINDOW_ID']) delete process.env[name]
+for (const name of ['COLORTERM', 'FORCE_COLOR', 'NO_COLOR', 'TMUX', 'STY', 'TERM_PROGRAM', 'MERCURY_TRUECOLOR', 'WT_SESSION', 'KITTY_WINDOW_ID']) delete process.env[name]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -185,6 +185,7 @@ section('§5 who is asked: nobody whose depth the environment already settles')
   check('the Linux console is not asked', at(1, { TERM: 'linux' }) === false, `${fix} must be false for TERM=linux: its DCS is not implemented`)
   check('TERM=dumb is not asked', at(0, { TERM: 'dumb' }) === false, `${fix} must be false for TERM=dumb`)
   check('tmux is not asked', at(2, { TERM: 'tmux-256color', TMUX: '/tmp/tmux-1/default,1,0' }) === false, `${fix} must be false under TMUX`)
+  check('GNU screen is not asked (it hands the request\'s body to the outer terminal as text)', at(2, { TERM: 'screen-256color', STY: '4242.pts-0.host' }) === false && at(1, { TERM: 'screen', STY: '4242.pts-0.host' }) === false, `${fix} must be false under STY`)
   check('Apple Terminal by name is not asked', at(2, { TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal' }) === false, `${fix} must be false for TERM_PROGRAM=Apple_Terminal`)
   check('NO_COLOR is not asked', at(0, { TERM: 'xterm-256color', NO_COLOR: '1' }) === false, `${fix} must be false under NO_COLOR`)
   check('FORCE_COLOR is not asked', at(2, { TERM: 'xterm-256color', FORCE_COLOR: '2' }) === false, `${fix} must be false when FORCE_COLOR is set`)
@@ -381,6 +382,7 @@ for (const [name, env] of [
   ['truecolor-flag-off', { TERM: 'xterm-256color', MERCURY_TRUECOLOR: '0' }],
   ['no-color', { TERM: 'xterm-256color', NO_COLOR: '1' }],
   ['tmux', { TERM: 'tmux-256color', TMUX: '/tmp/tmux-1/default,1,0' }],
+  ['gnu-screen', { TERM: 'screen', STY: '4242.pts-0.host' }],
   ['linux-console', { TERM: 'linux' }],
   ['apple-terminal', { TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal' }],
 ] as const) {

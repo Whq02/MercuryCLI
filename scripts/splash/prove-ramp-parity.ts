@@ -402,6 +402,7 @@ t.section('§8 — S3: baked TRUECOLOR_QUERY, truecolorEchoOf and truecolorAskab
       { label: 'FORCE_COLOR=2', env: { TERM: 'xterm-256color', FORCE_COLOR: '2' }, level: 2 },
       { label: 'FORCE_COLOR=0', env: { TERM: 'xterm-256color', FORCE_COLOR: '0' }, level: 2 },
       { label: 'TMUX set', env: { TERM: 'tmux-256color', TMUX: '/tmp/tmux/1,0' }, level: 2 },
+      { label: 'STY set', env: { TERM: 'screen-256color', STY: '4242.pts-0.host' }, level: 2 },
       { label: 'Apple_Terminal', env: { TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal' }, level: 2 },
       { label: 'MERCURY_TRUECOLOR=0', env: { TERM: 'xterm-256color', MERCURY_TRUECOLOR: '0' }, level: 2 },
       { label: 'MERCURY_TRUECOLOR=1', env: { TERM: 'xterm-256color', MERCURY_TRUECOLOR: '1' }, level: 2 },
