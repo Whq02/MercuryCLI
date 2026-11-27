@@ -279,7 +279,7 @@ console.log('════ vshot observed-ready laws ════')
   mkdirSync(scratchHome)
   symlinkSync(store, linkToStore)
   symlinkSync(profile, linkToProfile)
-  const where = "the two refusals stand ahead of the capture slot in scripts/ui/vshot.py (_child_config_home, _operators_own_store); the tree's guard is configHomeIsReal in scripts/lib/loginDriverGuard.ts"
+  const where = "the two refusals stand ahead of the capture slot in scripts/ui/vshot.py (_child_config_home, _operators_own_store); the tree's two guards are configHomeIsReal in scripts/lib/loginDriverGuard.ts and suite_home_guard in scripts/lib/suite-env.sh"
   type Names = { HOME: string; MERCURY_CONFIG_DIR?: string; MERCURY_HOME?: string }
   interface Row { name: string; names: Names; cfg?: Record<string, unknown>; own: boolean; guardStill?: string }
   const rows: Row[] = [
@@ -323,15 +323,28 @@ console.log('════ vshot observed-ready laws ════')
     const answers: boolean[] = said.startsWith('[') ? JSON.parse(said) : []
     asked.forEach((row, i) => { if (typeof answers[i] === 'boolean') guardSays.set(row, answers[i]) })
   }
+  const shellTemp = join(work, 'shell-guard-tmp')
+  mkdirSync(shellTemp)
+  const shellSays = (row: Row): boolean | undefined => {
+    const env: Record<string, string> = { PATH: process.env.PATH ?? '', HOME: row.names.HOME, TMPDIR: shellTemp, BUN: '/usr/bin/false' }
+    for (const name of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME'] as const) {
+      const value = row.names[name]
+      if (value !== undefined) env[name] = value
+    }
+    const r = spawnSync('bash', ['-c', '. "$1" || exit 78; suite_home_guard "$2"; printf "%s\\n" "${MERCURY_CONFIG_DIR:-}"', '_', join(ROOT, 'scripts', 'lib', 'suite-env.sh'), join(ROOT, 'scripts', 'ui-2', 'run-all.sh')], { cwd: typeof row.cfg?.cwd === 'string' ? row.cfg.cwd : ROOT, encoding: 'utf8', env })
+    return r.status === 0 ? (r.stdout.trim().split('\n').at(-1) ?? '') !== (row.names.MERCURY_CONFIG_DIR ?? '') : undefined
+  }
   const refusals: Array<ReturnType<typeof start>> = []
   for (const row of rows) {
     const got = start(row.names, row.cfg)
     if (got.refused) refusals.push(got)
     const guard = guardSays.get(row)
+    const shell = shellSays(row)
+    const real = row.own || row.guardStill !== undefined
     check(
-      `15. HOME: ${row.name}: the driver ${row.own ? 'refuses' : 'starts its child'}${row.guardStill ? `; the tree's guard still says real, the more careful of the two (${row.guardStill})` : ", as the tree's guard says"}`,
-      got.refused === row.own && got.ran === !row.own && guard === (row.own || row.guardStill !== undefined),
-      `${JSON.stringify({ status: got.status, ran: got.ran, guard: guard ?? 'no answer', words: got.words.slice(0, 200) })}; ${where}`,
+      `15. HOME: ${row.name}: the driver ${row.own ? 'refuses' : 'starts its child'}${row.guardStill ? `; the tree's two guards still say real, the more careful (${row.guardStill})` : ", as the tree's two guards say"}`,
+      got.refused === row.own && got.ran === !row.own && guard === real && shell === real,
+      `${JSON.stringify({ status: got.status, ran: got.ran, guard: guard ?? 'no answer', shellGuard: shell ?? 'no answer', words: got.words.slice(0, 200) })}; ${where}`,
     )
   }
   check("15. HOME: every refusal is one sentence that names the operator's own config home and the name to set", refusals.length === rows.filter(row => row.own).length && refusals.every(got => /refusing to start its child on the operator's own config home \(.+\): set MERCURY_CONFIG_DIR to a scratch folder/.test(got.words) && !got.words.includes('\n')), `${JSON.stringify(refusals.map(got => got.words.slice(0, 160)))}; ${where}`)
