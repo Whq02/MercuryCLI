@@ -3,7 +3,7 @@ import { plugin } from 'bun'
 import { proofHome } from '../lib/hermetic.ts'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 plugin({
@@ -20,18 +20,30 @@ const ROOT = realpathSync(join(import.meta.dir, '..', '..'))
 process.chdir(ROOT)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.MERCURY_SHELL_ENGINE
+const PROFILE = "fixture_precheck() { printf 'precheck ran\\n'; exit 1; }\nfixture_helper() { return 1; }\n"
+const fixtureHome = (home: string): string => {
+  mkdirSync(home, { recursive: true })
+  for (const name of ['.bash_profile', '.bashrc', '.profile']) writeFileSync(join(home, name), PROFILE)
+  return home
+}
+const STARTS_AGAIN_AT_HOME = process.platform === 'win32'
+const AT_HOME = '--at-the-fixture-home'
+if (STARTS_AGAIN_AT_HOME && !process.argv.includes(AT_HOME)) {
+  const home = fixtureHome(realpathSync(mkdtempSync(join(tmpdir(), 'which-exit-one-home-'))))
+  const whole = spawnSync(process.execPath, [import.meta.path, AT_HOME], { stdio: 'inherit', env: { ...process.env, HOME: home, USERPROFILE: home } })
+  rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+  process.exit(whole.status ?? 1)
+}
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'which-exit-one-')))
 process.env.MERCURY_TMPDIR = join(SCRATCH, 'tmp')
 mkdirSync(process.env.MERCURY_TMPDIR, { recursive: true })
 const FRAMES = join(SCRATCH, 'frames')
-const HOME = join(SCRATCH, 'home')
+const HOME = STARTS_AGAIN_AT_HOME ? homedir() : fixtureHome(join(SCRATCH, 'home'))
 const WORK_FOLDER = join(SCRATCH, 'work')
-for (const dir of [FRAMES, HOME, WORK_FOLDER]) mkdirSync(dir)
+for (const dir of [FRAMES, WORK_FOLDER]) mkdirSync(dir)
 process.env.TMPDIR = FRAMES
 if (process.platform === 'win32') process.env.TEMP = process.env.TMP = FRAMES
 process.env.HOME = HOME
-const PROFILE = "fixture_precheck() { printf 'precheck ran\\n'; exit 1; }\nfixture_helper() { return 1; }\n"
-for (const name of ['.bash_profile', '.bashrc', '.profile']) writeFileSync(join(HOME, name), PROFILE)
 const { nativePathToShell, shellPathToNative } = await import('../../src/platform/host-os/paths.ts')
 const WORK = nativePathToShell(WORK_FOLDER)
 const LEFT = `${WORK}/left`
@@ -110,7 +122,8 @@ section("§3 the bench's shape: a list whose LAST command is which, after a succ
 const listed = await drive('ls -la; which timeout-no-such-0x gtimeout-no-such-0x sh 2>&1')
 check('the whole list is a result, status ok', listed.ok, listed.ok ? '' : `${listed.error.slice(0, 200)} — the exit code of a list is its last command; interpretCommandResult in src/tools/shell/commandSemantics.ts must read the last command, which`)
 if (listed.ok) {
-  check('the listing and the which lines are both in the output, the label last', listed.content.includes('total ') && listed.content.includes('/sh') && listed.content.endsWith('a name was not found (exit code 1)'), JSON.stringify(listed.content.slice(-160)))
+  const missed = listed.out.code
+  check('the listing and the which lines are both in the output, the label last', listed.content.includes('total ') && listed.content.includes('/sh') && (missed === 1 || missed === 2) && listed.content.endsWith(`a name was not found (exit code ${missed})`), `${JSON.stringify(listed.content.slice(-160))} — two names are missing: a which that counts them leaves with 2 (GNU which, the one in Git Bash), the others with 1, and interpretCommandResult in src/tools/shell/commandSemantics.ts labels both`)
 }
 
 section('§4 exit 2 and above stay errors; other words are untouched')
@@ -210,6 +223,15 @@ if (served.origin === 'engine') {
   check('compound prefix arithmetic-error abort before closing diff stays an error', !arithAbortBeforeDiff.ok && /Exited with code 1/.test(arithAbortBeforeDiff.error), arithAbortBeforeDiff.ok ? JSON.stringify(arithAbortBeforeDiff.out) : arithAbortBeforeDiff.error.slice(-160))
 
   section('§6 exit 1 is a result only when the closing command ran last (each command runs in the real shell, through the tool)')
+  const carried = await drive('declare -F fixture_precheck fixture_helper')
+  const snapshots = join(proofHome, 'shell-snapshots')
+  check(
+    'the two profile functions of the fixture are defined in the shell the tool runs',
+    carried.ok && carried.out.code === 0 && carried.out.stdout.includes('fixture_precheck') && carried.out.stdout.includes('fixture_helper'),
+    `${JSON.stringify(carried.ok ? carried.out.stdout : carried.error.slice(-160))}; the home is ${homedir()}, the snapshots are ${existsSync(snapshots) ? readdirSync(snapshots).join(', ') || 'none' : 'none'} — the rows below that call them rest on this: a bash of Windows gets a function only from a snapshot, and the snapshot carries functions only when a .bashrc stands in the home os.homedir() names (collectDefinitions in createAndSaveSnapshot, src/platform/shell/bash/shellSnapshot.ts), so this proof must start in its fixture home (the top of this file starts it again there)`,
+  )
+  const KILLED = 'the shell killed before the closing grep'
+  const signalEndReadsAsNothing = spawnSync(served.path, ['-c', 'kill -TERM $$'], { encoding: 'utf8' }).status === 0
   type Want = 'error' | 'ok' | 'no matches found' | 'files differ' | 'condition is false'
   const RAN_LAST: Array<[string, string, Want, { timeout?: number }?]> = [
     ['a profile function that exits before the closing diff', 'fixture_precheck; diff <(printf same) <(printf same)', 'error'],
@@ -236,7 +258,7 @@ if (served.origin === 'engine') {
     ['a here-document read by a grep that finds nothing, && test never ran', "grep missing <<'END' && test -f /mercury-no-such-file-0x\nactual\nEND", 'error'],
     ['process substitution in the closing diff', 'diff <(printf a) <(printf b)', 'files differ'],
     ['a script that sets a trap is left unmarked, and reads as on 1.1.0: an EXIT trap that turns a matching grep into exit 1', `trap 'exit 1' EXIT; grep same ${LEFT}`, 'no matches found'],
-    ['the shell killed before the closing grep', `kill -TERM $$; grep missing ${LEFT}`, 'error'],
+    [KILLED, `kill -TERM $$; grep missing ${LEFT}`, 'error'],
     ['a timeout before the closing grep', `sleep 5; grep missing ${LEFT}`, 'error', { timeout: 400 }],
     ['--verbose is an everyday word: the profile function that exits before diff is still an error', `fixture_precheck --verbose; diff ${LEFT} ${EQUAL}`, 'error'],
     ['--verbose on a command that fails before && grep', `false --verbose && grep missing ${LEFT}`, 'error'],
@@ -255,6 +277,10 @@ if (served.origin === 'engine') {
     ['the closing test sources a file that reads $?', `printf 'echo $?\\n' > ${WORK}/reads-status; false; test "$(. ${WORK}/reads-status)" = 1`, 'ok'],
   ]
   for (const [label, command, want, more] of RAN_LAST) {
+    if (label === KILLED && signalEndReadsAsNothing) {
+      console.log(`  [SKIP — LOUD] ${label}: the runtime this proof runs under reads 0 from a bash that a signal ended (the MSYS runtime leaves with the signal times 256 and bun on Windows hands back the low byte), so the row would read the runtime and not the tool; under node the guard reads that status as 128 plus the signal (statusAnMsysShellLeaves in src/platform/shell/parentGuard.ts, held by prove-win32-shell-tree-ends.ts)`)
+      continue
+    }
     const ran = await drive(command, more)
     const said = ran.ok ? (ran.out.code === 0 ? 'ok' : (ran.out.returnCodeInterpretation ?? `result with exit ${String(ran.out.code)}`)) : 'error'
     check(`${label}: ${want}`, said === want, `${JSON.stringify(command)} read as ${said}${ran.ok ? '' : ` (${ran.error.slice(-120)})`} — ${WIRED_HINT}`)
@@ -555,10 +581,11 @@ if (served.origin === 'engine') {
   section('§10 the reading rests on the tree the call itself holds: a collection between the permission check and the call changes no reading')
   const ROOT_HINT = 'runShellCommand in src/tools/shell/BashTool.tsx hands the tree its own parse answered to closingTableCommand and interpretCommandResult (src/tools/shell/commandSemantics.ts); neither may look the command up by its text, whose entry names the newest parse and is gone when that tree is collected'
   type Asker = { checkPermissions: (input: never, context: never) => Promise<{ behavior: string }> }
-  const turn = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 5))
+  const NOT_TAKEN = 'sixty collections over five seconds did not take the tree, so this check shows nothing'
+  const turn = (ms = 5): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
   const entryGoes = async (command: string): Promise<boolean> => {
-    for (let round = 0; round < 12; round++) {
-      await turn()
+    for (let round = 0; round < 60; round++) {
+      await turn(round < 12 ? 5 : 100)
       Bun.gc(true)
       await turn()
       const stands = preparedCommandRoot(command) !== null
@@ -592,13 +619,13 @@ if (served.origin === 'engine') {
   for (const [label, command, want] of HELD) {
     const before = readAs(await drive(command))
     const again = await askedThenCalled(command)
-    check(`${label}: asked for again, its tree collected between the permission check and the call, it reads ${want} as the call before it did`, before === want && again.gone && again.said === want, `${JSON.stringify(command)} read ${before}, then ${again.said}${again.gone ? '' : ' (twelve collections did not take the tree, so this check shows nothing)'} — ${ROOT_HINT}`)
+    check(`${label}: asked for again, its tree collected between the permission check and the call, it reads ${want} as the call before it did`, before === want && again.gone && again.said === want, `${JSON.stringify(command)} read ${before}, then ${again.said}${again.gone ? '' : ` (${NOT_TAKEN})`} — ${ROOT_HINT}`)
   }
   const handed = `true; grep missing ${LEFT}`
   const kept = await rootOf(handed)
   await (BashTool as unknown as Asker).checkPermissions({ command: handed } as never, toolContext)
   const handedGone = await entryGoes(handed)
-  check("with the text's own entry gone, the closing statement is found in the tree that was handed over", handedGone && closingTableCommand(handed, kept)?.stage === `grep missing ${LEFT}`, `${handedGone ? JSON.stringify(closingTableCommand(handed, kept)) : 'twelve collections did not take the tree, so this check shows nothing'} — ${ROOT_HINT}`)
+  check("with the text's own entry gone, the closing statement is found in the tree that was handed over", handedGone && closingTableCommand(handed, kept)?.stage === `grep missing ${LEFT}`, `${handedGone ? JSON.stringify(closingTableCommand(handed, kept)) : NOT_TAKEN} — ${ROOT_HINT}`)
   check('no tree at all leaves a script unmarked', closingTableCommand(handed, null) === undefined, ROOT_HINT)
   check("…and its exit 1 is read by the whole text's first word", interpretCommandResult(`grep missing ${LEFT}`, 1, '', '', undefined, null).message === 'no matches found' && interpretCommandResult(handed, 1, '', '', undefined, null).isError === true, ROOT_HINT)
   const pad = `# ${'x'.repeat(10_000)}`
