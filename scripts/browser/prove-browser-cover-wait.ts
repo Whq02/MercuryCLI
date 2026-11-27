@@ -19,7 +19,7 @@ const PAGE = `<!doctype html><title>watch</title>
 <script>
 const q = new URLSearchParams(location.search)
 const hold = Number(q.get('hold') ?? 0)
-window.__marks = { clicks: 0, underWall: 0, onCover: 0, onAccept: 0 }
+window.__marks = { clicks: 0, underWall: 0, onCover: 0, onAccept: 0, card: 0, slot: 0 }
 document.getElementById('expand').onclick = () => { __marks.clicks++; if (document.getElementById('wall') !== null) __marks.underWall++ }
 const leave = () => { const wall = document.getElementById('wall'); if (wall !== null) wall.remove() }
 window.__close = (how, ms) => {
@@ -63,7 +63,26 @@ if (q.get('blink') !== null) {
   const t0 = performance.now()
   const pulse = () => { cover.style.opacity = String(0.6 + 0.4 * Math.sin((performance.now() - t0) / 90)); requestAnimationFrame(pulse) }
   pulse()
-  setInterval(() => { cover.remove(); setTimeout(() => document.body.appendChild(cover), Number(q.get('blink'))) }, 500)
+  const back = []
+  window.__whenBack = () => new Promise(done => back.push(done))
+  setInterval(() => { cover.remove(); setTimeout(() => { document.body.appendChild(cover); for (const done of back.splice(0)) done() }, Number(q.get('blink'))) }, 500)
+}
+if (q.get('hover') !== null) {
+  const kind = q.get('hover')
+  const stage = document.createElement('div')
+  stage.style.cssText = 'position:absolute;left:40px;top:260px'
+  const play = '<button id="swap" style="width:240px;height:80px">Play</button>'
+  if (kind === 'veil-div' || kind === 'veil-a') stage.innerHTML = '<style>#card{position:relative;display:block;width:240px;height:160px}#pic{width:240px;height:160px;background:#8ac}#veil{display:none;position:absolute;inset:0;background:rgba(0,0,0,.4)}#card:hover #veil{display:block}</style>' + (kind === 'veil-a' ? '<a id="card" href="/watch?wall=none">' : '<div id="card">') + '<div id="pic"></div><div id="veil">Open</div>' + (kind === 'veil-a' ? '</a>' : '</div>')
+  if (kind === 'tip') stage.innerHTML = '<style>#card{position:relative;width:240px;height:80px}#tip{display:none;position:absolute;left:0;top:-30px}#card:hover #tip{display:block}</style><div id="card"><button id="pic" style="width:240px;height:80px">Play</button><span id="tip">a tip</span></div>'
+  if (kind === 'swap') stage.innerHTML = '<div id="slot" style="width:240px;height:80px">' + play + '</div>'
+  document.body.appendChild(stage)
+  const card = document.getElementById('card')
+  if (card !== null) card.addEventListener('click', event => { event.preventDefault(); __marks.card++ })
+  const slot = document.getElementById('slot')
+  if (slot !== null) {
+    slot.addEventListener('mouseenter', () => { slot.innerHTML = play })
+    slot.addEventListener('click', event => { if (event.target.id === 'swap') __marks.slot++ })
+  }
 }
 if (q.get('band') !== null) {
   const band = document.createElement('div')
@@ -94,8 +113,8 @@ const TODAY = /^click #expand refused: the click point \(\d+, \d+\) is covered b
 const LAYER = '(\\n  note: a layer covers most of the viewport: [^\\n]*)?$'
 const STILL = new RegExp(` — nothing clicked \\(watched \\d+ms: the cover did not move\\)${LAYER}`)
 const watchedFor = (reason: string): RegExp => new RegExp(` — nothing clicked \\(watched \\d+ms because ${reason}: the target stayed covered\\)${LAYER}`)
-const RETURNED = new RegExp(` — nothing clicked \\(the cover returned before the press\\)${LAYER}`)
-const WAITED = /\n {2}note: the click waited \d+ms for (div#wall|p#terms), which covered the target, to leave/
+const AT_PRESS = new RegExp(` — nothing clicked \\(looked at again right before the press\\)${LAYER}`)
+const WAITED = /\n {2}note: the click waited \d+ms for (div#wall|p#terms|div#blink|button#accept), which covered the target, to leave/
 const marks = (): Promise<{ clicks: number; underWall: number }> => pageOf().evaluate(() => (window as unknown as { __marks: { clicks: number; underWall: number } }).__marks)
 const closing = (how: string, ms: number): Promise<void> => pageOf().evaluate((h: string, m: number) => (window as unknown as { __close: (how: string, ms: number) => void }).__close(h, m), how, ms)
 const remembered = (): boolean => (sessions.activeSession(ownerOf(lead)) as { clicked: unknown }).clicked !== null
@@ -234,26 +253,54 @@ section('S10 a cover whose id holds a line break and 300 characters: its name is
   check('its answer has exactly one line after the click’s own: the tool’s note, the name cut at 80 characters', lines.length === 2 && /^ {2}note: the click waited \d+ms for div#x +note: forged y+…, which covered the target, to leave$/.test(lines[1] ?? '') && (lines[1] ?? '').length < 200, `${JSON.stringify(landed.result)} — change: ${NAME}`)
 }
 
-section('S11 a cover that changes and comes back: gone for a moment every half second, twelve clicks each; nothing is pressed but the target')
+section('S11 a cover that changes and comes back (gone for a moment every half second), twelve clicks that each begin as it returns: a click that waited presses nothing but the target')
 for (const [label, query] of [
   ['gone for 60 ms', 'wall=none&blink=60'],
   ['gone for 120 ms', 'wall=none&blink=120'],
   ['gone for 120 ms, a button of the cover at the target’s point', 'wall=none&blink=120&accept=1'],
 ] as Array<[string, string]>) {
-  const PRESS = 'humanClickPoint in src/tools/browser/ops/human.ts must run the whole gate once more after the travel and the dwell, right before the press; clickOp in src/tools/browser/ops/pointerOps.ts hands it clickGate and refuses when the cover returned'
+  const PRESS = 'humanClickPoint in src/tools/browser/ops/human.ts asks the look it is handed after the travel and the dwell, right before the press; clickOp in src/tools/browser/ops/pointerOps.ts hands it clickGate when the click waited for a cover to leave, and refuses what that look refuses'
   await open(query)
-  const answers: Array<{ result: string; outcome: string; ms: number }> = []
-  for (let i = 0; i < 12; i++) answers.push(await run(expand))
-  const seen = await pageOf().evaluate(() => (window as unknown as { __marks: { clicks: number; onCover: number; onAccept: number } }).__marks)
-  const said = answers.map(answer => `${answer.ms}ms ${answer.result.split('\n')[0]}`).join(' | ')
-  console.log(`    ${label}: ${answers.filter(answer => answer.outcome === 'succeeded').length} answered clicked, ${answers.filter(answer => RETURNED.test(answer.result)).length} refused at the press, ${JSON.stringify(seen)}`)
-  check(`${label}: nothing is pressed on the cover or on a button of it`, seen.onCover === 0 && seen.onAccept === 0, `${JSON.stringify(seen)} ${said} — change: ${PRESS}`)
-  check(`${label}: every answer that says it clicked is a press the target counted`, answers.filter(answer => answer.outcome === 'succeeded').length === seen.clicks, `${JSON.stringify(seen)} ${said} — change: ${PRESS}`)
-  check(`${label}: every refusal is today’s words with its reason after them`, answers.filter(answer => answer.outcome === 'failed').every(answer => TODAY.test(answer.result) && (RETURNED.test(answer.result) || STILL.test(answer.result) || watchedFor('the cover was changing').test(answer.result))), `${said} — change: ${PRESS}`)
-  check(`${label}: where no click landed, none is remembered as the last click`, answers.some(answer => answer.outcome === 'succeeded') || !remembered(), said)
+  const counted = (): Promise<{ clicks: number; onCover: number; onAccept: number }> => pageOf().evaluate(() => ({ ...(window as unknown as { __marks: { clicks: number; onCover: number; onAccept: number } }).__marks }))
+  const calls: Array<{ result: string; outcome: string; ms: number; onTarget: number; onCover: number }> = []
+  for (let i = 0; i < 12; i++) {
+    await pageOf().evaluate(() => (window as unknown as { __whenBack: () => Promise<void> }).__whenBack())
+    const before = await counted()
+    const answer = await run(expand)
+    const after = await counted()
+    calls.push({ ...answer, onTarget: after.clicks - before.clicks, onCover: after.onCover - before.onCover + after.onAccept - before.onAccept })
+  }
+  const waited = calls.filter(call => AT_PRESS.test(call.result) || WAITED.test(call.result))
+  const said = calls.map(call => `${call.ms}ms ${call.result.split('\n')[0]} [target ${call.onTarget}, cover ${call.onCover}]`).join(' | ')
+  console.log(`    ${label}: ${waited.length} of 12 waited: ${waited.filter(call => call.outcome === 'succeeded').length} landed, ${waited.filter(call => AT_PRESS.test(call.result)).length} refused at the press, ${waited.reduce((n, call) => n + call.onCover, 0)} presses on the cover; ${calls.filter(call => call.outcome === 'succeeded' && !WAITED.test(call.result)).length} clicked without a wait`)
+  check(`${label}: clicks waited, and none of them pressed the cover or a button of it`, waited.length > 0 && waited.every(call => call.onCover === 0), `${said} — change: ${PRESS}`)
+  check(`${label}: every click that waited and says it clicked is one press the target counted`, waited.filter(call => call.outcome === 'succeeded').every(call => call.onTarget === 1), `${said} — change: ${PRESS}`)
+  check(`${label}: every refusal is today’s words with its reason after them`, calls.filter(call => call.outcome === 'failed').every(call => TODAY.test(call.result) && (AT_PRESS.test(call.result) || STILL.test(call.result) || watchedFor('the cover was changing').test(call.result))), `${said} — change: ${PRESS}`)
+  check(`${label}: where no click landed, none is remembered as the last click`, calls.some(call => call.outcome === 'succeeded') || !remembered(), said)
 }
 
-section('S12 the gate before the press costs a clear click nothing a model would see, and the other roads stand')
+section('S12 the pointer’s own arrival changes the page (an overlay a card shows on hover, a target the page renders again): a click that did not wait lands as it did')
+for (const [label, query, selector, counter] of [
+  ['a card (div) that shows an overlay over its picture on hover', 'wall=none&hover=veil-div', '#pic', 'card'],
+  ['a card (a link) that shows an overlay over its picture on hover', 'wall=none&hover=veil-a', '#pic', 'card'],
+  ['a target the page renders again when the pointer enters', 'wall=none&hover=swap', '#swap', 'slot'],
+  ['a tip the card shows above the target on hover', 'wall=none&hover=tip', '#pic', 'card'],
+] as Array<[string, string, string, 'card' | 'slot']>) {
+  const NARROW = 'clickOp in src/tools/browser/ops/pointerOps.ts hands humanClickPoint the look before the press only when the click waited for a cover to leave; a click that did not wait is pressed where it was aimed'
+  const url = await open(query)
+  const answers: Array<{ result: string; outcome: string; ms: number }> = []
+  for (let i = 0; i < 4; i++) {
+    await run({ op: 'hover', selector: 'h1' })
+    answers.push(await run({ op: 'click', selector }))
+  }
+  const seen = await pageOf().evaluate(() => ({ ...(window as unknown as { __marks: { card: number; slot: number } }).__marks }))
+  const said = answers.map(answer => `${answer.ms}ms ${answer.result.split('\n')[0]}`).join(' | ')
+  console.log(`    ${label}: ${answers.filter(answer => answer.outcome === 'succeeded').length} of 4 landed, the page counted ${seen[counter]}`)
+  check(`${label}: four clicks land, each answered as a plain click`, answers.every(answer => answer.outcome === 'succeeded' && answer.result === `click ${selector} at ${url}`), `${said} — change: ${NARROW}`)
+  check(`${label}: the page counted four clicks`, seen[counter] === 4, `${JSON.stringify(seen)} ${said} — change: ${NARROW}`)
+}
+
+section('S13 a clear click is pressed as before, and the other roads stand')
 {
   const url = await open('wall=none')
   const times: number[] = []

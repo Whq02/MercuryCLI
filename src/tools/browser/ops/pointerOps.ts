@@ -44,10 +44,10 @@ export async function clickOp(s: LiveSession, { input, owner, signalFor }: OpRun
     if (input.force === true && refusal !== null) await handle.evaluate(el => (el as HTMLElement).click())
     else {
       const pt = await pickTargetPoint(s, handle)
-      const atPress = await humanClickPoint(s, pt.x, pt.y, input.force === true ? undefined : () => clickGate(handle))
+      const afterWait = gate !== null && gate.clear && gate.waited !== ''
+      const atPress = await humanClickPoint(s, pt.x, pt.y, afterWait ? () => clickGate(handle) : undefined)
       if (atPress !== null) {
-        const covered = atPress.includes('covered by')
-        result = `click ${input.selector} refused: ${atPress} — nothing clicked${covered ? ` (the cover returned before the press)${await coveringLayerNote(s)}` : ''}`
+        result = `click ${input.selector} refused: ${atPress} — nothing clicked (looked at again right before the press)${atPress.includes('covered by') ? await coveringLayerNote(s) : ''}`
         outcome = 'failed'
         return { result, outcome }
       }
