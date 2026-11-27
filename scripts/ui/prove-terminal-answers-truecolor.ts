@@ -32,6 +32,7 @@ console.log('prove-terminal-answers-truecolor — Mercury asks the terminal for 
 const ESC = '\x1b'
 const ST = ESC + '\\'
 const ECHO = `${ESC}P1$r0;48:2::1:2:3m${ST}`
+const ECHO_ITERM2 = `${ESC}P1$r0;48:2:1:1:2:3m${ST}`
 const ECHO_SEMICOLONS = `${ESC}P1$r48;2;1;2;3m\x07`
 const ZERO = `${ESC}P1$r0m${ST}`
 const REFUSED = `${ESC}P0$r${ST}`
@@ -48,13 +49,41 @@ const chalk = (await import('chalk')).default
 
 const COLORIZE = 'src/screen/renderer/colorize.ts'
 
-section('§1 the request sets a colour, asks what stands, and puts back what stood')
+function renditionLeftBy(bytes: string, terminal: { restoresAttributes: boolean; knowsRgb: boolean }): string {
+  let now = new Set<string>()
+  let saved = new Set<string>()
+  for (const part of bytes.matchAll(/\x1b7|\x1b8|\x1b\[([0-9;]*)m/g)) {
+    if (part[0] === `${ESC}7`) saved = new Set(now)
+    else if (part[0] === `${ESC}8`) now = terminal.restoresAttributes ? new Set(saved) : now
+    else {
+      const params = (part[1] ?? '').split(';').map(Number)
+      for (let i = 0; i < params.length; i++) {
+        const code = params[i]
+        if (code === 0) now.clear()
+        else if (code === 48 && terminal.knowsRgb && params[i + 1] === 2) {
+          now.add('background')
+          i += 4
+        } else if (code === 49) now.delete('background')
+        else if (code === 1) now.add('bold')
+        else if (code === 2) now.add('faint')
+        else if (code === 3) now.add('italic')
+      }
+    }
+  }
+  return [...now].sort().join(' ') || 'default'
+}
+
+section('§1 the request sets a colour, asks what stands, and puts back what stood by name')
 {
   const query: unknown = (colorize as Record<string, unknown>).TRUECOLOR_QUERY
   check('the request is one string of the depth owner', typeof query === 'string', `TRUECOLOR_QUERY must be exported from ${COLORIZE}`)
   const q = typeof query === 'string' ? query : ''
-  check('it saves the cursor and attributes, sets a 24-bit background, asks for the graphic rendition, and restores', q === `${ESC}7${ESC}[48;2;1;2;3m${ESC}P$qm${ST}${ESC}8`, `TRUECOLOR_QUERY in ${COLORIZE} must be ESC 7, CSI 48;2;1;2;3 m, DCS $ q m ST, ESC 8; got ${JSON.stringify(q)}`)
+  const fix = `TRUECOLOR_QUERY in ${COLORIZE} must be ESC 7, CSI 48;2;1;2;3 m, DCS $ q m ST, CSI 0 m, ESC 8`
+  check('it saves the cursor, sets a 24-bit background, asks for the graphic rendition, resets the rendition and restores the cursor', q === `${ESC}7${ESC}[48;2;1;2;3m${ESC}P$qm${ST}${ESC}[0m${ESC}8`, `${fix}; got ${JSON.stringify(q)}`)
   check('nothing printable stands outside the escape sequences', q.replace(/\x1b\[[0-9;]*m|\x1bP[^\x1b]*\x1b\\|\x1b[78]/g, '') === '', `TRUECOLOR_QUERY in ${COLORIZE} must hold control sequences only; left over: ${JSON.stringify(q.replace(/\x1b\[[0-9;]*m|\x1bP[^\x1b]*\x1b\\|\x1b[78]/g, ''))}`)
+  check('a terminal whose ESC 8 restores attributes is left at its default rendition', renditionLeftBy(q, { restoresAttributes: true, knowsRgb: true }) === 'default', `${fix}; left: ${renditionLeftBy(q, { restoresAttributes: true, knowsRgb: true })}`)
+  check('the Windows console, whose ESC 8 restores the cursor alone, is left at its default rendition too', renditionLeftBy(q, { restoresAttributes: false, knowsRgb: true }) === 'default', `${fix}: the request undoes its own change by name and does not lean on ESC 8; left: ${renditionLeftBy(q, { restoresAttributes: false, knowsRgb: true })}`)
+  check('a terminal that reads 48;2;1;2;3 as five attributes and restores none is left at its default rendition', renditionLeftBy(q, { restoresAttributes: false, knowsRgb: false }) === 'default', `${fix}: a full reset, since 49 alone would leave bold, faint and italic; left: ${renditionLeftBy(q, { restoresAttributes: false, knowsRgb: false })}`)
 }
 
 section('§2 only an echo of the colour that was set counts')
@@ -62,7 +91,8 @@ section('§2 only an echo of the colour that was set counts')
   const echo = (colorize as { truecolorEcho?: (setting: string) => boolean }).truecolorEcho
   const says = (setting: string): boolean | undefined => echo?.(setting)
   const fix = `truecolorEcho in ${COLORIZE} must accept only a report whose background is 48 2 … 1 2 3`
-  check('colon form with an empty colour space', says('0;48:2::1:2:3m') === true, fix)
+  check('colon form with an empty colour space (Windows Terminal 1.24, as the box read it)', says('0;48:2::1:2:3m') === true, fix)
+  check('colon form with colour space 1 (iTerm2 3.7.6, as the Air read it)', says('0;48:2:1:1:2:3m') === true, fix)
   check('colon form without a colour space', says('48:2:1:2:3m') === true, fix)
   check('semicolon form', says('0;48;2;1;2;3m') === true, fix)
   check('beside the launcher\'s park ink', says('0;8;30;48:2::1:2:3m') === true, fix)
@@ -100,7 +130,7 @@ section('§3 the answer is a terminal response, in one piece or split, and never
   }
   const fixKnow = 'interpretResponse in src/screen/renderer/input/interpreter.ts must know DCS 0|1 $ r … ST as a terminal response'
   const fixHead = 'the reply-head rules in src/screen/renderer/input/scanner.ts (isReplyBody, REPLY_STRING_HEAD) must take P0$ and P1$ beside P>'
-  for (const [name, reply] of [['an echo', ECHO], ['an echo ended by BEL', ECHO_SEMICOLONS], ['a bare reset', ZERO], ['a refusal', REFUSED]] as const) {
+  for (const [name, reply] of [['an echo', ECHO], ['iTerm2\'s echo', ECHO_ITERM2], ['an echo ended by BEL', ECHO_SEMICOLONS], ['a bare reset', ZERO], ['a refusal', REFUSED]] as const) {
     const whole = interpreter.interpretResponse(reply)
     check(`${name} is read as a response`, whole !== null && (whole as { type: string }).type === 'decrqss', `${fixKnow}; got ${JSON.stringify(whole)}`)
     const late = feedAll([reply, 'zq'], false)
@@ -305,6 +335,8 @@ section('§8 a terminal that echoes: 24-bit from the first painted cell')
 const echo = await capture({ name: 'echo', env: { TERM: 'xterm-256color' }, reply: ECHO, upTo: 'typed' })
 fullDepth(echo, 'TERM=xterm-256color, what SSH hands over')
 composerClean(echo)
+const echoIterm = await capture({ name: 'echo-iterm2', env: { TERM: 'xterm-256color' }, reply: ECHO_ITERM2, upTo: 'boot' })
+fullDepth(echoIterm, 'iTerm2 3.7.6\'s own reply, byte for byte')
 const echoBel = await capture({ name: 'echo-semicolons-bel', env: { TERM: 'xterm-256color' }, reply: ECHO_SEMICOLONS, upTo: 'boot' })
 fullDepth(echoBel, 'the semicolon form, ended by BEL')
 const echoXterm = await capture({ name: 'echo-xterm', env: { TERM: 'xterm' }, reply: ECHO, upTo: 'boot' })

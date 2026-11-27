@@ -91,7 +91,7 @@ export const CHALK_CLAMPED_FOR_TMUX: boolean = clampChalkLevelForTmux()
 
 export const DETECTED_CHALK_LEVEL: number = chalk.level
 
-export const TRUECOLOR_QUERY = `${ESC}7${csi('48;2;1;2;3m')}${ESC}P$qm${ESC}\\${ESC}8`
+export const TRUECOLOR_QUERY = `${ESC}7${csi('48;2;1;2;3m')}${ESC}P$qm${ESC}\\${csi('0m')}${ESC}8`
 
 export function truecolorEcho(setting: string): boolean {
   return /(?:^|;)48[:;]2[:;](?:\d*[:;])?1[:;]2[:;]3(?:;|m|$)/.test(setting)
