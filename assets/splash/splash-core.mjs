@@ -259,7 +259,7 @@ export function truecolorAskableOf(env, platform = process.platform) {
   if (platform === 'win32' || env.MERCURY_SPLASH_ONESHOT === '1') return false
   const fc = env.FORCE_COLOR
   if (Boolean(env.NO_COLOR) && (fc === undefined || !['', '1', '2', '3', 'true'].includes(fc))) return false
-  if (fc !== undefined || env.TMUX || env.TERM_PROGRAM === 'Apple_Terminal' || env.MERCURY_TRUECOLOR !== undefined) return false
+  if (fc !== undefined || env.TMUX || env.STY || env.TERM_PROGRAM === 'Apple_Terminal' || env.MERCURY_TRUECOLOR !== undefined) return false
   if (truecolorFingerprintOf(env) !== null) return false
   const term = env.TERM
   return term !== undefined && term !== 'dumb' && term !== 'linux'

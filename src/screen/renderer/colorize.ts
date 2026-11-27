@@ -106,7 +106,7 @@ export function truecolorEcho(setting: string): boolean {
 
 export function truecolorAskable(env: Record<string, string | undefined> = hostEnv()): boolean {
   if (chalk.level >= 3 || shouldHonorNoColor(env) || env.FORCE_COLOR !== undefined) return false
-  if (env.TMUX || env.TERM_PROGRAM === 'Apple_Terminal' || readTruecolorFlag() !== undefined) return false
+  if (env.TMUX || env.STY || env.TERM_PROGRAM === 'Apple_Terminal' || readTruecolorFlag() !== undefined) return false
   const term = env.TERM
   return term !== undefined && term !== 'dumb' && term !== 'linux'
 }
