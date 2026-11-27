@@ -248,7 +248,8 @@ async function main(): Promise<void> {
   }
   if (readSessionOption(args, '--lean').present) stampFlagEnv('MERCURY_BARE', '1')
   const { startCapturingEarlyInput } = await import('../earlyInput.js')
-  const settleDepth = startCapturingEarlyInput(invocation.command === undefined && !invocation.outputRequest, splashTruecolor)
+  const startsASession = invocation.command === undefined || /\s/.test(invocation.command)
+  const settleDepth = startCapturingEarlyInput(startsASession && !invocation.outputRequest, splashTruecolor)
   profileCheckpoint('before_main_import')
   const session = await import('../main.js')
   profileCheckpoint('after_main_import')

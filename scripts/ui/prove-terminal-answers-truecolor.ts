@@ -240,7 +240,7 @@ const pty = driver
 type Cell = { c: string; fg: string; bg: string; bold: boolean; rev: boolean }
 type Grid = Cell[][]
 type Arm = { name: string; marks: Map<string, Grid>; bytes: string; status: number | null; log: string; settledAfterMs: number[]; importMs: number[] }
-type Plan = { name: string; env: Record<string, string | undefined>; reply?: string; lateReply?: string; upTo: 'boot' | 'typed'; verb?: { args: string[]; prints: string }; receipt?: boolean }
+type Plan = { name: string; env: Record<string, string | undefined>; reply?: string; lateReply?: string; upTo: 'boot' | 'typed'; verb?: { args: string[]; prints: string; mark?: true }; receipt?: boolean }
 
 async function capture(plan: Plan): Promise<Arm> {
   const world = fixture(scratch)
@@ -269,6 +269,8 @@ async function capture(plan: Plan): Promise<Arm> {
       sends.push({ requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 2, data: 'zq' })
       sends.push({ requireAwait: true, awaitText: 'zq', awaitSettleTicks: 4, data: '', mark: 'typed' })
     }
+  } else if (plan.verb.mark) {
+    sends.push({ ...gate, awaitText: plan.verb.prints, awaitSettleTicks: 8, data: '', mark: 'shown' })
   }
   const readyText = plan.verb?.prints ?? (plan.upTo === 'typed' ? 'zq' : '↑↓')
   const cfgFile = join(scratch, `${plan.name}.capture.json`)
@@ -420,6 +422,21 @@ section('§13 a TERM the colour library does not know is painted in 16 colours, 
   check('TERM=alacritty under NO_COLOR: no colour, as before', mute.status === 0 && mute.marks.has('boot') && basicInk(mute.marks.get('boot')) === 0 && count(mute.bytes, /\x1b\[(?:3[0-7]|9[0-7])m/g) === 0, `NO_COLOR stands over the rule; basic cells ${basicInk(mute.marks.get('boot'))}`)
   const ci = await capture({ name: 'unknown-ci', env: { TERM: 'alacritty', CI: '1' }, upTo: 'boot', receipt: false })
   check('TERM=alacritty under CI: no colour, as before', ci.status === 0 && ci.marks.has('boot') && basicInk(ci.marks.get('boot')) === 0 && count(ci.bytes, /\x1b\[(?:3[0-7]|9[0-7])m/g) === 0, `CI stands over the rule, as it stands over a TERM the library knows; basic cells ${basicInk(ci.marks.get('boot'))}; ${ci.log.slice(-160)}`)
+}
+
+section('§14 a first argument that holds white space can only be a prompt and is asked like a bare start; one word is not')
+{
+  const fix = 'src/boot/entrypoints/cli.tsx must ask when the first argument holds white space (no verb holds a blank) and must not ask for a one-word first argument'
+  const two = await capture({ name: 'prompt-two-words', env: { TERM: 'xterm-256color' }, reply: `${ECHO}xy`, upTo: 'boot', verb: { args: ['zq wv'], prints: 'zq wv', mark: true } })
+  const shown = two.marks.get('shown')
+  check('a prompt of two words: the session came up with the prompt on the screen', two.status === 0 && shown !== undefined, `${fix}; ${two.log.slice(-200)}`)
+  check('a prompt of two words: the request was written exactly once', asks(two) === 1, `${fix}; found ${asks(two)}`)
+  check('a prompt of two words: after the echo every colour code is 24-bit and the cells hold the theme\'s grey', count(afterAsk(two), /[34]8;2;\d/g) > 50 && count(afterAsk(two), /[34]8;5;\d/g) === 0 && inks(shown).has(MUTED) && !inks(shown).has(MUTED_256), `${fix}; 24-bit ${count(afterAsk(two), /[34]8;2;\d/g)}, 256-colour ${count(afterAsk(two), /[34]8;5;\d/g)}; inks ${[...inks(shown)].slice(0, 10).join(' ')}`)
+  const screen = (shown ?? []).map(row => row.map(cell => cell.c || ' ').join('')).join('\n')
+  check('a prompt of two words: the prompt is on the screen as given and nothing of the answer is', screen.includes('zq wv') && !/48:2|\$r|P1\$/.test(screen), `no byte of the answer may be painted; the prompt's row reads ${JSON.stringify(rowWith(shown, 'zq wv').trim().slice(0, 80))}`)
+  check('a prompt of two words: the letters typed right behind the answer are the composer\'s draft', /❯ xy\s*│/.test(rowWith(shown, '❯ xy')), `nothing typed may be lost; the composer's row reads ${JSON.stringify(rowWith(shown, '❯').trim().slice(0, 80))}`)
+  const one = await capture({ name: 'prompt-one-word', env: { TERM: 'xterm-256color' }, upTo: 'boot', verb: { args: ['zqwv'], prints: 'zqwv', mark: true } })
+  check('a one-word first argument: the session came up and no request was written', one.status === 0 && one.marks.has('shown') && asks(one) === 0, `${fix}: one word cannot be told from a verb before the main module loads; ${asks(one)} requests; ${one.log.slice(-200)}`)
 }
 
 if (failures === 0) rmSync(scratch, { recursive: true, force: true })
