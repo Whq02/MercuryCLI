@@ -76,6 +76,10 @@ const CASES = [
   { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: null, COLORTERM: null, TERM_PROGRAM: null },
   { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'xterm', COLORTERM: 'truecolor', TERM_PROGRAM: null },
   { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: '1', TERM: 'xterm', COLORTERM: null, TERM_PROGRAM: null },
+  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: null, COLORTERM: 'truecolor', TERM_PROGRAM: null },
+  { NO_COLOR: null, FORCE_COLOR: '2', MERCURY_TRUECOLOR: null, TERM: 'xterm', COLORTERM: null, TERM_PROGRAM: null },
+  { NO_COLOR: null, FORCE_COLOR: '3', MERCURY_TRUECOLOR: null, TERM: 'xterm', COLORTERM: null, TERM_PROGRAM: null },
+  { NO_COLOR: null, FORCE_COLOR: '3', MERCURY_TRUECOLOR: null, TERM: 'xterm-256color', COLORTERM: null, TERM_PROGRAM: null },
 ]
 const modeOf = c => {
   const env = {}
@@ -83,12 +87,15 @@ const modeOf = c => {
     if (c[key] !== null) env[key] = c[key]
   }
   if (shouldHonorNoColor(env)) return 'plain'
+  const fc = c.FORCE_COLOR
+  if (fc !== null && !['', '1', '2', '3', 'true'].includes(fc)) return 'plain'
   const term = c.TERM ?? ''
-  if (!term || term === 'dumb') return 'plain'
+  if (term === 'dumb') return 'plain'
   if (term !== 'linux' && c.MERCURY_TRUECOLOR !== '0') {
-    if (isEnvTruthy(c.MERCURY_TRUECOLOR ?? undefined) || truecolorFingerprint(env) !== null) return 'truecolor'
+    if (fc === '3' || isEnvTruthy(c.MERCURY_TRUECOLOR ?? undefined) || truecolorFingerprint(env) !== null) return 'truecolor'
   }
-  return /-(?:256color|256)$/.test(term) ? '256' : '16'
+  if (!term && fc !== '2' && fc !== '3') return 'plain'
+  return fc === '2' || fc === '3' || /-(?:256color|256)$/.test(term) ? '256' : '16'
 }
 const TRUTH = CASES.map(c => [c.NO_COLOR, c.FORCE_COLOR, c.MERCURY_TRUECOLOR, c.TERM, c.COLORTERM, c.TERM_PROGRAM, modeOf(c)])
 const ECHO_SAMPLES = [

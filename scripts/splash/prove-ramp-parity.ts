@@ -95,15 +95,16 @@ t.section('§3 — baked capability truth equals the canonical law')
     if (colorterm !== null) env.COLORTERM = colorterm ?? undefined
     if (program !== null) env.TERM_PROGRAM = program ?? undefined
     const termVal = term ?? ''
-    const want = shouldHonorNoColor(env)
-      ? 'plain'
-      : !termVal || termVal === 'dumb'
+    const want =
+      shouldHonorNoColor(env) || (fc !== null && !['', '1', '2', '3', 'true'].includes(fc)) || termVal === 'dumb'
         ? 'plain'
-        : termVal !== 'linux' && mt !== '0' && (isEnvTruthy(mt ?? undefined) || truecolorFingerprint(env) !== null)
+        : termVal !== 'linux' && mt !== '0' && (fc === '3' || isEnvTruthy(mt ?? undefined) || truecolorFingerprint(env) !== null)
           ? 'truecolor'
-          : /-(?:256color|256)$/.test(termVal)
-            ? '256'
-            : '16'
+          : !termVal && fc !== '2' && fc !== '3'
+            ? 'plain'
+            : fc === '2' || fc === '3' || /-(?:256color|256)$/.test(termVal)
+              ? '256'
+              : '16'
     if (mode !== want) allOk = false
     if (splashTierOf(env, 'linux') !== mode) allOk = false
     if (truecolorFingerprintOf(env) !== truecolorFingerprint(env)) splashOk = false
