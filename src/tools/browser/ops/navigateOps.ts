@@ -13,17 +13,22 @@ import {
   noteEmulatedPage,
   originApproved,
   originOf,
+  sessionAttached,
 } from '../../../integrations/browser/browserSession.js'
 import { carryEmulation, emulationActive, emulationSummary } from '../../../integrations/browser/browserEmulation.js'
 import { ensureScratchpadDir } from '../../../platform/files/scratchpad.js'
 import { getScratchpadDir } from '../../../permissions/rules/filesystem.js'
 import { RECOVERED_NOTE, isDriverTimeout, relayNamedFailure } from './failures.js'
-import { type LiveSession, deepTextOf, failedNavigationWords, pageWhere, preview, targetSurface } from './page.js'
+import { type LiveSession, MISS_LOOK_MS, coveringLayerNote, deepTextOf, failedNavigationWords, pageWhere, preview, targetSurface } from './page.js'
 import { downloadWords } from './downloads.js'
 import { errorPageSettled, markAct, settleAfterAct } from './settle.js'
-import { actOriginGate } from './targets.js'
+import { actOriginGate, selectorMissWords } from './targets.js'
 import type { OpDone, OpRun } from './ops.js'
+import type { OwnerKey } from '../../../engine/run-owner/ownerKey.js'
+import type { Input } from './schema.js'
+import { withDeadline } from '../../../platform/async/deadline.js'
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
+import { sleep } from '../../../platform/async/sleep.js'
 
 export async function openOp({ input, owner, tab, context, sessionAtEntry, crashedAtEntry, signalFor, acting }: OpRun): Promise<OpDone> {
   let result: string
@@ -138,13 +143,95 @@ export async function openOp({ input, owner, tab, context, sessionAtEntry, crash
     landed !== target && landed.startsWith('http')
       ? `\n  note: landed on ${landed} (a redirect crossed origins${originApproved(owner, landed) ? '' : ' — acts there will ask'})`
       : ''
-  }${census}${lease}${crashedAtEntry && s === sessionAtEntry ? RECOVERED_NOTE : ''}`
+  }${census}${await coveringLayerNote(s)}${lease}${crashedAtEntry && s === sessionAtEntry ? RECOVERED_NOTE : ''}`
   if (s === sessionAtEntry) s.crashed = false
   outcome = 'succeeded'
   return { result, outcome }
 }
 
-export async function waitForOp(s: LiveSession, { input, signalFor }: OpRun, deadline: number, t0: number, waited: string): Promise<OpDone> {
+const TEXT_STEP_MS = 100
+
+function flat(text: string): string {
+  return text.replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+function rendersText(surface: ReturnType<typeof targetSurface>, needle: string): Promise<boolean> {
+  return surface.$eval('body', deepTextOf).then(text => flat(text).includes(flat(needle)), passedOverAs(false))
+}
+
+async function textArrives(surface: ReturnType<typeof targetSurface>, needle: string, deadline: number, signal: AbortSignal): Promise<boolean> {
+  const until = Date.now() + deadline
+  for (;;) {
+    signal.throwIfAborted()
+    const asked = Date.now()
+    if (await withDeadline(rendersText(surface, needle), Math.max(0, until - asked), () => false, { unref: true })) return true
+    const now = Date.now()
+    if (now >= until) return false
+    await sleep(Math.min(until - now, Math.max(TEXT_STEP_MS, 4 * (now - asked))), signal, { unref: true })
+  }
+}
+
+function pageHoldsText(needle: string, rendered: boolean): boolean {
+  const norm = (x: string): string => x.replace(/\s+/g, ' ').trim().toLowerCase()
+  return norm((rendered ? document.body?.innerText : document.body?.textContent) ?? '').includes(norm(needle))
+}
+
+async function textShows(surface: ReturnType<typeof targetSurface>, needle: string, deadline: number, signal: AbortSignal): Promise<boolean> {
+  const answered = new AbortController()
+  const onFrame = new AbortController()
+  const either = AbortSignal.any([signal, answered.signal])
+  const everyFrame = surface.waitForFunction(pageHoldsText, { timeout: deadline, polling: 'raf', signal: either }, needle, true).then(
+    () => true,
+    error => {
+      if (isDriverTimeout(error)) return false
+      throw error
+    },
+  )
+  everyFrame.then(
+    saw => {
+      if (saw) onFrame.abort()
+    },
+    () => onFrame.abort(),
+  )
+  try {
+    return (await withDeadline(textArrives(surface, needle, deadline, either), deadline, () => false, { signal: onFrame.signal, onAbort: () => everyFrame, unref: true })) || (await everyFrame)
+  } finally {
+    answered.abort()
+  }
+}
+
+async function textElsewhere(owner: OwnerKey, s: LiveSession, needle: string, frame: Input['frame']): Promise<string> {
+  const children = frame === undefined ? s.page.frames().filter(f => f.parentFrame() !== null) : []
+  const [held, unrendered] = await Promise.all([
+    Promise.all(
+      children.map(child =>
+        sessionAttached(s) && !originApproved(owner, originOf(child.url()))
+          ? false
+          : withDeadline(rendersText(child, needle), MISS_LOOK_MS, () => false, { unref: true }),
+      ),
+    ),
+    withDeadline(targetSurface(s, frame).evaluate(pageHoldsText, needle, false).catch(passedOverAs(false)), MISS_LOOK_MS, () => false, { unref: true }),
+  ])
+  const at = held.indexOf(true)
+  if (at !== -1) return `; child frame ${at + 1} (${children[at]!.url().split('?')[0]}) holds it (set frame to wait there)`
+  return unrendered ? '; the page holds it in content that is not rendered (extract with a selector reads hidden content)' : ''
+}
+
+async function waitMissWords(owner: OwnerKey, s: LiveSession, input: Input, deadline: number): Promise<string> {
+  const where = pageWhere(s)
+  if (input.selector) {
+    const state = input.state ?? 'visible'
+    const stood =
+      state === 'hidden'
+        ? `${input.selector} is still present and visible after the ${deadline}ms deadline`
+        : await selectorMissWords(s, input.selector, deadline, input.frame, state)
+    return ` (${state}) failed at ${where}: ${stood}`
+  }
+  if (input.text !== undefined) return ` failed at ${where}: not in the page's rendered text within the ${deadline}ms deadline${await textElsewhere(owner, s, input.text, input.frame)}`
+  return ` failed: no navigation within the ${deadline}ms deadline; the tab stayed at ${where}`
+}
+
+export async function waitForOp(s: LiveSession, { input, owner, signalFor }: OpRun, deadline: number, t0: number, waited: string): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
   try {
@@ -159,14 +246,11 @@ export async function waitForOp(s: LiveSession, { input, signalFor }: OpRun, dea
         state === 'hidden' ? 'hidden/gone' : state === 'visible' ? 'present and visible' : 'present (attached)'
       result = `waitFor selector ${input.selector}: ${landedState} after ${Date.now() - t0}ms at ${pageWhere(s)}`
     } else if (input.text !== undefined) {
-      await targetSurface(s, input.frame).waitForFunction(
-        (needle: string) => {
-          const norm = (x: string): string => x.replace(/\s+/g, ' ').trim().toLowerCase()
-          return norm(document.body?.innerText ?? '').includes(norm(needle))
-        },
-        { timeout: deadline, polling: 'raf', signal: signalFor(s) },
-        input.text,
-      )
+      if (!(await textShows(targetSurface(s, input.frame), input.text, deadline, signalFor(s)))) {
+        result = `waitFor ${waited}${await waitMissWords(owner, s, input, deadline)}`
+        outcome = 'failed'
+        return { result, outcome }
+      }
       result = `waitFor text "${preview(input.text)}": present after ${Date.now() - t0}ms at ${pageWhere(s)}`
     } else if (s.nav.seq > s.nav.seen) {
       await s.page
@@ -187,7 +271,7 @@ export async function waitForOp(s: LiveSession, { input, signalFor }: OpRun, dea
     }
   } catch (err) {
     if (isDriverTimeout(err)) {
-      result = `waitFor ${waited}: deadline ${deadline}ms exceeded (the event never arrived) at ${pageWhere(s)}`
+      result = `waitFor ${waited}${await waitMissWords(owner, s, input, deadline)}`
       outcome = 'failed'
       return { result, outcome }
     }
