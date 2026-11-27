@@ -448,6 +448,40 @@ section('§14 a first argument that holds white space can only be a prompt and i
   check('a one-word first argument: the session came up and no request was written', one.status === 0 && one.marks.has('shown') && asks(one) === 0, `${fix}: one word cannot be told from a verb before the main module loads; ${asks(one)} requests; ${one.log.slice(-200)}`)
 }
 
+section('§15 one depth a launch: the splash and the session behind it paint at the same depth, whatever TERM says')
+{
+  const fix = `the splash's tier (assets/splash/splash-core.mjs, read by mercury-splash.mjs) and the session's depth (colorDepth in ${COLORIZE}) must agree for every TERM: 256-colour codes where TERM ends in -256color, basic codes alone for any other TERM, 24-bit on both once the terminal echoes`
+  const painters = (arm: Arm): { splash: string; session: string } => {
+    const bytes = arm.bytes.split(`${ESC}[48;2;1;2;3m`).join('')
+    const at = bytes.indexOf(`${ESC}[?2004h`)
+    return at < 0 ? { splash: bytes, session: '' } : { splash: bytes.slice(0, at), session: bytes.slice(at) }
+  }
+  const basic = (text: string): number => count(text.replace(/[34]8;[25];[\d;]*/g, ''), /\x1b\[(?:\d+;)*(?:3[0-7]|9[0-7])(?:;\d+)*m/g)
+  const tally = (text: string): string => `basic ${basic(text)}, 256-colour ${count(text, /[34]8;5;\d/g)}, 24-bit ${count(text, /[34]8;2;\d/g)}`
+  const ran = (term: string, arm: Arm, splash: string): void =>
+    check(`TERM=${term}: the splash ran and the Boot face came up behind it`, arm.status === 0 && arm.marks.has('boot') && splash.includes(`${ESC}[?1049h`), `a bare launch on a terminal runs dist/splash.mjs before the session; ${arm.log.slice(-200)}`)
+  for (const term of ['xterm', 'linux', 'vt100', 'screen', 'foot', 'alacritty']) {
+    const arm = await capture({ name: `one-depth-${term}`, env: { TERM: term }, upTo: 'boot' })
+    const { splash, session } = painters(arm)
+    ran(term, arm, splash)
+    check(`TERM=${term}: the splash paints basic ink and no 256-colour or 24-bit code`, basic(splash) >= 20 && count(splash, /[34]8;[25];\d/g) === 0, `${fix}; the splash wrote ${tally(splash)}`)
+    check(`TERM=${term}: the session paints basic ink and no 256-colour or 24-bit code`, basic(session) >= 50 && count(session, /[34]8;[25];\d/g) === 0, `${fix}; the session wrote ${tally(session)}`)
+  }
+  for (const term of ['xterm-256color', 'screen-256color']) {
+    const arm = await capture({ name: `one-depth-${term}`, env: { TERM: term }, upTo: 'boot' })
+    const { splash, session } = painters(arm)
+    ran(term, arm, splash)
+    check(`TERM=${term}: the splash paints 256-colour codes and no 24-bit code`, count(splash, /[34]8;5;\d/g) >= 20 && count(splash, /[34]8;2;\d/g) === 0, `${fix}; the splash wrote ${tally(splash)}`)
+    check(`TERM=${term}: the session paints 256-colour codes and no 24-bit code`, count(session, /[34]8;5;\d/g) >= 50 && count(session, /[34]8;2;\d/g) === 0, `${fix}; the session wrote ${tally(session)}`)
+  }
+  const arm = await capture({ name: 'one-depth-xterm-echo', env: { TERM: 'xterm' }, reply: ECHO, upTo: 'boot' })
+  const { splash, session } = painters(arm)
+  ran('xterm with an echo', arm, splash)
+  check('TERM=xterm with an echo: the request was written exactly once', asks(arm) === 1, `the splash asks and hands its answer on, so the session does not ask again; found ${asks(arm)}`)
+  check('TERM=xterm with an echo: the splash paints 24-bit codes and no 256-colour code', count(splash, /[34]8;2;\d/g) >= 20 && count(splash, /[34]8;5;\d/g) === 0, `${fix}; the splash wrote ${tally(splash)}`)
+  check('TERM=xterm with an echo: the session paints 24-bit codes and no 256-colour code', count(session, /[34]8;2;\d/g) >= 50 && count(session, /[34]8;5;\d/g) === 0, `${fix}; the session wrote ${tally(session)}`)
+}
+
 if (failures === 0) rmSync(scratch, { recursive: true, force: true })
 else console.log(`\nscratch kept: ${scratch}`)
 console.log(`\n${failures === 0 ? 'ALL HOLD' : `${failures} FAILED`} (${checks} checks)`)
