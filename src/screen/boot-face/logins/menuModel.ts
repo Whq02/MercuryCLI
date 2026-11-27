@@ -85,6 +85,7 @@ export function loginsFlowPaneOf(flow: OpenFlowState, model: ReturnType<typeof u
             noCodeYet: model.noCodeYet,
             browserOpened: model.browserOpened,
             copied: model.copied,
+            copyNote: model.copyNote ?? null,
             shadowWarning: model.shadowWarning,
             accountLabel: model.accountLabel,
           },

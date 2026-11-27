@@ -9,6 +9,7 @@ import { collectLoginsScreenFacts, loginsArmSlots, loginsCatalogue, loginsRowSta
 import { mostRecentSignInFamily } from '../../catalogue/computedDefault.js'
 import { type useAnthropicLoginModel, waitingHeadline, type AnthropicFlowState } from '../../../screen/widgets/faces/anthropicLoginModel.js'
 import type { LoginFamilyRow } from './loginFamilyRows.js'
+import { SignInCopyLine } from './SignInCopyLine.js'
 import { loginFamilyFocusFor, loginFamilyInitialFocus, signInLaterRow, type LoginFamilyValue, type TensorFoldOffer } from './loginFamilyRows.js'
 import type { localDiscoverySummary } from '../../roads/local/localCatalogue.js'
 import type { MercuryThemeTokens } from '../../../screen/theme/mercuryTokens.js'
@@ -144,6 +145,7 @@ export function waitingCard({
   tokens,
   pastePromptUp,
   copied,
+  copyNote,
   code,
   setCode,
   submitCode,
@@ -158,6 +160,7 @@ export function waitingCard({
   tokens: MercuryThemeTokens
   pastePromptUp: boolean
   copied: boolean
+  copyNote: string | null
   code: string
   setCode: (next: string) => void
   submitCode: (raw: string) => void
@@ -182,15 +185,15 @@ export function waitingCard({
       {pastePromptUp ? (
         <Box flexDirection="column" gap={compact ? 0 : 1}>
           {compact ? (
-            <Text dimColor wrap="truncate-end">{state.url}</Text>
+            <Text dimColor wrap={copyNote === null ? 'truncate-end' : 'wrap'}>{state.url}</Text>
           ) : (
             <Text dimColor wrap="wrap">
               Browser did not open? Use this URL:{'\n'}
               {state.url}
             </Text>
           )}
-          {copied ? (
-            <Text color={tokens.success}>Copied to clipboard</Text>
+          {copied || copyNote !== null ? (
+            <SignInCopyLine said={{ copied, copyNote }} />
           ) : compact ? null : (
             <Text dimColor>press c to copy the URL</Text>
           )}

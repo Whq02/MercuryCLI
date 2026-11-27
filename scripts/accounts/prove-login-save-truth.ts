@@ -71,7 +71,7 @@ async function drive(save: () => SaveResult): Promise<{
       storeAccount: () => {
         stored++
       },
-      clipboard: async () => null,
+      clipboard: async () => ({ sequence: '', answer: 'copied' as const }),
       writeStdout: () => {},
       log: () => {},
       mintApiKey: async () => ({}),

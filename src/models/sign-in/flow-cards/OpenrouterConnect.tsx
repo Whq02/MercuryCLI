@@ -4,7 +4,7 @@ import { useLoad } from '../../../screen/effects/effects.js'
 import { Box, Text, useInput } from '../../../screen/themedRenderer.js'
 import TextInput from '../../../screen/composer/text-input/TextInput.js'
 import { Select } from '../../../screen/select/index.js'
-import { setClipboard } from '../../../screen/renderer/termio/osc.js'
+import { SignInCopyLine, useSignInCopy } from './SignInCopyLine.js'
 import { useMercuryTokens } from '../../../screen/widgets/useMercuryTokens.js'
 import {
   beginOpenrouterConnect,
@@ -22,7 +22,6 @@ import { keyPasteGuardNote } from '../../../screen/widgets/faces/keyPasteGuards.
 import { keyPageLine } from './loginFamilyRows.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { usePopupCompact } from '../../../screen/overlays/popupFormContext.js'
-import { startTimeout } from '../../../platform/async/timers.js'
 
 
 export function OpenrouterConnect({
@@ -43,7 +42,7 @@ export function OpenrouterConnect({
   const [phase, setPhase] = useState<'starting' | 'waiting' | 'exchanging'>('starting')
   const [listenerNote, setListenerNote] = useState<string | undefined>(undefined)
   const [authorizeUrl, setAuthorizeUrl] = useState<string | undefined>(undefined)
-  const [copied, setCopied] = useState(false)
+  const copying = useSignInCopy()
   const handlesRef = useRef<OpenrouterConnectHandles | undefined>(undefined)
   const settledRef = useRef(false)
 
@@ -101,11 +100,7 @@ export function OpenrouterConnect({
       authorizeUrl
     ) {
       event.stopImmediatePropagation()
-      void setClipboard(authorizeUrl).then(sequence => {
-        if (sequence) process.stdout.write(sequence)
-        setCopied(true)
-        startTimeout(() => setCopied(false), 2000)
-      })
+      copying.copy(authorizeUrl)
     }
   })
 
@@ -168,7 +163,7 @@ export function OpenrouterConnect({
               {leg === 'browser' ? 'If nothing opened, visit:' : 'URL:'}
             </Text>
           )}
-          <Text color={tokens.info} wrap={compact ? 'truncate-end' : 'wrap'}>
+          <Text color={tokens.info} wrap={compact && copying.copyNote === null ? 'truncate-end' : 'wrap'}>
             {authorizeUrl}
           </Text>
           <Box>
@@ -186,7 +181,7 @@ export function OpenrouterConnect({
           </Box>
         </>
       ) : null}
-      {copied ? <Text color={tokens.success}>Copied to clipboard</Text> : null}
+      <SignInCopyLine said={copying} />
       <Text color={tokens.textMuted}>c copies the URL · ESC cancels.</Text>
     </Box>
   )

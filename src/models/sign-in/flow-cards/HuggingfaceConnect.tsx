@@ -4,7 +4,7 @@ import { useLoad } from '../../../screen/effects/effects.js'
 import { Box, Text, useInput } from '../../../screen/themedRenderer.js'
 import TextInput from '../../../screen/composer/text-input/TextInput.js'
 import { Select } from '../../../screen/select/index.js'
-import { setClipboard } from '../../../screen/renderer/termio/osc.js'
+import { SignInCopyLine, useSignInCopy } from './SignInCopyLine.js'
 import { openBrowser } from '../../../platform/host-os/browser.js'
 import { errorMessageWithCause } from '../../../platform/errors/errors.js'
 import { useMercuryTokens } from '../../../screen/widgets/useMercuryTokens.js'
@@ -18,10 +18,8 @@ import { keyPasteGuardNote } from '../../../screen/widgets/faces/keyPasteGuards.
 import { keyPageLine } from './loginFamilyRows.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { usePopupCompact } from '../../../screen/overlays/popupFormContext.js'
-import { startTimeout } from '../../../platform/async/timers.js'
 
 
-const COPY_ACK_MS = 2000
 
 export function HuggingfaceConnect({
   onResult,
@@ -35,7 +33,7 @@ export function HuggingfaceConnect({
   const [start, setStart] = useState<HuggingfaceDeviceAuthStart | undefined>(undefined)
   const [note, setNote] = useState<string | undefined>(undefined)
   const [polls, setPolls] = useState(0)
-  const [copied, setCopied] = useState(false)
+  const copying = useSignInCopy()
   const settledRef = useRef(false)
   const cancelledRef = useRef(false)
 
@@ -88,11 +86,7 @@ export function HuggingfaceConnect({
     }
     if (input === 'c' && !key.ctrl && !key.meta && leg === 'device' && start && phase === 'waiting') {
       event.stopImmediatePropagation()
-      void setClipboard(start.verificationUriComplete ?? start.verificationUri).then(sequence => {
-        if (sequence) process.stdout.write(sequence)
-        setCopied(true)
-        startTimeout(() => setCopied(false), COPY_ACK_MS)
-      })
+      copying.copy(start.verificationUriComplete ?? start.verificationUri)
     }
   })
 
@@ -162,7 +156,7 @@ export function HuggingfaceConnect({
           )}
         </>
       ) : null}
-      {copied ? <Text color={tokens.success}>Copied to clipboard</Text> : null}
+      <SignInCopyLine said={copying} address={compact && start ? start.verificationUriComplete ?? start.verificationUri : undefined} />
       {note !== undefined && phase === 'waiting' ? <Text color={tokens.warning}>{note}</Text> : null}
       <Text color={tokens.textMuted}>c copies the URL · ESC cancels.</Text>
     </Box>

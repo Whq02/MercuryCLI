@@ -93,6 +93,7 @@ function fakeDeps(
     orgAnswer: unknown
     settings: { credentials?: { signInRoute?: 'claudeai' | 'console'; organisation?: string } }
     notify: boolean
+    copyAnswer: 'copied' | 'offered' | 'none'
   }> = {},
 ): { deps: Deps; world: FakeWorld } {
   const world: FakeWorld = {
@@ -156,7 +157,7 @@ function fakeDeps(
     ...(over.notify === false ? {} : { notify: notice => void world.notices.push(notice) }),
     clipboard: async text => {
       world.clipboard.push(text)
-      return 'OSC52'
+      return { sequence: 'OSC52', answer: over.copyAnswer ?? ('copied' as const) }
     },
     writeStdout: sequence => void world.stdout.push(sequence),
     log: error => void world.logged.push(error),
@@ -326,6 +327,21 @@ t.section('§1 — THE ANTHROPIC MACHINE (both arms · setup-token · retry · b
   await settle()
   t.check('copyUrl writes the URL through the clipboard seam and paints the ack', m11.world.clipboard[0] === 'copy-me' && m11.world.stdout[0] === 'OSC52' && m11.m.snapshot().copied === true)
   t.check('the ack clears on its own 2s beat', bed11.run().some(b => b.ms === COPY_ACK_MS) && m11.m.snapshot().copied === false)
+
+  for (const [copyAnswer, words] of [['offered', 'sent to your terminal — if nothing pastes, select the URL above'], ['none', 'nothing copied — select the URL above']] as const) {
+    const bedCopy = beatBed()
+    const unsure = machineOf(bedCopy, { copyAnswer })
+    unsure.m.start(true)
+    bedCopy.run()
+    unsure.world.services[0]!.urlCb('copy-me')
+    unsure.m.copyUrl()
+    await settle()
+    const said = unsure.m.snapshot()
+    t.check(`a copy the clipboard seam answers ${copyAnswer} never paints the ack: the escape is written and the snapshot carries the sentence`, unsure.world.stdout[0] === 'OSC52' && said.copied === false && said.copyNote === words, JSON.stringify({ copied: said.copied, copyNote: said.copyNote }))
+    t.check(`…and the sentence stands past the ack's beat (${copyAnswer})`, !bedCopy.run().some(b => b.ms === COPY_ACK_MS) && unsure.m.snapshot().copyNote === words)
+    unsure.m.reset()
+    t.check(`…and it leaves with the sign-in (${copyAnswer})`, (unsure.m.snapshot().copyNote ?? null) === null)
+  }
 
   const bed12 = beatBed()
   const m12 = machineOf(bed12)

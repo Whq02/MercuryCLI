@@ -10,7 +10,7 @@ import { keyPasteGuardNote } from '../../../screen/widgets/faces/keyPasteGuards.
 import { useMercuryTokens } from '../../../screen/widgets/useMercuryTokens.js'
 import { usePopupCompact } from '../../../screen/overlays/popupFormContext.js'
 import { openBrowser } from '../../../platform/host-os/browser.js'
-import { setClipboard } from '../../../screen/renderer/termio/osc.js'
+import { SignInCopyLine, useSignInCopy } from '../../sign-in/flow-cards/SignInCopyLine.js'
 import { ORCAROUTER_CONNECT_ROWS, runOrcarouterDeviceLogin, storeOrcarouterApiKeyLogin, type OrcarouterDeviceLoginEvent } from './orcarouterLogin.js'
 
 export function OrcarouterConnect({ onResult, onBack }: {
@@ -26,6 +26,7 @@ export function OrcarouterConnect({ onResult, onBack }: {
   const [cursor, setCursor] = useState(0)
   const [note, setNote] = useState<string | null>(null)
   const [storing, setStoring] = useState(false)
+  const copying = useSignInCopy()
   useLoad(signal => {
     if (step !== 'device') return
     void runOrcarouterDeviceLogin({ cancelled: () => signal.aborted || cancelled.current, onEvent: next => {
@@ -42,7 +43,7 @@ export function OrcarouterConnect({ onResult, onBack }: {
     }
     if (input === 'c' && !key.ctrl && !key.meta && step === 'device' && event.phase === 'waiting') {
       keyEvent.stopImmediatePropagation()
-      void setClipboard(event.start.verificationUriComplete ?? event.start.verificationUri).then(sequence => { if (sequence) process.stdout.write(sequence) })
+      copying.copy(event.start.verificationUriComplete ?? event.start.verificationUri)
     }
   })
   const submit = (raw: string): void => {
@@ -66,6 +67,7 @@ export function OrcarouterConnect({ onResult, onBack }: {
       <Text>Approve this code on the OrcaRouter sign-in page: {event.start.userCode}</Text>
       <Text>{event.start.verificationUriComplete ?? event.start.verificationUri}</Text>
     </> : null}
+    <SignInCopyLine said={copying} quiet />
     <Text dimColor>c copies the URL · esc cancels</Text>
   </Box>
   return <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>

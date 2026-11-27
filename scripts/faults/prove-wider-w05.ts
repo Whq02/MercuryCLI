@@ -526,7 +526,7 @@ console.log('\nw05-4 — storeOAuthAccountInfo keeps daemon restart failure for 
         shadowWarning: () => null,
         recordSignIn: () => {},
         settings: () => ({}),
-        clipboard: async () => null,
+        clipboard: async () => ({ sequence: '', answer: 'copied' as const }),
         writeStdout: () => {},
         log: () => {},
         setTimer: (fn) => { queueMicrotask(fn); return 1 },

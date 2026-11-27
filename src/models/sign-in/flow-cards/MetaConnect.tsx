@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import { useLoad } from '../../../screen/effects/effects.js'
 import { Select } from '../../../screen/select/index.js'
 import { openBrowser } from '../../../platform/host-os/browser.js'
-import { setClipboard } from '../../../screen/renderer/termio/osc.js'
+import { SignInCopyLine, useSignInCopy } from './SignInCopyLine.js'
 import { Box, Text, useInput } from '../../../screen/themedRenderer.js'
 import TextInput from '../../../screen/composer/text-input/TextInput.js'
 import { useMercuryTokens } from '../../../screen/widgets/useMercuryTokens.js'
@@ -22,9 +22,7 @@ import { keyPasteGuardNote } from '../../../screen/widgets/faces/keyPasteGuards.
 import { keyPageLine } from './loginFamilyRows.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { usePopupCompact } from '../../../screen/overlays/popupFormContext.js'
-import { startTimeout } from '../../../platform/async/timers.js'
 
-const COPY_ACK_MS = 2000
 
 export function MetaConnect({ onResult, onBack }: {
   onResult: (result: { ok: boolean; receipt: string }) => void
@@ -34,7 +32,7 @@ export function MetaConnect({ onResult, onBack }: {
   const { compact } = usePopupCompact()
   const [step, setStep] = useState<'choice' | 'device' | 'key'>('choice')
   const [event, setEvent] = useState<MetaDeviceLoginEvent>({ phase: 'starting' })
-  const [copied, setCopied] = useState(false)
+  const copying = useSignInCopy()
   const cancelled = useRef(false)
   const settled = useRef(false)
   const finish = (result: { ok: boolean; receipt: string }): void => {
@@ -75,11 +73,7 @@ export function MetaConnect({ onResult, onBack }: {
     }
     if (input === 'c' && !key.ctrl && !key.meta && step === 'device' && event.phase === 'waiting') {
       keyEvent.stopImmediatePropagation()
-      void setClipboard(event.start.verificationUriComplete ?? event.start.verificationUri).then(sequence => {
-        if (sequence) process.stdout.write(sequence)
-        setCopied(true)
-        startTimeout(() => setCopied(false), COPY_ACK_MS)
-      })
+      copying.copy(event.start.verificationUriComplete ?? event.start.verificationUri)
     }
   })
   const submit = (raw: string): void => {
@@ -144,7 +138,7 @@ export function MetaConnect({ onResult, onBack }: {
             {event.phase === 'starting' ? 'Requesting a device code from Meta…' : 'Authorized — minting the Muse Code key and reading your plan…'}
           </Text>
         )}
-        {copied ? <Text color={tokens.success}>Copied to clipboard</Text> : null}
+        <SignInCopyLine said={copying} address={compact && event.phase === 'waiting' ? event.start.verificationUriComplete ?? event.start.verificationUri : undefined} />
         <Text dimColor>c copies the URL · esc cancels</Text>
       </Box>
     )
