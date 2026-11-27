@@ -54,6 +54,7 @@ prove-browser-runner-end.ts
 prove-browser-screenshot-geometry.ts
 prove-browser-screenshot-scale.ts
 prove-browser-secrets.ts
+prove-browser-signal-road.ts
 prove-browser-stealth.ts
 prove-browser-tab-auth-memory.ts
 prove-browser-tabs.ts
