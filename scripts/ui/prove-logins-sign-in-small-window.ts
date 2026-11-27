@@ -93,9 +93,10 @@ const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js'
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
 const { Box } = await import('../../src/screen/themedRenderer.js')
 const { BootLoginsScreen, collectLoginsScreenFacts, loginsMenuModelOf } = await import('../../src/screen/boot-face/BootLoginsScreen.js')
+const { loginsFlowPaneLines } = await import('../../src/screen/boot-face/logins/flowLines.js')
 const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
 
-const FIX = 'src/screen/boot-face/logins/menuModel.ts hands the notice block loginsFlowNoticeOf(flow) (flowLines.ts): the sign-in pane words at full width'
+const FIX = 'src/screen/boot-face/logins/menuModel.ts marks a waiting sign-in must-read-whole and hands the composer loginsFlowNoticeOf(flow) as detailOverrideWhole; assets/splash/splash-core.mjs paints those words in the block and leaves the wide layout where the pane still does not fit'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -107,20 +108,28 @@ const joined = (frame: string): string => rowsOf(frame).join('')
 const words = (frame: string): string => rowsOf(frame).filter(Boolean).join(' ').replace(/\s+/g, ' ')
 const cursorRow = (frame: string): string => frame.split('\n').find(row => row.includes('❯')) ?? ''
 const SMALL: ReadonlyArray<readonly [number, number]> = [[80, 24], [100, 30]]
+const PANE_W = 38
+const holdsAddress = (frame: string, url: string): boolean => {
+  if (joined(frame).includes(url)) return true
+  const paneRows: string[] = []
+  for (let at = 0; at < url.length; at += PANE_W) paneRows.push(url.slice(at, at + PANE_W))
+  return paneRows.every(row => frame.includes(row))
+}
+const uncut = (frame: string, tail: string): boolean => !frame.includes('taller terminal') && frame.replace(/\s+/g, ' ').includes(tail)
 
-type Road = { id: string; family: string; picks: RegExp[]; then?: string; says: string[]; url?: string; code?: string }
+type Road = { id: string; family: string; picks: RegExp[]; then?: string; says: string[]; tail: string; url?: string; code?: string }
 const ROADS: Road[] = [
-  { id: 'ChatGPT browser sign-in', family: 'openai', picks: [/browser sign-in/], says: ['Finish signing in in the browser.', 'If nothing opened, visit:', 'paste:'], url: OPENAI_URL },
-  { id: 'ChatGPT device code', family: 'openai', picks: [/browser sign-in/], then: 'd', says: ['enter this one-time code:', OPENAI_DEVICE_HINT, 'Waiting for approval'], code: OPENAI_DEVICE_CODE },
-  { id: 'OpenRouter browser sign-in', family: 'openrouter', picks: [/Sign in with the browser/], says: ['Finish signing in in the browser.', 'If nothing opened, visit:'], url: OPENROUTER_URL },
-  { id: 'OpenRouter headless', family: 'openrouter', picks: [/Headless/], says: ['Open this URL on any signed-in browser', 'URL:', 'code:'], url: OPENROUTER_URL },
-  { id: 'Gemini plan sign-in', family: 'gemini', picks: [/Sign in with Google/], says: ['If nothing opened, visit:', 'paste:'], url: GEMINI_URL },
-  { id: 'Kimi device code', family: 'moonshot', picks: [/Sign in with Kimi/, /Global/], says: ['On the sign-in page, enter this code:', 'If nothing opened, visit:'], url: DEVICE_URL, code: DEVICE_CODE },
-  { id: 'Hugging Face device code', family: 'huggingface', picks: [/Sign in with Hugging Face/], says: ['On the sign-in page, enter this code:', 'If nothing opened, visit:'], url: DEVICE_URL, code: DEVICE_CODE },
-  { id: 'Grok device code', family: 'xai', picks: [/Sign in with your Grok account/], says: ['On the sign-in page, enter this code:', 'If nothing opened, visit:'], url: DEVICE_URL, code: DEVICE_CODE },
-  { id: 'Nous Portal device code', family: 'nous', picks: [/Sign in with your Nous Portal account/], says: ['On the sign-in page, enter this code:', 'If nothing opened, visit:'], url: DEVICE_URL, code: DEVICE_CODE },
-  { id: 'OrcaRouter device code', family: 'orcarouter', picks: [/Sign in with your OrcaRouter account/], says: ['On the sign-in page, enter this code:'], url: DEVICE_URL, code: DEVICE_CODE },
-  { id: 'Meta device code', family: 'meta', picks: [/Sign in with Meta/], says: ['On the sign-in page, enter this code:', 'If nothing opened, visit:'], url: DEVICE_URL, code: DEVICE_CODE },
+  { id: 'ChatGPT browser sign-in', family: 'openai', picks: [/browser sign-in/], says: ['Finish signing in in the browser.', 'If nothing opened, visit:', 'paste:'], tail: 'paste: ▌', url: OPENAI_URL },
+  { id: 'ChatGPT device code', family: 'openai', picks: [/browser sign-in/], then: 'd', says: ['enter this one-time code:', OPENAI_DEVICE_HINT, 'Waiting for approval'], tail: 'c copies the code', code: OPENAI_DEVICE_CODE },
+  { id: 'OpenRouter browser sign-in', family: 'openrouter', picks: [/Sign in with the browser/], says: ['Finish signing in in the browser.', 'If nothing opened, visit:'], tail: 'paste: ▌', url: OPENROUTER_URL },
+  { id: 'OpenRouter headless', family: 'openrouter', picks: [/Headless/], says: ['Open this URL on any signed-in browser', 'URL:', 'code:'], tail: 'code: ▌', url: OPENROUTER_URL },
+  { id: 'Gemini plan sign-in', family: 'gemini', picks: [/Sign in with Google/], says: ['If nothing opened, visit:', 'paste:'], tail: 'paste: ▌', url: GEMINI_URL },
+  { id: 'Kimi device code', family: 'moonshot', picks: [/Sign in with Kimi/, /Global/], says: ['On the sign-in page, enter this code:', 'If nothing opened, visit:'], tail: 'c copies the URL', url: DEVICE_URL, code: DEVICE_CODE },
+  { id: 'Hugging Face device code', family: 'huggingface', picks: [/Sign in with Hugging Face/], says: ['On the sign-in page, enter this code:', 'If nothing opened, visit:'], tail: 'c copies the URL', url: DEVICE_URL, code: DEVICE_CODE },
+  { id: 'Grok device code', family: 'xai', picks: [/Sign in with your Grok account/], says: ['On the sign-in page, enter this code:', 'If nothing opened, visit:'], tail: 'c copies the URL', url: DEVICE_URL, code: DEVICE_CODE },
+  { id: 'Nous Portal device code', family: 'nous', picks: [/Sign in with your Nous Portal account/], says: ['On the sign-in page, enter this code:', 'If nothing opened, visit:'], tail: 'c copies the URL', url: DEVICE_URL, code: DEVICE_CODE },
+  { id: 'OrcaRouter device code', family: 'orcarouter', picks: [/Sign in with your OrcaRouter account/], says: ['On the sign-in page, enter this code:'], tail: 'c copies the URL', url: DEVICE_URL, code: DEVICE_CODE },
+  { id: 'Meta device code', family: 'meta', picks: [/Sign in with Meta/], says: ['On the sign-in page, enter this code:', 'If nothing opened, visit:'], tail: 'c copies the URL', url: DEVICE_URL, code: DEVICE_CODE },
 ]
 const holds = (frame: string, road: Road): boolean =>
   road.says.every(sentence => words(frame).includes(sentence)) && (road.url === undefined || joined(frame).includes(road.url)) && (road.code === undefined || frame.includes(road.code))
@@ -128,9 +137,9 @@ const holds = (frame: string, road: Road): boolean =>
 try {
   const facts = collectLoginsScreenFacts()
 
-  console.log('§1 — THE MOUNTED BOOT LOGINS SCREEN WITH A SIGN-IN WAITING, 80x24 AND 100x30')
+  console.log('§1 — THE MOUNTED BOOT LOGINS SCREEN WITH A SIGN-IN WAITING: 80x24, 100x30, AND A WIDE WINDOW THAT IS NOT TALL (120x30)')
   for (const road of ROADS) {
-    for (const [columns, rows] of [...SMALL, [120, 40] as const]) {
+    for (const [columns, rows] of [...SMALL, [120, 30] as const, [120, 40] as const]) {
       const m = await mountOffscreen(
         h(AppStateProvider, {
           children: h(ThemeProvider, {
@@ -167,9 +176,16 @@ try {
       }
       const wide = columns >= 120
       const opening = road.says[0]!.split(' ').slice(0, 2).join(' ')
-      const up = await waitFor(() => (wide ? m.screen().includes(opening) : holds(m.screen(), road)), 2500)
+      const whole = (frame: string): boolean => (road.url === undefined || holdsAddress(frame, road.url)) && (road.code === undefined || frame.includes(road.code)) && uncut(frame, road.tail)
+      const up = await waitFor(() => (rows === 30 && wide ? whole(m.screen()) : wide ? m.screen().includes(opening) : holds(m.screen(), road)), 2500)
       const frame = m.screen()
-      if (wide) {
+      if (wide && rows === 30) {
+        check(
+          `${road.id} at ${columns}x${rows}: ${road.url !== undefined ? 'the address whole, ' : ''}${road.code !== undefined ? 'the code, ' : ''}the pane's last line, and no cut`,
+          reached && up && whole(frame) && cursorRow(frame) !== '',
+          words(frame).slice(0, 260),
+        )
+      } else if (wide) {
         check(
           `${road.id} at ${columns}x${rows}: the pane holds the sign-in's words`,
           reached && up && (road.url === undefined || frame.includes(road.url.slice(0, 30))) && (road.code === undefined || frame.includes(road.code)),
@@ -186,7 +202,7 @@ try {
     }
   }
 
-  console.log('§2 — EVERY SIGN-IN PANE COMPOSED: READABLE WHERE THE SCREEN HAS NO PANE, THE WIDE LAYOUT CELL FOR CELL')
+  console.log('§2 — EVERY SIGN-IN PANE COMPOSED: WHOLE AT EVERY SIZE FROM 20 ROWS, AND EVERY FRAME THAT WAS WHOLE CELL FOR CELL AS IT WAS')
   {
     const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' })
     const environment = { model: 'model', critter: 'crab', critterHue: 'crimson', dirBase: 'work', dirTail: '' }
@@ -201,7 +217,7 @@ try {
       draftLen: 0,
       handles: { leg, phase: 'waiting', authorizeUrl, copied: false },
     })
-    const panes: Array<{ name: string; flow: LoginsFlowPaneV1; says: string[]; url?: string; code?: string }> = [
+    const panes: Array<{ name: string; flow: LoginsFlowPaneV1; says: string[]; tail: string; url?: string; code?: string }> = [
       {
         name: 'Claude subscription',
         flow: {
@@ -210,18 +226,20 @@ try {
           snap: { flow: { name: 'waiting', url: CLAUDE_URL, loginWithClaudeAi: true, forcedMethod: null }, pastePromptUp: true, noCodeYet: false, browserOpened: null, copied: false, shadowWarning: null, accountLabel: null },
         },
         says: ['Use this URL:', 'Paste code here if prompted:'],
+        tail: 'esc cancels the wait',
         url: CLAUDE_URL,
       },
-      { name: 'ChatGPT browser', flow: handles('openai-browser', OPENAI_URL), says: ['Finish signing in in the browser.', 'If nothing opened, visit:'], url: OPENAI_URL },
-      { name: 'OpenRouter browser', flow: handles('openrouter-browser', OPENROUTER_URL), says: ['If nothing opened, visit:'], url: OPENROUTER_URL },
-      { name: 'OpenRouter headless', flow: handles('openrouter-headless', OPENROUTER_URL), says: ['Open this URL on any signed-in browser', 'URL:'], url: OPENROUTER_URL },
-      { name: 'Gemini own client', flow: handles('gemini-oauth', GEMINI_URL), says: ['If nothing opened, visit:'], url: GEMINI_URL },
-      { name: 'Gemini plan', flow: handles('gemini-plan', GEMINI_URL), says: ['If nothing opened, visit:'], url: GEMINI_URL },
-      { name: 'ChatGPT device code', flow: { kind: 'opdevice', opdevice: { userCode: OPENAI_DEVICE_CODE, verifyHint: OPENAI_DEVICE_HINT, copied: false } }, says: ['enter this one-time code:', OPENAI_DEVICE_HINT], code: OPENAI_DEVICE_CODE },
+      { name: 'ChatGPT browser', flow: handles('openai-browser', OPENAI_URL), says: ['Finish signing in in the browser.', 'If nothing opened, visit:'], tail: 'paste: ▌', url: OPENAI_URL },
+      { name: 'OpenRouter browser', flow: handles('openrouter-browser', OPENROUTER_URL), says: ['If nothing opened, visit:'], tail: 'paste: ▌', url: OPENROUTER_URL },
+      { name: 'OpenRouter headless', flow: handles('openrouter-headless', OPENROUTER_URL), says: ['Open this URL on any signed-in browser', 'URL:'], tail: 'code: ▌', url: OPENROUTER_URL },
+      { name: 'Gemini own client', flow: handles('gemini-oauth', GEMINI_URL), says: ['If nothing opened, visit:'], tail: 'paste: ▌', url: GEMINI_URL },
+      { name: 'Gemini plan', flow: handles('gemini-plan', GEMINI_URL), says: ['If nothing opened, visit:'], tail: 'paste: ▌', url: GEMINI_URL },
+      { name: 'ChatGPT device code', flow: { kind: 'opdevice', opdevice: { userCode: OPENAI_DEVICE_CODE, verifyHint: OPENAI_DEVICE_HINT, copied: false } }, says: ['enter this one-time code:', OPENAI_DEVICE_HINT], tail: 'c copies the code', code: OPENAI_DEVICE_CODE },
       ...(['moonshot', 'huggingface', 'xai', 'nous', 'orcarouter', 'meta'] as const).map(family => ({
         name: `${family} device code`,
         flow: device(family),
         says: ['On the sign-in page, enter this code:'],
+        tail: 'c copies the URL',
         url: DEVICE_URL,
         code: DEVICE_CODE,
       })),
@@ -233,7 +251,20 @@ try {
         return pane.says.every(sentence => words(painted).includes(sentence)) && (pane.url === undefined || joined(painted).includes(pane.url)) && (pane.code === undefined || painted.includes(pane.code))
       }
       check(`${pane.name}: what to do, the address whole and the code at 80x24 and at 100x30`, readable(80, 24) && readable(100, 30), words(frame(80, 24, model)).slice(0, 260))
-      check(`${pane.name} at 120x40 is cell for cell the frame without the block`, frame(120, 40, model) === frame(120, 40, { ...model, noticeLine: null }) && frame(120, 40, model).includes(pane.says[0]!.split(' ').slice(0, 2).join(' ')))
+      const whole = (painted: string): boolean => (pane.url === undefined || holdsAddress(painted, pane.url)) && (pane.code === undefined || painted.includes(pane.code)) && uncut(painted, pane.tail)
+      const unmarked = { ...model, detailOverrideConfirms: false, detailOverrideWhole: undefined, noticeLine: loginsFlowPaneLines(pane.flow, Number.MAX_SAFE_INTEGER).filter(Boolean).join(' ') }
+      const cut: string[] = []
+      const moved: string[] = []
+      for (const columns of [110, 120, 160]) {
+        for (let rows = 20; rows <= 44; rows++) {
+          const painted = frame(columns, rows, model)
+          if (!whole(painted)) cut.push(`${columns}x${rows}`)
+          const before = frame(columns, rows, unmarked)
+          if (whole(before) && before !== painted) moved.push(`${columns}x${rows}`)
+        }
+      }
+      check(`${pane.name}: whole at 110, 120 and 160 columns at every height from 20 to 44 rows (the address, the code, the pane's last line, no cut)`, cut.length === 0, `cut at ${cut.slice(0, 12).join(' ')}`)
+      check(`${pane.name}: every frame of those 75 that was whole without the mark is cell for cell the same with it`, moved.length === 0 && frame(120, 50, model) === frame(120, 50, unmarked) && frame(120, 50, model).includes(pane.says[0]!.split(' ').slice(0, 2).join(' ')), `moved at ${moved.slice(0, 12).join(' ')}`)
     }
 
     const waiting = handles('openai-browser', OPENAI_URL)
@@ -248,10 +279,14 @@ try {
       ['a key prompt', { kind: 'key', leg: 'gemini-key', note: null, draftLen: 0, storing: false }],
       ['a provider receipt', { kind: 'receipt', receipt: 'fixture receipt', ok: false }],
     ]
+    const handed = (flow: LoginsFlowPaneV1): unknown => {
+      const model = loginsMenuModelOf(facts, { selIdx: 0, environment, flow }) as { noticeLine?: unknown; detailOverrideWhole?: unknown; detailOverrideConfirms?: unknown }
+      return model.noticeLine ?? model.detailOverrideWhole ?? model.detailOverrideConfirms ?? null
+    }
     check(
-      'a pick, a key prompt and a provider receipt hand the block nothing: they paint as before',
-      others.every(([, flow]) => loginsMenuModelOf(facts, { selIdx: 0, environment, flow }).noticeLine === null),
-      others.map(([name, flow]) => `${name}: ${String(loginsMenuModelOf(facts, { selIdx: 0, environment, flow }).noticeLine)}`).join(' / '),
+      'a pick, a key prompt and a provider receipt hand the block nothing and are not marked: they paint as before',
+      others.every(([, flow]) => handed(flow) === null),
+      others.map(([name, flow]) => `${name}: ${String(handed(flow))}`).join(' / '),
     )
   }
 } finally {
