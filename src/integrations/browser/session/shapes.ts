@@ -1,4 +1,4 @@
-import type { Browser as DriverBrowser, CDPSession, Frame, Page, Protocol } from 'puppeteer-core'
+import type { Browser as DriverBrowser, CDPSession, ElementHandle, Frame, Page, Protocol } from 'puppeteer-core'
 import type { BrowserResolution } from '../browserResolver.js'
 import type { Transfer, TransferBook } from '../browserTransfers.js'
 
@@ -138,6 +138,7 @@ export interface Session {
   profileDir: string | null
   headless: boolean
   cursor: { x: number; y: number }
+  clicked: { target: ElementHandle<Element>; at: number } | null
 }
 
 export interface CheckedTarget {

@@ -19,8 +19,9 @@ function inlineText(
   raw: string,
   themeName: Parameters<typeof applyMarkdown>[1],
   highlight: CliHighlight | null | undefined,
+  literalBackslashes: boolean,
 ): string {
-  return applyMarkdown(raw, themeName, highlight, Number.POSITIVE_INFINITY)
+  return applyMarkdown(raw, themeName, highlight, Number.POSITIVE_INFINITY, literalBackslashes)
     .replace(/\n+/g, ' ')
     .trim()
 }
@@ -143,23 +144,25 @@ export function MarkdownTable({
   token,
   highlight,
   forceWidth,
+  literalBackslashes = false,
 }: {
   token: Tokens.Table
   highlight?: CliHighlight | null
   forceWidth?: number
+  literalBackslashes?: boolean
 }): React.ReactNode {
   const { columns: termColumns } = useTerminalSize()
   const [themeName] = useTheme()
   const terminalWidth = forceWidth ?? termColumns
 
-  const headers = token.header.map((cell: Cell) => inlineText(cell.text, themeName, highlight))
+  const headers = token.header.map((cell: Cell) => inlineText(cell.text, themeName, highlight, literalBackslashes))
   const columnCount = headers.length
   if (columnCount === 0) return null
 
   const rows = token.rows.map(row =>
     Array.from({ length: columnCount }, (_, c) => {
       const cell: Cell | undefined = row[c]
-      return inlineText(cell?.text ?? '', themeName, highlight)
+      return inlineText(cell?.text ?? '', themeName, highlight, literalBackslashes)
     }),
   )
   const aligns = Array.from({ length: columnCount }, (_, c) => token.align[c] ?? 'left')

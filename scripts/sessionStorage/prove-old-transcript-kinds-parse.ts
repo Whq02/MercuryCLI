@@ -15,12 +15,13 @@ const ROOT = join(import.meta.dir, '..', '..')
 const vnext = await import('../../src/sessions/transcripts/vnext.ts')
 const logs = await import('../../src/sessions/transcripts/sessionListings.ts')
 const paths = await import('../../src/sessions/transcripts/paths.ts')
+const { setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
 const attachmentText = await import('../../src/engine/messages/attachmentText.ts')
 const nullRendering = await import('../../src/screen/messages/nullRenderingAttachments.ts')
 const decode = await import('../../src/sessions/fabric/transcriptDecode.ts')
 
 let failures = 0
-const oldKindsFailHint = 'an old crew spelling is being renamed, dropped or given a meaning; fix the reader this check calls, among src/sessions/transcripts/sessionListings.ts (loadTranscriptFromFile, enrichSessionListings), src/sessions/fabric/transcriptDecode.ts, src/sessions/transcripts/fold.ts (applyTranscriptEntry), src/sessions/transcripts/paths.ts (readAgentMetadata), src/engine/messages/attachmentText.ts (normalizeAttachmentForAPI), src/tools/crewmate/CrewmateTool.tsx (inputSchema), src/screen/keys/parser.ts and src/commands/crewmates/index.ts'
+const oldKindsFailHint = 'an old crew spelling is being renamed, dropped or given a meaning; fix the reader this check calls, among src/sessions/transcripts/sessionListings.ts (lastSession, enrichSessionListings), src/sessions/fabric/transcriptDecode.ts, src/sessions/transcripts/fold.ts (applyTranscriptEntry), src/sessions/transcripts/paths.ts (readAgentMetadata), src/engine/messages/attachmentText.ts (normalizeAttachmentForAPI), src/tools/crewmate/CrewmateTool.tsx (inputSchema), src/screen/keys/parser.ts and src/commands/crewmates/index.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${oldKindsFailHint}`}`)
@@ -153,7 +154,9 @@ console.log(' the old crew spellings are unknown to every reader: team_context, 
 console.log('============================================================')
 
 console.log('§1 the transcript loads whole through the product reader; every row keeps the kind and the keys it was written with')
-const log = await logs.loadTranscriptFromFile(file)
+setOriginalCwd(SCRATCH)
+const log = await logs.lastSession(SID as never)
+if (log === null) throw new Error(`lastSession in src/sessions/transcripts/sessionListings.ts answered null for ${file}: the old transcript did not load`)
 const messages = log.messages as Array<Record<string, unknown>>
 check('every row of the chain is read', messages.length === 16, `${messages.length} rows`)
 const attachments = messages.filter(m => m.type === 'attachment').map(m => (m.attachment as { type: string }).type)
@@ -283,7 +286,7 @@ console.log('§11 a transcript row under a kind no build of Mercury writes is an
   let loaded: { messages: Array<Record<string, unknown>> } | null = null
   let thrown = ''
   try {
-    loaded = (await logs.loadTranscriptFromFile(kindFile)) as unknown as { messages: Array<Record<string, unknown>> }
+    loaded = (await logs.lastSession(KIND_SID as never)) as unknown as { messages: Array<Record<string, unknown>> } | null
   } catch (error) {
     thrown = String(error)
   }

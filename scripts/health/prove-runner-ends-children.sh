@@ -8,7 +8,7 @@ case "$(uname -s)" in (MINGW* | MSYS* | CYGWIN*) echo "SKIP runner-ends-children
 fail=0
 work=$(mktemp -d "${TMPDIR:-/tmp}/runner-ends-children.XXXXXX")
 ledger="$work/ledger"; mkdir -p "$ledger" "$work/marks"
-export MERCURY_PROCESS_LEDGER_DIR="$ledger"
+export MERCURY_PROCESS_LEDGER_DIR="$ledger" MERCURY_CONFIG_DIR="$work/home"
 cleanup_marks() {
   local f p g
   for f in "$work"/marks/*.pid; do

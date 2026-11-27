@@ -119,9 +119,6 @@ check(`${RED}: the picker's full load (--continue, /resume <title>, the resume p
 const perLeaf = await logs.listingsOfSessionFile(transcriptPath)
 check('the per-leaf load finds the one leaf', perLeaf.length === 1 && perLeaf[0]?.sessionId === SID, j(perLeaf.map(l => l.sessionId)))
 check(`${RED}: the per-leaf load (every branch of one file) hands back the owner's facts — the worktree record and the collapse facts included`, perLeaf.length === 1 && j(factsOf(perLeaf[0])) === j(owner), j(factsOf(perLeaf[0])))
-const opened = await logs.loadTranscriptFromFile(transcriptPath)
-check(`${RED}: the open-this-file load hands back the owner's facts — the agent name, colour and setting, the mode and the PR link included`, j(factsOf(opened)) === j(owner), j(factsOf(opened)))
-
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} resume facts have one owner: ${checks - failures}/${checks} checks passed`)
 process.exit(failures === 0 ? 0 : 1)

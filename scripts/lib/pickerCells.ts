@@ -11,4 +11,4 @@ export const showsId = (screen: string, id: string): boolean => new RegExp(idCel
 
 export const rowPattern = (alias: string, id: string): RegExp => new RegExp(`${escapeRegExp(alias)}\\s{2,}${idCellPattern(id)}`)
 
-export const focusedRowPattern = (alias: string, id: string, after = ''): RegExp => new RegExp(`│ │ ${escapeRegExp(alias)}\\s{2,}${idCellPattern(id)}${after}`)
+export const focusedRowPattern = (alias: string, id: string, after = ''): RegExp => new RegExp(`│ ❯ ${escapeRegExp(alias)}\\s{2,}${idCellPattern(id)}${after}`)

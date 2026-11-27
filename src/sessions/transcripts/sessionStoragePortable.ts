@@ -269,34 +269,6 @@ export async function readHeadAndTail(
   }
 }
 
-export type LiteSessionFile = { head: string; tail: string; mtime: number; size: number }
-
-export async function readSessionLite(
-  filePath: string,
-  onReadError?: (path: string, error: unknown) => void,
-): Promise<LiteSessionFile | null> {
-  try {
-    const handle = await open(filePath, 'r')
-    try {
-      const info = await handle.stat()
-      const extent = historyHead(filePath)
-      const size = extent.before !== 0 ? extent.before + extent.end - extent.start : info.size
-      const buf = Buffer.alloc(LITE_READ_BUF_SIZE)
-      const windows = extent.before !== 0
-        ? await readHeadAndTail(filePath, size, buf, onReadError)
-        : await readOpenWindows(handle, size, buf)
-      return windows && { ...windows, mtime: info.mtimeMs, size }
-    } finally {
-      await handle.close()
-    }
-  } catch (error) {
-    passedOver(error)
-    reportReadError(filePath, error, onReadError)
-    return null
-  }
-}
-
-
 export function sanitizePath(name: string): string {
   return capSanitizedName(name.replace(/[^a-zA-Z0-9]/g, '-'), name)
 }

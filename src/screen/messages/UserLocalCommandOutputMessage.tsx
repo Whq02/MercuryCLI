@@ -55,7 +55,7 @@ function foldedEarlierReleases(text: string, verbose: boolean): Folded {
 }
 
 function FoldedMarkdown({ shown, fold }: Folded): React.ReactNode {
-  const body = <Markdown>{shown}</Markdown>
+  const body = <Markdown literalBackslashes>{shown}</Markdown>
   return (
     <MessageResponse>
       {fold === null ? (

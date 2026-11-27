@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -268,6 +268,92 @@ console.log('════ vshot observed-ready laws ════')
   check('14. PROGRESS: unrelated output cannot renew the wait or satisfy its missing mark', stalled.status !== 0 && stalled.payload.endReason === 'budget' && lastSend !== undefined && stalled.payload.refusals?.some(row => row.code === 'NEVER-READY' && row.ceilingTicks === lastSend + 20) === true, JSON.stringify(stalled.payload))
 }
 
+{
+  const account = spawnSync('/usr/bin/python3', ['-c', 'import os, pwd; print(pwd.getpwuid(os.getuid()).pw_dir)'], { encoding: 'utf8' }).stdout.trim()
+  const scratchHome = join(work, 'scratch-home')
+  const pinned = join(work, 'pinned')
+  const store = join(account, '.mercury')
+  const profile = join(account, '.mercury2')
+  const linkToStore = join(work, 'link-to-the-store')
+  const linkToProfile = join(work, 'link-to-a-profile')
+  mkdirSync(scratchHome)
+  symlinkSync(store, linkToStore)
+  symlinkSync(profile, linkToProfile)
+  const where = "the two refusals stand ahead of the capture slot in scripts/ui/vshot.py (_child_config_home, _operators_own_store); the tree's two guards are configHomeIsReal in scripts/lib/loginDriverGuard.ts and suite_home_guard in scripts/lib/suite-env.sh"
+  type Names = { HOME: string; MERCURY_CONFIG_DIR?: string; MERCURY_HOME?: string }
+  interface Row { name: string; names: Names; cfg?: Record<string, unknown>; own: boolean; guardStill?: string }
+  const rows: Row[] = [
+    { name: 'no pin, HOME the account home', names: { HOME: account }, own: true },
+    { name: 'an empty pin, HOME the account home', names: { HOME: account, MERCURY_CONFIG_DIR: '' }, own: true },
+    { name: 'a scratch pin, HOME the account home', names: { HOME: account, MERCURY_CONFIG_DIR: pinned }, own: false },
+    { name: 'the pin names the store', names: { HOME: account, MERCURY_CONFIG_DIR: store }, own: true },
+    { name: 'the pin is a link to the store', names: { HOME: account, MERCURY_CONFIG_DIR: linkToStore }, own: true },
+    { name: 'the pin names a profile store', names: { HOME: account, MERCURY_CONFIG_DIR: profile }, own: true },
+    { name: 'the pin is a link to a profile store', names: { HOME: account, MERCURY_CONFIG_DIR: linkToProfile }, own: true },
+    { name: 'the pin names the store under a scratch HOME', names: { HOME: scratchHome, MERCURY_CONFIG_DIR: store }, own: true },
+    { name: 'no pin under a scratch HOME', names: { HOME: scratchHome }, own: false, guardStill: 'a proof entry with no pin is given a proof home wherever HOME points; the staged install drives stand on a scratch HOME with no pin' },
+    { name: 'no pin, MERCURY_HOME on a scratch folder', names: { HOME: account, MERCURY_HOME: pinned }, own: false, guardStill: 'MERCURY_HOME is the launcher word, an operator pin and never a proof pin' },
+    { name: 'no pin, MERCURY_HOME on the store, a scratch HOME', names: { HOME: scratchHome, MERCURY_HOME: store }, own: true },
+    { name: 'a scratch pin over MERCURY_HOME on the store', names: { HOME: account, MERCURY_CONFIG_DIR: pinned, MERCURY_HOME: store }, own: false },
+    { name: 'a relative pin from a config whose cwd is the account home', names: { HOME: account, MERCURY_CONFIG_DIR: '.mercury' }, cfg: { cwd: account }, own: true },
+    { name: "the pin names .mercury under a scratch HOME", names: { HOME: scratchHome, MERCURY_CONFIG_DIR: join(scratchHome, '.mercury') }, own: false, guardStill: "the product's default store follows HOME, so the guard holds HOME's .mercury beside the account's" },
+  ]
+  let started = 0
+  const start = (names: Names, cfg: Record<string, unknown> = {}): { refused: boolean; status: number | null; words: string; ran: boolean; left: string[] } => {
+    const at = join(work, `home-${++started}`)
+    const temp = join(at, 'tmp')
+    mkdirSync(temp, { recursive: true })
+    const witness = join(at, 'witness')
+    const cfgPath = join(at, 'cfg.json')
+    writeFileSync(cfgPath, JSON.stringify({ cols: 40, rows: 4, total: 3, argv: ['/usr/bin/python3', '-c', 'import sys; open(sys.argv[1], "w").write("ran")', witness], out: join(at, 'out.json'), ...cfg }))
+    const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: temp, MERCURY_PROCESS_LEDGER_DIR: join(at, 'ledger'), HOME: names.HOME }
+    for (const name of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME'] as const) {
+      if (names[name] === undefined) delete env[name]
+      else env[name] = names[name]
+    }
+    const r = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(30_000), env })
+    const ran = existsSync(witness)
+    return { refused: r.status !== 0 && !ran, status: r.status, words: (r.stderr ?? '').trim(), ran, left: [...readdirSync(temp), ...['out.json', 'ledger'].filter(name => existsSync(join(at, name)))] }
+  }
+  const guardSays = new Map<Row, boolean>()
+  for (const home of [account, scratchHome]) {
+    const asked = rows.filter(row => row.names.HOME === home)
+    const script = `import { configHomeIsReal } from ${JSON.stringify(join(ROOT, 'scripts', 'lib', 'loginDriverGuard.ts'))}; console.log(JSON.stringify(${JSON.stringify(asked.map(row => ({ names: row.names, cwd: row.cfg?.cwd })))}.map(row => configHomeIsReal(row.names, row.cwd))))`
+    const said = spawnSync(process.execPath, ['--eval', script], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, HOME: home } }).stdout.trim().split('\n').at(-1) ?? ''
+    const answers: boolean[] = said.startsWith('[') ? JSON.parse(said) : []
+    asked.forEach((row, i) => { if (typeof answers[i] === 'boolean') guardSays.set(row, answers[i]) })
+  }
+  const shellTemp = join(work, 'shell-guard-tmp')
+  mkdirSync(shellTemp)
+  const shellSays = (row: Row): boolean | undefined => {
+    const env: Record<string, string> = { PATH: process.env.PATH ?? '', HOME: row.names.HOME, TMPDIR: shellTemp, BUN: '/usr/bin/false' }
+    for (const name of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME'] as const) {
+      const value = row.names[name]
+      if (value !== undefined) env[name] = value
+    }
+    const r = spawnSync('bash', ['-c', '. "$1" || exit 78; suite_home_guard "$2"; printf "%s\\n" "${MERCURY_CONFIG_DIR:-}"', '_', join(ROOT, 'scripts', 'lib', 'suite-env.sh'), join(ROOT, 'scripts', 'ui-2', 'run-all.sh')], { cwd: typeof row.cfg?.cwd === 'string' ? row.cfg.cwd : ROOT, encoding: 'utf8', env })
+    return r.status === 0 ? (r.stdout.trim().split('\n').at(-1) ?? '') !== (row.names.MERCURY_CONFIG_DIR ?? '') : undefined
+  }
+  const refusals: Array<ReturnType<typeof start>> = []
+  for (const row of rows) {
+    const got = start(row.names, row.cfg)
+    if (got.refused) refusals.push(got)
+    const guard = guardSays.get(row)
+    const shell = shellSays(row)
+    const real = row.own || row.guardStill !== undefined
+    check(
+      `15. HOME: ${row.name}: the driver ${row.own ? 'refuses' : 'starts its child'}${row.guardStill ? `; the tree's two guards still say real, the more careful (${row.guardStill})` : ", as the tree's two guards say"}`,
+      got.refused === row.own && got.ran === !row.own && guard === real && shell === real,
+      `${JSON.stringify({ status: got.status, ran: got.ran, guard: guard ?? 'no answer', shellGuard: shell ?? 'no answer', words: got.words.slice(0, 200) })}; ${where}`,
+    )
+  }
+  check("15. HOME: every refusal is one sentence that names the operator's own config home and the name to set", refusals.length === rows.filter(row => row.own).length && refusals.every(got => /refusing to start its child on the operator's own config home \(.+\): set MERCURY_CONFIG_DIR to a scratch folder/.test(got.words) && !got.words.includes('\n')), `${JSON.stringify(refusals.map(got => got.words.slice(0, 160)))}; ${where}`)
+  check('15. HOME: a refusal stands before the fork and before any file of the run (no ledger, no receipt, nothing under its temp root)', refusals.length > 0 && refusals.every(got => got.left.length === 0 && got.status === 1), `${JSON.stringify(refusals.map(got => ({ status: got.status, left: got.left })))}; ${where}`)
+  for (const carried of [{ MERCURY_CONFIG_DIR: join(work, 'the-config-says') }, {}]) {
+    const got = start({ HOME: account, MERCURY_CONFIG_DIR: pinned }, { env: carried })
+    check(`15. ENV: a config that carries env (${Object.keys(carried).length} names) is refused on a scratch home too, in one sentence that says where the environment goes`, got.refused && got.status === 1 && got.left.length === 0 && /refusing a config that carries env: .*the environment vshot\.py itself was started with/.test(got.words) && !got.words.includes('\n'), `${JSON.stringify(got)}; ${where}`)
+  }
+}
 rmSync(work, { recursive: true, force: true })
 if (failures === 0) {
   console.log(' ✅ VSHOT OBSERVED-READY GREEN')

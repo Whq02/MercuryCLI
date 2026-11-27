@@ -162,6 +162,19 @@ if (!existsSync(join(DIST, 'mercury.mjs'))) {
   check('the file is set on the input from that project', (set ?? '').startsWith(`upload: #one holds 1 file — a.txt (10 bytes, text/plain) at ${A.origin}/`) && (shown ?? '').includes('the input holds 1'), `the upload answered: ${set} | the page said: ${shown}`)
   check('the download is saved whole in the session scratchpad', savedAt !== '' && (saved ?? '').includes(`sha256 ${createHash('sha256').update(FETCHED).digest('hex')}`), `the wait answered: ${saved} | the open answered: ${begun}`)
   console.log(`    the project’s path is ${far.project.length} characters; the download was saved at a path of ${savedAt.length}${process.platform === 'win32' ? ', where the project’s part of the temp path is bounded' : ''}`)
+
+  section('S3 a selector that never comes, through the bundle, where the driver’s timeout class carries another name than in the source')
+  const missed = await throughTheBundle([
+    { op: 'open', url: `${A.origin}/` },
+    { op: 'waitFor', selector: '#never-here', timeoutMs: 600 },
+    { op: 'extract', selector: '#never-here', timeoutMs: 600 },
+    { op: 'close' },
+  ])
+  const [, waited, read, over] = missed.answers
+  const fix = 'isDriverTimeout in src/tools/browser/ops/failures.ts must know the driver’s wrapped waitForSelector timeout by its cause chain, not by a class name the bundle renames'
+  check('the run ends with every call answered', missed.code === 0 && missed.answers.length === 4 && (over ?? '').startsWith('session closed'), `exit ${missed.code}, ${missed.answers.length} answers ${missed.noise.slice(-600)}`)
+  check('waitFor answers in the tool’s own sentence, with the selector and the deadline', (waited ?? '').includes('#never-here') && (waited ?? '').includes('600ms') && !/Waiting for selector/.test(waited ?? ''), `${waited} — change: ${fix}`)
+  check('extract answers in the tool’s own sentence, with the selector and the deadline', (read ?? '').includes('no element for selector #never-here within the 600ms deadline') && !/Waiting for selector/.test(read ?? ''), `${read} — change: ${fix}`)
 }
 
 await finish('prove-browser-upload-clear')
