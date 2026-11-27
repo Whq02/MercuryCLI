@@ -56,7 +56,7 @@ for (const [cols, rows, prefix] of [[120, 40, label], [80, 24, compactLabel]] as
   const afterLockup = after.grid.slice(0, start)
   check(`${cols}x${rows}: lockup cells and colors survive the round trip`, JSON.stringify(beforeLockup) === JSON.stringify(afterLockup))
   check(`${cols}x${rows}: the complete text frame returns unchanged`, beforeLines.join('\n') === afterLines.join('\n'))
-  check(`${cols}x${rows}: the rule and wordmark are both present`, beforeLines.some(line => line.includes('(>_)')) && beforeLines.some(line => line.includes('██▄██')))
+  check(`${cols}x${rows}: the rule and wordmark are both present`, beforeLines.some(line => /^─{20,}$/.test(line.trim())) && beforeLines.some(line => line.includes('██▄██')))
   check(`${cols}x${rows}: all physical cells are present`, [before, concourse, after].every(mark => mark.grid.length === rows && mark.grid.every(row => row.length === cols)))
 }
 console.log(`Boot round trip: ${failed} failed`)

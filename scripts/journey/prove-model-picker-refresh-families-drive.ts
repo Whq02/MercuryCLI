@@ -38,7 +38,7 @@ type Wire = { kind: string; family?: string; phase?: string; at: number }
 type FamilyName = 'openrouter' | 'gemini' | 'huggingface' | 'local'
 const text = (grid: Grid): string => grid.map(row => row.map(cell => cell.c ?? ' ').join('').trimEnd()).join('\n')
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const liveRow = (name: string): string => `│ (?:│ | {2})(?:❯ )?${escapeRe(name)} {2,}[^\\s│╭╮╰╯─]`
+const liveRow = (name: string): string => `│ (?:│ | {2}|❯ )(?:❯ )?${escapeRe(name)} {2,}[^\\s│╭╮╰╯─]`
 const currentRow = (name: string): string => `${escapeRe(name)} {2,}\\S+ {2,}current`
 const live = (frame: string, name: string): boolean => new RegExp(liveRow(name)).test(frame)
 const current = (frame: string, name: string): boolean => new RegExp(currentRow(name)).test(frame)
@@ -245,7 +245,7 @@ for (const legName of LEGS) {
       }
       if (leg.changed) {
         if (!tight) check(`${tag}: the new rows replace the old live rows in place`, live(refreshed, spec.newName) && !live(refreshed, spec.oldName), refreshed.split('\n').filter(l => l.includes('efresh')).join(' | '), 'the picker must repaint with the new rows once the refresh lands; see src/commands/model/picker/roads.ts')
-        if (!walk) check(`${tag}: the highlight stays on ${spec.model} after its row moves`, current(refreshed, spec.keepName) && (focusedRowPattern(spec.keepName, spec.model).test(refreshed) || !full), refreshed.split('\n').filter(l => l.includes('│ │ ')).join(' | '), 'the focused row must follow the model id when rows move; see src/commands/model/picker/roads.ts')
+        if (!walk) check(`${tag}: the highlight stays on ${spec.model} after its row moves`, current(refreshed, spec.keepName) && (focusedRowPattern(spec.keepName, spec.model).test(refreshed) || !full), refreshed.split('\n').filter(l => l.includes('│ ❯ ')).join(' | '), 'the focused row must follow the model id when rows move; see src/commands/model/picker/roads.ts')
         else check(`${tag}: the kept row is still live after the refresh`, live(refreshed, spec.keepName), refreshed.split('\n').filter(l => l.includes('refresh-')).join(' | '), 'the kept local row must stay live after the refresh')
         if (full) check(`${tag}: the notice names the family and the changed list`, refreshed.includes(noticeWords), refreshed.split('\n').filter(l => l.includes('changed')).join(' | '), 'the notice is set in src/commands/model/picker/roads.ts when the live list changed')
       } else {

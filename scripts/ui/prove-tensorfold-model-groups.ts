@@ -271,6 +271,8 @@ const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx
 const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.tsx')
 const { ANTHROPIC_MODEL_GROUP, OPENAI_MODEL_GROUP } = await import('../../src/models/catalogue/modelOptions.ts')
+const { LOCAL_MODEL_GROUP } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { readModelUseLedger } = await import('../../src/models/facts/modelUseLedger.ts')
 const { readModelTensorFoldFacts } = await import('../../src/screen/tensorfold/tensorfoldModelFacts.ts')
 const { tensorFoldCapableMachine, refreshTensorFoldAnnouncements, tensorFoldAnnouncementsNow, pairTensorFoldHost } = await import('../../src/screen/tensorfold/tensorfoldFacts.ts')
 const road = await import('../../src/commands/tensorfold/road.ts')
@@ -295,13 +297,16 @@ const CLOUD = [
   { id: 'claude-sonnet-5', name: 'Sonnet 5', tag: '', ctx: '1M ctx', group: ANTHROPIC_MODEL_GROUP, door: 'Claude Max login' },
 ]
 const OPENAI = { id: 'gpt-6-astra', name: 'GPT-6 Astra', tag: '', ctx: '872k ctx', group: OPENAI_MODEL_GROUP }
+const LLAMA_SERVED = { id: 'local/proof-gguf', name: 'Proof GGUF', tag: '', ctx: '32k ctx', group: LOCAL_MODEL_GROUP }
 const HEADINGS = {
   [ANTHROPIC_MODEL_GROUP]: { name: 'ANTHROPIC', doors: [{ door: 'Claude Max login', active: true }] },
   [OPENAI_MODEL_GROUP]: { name: 'OPENAI', doors: [{ door: 'ChatGPT Pro login', active: true }] },
+  [LOCAL_MODEL_GROUP]: { name: 'LOCAL MODELS', doors: [{ door: 'llama.cpp' }] },
 }
-type Order = { fresh: boolean; uses: Record<string, number> }
+type Order = { fresh: boolean; uses: Record<string, number>; local?: boolean }
 const FRESH: Order = { fresh: true, uses: {} }
 const HISTORY: Order = { fresh: false, uses: { [ANTHROPIC_MODEL_GROUP]: 100 } }
+const FRESH_WITH_LOCAL: Order = { fresh: true, uses: {}, local: true }
 const STUDIO: TensorFoldHost = { name: 'studio.local', baseUrl: 'http://studio.local:8080', origin: 'typed', keyRef: 'studio.local', serving: 'qwen3.8-27b', version: '1.2.2', chip: 'Apple M3 Ultra', window: 131_072, lastReply: { tokensPerSecond: 38 } }
 const APP = { running: true, engine: { pid: 4242, model: 'qwen3.5-2b', port: 52817 } }
 const PEER = realAnnouncer.announcerMachineName() === 'Air' ? 'Air 2' : 'Air'
@@ -340,9 +345,8 @@ async function open(facts: Facts, current: string, columns: number, rows: number
   const selected: string[] = []
   let closed = 0
   const picker = h(MercuryModelPicker as never, {
-    models: order.fresh ? CLOUD : [...CLOUD, OPENAI],
+    models: [...(order.fresh ? CLOUD : [...CLOUD, OPENAI]), ...(order.local === true ? [LLAMA_SERVED] : [])],
     recentAt: (group: string) => order.uses[group] ?? (group.includes('TensorFold') ? order.uses.tensorfold : undefined),
-    tensorFoldFirst: order.fresh,
     current,
     ctxPct: 4,
     efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
@@ -390,6 +394,15 @@ async function focusHeading(run: Pick<Run, 'm'>, words: string): Promise<boolean
       if (flat(run).some(line => line.startsWith(`❯ ${words}`))) return true
       await press(run, [key])
     }
+  }
+  return flat(run).some(line => line.startsWith(`❯ ${words}`))
+}
+
+async function walkDownTo(run: Pick<Run, 'm'>, words: string): Promise<boolean> {
+  if (await focusHeading(run, words)) return true
+  for (let step = 0; step < 160; step++) {
+    if (flat(run).some(line => line.startsWith(`❯ ${words}`))) return true
+    await press(run, [KEY.down])
   }
   return flat(run).some(line => line.startsWith(`❯ ${words}`))
 }
@@ -444,11 +457,20 @@ for (const [columns, rows] of SIZES) {
   {
     const run = await open(await factsFor({}), 'claude-opus-5-5', columns, rows)
     await save('m01-model-first-open', run)
-    check(`${at} m01: TENSORFOLD pinned first, folded, with its status words`, has(run, '▸ TENSORFOLD · 1.2.2 · Apple M5 Pro · 36.0 GiB usable · nothing served'), flat(run).filter(l => l.includes('TENSORFOLD')).join(' | '))
+    check(`${at} m01: TENSORFOLD folded, with its status words`, has(run, '▸ TENSORFOLD · 1.2.2 · Apple M5 Pro · 36.0 GiB usable · nothing served'), flat(run).filter(l => l.includes('TENSORFOLD')).join(' | '))
     check(`${at} m01: TENSORFOLD HOST beneath it, folded`, has(run, '▸ TENSORFOLD HOST · no host · a server on your network or a rented GPU pod') && lineOf(run, '▸ TENSORFOLD HOST') === lineOf(run, '▸ TENSORFOLD ·') + 1)
-    check(`${at} m01: both above the cloud provider, which keeps its own heading and current row`, lineOf(run, '▸ TENSORFOLD HOST') < lineOf(run, '▾ ANTHROPIC · Claude Max login · 2 live') && cells(run, 'Opus 5.5', 'claude-opus-5-5', 'current', '1M ctx'))
+    check(`${at} m01: on a fresh install neither is put first: the current provider's group leads with its own heading and current row, and the pair stands beneath it`, lineOf(run, '▾ ANTHROPIC · Claude Max login · 2 live') >= 0 && lineOf(run, '▾ ANTHROPIC · Claude Max login · 2 live') < lineOf(run, '▸ TENSORFOLD ·') && cells(run, 'Opus 5.5', 'claude-opus-5-5', 'current', '1M ctx'), `${flat(run).filter(l => /[▾▸❯] [A-Z]/.test(l)).join(' | ')} — change: no group is promoted because it is TensorFold's (MercuryModelPicker in src/commands/model/picker/MercuryModelPicker.tsx; orderPickerGroups in src/models/facts/modelPickerGroups.ts)`)
     check(`${at} m01: no live count on the TensorFold headings`, !flat(run).some(l => /TENSORFOLD.*\d+ live/.test(l)))
     check(`${at} m01: the legend is the picker's own`, has(run, LEGEND_PICKER), legendOf(run))
+    run.m.unmount()
+    await settle(60)
+  }
+  {
+    const run = await open(await factsFor({}), 'claude-opus-5-5', columns, rows, FRESH_WITH_LOCAL)
+    await save('m01c-model-first-open-local', run)
+    const heads = flat(run).filter(l => /[▾▸❯] [A-Z]/.test(l)).join(' | ')
+    check(`${at} m01c: with nothing used yet, LOCAL MODELS stands above TENSORFOLD and TENSORFOLD HOST`, lineOf(run, 'LOCAL MODELS') >= 0 && lineOf(run, 'LOCAL MODELS') < lineOf(run, '▸ TENSORFOLD ·') && lineOf(run, '▸ TENSORFOLD HOST') === lineOf(run, '▸ TENSORFOLD ·') + 1, `${heads} — change: withTensorFoldRows in src/commands/model/picker/MercuryModelPicker.tsx puts TensorFold's rows behind the LOCAL MODELS group's, and nothing pins TensorFold's groups first`)
+    check(`${at} m01c: the local model's own row stands under its heading, above TensorFold's`, cells(run, 'Proof GGUF', 'local/proof-gguf') && lineOf(run, 'Proof GGUF') < lineOf(run, '▸ TENSORFOLD ·'), heads)
     run.m.unmount()
     await settle(60)
   }
@@ -462,7 +484,8 @@ for (const [columns, rows] of SIZES) {
   }
   {
     const run = await open(await factsFor({}), 'claude-opus-5-5', columns, rows)
-    await press(run, [UP, UP, UP, RIGHT])
+    await focusHeading(run, 'TENSORFOLD ·')
+    await press(run, [RIGHT])
     await save('m02-model-tensorfold-top', run)
     check(`${at} m02: → on TENSORFOLD unfolds its top rows and frames the best fit`, has(run, '▾ TENSORFOLD · 1.2.2 · Apple M5 Pro · 36.0 GiB usable · nothing served') && cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', '↓ 20 GB', '128k ctx', '28.5 GiB') && has(run, '╭'))
     check(`${at} m02: the card's keyed lines: window strip, memory, pull, will run`, has(run, 'window    32k 64k [128k] 256k · ←→ changes it') && has(run, 'memory    weights 15 + drafter 3.6 + cache 8 + runtime 2 GiB · prompt cache ≤16 GiB') && has(run, 'pull      into ~/.cache/huggingface/hub · 38 GB free on this disk') && has(run, 'will run  tensorfold pull TensorFold/Qwen3.8-27B-MLX-4bit') && has(run, 'tensorfold pull z-lab/Qwen3.8-27B-DFlash2') && has(run, 'tensorfold serve TensorFold/Qwen3.8-27B-MLX-4bit --drafter'), flat(run).slice(4, 18).join(' | '))
@@ -482,7 +505,8 @@ for (const [columns, rows] of SIZES) {
   }
   {
     const run = await open(await factsFor({}), 'claude-opus-5-5', columns, rows)
-    await press(run, [UP, UP, UP, RIGHT, UP, RIGHT])
+    await focusHeading(run, 'TENSORFOLD ·')
+    await press(run, [RIGHT, UP, RIGHT])
     await save('m03-model-tensorfold-full', run)
     check(`${at} m03: → again shows every starting point and other checkpoint, Lightning framed`, cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', '↓ 20 GB', '128k ctx', '28.5 GiB') && cells(run, 'Nemotron Lightning', 'local/nemotron-lightning', '↓ 19 GB', '256k ctx', '20.8 GiB') && has(run, 'other checkpoint — a Hugging Face repository id') && !has(run, '↓ 2 more'))
     check(`${at} m03: Lightning's card`, has(run, 'window    32k 64k 128k [256k] · ←→ changes it') && has(run, 'memory    weights 17.3 + cache 1.5 + runtime 2 GiB · prompt cache ≤16 GiB') && has(run, 'tensorfold pull TensorFold/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-MLX-4bit'), flat(run).slice(4, 18).join(' | '))
@@ -492,7 +516,8 @@ for (const [columns, rows] of SIZES) {
   }
   {
     const run = await open(await factsFor({ hosts: [STUDIO] }), 'claude-opus-5-5', columns, rows)
-    await press(run, [UP, UP, RIGHT])
+    await focusHeading(run, 'TENSORFOLD HOST')
+    await press(run, [RIGHT])
     await save('m03b-model-host', run)
     check(`${at} m03b: TENSORFOLD HOST unfolded with the host's name and its server framed`, has(run, '▾ TENSORFOLD HOST · studio.local · 1 serving') && cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'serving', '128k ctx', 'studio.local'))
     check(`${at} m03b: the host card`, has(run, 'host      studio.local:8080 · Apple M3 Ultra · TensorFold 1.2.2 · keyed') && has(run, 'serving   ~38 tok/s on its last reply') && has(run, 'window    128k · set when it started outside Mercury, which does not stop or') && has(run, 'plain HTTP on your home or office network, not across the internet'), flat(run).slice(4, 18).join(' | '))
@@ -517,13 +542,14 @@ for (const [columns, rows] of SIZES) {
   {
     const run = await open(await factsFor({ engine: null, inventory: [rowOf(QWEN_27B, 'not-pulled', MAC_48), rowOf(LIGHTNING, 'not-pulled', MAC_48), rowOf(QWEN_2B, 'not-pulled', MAC_48)] }), 'claude-opus-5-5', columns, rows)
     await save('m05-model-not-installed', run)
-    check(`${at} m05: not installed, still first, folded`, has(run, '▸ TENSORFOLD · not installed · Apple M5 Pro · 36.0 GiB usable') && lineOf(run, '▸ TENSORFOLD ·') < lineOf(run, '▾ ANTHROPIC'))
+    check(`${at} m05: not installed, folded, and not put first: the current provider's group stands above it`, has(run, '▸ TENSORFOLD · not installed · Apple M5 Pro · 36.0 GiB usable') && lineOf(run, '▾ ANTHROPIC') >= 0 && lineOf(run, '▾ ANTHROPIC') < lineOf(run, '▸ TENSORFOLD ·'), flat(run).filter(l => /[▾▸❯] [A-Z]/.test(l)).join(' | '))
     run.m.unmount()
     await settle(60)
   }
   {
     const run = await open(await factsFor({ app: APP }), 'claude-opus-5-5', columns, rows)
-    await press(run, [UP, UP, UP, RIGHT])
+    await focusHeading(run, 'TENSORFOLD ·')
+    await press(run, [RIGHT])
     await save('m06-model-app-serving', run)
     check(`${at} app: the app's engine is a row in TENSORFOLD, never a host`, has(run, 'the app is serving qwen3.5-2b — paste from its API tab') && !has(run, 'TensorFold app') && has(run, '▸ TENSORFOLD HOST · no host'))
     check(`${at} app: s serves it with Mercury instead, two copies refused`, has(run, "s serves it with Mercury · quit the app first — two copies won't fit") && has(run, 's serve with Mercury instead'), flat(run).slice(4, 12).join(' | '))
@@ -559,7 +585,8 @@ for (const [columns, rows] of SIZES) {
   {
     const inventory = [rowOf(QWEN_27B, 'not-pulled', MAC_32, {}, 'offer'), rowOf(LIGHTNING, 'not-pulled', MAC_32), rowOf(QWEN_2B, 'on-disk', MAC_32)]
     const run = await open(await factsFor({ machine: MAC_32, engine: { ...ENGINE, chip: 'Apple M4 Pro' }, inventory, best: LIGHTNING.repo }), 'claude-opus-5-5', columns, rows)
-    await press(run, [UP, UP, UP, RIGHT, UP, RIGHT])
+    await focusHeading(run, 'TENSORFOLD ·')
+    await press(run, [RIGHT, UP, RIGHT])
     await frameRow(run, 'local/qwen3.8-27b')
     await save('m08-model-gpu-limit', run)
     check(`${at} 32 GB: Lightning is the best fit on top; the 27B says it needs the GPU limit raised, an estimate`, lineOf(run, 'Nemotron Lightning') < lineOf(run, 'Qwen3.8 27B') && has(run, 'fit       needs the GPU limit raised · w · an estimate'), flat(run).slice(4, 18).join(' | '))
@@ -571,7 +598,8 @@ for (const [columns, rows] of SIZES) {
   {
     const inventory = [rowOf(QWEN_27B, 'not-pulled', MAC_32, {}, 'none'), rowOf(LIGHTNING, 'not-pulled', MAC_32), rowOf(QWEN_2B, 'on-disk', MAC_32)]
     const run = await open(await factsFor({ machine: MAC_32, engine: { ...ENGINE, chip: 'Apple M4 Pro' }, inventory, best: LIGHTNING.repo }), 'claude-opus-5-5', columns, rows)
-    await press(run, [UP, UP, UP, RIGHT, UP, RIGHT])
+    await focusHeading(run, 'TENSORFOLD ·')
+    await press(run, [RIGHT, UP, RIGHT])
     await frameRow(run, 'local/qwen3.8-27b')
     await save('m08b-model-gpu-limit-no-offer', run)
     check(`${at} 32 GB, no safe limit: the card says why and what to do, and w is not offered`, has(run, 'fit       past what macOS lets the GPU wire · lower the window or choose a smaller') && !has(run, 'sudo sysctl') && !has(run, 'w raise the limit'), [...flat(run).slice(4, 18), legendOf(run)].join(' | '))
@@ -581,7 +609,8 @@ for (const [columns, rows] of SIZES) {
   {
     const discovered: Server[] = [{ kind: 'tensorfold', root: 'http://127.0.0.1:8087', baseUrl: 'http://127.0.0.1:8087/v1', label: 'TensorFold 1.2.2', version: '1.2.2', models: [{ id: 'qwen3.5-2b', server: 'tensorfold', baseUrl: 'http://127.0.0.1:8087/v1', contextWindow: { tokens: 32_768, source: 'served' }, servedBytes: 2_965_982_016 }] }]
     const run = await open(await factsFor({ inventory: [rowOf(QWEN_27B, 'not-pulled', MAC_48), rowOf(LIGHTNING, 'not-pulled', MAC_48)], discovered }), 'claude-opus-5-5', columns, rows)
-    await press(run, [UP, UP, UP, RIGHT])
+    await focusHeading(run, 'TENSORFOLD ·')
+    await press(run, [RIGHT])
     await save('m09-model-served-outside', run)
     check(`${at} outside: a server started by hand is a serving row in TENSORFOLD with its window set outside`, cells(run, 'qwen3.5-2b', 'local/qwen3.5-2b', 'serving', '32k ctx', '2.8 GiB in use') && has(run, 'window    32k · set when it started outside Mercury, which does not stop or restart it') && has(run, '1 serving'), flat(run).slice(4, 14).join(' | '))
     check(`${at} outside: s is never offered on it; ↵ switches`, !has(run, 's stops') && has(run, '↑↓ select · ↵ switch'), legendOf(run))
@@ -593,7 +622,8 @@ for (const [columns, rows] of SIZES) {
 console.log('\n§2 the keys on a TensorFold row: ←→ and ctrl+w the window, ↵ hands the row on, c and w, s twice on the session\'s model, the typed rows')
 {
   const run = await open(await factsFor({}), 'claude-opus-5-5', 160, 48)
-  await press(run, [UP, UP, UP, RIGHT, RIGHT])
+  await focusHeading(run, 'TENSORFOLD ·')
+  await press(run, [RIGHT, RIGHT])
   check('→ on a TensorFold row moves the window, the row and the strip say it does not fit, ↵ leaves the legend', cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'does not fit', '256k ctx', '36.5 GiB') && has(run, 'window    32k 64k 128k [256k] · 256k needs 36.5 GiB, 36.0 GiB usable · ← 128k fits') && !has(run, '↵ pull, serve and switch'), flat(run).slice(4, 12).join(' | '))
   await press(run, [KEY.left])
   check('← brings it back to 128k', cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', '↓ 20 GB', '128k ctx', '28.5 GiB'))
@@ -641,7 +671,8 @@ console.log('\n§2 the keys on a TensorFold row: ←→ and ctrl+w the window, �
 }
 {
   const run = await open(await factsFor({ hosts: [STUDIO] }), 'claude-opus-5-5', 160, 48)
-  await press(run, [UP, UP, RIGHT, KEY.enter])
+  await focusHeading(run, 'TENSORFOLD HOST')
+  await press(run, [RIGHT, KEY.enter])
   check("↵ on a host row switches through the picker's own road", run.selected.at(-1) === 'local/qwen3.8-27b', run.selected.join(','))
   await press(run, [KEY.down, KEY.down, KEY.enter, 'a', 'i', 'r', '.', 'l', 'o', 'c', 'a', 'l', ':', '8', '0', '8', '0', KEY.enter])
   const address = run.acts.at(-1)
@@ -652,7 +683,8 @@ console.log('\n§2 the keys on a TensorFold row: ←→ and ctrl+w the window, �
 {
   const inventory = [rowOf(QWEN_27B, 'not-pulled', MAC_32, {}, 'offer'), rowOf(LIGHTNING, 'not-pulled', MAC_32), rowOf(QWEN_2B, 'on-disk', MAC_32)]
   const run = await open(await factsFor({ machine: MAC_32, inventory, best: LIGHTNING.repo }), 'claude-opus-5-5', 160, 48)
-  await press(run, [UP, UP, UP, RIGHT, UP, RIGHT])
+  await focusHeading(run, 'TENSORFOLD ·')
+  await press(run, [RIGHT, UP, RIGHT])
   await frameRow(run, 'local/qwen3.8-27b')
   await press(run, ['w'])
   const limit = run.acts.at(-1)
@@ -661,7 +693,8 @@ console.log('\n§2 the keys on a TensorFold row: ←→ and ctrl+w the window, �
   await settle(60)
   const none = [rowOf(QWEN_27B, 'not-pulled', MAC_32, {}, 'none'), rowOf(LIGHTNING, 'not-pulled', MAC_32), rowOf(QWEN_2B, 'on-disk', MAC_32)]
   const quiet = await open(await factsFor({ machine: MAC_32, inventory: none, best: LIGHTNING.repo }), 'claude-opus-5-5', 160, 48)
-  await press(quiet, [UP, UP, UP, RIGHT, UP, RIGHT])
+  await focusHeading(quiet, 'TENSORFOLD ·')
+  await press(quiet, [RIGHT, UP, RIGHT])
   await frameRow(quiet, 'local/qwen3.8-27b')
   await press(quiet, ['w'])
   check('with no safe limit to offer, w does nothing', !quiet.acts.some(act => act.kind === 'limit'), JSON.stringify(quiet.acts).slice(0, 200))
@@ -687,7 +720,8 @@ console.log('\n§3 the order rule and the facts the /model group reads')
   const PAUSED: PodRow = { hostName: 'pod-7f3d', id: '7f3d', words: '$0.53/h on Vast.ai · 9 min · ~$0.08 so far · s stops the pod and its billing', bills: true, state: 'paused', title: 'Qwen3.8 27B', served: 'qwen3.8-27b', window: 131_072, gpu: 'RTX 5090', vendor: 'Vast.ai', step: 'paused at starting engine' }
   const tunnel: Server[] = [{ kind: 'tensorfold', root: 'http://127.0.0.1:41234', baseUrl: 'http://127.0.0.1:41234/v1', label: 'TensorFold 1.2.2', version: '1.2.2', models: [{ id: 'qwen3.8-27b', server: 'tensorfold', baseUrl: 'http://127.0.0.1:41234/v1' }] }]
   const pod = await open(await factsFor({ hosts: [POD], discovered: tunnel, pods: [POD_ROW] }), 'claude-opus-5-5', 160, 48)
-  await press(pod, [UP, UP, RIGHT])
+  await focusHeading(pod, 'TENSORFOLD HOST')
+  await press(pod, [RIGHT])
   check("a rented pod's loopback tunnel is a TENSORFOLD HOST row, never a served row on this machine", cells(pod, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'serving', '128k ctx', 'pod-7f3a') === false && has(pod, 'pod-7f3a · 1 serving') && has(pod, '▸ TENSORFOLD · 1.2.2 · Apple M5 Pro · 36.0 GiB usable · nothing served'), flat(pod).filter(l => /TENSORFOLD|pod-7f3a/.test(l)).join(' | '))
   check("the pod row's card carries tf-host-106's pod line (price, time, spend, s) under the host line", has(pod, 'host      RTX 5090 · TensorFold 1.2.2 · keyed') && !has(pod, '127.0.0.1:41234') && has(pod, 'window    128k · set when the pod was rented') && has(pod, 'pod       $1.19/h on Runpod · 12 min · ~$0.24 so far · s stops the pod and its billing'), flat(pod).slice(4, 16).join(' | '))
   check('the legend offers s stops the pod and t terminates it', has(pod, '↑↓ select · ↵ switch · s stops the pod · t terminates it'), legendOf(pod))
@@ -699,7 +733,8 @@ console.log('\n§3 the order rule and the facts the /model group reads')
   pod.m.unmount()
   await settle(60)
   const rented = await open(await factsFor({ hosts: [], pods: [SETTING_UP, STOPPED, PAUSED] }), 'claude-opus-5-5', 160, 48)
-  await press(rented, [UP, UP, RIGHT])
+  await focusHeading(rented, 'TENSORFOLD HOST')
+  await press(rented, [RIGHT])
   await frameRow(rented, 'compat/pod-7f3b/qwen3.8-27b')
   check('a pod is visible from the moment it is rented: the HOST heading names the live pods and counts every state', has(rented, '▾ TENSORFOLD HOST · pod-7f3b · pod-7f3d · 1 setting up · 1 stopped · 1 paused'), flat(rented).filter(l => l.includes('TENSORFOLD HOST')).join(' | '))
   check('the setting-up pod is a row in the columns: name, its pod id, setting up, the window, the card', cells(rented, 'Qwen3.8 27B', 'compat/pod-7f3b/qwen3.8-27b', 'setting up', '128k ctx', 'RTX 5090'), flat(rented).filter(l => l.includes('pod-7f3b')).join(' | '))
@@ -727,7 +762,8 @@ console.log('\n§3 the order rule and the facts the /model group reads')
     await refreshTensorFoldAnnouncements()
     const facts = { ...base, announced: tensorFoldAnnouncementsNow(seam.hosts) }
     const shared = await open(facts, 'claude-opus-5-5', columns, rows)
-    await press(shared, [UP, UP, RIGHT])
+    await focusHeading(shared, 'TENSORFOLD HOST')
+    await press(shared, [RIGHT])
     await save('m12-model-host-shared', shared)
     check(`${at} m12: this Mac's own shared server reads as this Mac under TENSORFOLD HOST, shared on this network, keyed`, has(shared, '▾ TENSORFOLD HOST · this Mac · 1 serving') && cells(shared, 'Qwen3.5 2B', 'local/qwen3.5-2b', 'shared', '256k ctx', 'this Mac') && has(shared, 'host      this Mac · TensorFold 1.2.2') && has(shared, 'network   shared on this network · keyed'), flat(shared).filter(l => /TENSORFOLD HOST|shared|this Mac/.test(l)).join(' | '))
     check(`${at} m12: never a pairable row — its own announcement is not listed and ↵ offers neither pairing nor a switch`, facts.announced.length === 0 && !has(shared, 'not paired') && !has(shared, '↵ pair') && !has(shared, '↑↓ select · ↵ switch'), [legendOf(shared), JSON.stringify(facts.announced)].join(' | '))
@@ -754,7 +790,8 @@ console.log('\n§5 the review rows: an announced Mac pairs with its code (findin
     await refreshTensorFoldAnnouncements()
     const facts = { ...base, announced: tensorFoldAnnouncementsNow(seam.hosts) }
     const run = await open(facts, 'claude-opus-5-5', columns, rows)
-    await press(run, [UP, UP, RIGHT])
+    await focusHeading(run, 'TENSORFOLD HOST')
+    await press(run, [RIGHT])
     await save('m10-model-host-announced', run)
     check(`${at} m10: a Mac announcing on the network is listed under TENSORFOLD HOST before it is paired`, has(run, `▾ TENSORFOLD HOST · ${PEER} · 1 serving`) && cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'not paired', '128k ctx', PEER), flat(run).filter(l => /TENSORFOLD|not paired/.test(l)).join(' | '))
     check(`${at} m10: its card: the host, the pairing road, plain HTTP on the network`, has(run, 'host      air.local:8099 · Apple M3 Ultra · TensorFold 1.2.2 · keyed') && has(run, `pair      ↵ asks once for the pairing code shown on ${PEER}`) && has(run, 'network   plain HTTP on your home or office network, not across the internet'), flat(run).slice(4, 16).join(' | '))
@@ -779,7 +816,8 @@ console.log('\n§5 the review rows: an announced Mac pairs with its code (findin
     const at = `${columns}x${rows}`
     const facts = { ...(await factsFor({ announced: seam.announced })), announced: tensorFoldAnnouncementsNow([]) }
     const run = await open(facts, 'claude-opus-5-5', columns, rows)
-    await press(run, [UP, UP, RIGHT])
+    await focusHeading(run, 'TENSORFOLD HOST')
+    await press(run, [RIGHT])
     await save('m10c-model-host-wrong-code', run)
     check(`${at} m10c: a wrong code says so once, on the row's card, and ↵ asks again`, count(run, WRONG) === 1 && has(run, `refused   ${WRONG}`) && has(run, '↑↓ select · ↵ pair with its code'), [...flat(run).slice(4, 16), legendOf(run)].join(' | '))
     run.m.unmount()
@@ -794,9 +832,12 @@ console.log('\n§5 the review rows: an announced Mac pairs with its code (findin
   road.__resetTensorFoldRoadForTest()
   const element = await modelCommand.call(() => undefined, { messages: [], options: {} } as never, '')
   const model = { m: await mountOffscreen(shell(element, 160, 48), 160, 48) }
+  await waitFor(() => flat(model).filter(l => /[▾▸❯] [A-Z]/.test(l)).length > 2, 10_000)
+  const modelHeads = flat(model).filter(l => /[▾▸❯] [A-Z]/.test(l))
+  check('/model itself, on a home where no model has been used and a machine that can run TensorFold: its two groups are not put first', Object.keys(readModelUseLedger()).length === 0 && modelHeads.length > 2 && !(modelHeads[0] ?? '').includes('TENSORFOLD'), `${Object.keys(readModelUseLedger()).length} used · ${modelHeads.join(' | ')} — change: /model hands the picker no promotion of TensorFold's groups (src/commands/model/mercuryModel.tsx)`)
+  const onHost = await walkDownTo(model, 'TENSORFOLD HOST')
   const listed = await waitFor(() => flat(model).some(line => line.includes(`TENSORFOLD HOST · ${PEER} · 1 serving`)), 10_000)
   check('/model lists the announced Mac under TENSORFOLD HOST', listed, flat(model).filter(l => l.includes('TENSORFOLD')).join(' | '))
-  const onHost = await focusHeading(model, 'TENSORFOLD HOST')
   await press(model, [RIGHT])
   check('/model frames the announced row with its pairing road', onHost && has(model, `pair      ↵ asks once for the pairing code shown on ${PEER}`), flat(model).slice(2, 20).join(' | '))
   await press(model, [KEY.enter, ...(live.code === '000000' ? '111111' : '000000').split(''), KEY.enter])
@@ -827,7 +868,8 @@ console.log('\n§5 the review rows: an announced Mac pairs with its code (findin
   for (const [columns, rows] of SIZES) {
     const at = `${columns}x${rows}`
     const run = await open(await factsFor({ inventory: 'disk' }), 'claude-opus-5-5', columns, rows)
-    await press(run, [UP, UP, UP, RIGHT])
+    await focusHeading(run, 'TENSORFOLD ·')
+    await press(run, [RIGHT])
     await frameRow(run, 'local/qwen3.5-9b')
     await save('m11-model-unqualified-on-disk', run)
     check(`${at} m11: a Qwen checkpoint on disk that is not a starting point is listed, on disk, unqualified by TensorFold`, cells(run, 'Qwen3.5 9B', 'local/qwen3.5-9b', 'on disk') && flat(run).some(l => /local\/qwen3\.5-9b\s{2,}on disk\s{2,}\S+ ctx\s{2,}unqualified/.test(l)) && has(run, 'note      unqualified by TensorFold'), flat(run).slice(4, 20).join(' | '))
@@ -837,7 +879,8 @@ console.log('\n§5 the review rows: an announced Mac pairs with its code (findin
     await settle(60)
   }
   const bare = await open(await factsFor({ inventory: 'disk', engine: null }), 'claude-opus-5-5', 160, 48)
-  await press(bare, [UP, UP, UP, RIGHT, UP, RIGHT])
+  await focusHeading(bare, 'TENSORFOLD ·')
+  await press(bare, [RIGHT, UP, RIGHT])
   check('with TensorFold not installed (no capabilities to read), nothing unqualified is listed', !has(bare, 'qwen3.5-9b') && !flat(bare).some(l => /llama/i.test(l)), flat(bare).filter(l => l.includes('local/')).join(' | '))
   bare.m.unmount()
   await settle(60)
@@ -854,7 +897,7 @@ console.log('\n§5 the review rows: an announced Mac pairs with its code (findin
     const mounted = { m: await mountOffscreen(shell(node, 160, 48), 160, 48) }
     await waitFor(() => flat(mounted).some(line => line.includes('TENSORFOLD · 1.2.2')), 10_000)
     if (screen === 'model') {
-      await focusHeading(mounted, 'TENSORFOLD ·')
+      await walkDownTo(mounted, 'TENSORFOLD ·')
       await press(mounted, [RIGHT])
     }
     await frameRow(mounted, 'local/qwen3.8-27b')
@@ -896,7 +939,7 @@ console.log('\n§6 the more line is a stop (the owner, 2026-11-05): ↓ from the
   const best = (run: Pick<Run, 'm'>): boolean => cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', '↓ 20 GB', '128k ctx', '28.5 GiB')
   for (const [name, key] of [['↵', KEY.enter], ['→', RIGHT]] as const) {
     const run = await open(await factsFor(unpulled), 'claude-opus-5-5', 160, 48)
-    await press(run, [UP, UP, UP])
+    await focusHeading(run, 'TENSORFOLD ·')
     const headingInk = cursorInk(run, 'TENSORFOLD ·')
     await press(run, [RIGHT])
     check(`${name}: → on TENSORFOLD shows the best fit framed, the last row the fold shows, its window strip saying ←→ changes it, the rest named by the more line`, best(run) && framed(run).includes('local/qwen3.8-27b') && has(run, 'window    32k 64k [128k] 256k · ←→ changes it') && has(run, `  ${MORE}`), flat(run).slice(4, 22).join(' | '))
@@ -913,7 +956,8 @@ console.log('\n§6 the more line is a stop (the owner, 2026-11-05): ↓ from the
   }
   {
     const run = await open(await factsFor(unpulled), 'claude-opus-5-5', 160, 48)
-    await press(run, [UP, UP, UP, RIGHT, DOWN, KEY.left])
+    await focusHeading(run, 'TENSORFOLD ·')
+    await press(run, [RIGHT, DOWN, KEY.left])
     check('← on the more line folds the group: the cursor on the TENSORFOLD heading, no row under it', has(run, '❯ TENSORFOLD · 1.2.2') && !has(run, 'local/qwen3.8-27b') && !has(run, MORE), flat(run).filter(l => /TENSORFOLD|qwen|more/.test(l)).join(' | '))
     await press(run, [RIGHT])
     check('→ on the heading opens it again with the 27B framed at the window it had', best(run) && framed(run).includes('local/qwen3.8-27b') && has(run, 'window    32k 64k [128k] 256k · ←→ changes it') && has(run, `  ${MORE}`), flat(run).slice(4, 22).join(' | '))

@@ -290,6 +290,42 @@ export function loginsFlowCopyUnconfirmed(pane: LoginsFlowPaneV1): boolean {
   }
 }
 
+export function loginsFlowAddressOf(pane: LoginsFlowPaneV1): string | null {
+  switch (pane.kind) {
+    case 'anthropic':
+      return pane.snap.flow.name === 'waiting' ? pane.snap.flow.url : null;
+    case 'device':
+      return pane.device.phase === 'waiting' ? pane.device.verificationUri ?? null : null;
+    case 'handles':
+      return pane.handles.phase === 'waiting' ? pane.handles.authorizeUrl ?? null : null;
+    default:
+      return null;
+  }
+}
+
+export function loginsAddressRows(rows: readonly string[], address: string): ReadonlySet<number> {
+  const held = new Set<number>();
+  let at = 0;
+  for (let i = 0; i < rows.length && at < address.length; i++) {
+    const tokens = rows[i]!.split(/[\s│]+/).filter(Boolean);
+    if (at === 0 && tokens.some(token => token.length > 1 && token.startsWith('…') && address.endsWith(token.slice(1)))) {
+      held.add(i);
+      break;
+    }
+    const start = at;
+    const next = tokens
+      .filter(token => address.startsWith(token, start) && (start > 0 || token.length >= Math.min(12, address.length)))
+      .sort((a, b) => b.length - a.length)[0];
+    if (next === undefined) {
+      if (at > 0) break;
+      continue;
+    }
+    held.add(i);
+    at += next.length;
+  }
+  return held;
+}
+
 export function loginsFlowNoticeOf(pane: LoginsFlowPaneV1): string | null {
   return pane.kind === 'anthropic' || pane.kind === 'device' || pane.kind === 'handles' || pane.kind === 'opdevice'
     ? loginsFlowPaneLines(pane, Number.MAX_SAFE_INTEGER).filter(Boolean).join(' ')

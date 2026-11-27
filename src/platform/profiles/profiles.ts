@@ -32,7 +32,7 @@ type CommandFile = { path: string; text: string }
 
 const refused = (reason: string): ProfileRefusal => ({ ok: false, reason })
 const notDone = (did: string, again: string) => (error: unknown): ProfileRefusal => refused(`The profile was not ${did} (${errorMessage(error)}): mend that, then ${again} it again.`)
-const homeOf = (first: string, id: number): string => (id === 1 ? first : `${first}${id}`)
+export const homeOf = (first: string, id: number): string => (id === 1 ? first : `${first}${id}`)
 const wordOf = (id: number): string => (id === 1 ? 'mercury' : `mercury${id}`)
 const markerLine = (path: string, id: number): string =>
   `${path.toLowerCase().endsWith('.cmd') ? 'rem' : '#'} ${COMMAND_MARKER} ${id}`

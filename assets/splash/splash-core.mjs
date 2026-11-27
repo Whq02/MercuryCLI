@@ -1148,7 +1148,8 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
   })
   const noticeText = m.detailOverrideWhole ?? (m.detailOverride && m.detailOverrideConfirms ? m.detailOverride.filter(Boolean).join(' ') : m.noticeLine)
   const noticeW = Math.max(20, cols - 4)
-  const noticeRoom = Math.max(1, rowsAvail - 4 - 5)
+  const overList = m.detailOverrideOverList === true
+  const noticeRoom = Math.max(1, rowsAvail - 4 - (overList ? 0 : 5))
   const cutToEnd = new Set()
   const noticeOver = endOnly =>
     wrapWords(noticeText, noticeW).flatMap(l => {
@@ -1172,19 +1173,22 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
       ? 4 + noticeBudget + (noticeBlank ? 1 : 0) + 2
       : 7
   const footLines = m.asking && noticeClipped ? [paint(TEALC) + clipVis(m.asking, cols) + R] : legendLines.map(line => faint + line + R)
-  const listBudget = Math.max(5, rowsAvail - chrome - Math.max(0, footLines.length - 1))
+  const listFloor = overList ? Math.max(0, Math.min(5, rowsAvail - 4 - noticeBudget - Math.max(0, footLines.length - 1))) : 5
+  const listBudget = Math.max(listFloor, rowsAvail - chrome - Math.max(0, footLines.length - 1))
   let shownList = listLines
   let shownEntry = listEntry
   if (listLines.length > listBudget) {
-    const win = Math.max(3, listBudget - 2)
+    const win = Math.max(Math.min(3, listFloor - 2), listBudget - 2)
     const start = Math.min(Math.max(0, selPos - Math.floor(win / 2)), listLines.length - win)
     const end = start + win
-    shownList = [
-      faint + (start > 0 ? `↑ ${start} more` : ' ') + R,
-      ...listLines.slice(start, end),
-      faint + (end < listLines.length ? `↓ ${listLines.length - end} more` : ' ') + R,
-    ]
-    shownEntry = [-1, ...listEntry.slice(start, end), -1]
+    shownList = win > 0
+      ? [
+          faint + (start > 0 ? `↑ ${start} more` : ' ') + R,
+          ...listLines.slice(start, end),
+          faint + (end < listLines.length ? `↓ ${listLines.length - end} more` : ' ') + R,
+        ]
+      : []
+    shownEntry = win > 0 ? [-1, ...listEntry.slice(start, end), -1] : []
   }
   const lines = []
   lines.push(ivory + 'MERCURY' + R + faint + ' · ' + (m.title ?? 'boot menu') + R)

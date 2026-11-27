@@ -34,9 +34,9 @@ if (law && settle && cockpit && needlesOf) {
   const wide = cockpit(120, 100)
   const narrow = cockpit(60, 100)
   const both = cockpit(150, 100)
-  check('a wide cockpit is ready when the composer and the rail scan have landed', wide.join('|') === 'Type a prompt|RECENT|○ ', wide.join('|') + ' — fix cockpitReadyText in scripts/ui/visualBaseline.ts')
+  check('a wide cockpit is ready when the composer and the rail scan have landed', wide.join('|') === 'Type a prompt|recent|○ ', wide.join('|') + ' — fix cockpitReadyText in scripts/ui/visualBaseline.ts')
   check('a narrow cockpit is ready when the composer and the late count row have landed (the host-neutral word of that row)', narrow.join('|') === 'Type a prompt|concourse', narrow.join('|') + ' — fix cockpitReadyText in scripts/ui/visualBaseline.ts')
-  check('a both-rails cockpit waits on the needles of a wide one: no cell of the second rail is a readiness needle', both.join('|') === 'Type a prompt|RECENT|○ ', both.join('|') + ' — fix cockpitReadyText in scripts/ui/visualBaseline.ts')
+  check('a both-rails cockpit waits on the needles of a wide one: no cell of the second rail is a readiness needle', both.join('|') === 'Type a prompt|recent|○ ', both.join('|') + ' — fix cockpitReadyText in scripts/ui/visualBaseline.ts')
 
   const frame = settle({ argv: ['node', 'x'], sends: [], total: 45, cols: 120, rows: 40 }, wide, wide)
   const chain = (frame.sends ?? []).map(s => s.awaitText)
@@ -47,7 +47,7 @@ if (law && settle && cockpit && needlesOf) {
   const helpSends = help.sends ?? []
   const key = helpSends.find(s => s.data === '?')
   check('the help key is typed only into a cockpit whose needles have landed and held still — never blind at tick 30', key !== undefined && key.atTick === undefined && key.requireAwait === true && key.awaitText === '○ ' && key.awaitStableTicks === 8, JSON.stringify(key) + ' — fix gateSends in scripts/ui/visualBaseline.ts')
-  check('the boot needles before the key are gates of their own, in order', helpSends.slice(0, 2).map(s => s.awaitText).join('|') === 'Type a prompt|RECENT', JSON.stringify(helpSends.slice(0, 2)) + ' — fix gateSends and readyChain in scripts/ui/visualBaseline.ts')
+  check('the boot needles before the key are gates of their own, in order', helpSends.slice(0, 2).map(s => s.awaitText).join('|') === 'Type a prompt|recent', JSON.stringify(helpSends.slice(0, 2)) + ' — fix gateSends and readyChain in scripts/ui/visualBaseline.ts')
   check("the help scene ends on the overlay's own row beside the cockpit needles", helpSends.slice(-1)[0]?.awaitText === '/keybindings to customize', JSON.stringify(helpSends.slice(-1)) + ' — fix settleCaptureConfig and settleNeedles in scripts/ui/visualBaseline.ts')
 
   const sessions = settle(

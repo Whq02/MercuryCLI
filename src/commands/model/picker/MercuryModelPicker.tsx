@@ -116,26 +116,25 @@ type Props = {
   tensorfold?: TensorFoldPickerFacts
   onTensorFold?: (act: TensorFoldAct) => void
   recentAt?: (group: string) => number | undefined
-  tensorFoldFirst?: boolean
   hint?: string
 }
 
 
 function withTensorFoldRows(given: ModelChoice[], rows: ModelChoice[]): ModelChoice[] {
-  const at = given.findIndex(row => row.group === LOCAL_MODEL_GROUP)
-  return at < 0 ? [...given, ...rows] : [...given.slice(0, at), ...rows, ...given.slice(at)]
+  const after = given.map(row => row.group).lastIndexOf(LOCAL_MODEL_GROUP) + 1
+  return after === 0 ? [...given, ...rows] : [...given.slice(0, after), ...rows, ...given.slice(after)]
 }
 
-function placeTensorFoldGroups(groups: PickerGroup<ModelChoice>[], opts: { top?: string; recentAt?: (group: string) => number | undefined; first: boolean }): PickerGroup<ModelChoice>[] {
+function placeTensorFoldGroups(groups: PickerGroup<ModelChoice>[], opts: { top?: string; recentAt?: (group: string) => number | undefined }): PickerGroup<ModelChoice>[] {
   const missing = TENSORFOLD_GROUPS.filter(name => !groups.some(group => group.group === name)).map(name => ({ group: name, rows: [], doors: [] }))
-  const ordered = orderPickerGroups([...groups, ...missing], { ...(opts.top !== undefined ? { top: opts.top } : {}), ...(opts.recentAt !== undefined ? { recentAt: opts.recentAt } : {}), ...(opts.first ? { pinned: TENSORFOLD_GROUPS } : {}) })
+  const ordered = orderPickerGroups([...groups, ...missing], { ...(opts.top !== undefined ? { top: opts.top } : {}), ...(opts.recentAt !== undefined ? { recentAt: opts.recentAt } : {}) })
   const host = ordered.find(group => group.group === TENSORFOLD_HOST_GROUP)
   const rest = ordered.filter(group => group !== host)
   const at = rest.findIndex(group => group.group === TENSORFOLD_MODEL_GROUP)
   return host === undefined || at < 0 ? ordered : [...rest.slice(0, at + 1), host, ...rest.slice(at + 1)]
 }
 
-export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, headings: givenHeadings, topGroup, expandRows, initialFilter, view = 'model', live, tensorfold, onTensorFold, recentAt, tensorFoldFirst = false, hint }: Props): React.ReactNode {
+export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, headings: givenHeadings, topGroup, expandRows, initialFilter, view = 'model', live, tensorfold, onTensorFold, recentAt, hint }: Props): React.ReactNode {
   const surfaceRef = useElevatedSurface()
   useMount(() => {
     markTransitionEnd('picker-open')
@@ -198,8 +197,8 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
     if (tf === undefined) return grouped
     const seat = seatGroup(grouped)
     const lead = seat ?? topGroup
-    return placeTensorFoldGroups(grouped, { ...(lead !== undefined ? { top: lead } : {}), ...(recentAt !== undefined ? { recentAt } : {}), first: tensorFoldFirst && seat === undefined })
-  }, [listed, tf, currentRow, topGroup, recentAt, tensorFoldFirst])
+    return placeTensorFoldGroups(grouped, { ...(lead !== undefined ? { top: lead } : {}), ...(recentAt !== undefined ? { recentAt } : {}) })
+  }, [listed, tf, currentRow, topGroup, recentAt])
   const top = seatGroup(groups) ?? topGroup ?? groups[0]?.group
   const keyOfId = (id: string): string | undefined => {
     const own = listed.find(m => m.id === id && isModelRow(m))

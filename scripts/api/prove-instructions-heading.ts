@@ -71,7 +71,7 @@ section('§1 the key: the composed instruction files ride under one key, rendere
 section('§3 resume: an old saved session whose stored context row was rendered under another heading opens; its rows stay byte-identical; one fresh row is appended')
 {
   const vnext = await import('../../src/sessions/transcripts/vnext.ts')
-  const logs = await import('../../src/sessions/transcripts/sessionListings.ts')
+  const { loadConversationForResume } = await import('../../src/sessions/resume/conversationRecovery.ts')
   const paths = await import('../../src/sessions/transcripts/paths.ts')
   const SID = '00000000-aaaa-4000-8000-00000000c0de'
   const at = (i: number): string => new Date(Date.parse('2026-09-01T00:00:00.000Z') + i * 1000).toISOString()
@@ -90,7 +90,8 @@ section('§3 resume: an old saved session whose stored context row was rendered 
   row({ ...base(u1, u0, 1), type: 'user', message: { role: 'user', content: 'first prompt' } })
   row({ ...base(a1, u1, 2), type: 'assistant', message: { role: 'assistant', model: 'claude-opus-4-8', content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } } })
   const before = sha(file)
-  const loaded = await logs.loadTranscriptFromFile(file)
+  const loaded = await loadConversationForResume(SID, file)
+  if (loaded === null) throw new Error(`loadConversationForResume in src/sessions/resume/conversationRecovery.ts answered null for ${file}: the saved session did not resume`)
   const messages = loaded.messages as unknown as Array<{ type: string; attachment?: { type: string; body?: string } }>
   check('the saved session opens through the real loader (three rows)', messages.length === 3, `${messages.length} rows`)
   const stored = messages.find(m => m.type === 'attachment' && m.attachment?.type === 'user_context')

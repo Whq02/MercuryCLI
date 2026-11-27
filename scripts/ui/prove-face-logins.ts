@@ -328,7 +328,7 @@ t.section('§1 — THE ANTHROPIC MACHINE (both arms · setup-token · retry · b
   t.check('copyUrl writes the URL through the clipboard seam and paints the ack', m11.world.clipboard[0] === 'copy-me' && m11.world.stdout[0] === 'OSC52' && m11.m.snapshot().copied === true)
   t.check('the ack clears on its own 2s beat', bed11.run().some(b => b.ms === COPY_ACK_MS) && m11.m.snapshot().copied === false)
 
-  for (const [copyAnswer, words] of [['offered', 'sent to your terminal — if nothing pastes, select the URL above'], ['none', 'nothing copied — select the URL above']] as const) {
+  for (const [copyAnswer, words] of [['offered', 'sent to your terminal — if nothing pastes, press c again for the URL on one line'], ['none', 'nothing copied — press c again for the URL on one line']] as const) {
     const bedCopy = beatBed()
     const unsure = machineOf(bedCopy, { copyAnswer })
     unsure.m.start(true)

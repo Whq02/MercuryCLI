@@ -196,7 +196,7 @@ try {
     const rightPane = (text: string): string => {
       const rows = text.split('\n')
       const top = rows.findIndex(line => line.includes('╭') && line.includes('╮'))
-      if (top < 0) return ''
+      if (top < 0) return flat(text)
       const left = rows[top]!.indexOf('╭')
       const right = rows[top]!.indexOf('╮')
       const out: string[] = []

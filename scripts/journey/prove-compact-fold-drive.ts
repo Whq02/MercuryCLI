@@ -321,10 +321,10 @@ function rowFacts(row: string): { stage: string | null; filled: number; tokens: 
   return { stage, filled, tokens: tok, seconds: seconds ? Number(seconds[1]) : null, head }
 }
 function stripOf(frame: string | undefined): { glyph: string; words: string } | null {
-  const rows = rowsWith(frame, /│ [✶✦✧✳✻✽✸✹✺✷·●◐◓◑◒] [a-z]/).filter(r => !r.includes('└'))
+  const rows = rowsWith(frame, /[│ ] [✶✦✧✳✻✽✸✹✺✷·●◐◓◑◒] [a-z]/).filter(r => !r.includes('└'))
   const row = rows.find(r => /compacting|thinking|Thinking/.test(r)) ?? null
   if (row === null) return null
-  const m = /│ ([✶✦✧✳✻✽✸✹✺✷·●◐◓◑◒]) ([^│]*)│/.exec(row)
+  const m = /[│ ] ([✶✦✧✳✻✽✸✹✺✷·●◐◓◑◒]) ([^│]*)│/.exec(row)
   return m ? { glyph: m[1]!, words: flat(m[2]!) } : null
 }
 function belowChat(frame: string | undefined): string[] {

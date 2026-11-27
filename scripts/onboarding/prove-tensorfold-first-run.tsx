@@ -62,6 +62,22 @@ if (scenario !== null) {
   await settle(500)
   frames['station'] = mounted.screen()
   frames['stationLines'] = mounted.lines().join('\n')
+  const onTensorFold = (): boolean => mounted.lines().some(line => /[▸❯]\s*TensorFold — /.test(line))
+  if (scenario !== 'probing-off' && facts.tensorFoldCapableMachine()) {
+    for (let step = 0; step < 60 && !onTensorFold(); step++) {
+      mounted.push(KEY.down)
+      await settle(60)
+    }
+    await settle(200)
+  }
+  frames['onRow'] = mounted.screen()
+  if (onTensorFold()) {
+    mounted.push(KEY.down)
+    await settle(200)
+    frames['below'] = mounted.screen()
+    mounted.push(KEY.up)
+    await settle(200)
+  }
   if (scenario === 'back-out') {
     mounted.push(KEY.enter)
     await until('Guardrails')
@@ -160,14 +176,16 @@ const READY = 'TensorFold — run Qwen3.8 27B on this Mac, no account (/tensorfo
 const INSTALL = 'TensorFold — install and run Qwen3.8 27B on this Mac, no account (/tensorfold)'
 const PROBE_ON = 'llamacpp=http://127.0.0.1:9'
 
-console.log('§1 a capable machine with TensorFold on PATH: the TensorFold row leads, focused, named for the best fit; ↵ walks on and the chat opens /tensorfold after trust')
+console.log('§1 a capable machine with TensorFold on PATH: the list opens on its first provider; the TensorFold row is the last provider row, named for the best fit; ↵ on it walks on and the chat opens /tensorfold after trust')
 const installed = run('installed', { fake: true, probe: PROBE_ON })
 const capable = installed.capable === 'true'
 if (capable) {
   const station = installed.station ?? installed.error ?? ''
-  check('the first row is TensorFold, named for the best fit, and it is the focused one', firstRow(station).startsWith('TensorFold — run Qwen3.8 27B') && focusedRow(station).startsWith('TensorFold — run Qwen3.8 27B'), `${firstRow(station)} · focused: ${focusedRow(station)}`)
-  check("the row's words are the design's", flat(station).includes(READY), flat(station).slice(0, 600))
-  check('the intro names TensorFold among what you can connect', flat(station).includes('or connect TensorFold, OpenRouter'), flat(station).slice(0, 400))
+  const reached = installed.onRow ?? ''
+  check('the list opens on its first provider, OpenAI, first and focused: TensorFold is not put first and nothing is chosen for the user', firstRow(station).startsWith('OpenAI — ChatGPT subscription') && focusedRow(station).startsWith('OpenAI — ChatGPT subscription'), `${firstRow(station)} · focused: ${focusedRow(station)}`)
+  check('the TensorFold row, named for the best fit, is the last provider row: one ↓ from it is Sign in later', focusedRow(reached).startsWith('TensorFold — run Qwen3.8 27B') && focusedRow(installed.below ?? '').startsWith('Sign in later'), `focused: ${focusedRow(reached)} · one ↓ on: ${focusedRow(installed.below ?? '')}`)
+  check("the row's words are the design's", flat(reached).includes(READY), flat(reached).slice(0, 600))
+  check('the intro names TensorFold last among what you can connect', flat(station).includes('or connect OpenRouter') && / or TensorFold\./.test(flat(station)), flat(station).slice(0, 500))
   check('↵ on it completes the sign-in step without a credential (Guardrails next)', (installed.afterChoice ?? '').includes('Guardrails'), (installed.afterChoice ?? '').split('\n').slice(0, 4).join(' / '))
   check('the walk finished', installed.finished === '1', installed.finished ?? '')
   check('after trust the chat lands and opens /tensorfold: the boot lands on the chat and /tensorfold is the command it runs', installed.dispatch === '/tensorfold' && installed.intent === 'repl', `${installed.dispatch} · ${installed.intent}`)
@@ -175,11 +193,11 @@ if (capable) {
   check('this machine cannot run TensorFold: no TensorFold row, the walk as it was', !flat(installed.station ?? '').includes('TensorFold') && installed.dispatch === 'null', flat(installed.station ?? '').slice(0, 300))
 }
 
-console.log('§2 a capable machine without TensorFold: the row still leads and says the install is a step')
+console.log('§2 a capable machine without TensorFold: the row, in the same last place, says the install is a step')
 const bare = run('not-installed', { fake: false, probe: PROBE_ON })
 if (capable) {
   const station = bare.station ?? bare.error ?? ''
-  check('the first row says install and run, focused', firstRow(station) === INSTALL && focusedRow(station) === INSTALL, `${firstRow(station)} · focused: ${focusedRow(station)}`)
+  check('the list opens on OpenAI, and the last provider row says install and run', focusedRow(station).startsWith('OpenAI — ChatGPT subscription') && focusedRow(bare.onRow ?? '').startsWith(INSTALL) && focusedRow(bare.below ?? '').startsWith('Sign in later'), `${firstRow(station)} · opens on: ${focusedRow(station)} · walked to: ${focusedRow(bare.onRow ?? '')} · one ↓ on: ${focusedRow(bare.below ?? '')}`)
 } else {
   check('this machine cannot run TensorFold: no row', !flat(bare.station ?? '').includes('TensorFold'))
 }
@@ -200,24 +218,24 @@ if (capable) {
   check('no /tensorfold dispatch and no chat landing were left armed', back.dispatch === 'null' && back.intent === 'null', `${back.dispatch} · ${back.intent}`)
 }
 
-console.log('§5 the rows on every platform: first on a capable machine, after the subscriptions on Windows')
+console.log('§5 the rows on every platform: the TensorFold row is the last, whatever its kind')
 {
   const rows = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.ts')
   const facts = await import('../../src/screen/tensorfold/tensorfoldFacts.ts')
   const host = rows.loginFamilyRows({ engineLegs: true, tensorfold: { kind: 'host' } })
-  check('Windows: the row reads on a host and sits after the two subscriptions', host[2]?.label === 'TensorFold — on a host: a server on your network or a rented GPU pod (/tensorfold)' && host[0]?.value === 'openai' && host[1]?.value === 'anthropic', host.slice(0, 3).map(row => row.label).join(' | '))
+  check('Windows: the row reads on a host and is the last, behind every provider', host.at(-1)?.label === 'TensorFold — on a host: a server on your network or a rented GPU pod (/tensorfold)' && host[0]?.value === 'openai' && host[1]?.value === 'anthropic' && host.filter(row => row.value === 'tensorfold').length === 1, host.map(row => row.value).join(' | '))
   const served = rows.loginFamilyRows({ engineLegs: true, tensorfold: { kind: 'served', model: 'qwen3.5-2b', version: '1.2.2' } })
-  check('a server already answering is named', served[0]?.label === 'TensorFold — run qwen3.5-2b on TensorFold 1.2.2, no account (/tensorfold)', served[0]?.label ?? '')
+  check('a server already answering is named', served.at(-1)?.label === 'TensorFold — run qwen3.5-2b on TensorFold 1.2.2, no account (/tensorfold)' && served[0]?.value === 'openai', served.map(row => row.value).join(' | '))
   const gpu = rows.loginFamilyRows({ engineLegs: true, tensorfold: { kind: 'ready', label: 'Nemotron Lightning', place: 'gpu' } })
-  check("a CUDA box names its GPU", gpu[0]?.label === "TensorFold — run Nemotron Lightning on this machine's NVIDIA GPU, no account (/tensorfold)", gpu[0]?.label ?? '')
+  check("a CUDA box names its GPU", gpu.at(-1)?.label === "TensorFold — run Nemotron Lightning on this machine's NVIDIA GPU, no account (/tensorfold)" && gpu[0]?.value === 'openai', gpu.map(row => row.value).join(' | '))
   check('no offer, no row: the roster as it was', rows.loginFamilyRows({ engineLegs: true }).length === rows.loginFamilyRows({ engineLegs: true, tensorfold: null }).length && rows.loginFamilyRows({ engineLegs: true })[0]?.value === 'openai')
   check("capable: Apple silicon; Linux with the R580+ driver; Windows x64 through Mercury's adapter; nothing else", facts.tensorFoldCapableMachine('darwin', 'arm64') && !facts.tensorFoldCapableMachine('darwin', 'x64') && facts.tensorFoldCapableMachine('linux', 'x64', () => 'NVRM version: NVIDIA UNIX x86_64 Kernel Module  580.95.05  Thu Sep 18 2026') && !facts.tensorFoldCapableMachine('linux', 'x64', () => 'NVRM version: NVIDIA UNIX x86_64 Kernel Module  550.54.14  Thu Feb 22 2024') && !facts.tensorFoldCapableMachine('linux', 'x64', () => undefined) && facts.tensorFoldCapableMachine('win32', 'x64', () => undefined) && !facts.tensorFoldCapableMachine('win32', 'arm64', () => undefined))
   const adapter = rows.loginFamilyRows({ engineLegs: true, tensorfold: { kind: 'ready', label: 'Qwen3.5 4B', place: 'adapter' } })
-  check("Windows with Mercury's adapter: the row offers the 4B on this machine with Mercury's engine, first", adapter[0]?.label === "TensorFold — run Qwen3.5 4B on this machine with Mercury's engine, no account (/tensorfold)", adapter[0]?.label ?? '')
+  check("Windows with Mercury's adapter: the row offers the 4B on this machine with Mercury's engine, last", adapter.at(-1)?.label === "TensorFold — run Qwen3.5 4B on this machine with Mercury's engine, no account (/tensorfold)" && adapter[0]?.value === 'openai', adapter.map(row => row.value).join(' | '))
   const adapterInstall = rows.loginFamilyRows({ engineLegs: true, tensorfold: { kind: 'install', label: 'Qwen3.5 4B', place: 'adapter' } })
-  check('Windows without llama.cpp yet: install and run', adapterInstall[0]?.label === "TensorFold — install and run Qwen3.5 4B on this machine with Mercury's engine, no account (/tensorfold)", adapterInstall[0]?.label ?? '')
+  check('Windows without llama.cpp yet: install and run', adapterInstall.at(-1)?.label === "TensorFold — install and run Qwen3.5 4B on this machine with Mercury's engine, no account (/tensorfold)", adapterInstall.at(-1)?.label ?? '')
   const adapterServed = rows.loginFamilyRows({ engineLegs: true, tensorfold: { kind: 'served', model: 'qwen3.5-4b', version: '1.0.6', servedBy: 'mercury-llamacpp' } })
-  check("a server the adapter serves is named with Mercury's engine, never as TensorFold 1.0.6", adapterServed[0]?.label === "TensorFold — run qwen3.5-4b on this machine with Mercury's engine, no account (/tensorfold)", adapterServed[0]?.label ?? '')
+  check("a server the adapter serves is named with Mercury's engine, never as TensorFold 1.0.6", adapterServed.at(-1)?.label === "TensorFold — run qwen3.5-4b on this machine with Mercury's engine, no account (/tensorfold)", adapterServed.at(-1)?.label ?? '')
 }
 
 if (FRAMES !== undefined && capable) {

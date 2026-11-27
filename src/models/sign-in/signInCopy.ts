@@ -3,7 +3,7 @@ import { setClipboardWithReceipt, type ClipboardReceipt } from '../../screen/ren
 export type SignInCopyAnswer = 'copied' | 'offered' | 'none'
 export type SignInCopied = 'URL' | 'code'
 export interface SignInCopy { sequence: string; answer: SignInCopyAnswer }
-export interface SignInCopySaid { copied: boolean; copyNote: string | null }
+export interface SignInCopySaid { copied: boolean; copyNote: string | null; what?: SignInCopied }
 
 export const SIGN_IN_COPY_ACK_MS = 2000
 
@@ -14,7 +14,8 @@ export function signInCopyAnswerOf(receipt: Pick<ClipboardReceipt, 'settled' | '
 
 export function signInCopyNote(answer: SignInCopyAnswer, what: SignInCopied): string | null {
   if (answer === 'copied') return null
-  return answer === 'none' ? `nothing copied — select the ${what} above` : `sent to your terminal — if nothing pastes, select the ${what} above`
+  const next = what === 'URL' ? 'press c again for the URL on one line' : 'select the code above'
+  return answer === 'none' ? `nothing copied — ${next}` : `sent to your terminal — if nothing pastes, ${next}`
 }
 
 export function signInCopySaid(answer: SignInCopyAnswer, what: SignInCopied): SignInCopySaid {
