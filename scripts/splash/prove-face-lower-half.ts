@@ -106,8 +106,7 @@ console.log('\n§3 the 256-colour head paints two-colour cells as ▄ with both 
   })
   check('256-colour: the seventeen two-colour cells go out as ▄ with both 256 inks from rgbToXterm256', twoCount === 17 && wrong256.length === 0, wrong256.slice(0, 4).join(' · '))
 }
-{
-  const core = createSplashCore({ nocolor: true, accent: 'crab' })
+for (const [label, core] of [['16-colour', createSplashCore({ truecolor: false, ansi16: true, accent: 'crab' })], ['plain', createSplashCore({ nocolor: true, accent: 'crab' })]] as const) {
   const grid = pairs(HEADSTD)
   const { lines, width } = core.rasterHard(HEADSTD)
   let twoAsUpper = 0
@@ -120,7 +119,7 @@ console.log('\n§3 the 256-colour head paints two-colour cells as ▄ with both 
       if (cells[x]!.bg !== 'default') withBackground++
     })
   })
-  check('plain: the seventeen two-colour cells stay ▀ with no background', twoAsUpper === 17 && withBackground === 0, `${twoAsUpper} as ▀, ${withBackground} with a background`)
+  check(`${label}: the seventeen two-colour cells stay ▀ with no background`, twoAsUpper === 17 && withBackground === 0, `${twoAsUpper} as ▀, ${withBackground} with a background`)
 }
 
 console.log(`\n${failures === 0 ? '[PASS]' : '[FAIL]'} face lower half: ${checks - failures}/${checks} checks`)

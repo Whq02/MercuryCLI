@@ -34,6 +34,9 @@ export interface SplashAccentFamily {
   t256: number
   t256deep: number
   t256mid?: number
+  t16?: number
+  t16deep?: number
+  t16mid?: number
   wordR256?: number[]
   wordD256?: number[]
   key?: string
@@ -179,6 +182,7 @@ export interface SplashCore {
   zipCols(a: string[], b: string[], aW: number, gap: number): string[]
   mixc(a: number[], b: number[], t: number): number[]
   T256: { cream: number; ivory: number; red: number; faint: number; dim: number; dimred: number; midred: number; dune: number; teal: number; amber: number; crimson: number; dark: number; black: number }
+  T16: { cream: number; ivory: number; red: number; faint: number; dim: number; dimred: number; midred: number; dune: number; teal: number; amber: number; crimson: number; dark: number; black: number }
   CREAM: number[]
   RED: number[]
   VOID: number[]
@@ -197,9 +201,12 @@ export interface SplashCore {
   accentFg(): string
 }
 
+export type SplashTier = 'plain' | '16' | '256' | 'truecolor'
+
 export function createSplashCore(caps?: {
   nocolor?: boolean
   truecolor?: boolean
+  ansi16?: boolean
   accent?: string | SplashAccentFamily
 }): SplashCore
 
@@ -215,6 +222,7 @@ export const TRUECOLOR_ECHO_TRUTH: Array<[string, boolean]>
 export function truecolorFingerprintOf(env: Record<string, string | undefined>): string | null
 export function truecolorEchoOf(setting: string): boolean
 export function truecolorAskableOf(env: Record<string, string | undefined>, platform?: string): boolean
+export function splashTierOf(env: Record<string, string | undefined>, platform?: string, echoed?: boolean): SplashTier
 export const ACCENT_FAMILIES: Record<string, SplashAccentFamily>
 export const DEFAULT_CRITTER: string
 export function accentFamilyKeyOf(raw: unknown): string

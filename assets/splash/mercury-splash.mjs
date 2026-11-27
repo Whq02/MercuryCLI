@@ -6,14 +6,9 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, rea
 import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 
-import { adoptGroundFamily, createSplashCore, emitCells, HEADSTD, WORD, MENU, MODEL_NAMES, GROUND, assembleCardRows, withProfilesRow, fmtAge, ACCENT_FAMILIES, DEFAULT_CRITTER, accentFamilyKeyOf, glowPhaseAt, glowSettled, GLOW_TICK_MS, WORD_W, cpWidth, MARK_RE, truecolorFingerprintOf, TRUECOLOR_QUERY, truecolorEchoOf, truecolorAskableOf } from './splash-core.mjs'
+import { adoptGroundFamily, createSplashCore, emitCells, HEADSTD, WORD, MENU, MODEL_NAMES, GROUND, assembleCardRows, withProfilesRow, fmtAge, ACCENT_FAMILIES, DEFAULT_CRITTER, accentFamilyKeyOf, glowPhaseAt, glowSettled, GLOW_TICK_MS, WORD_W, cpWidth, MARK_RE, truecolorFingerprintOf, TRUECOLOR_QUERY, truecolorEchoOf, truecolorAskableOf, splashTierOf } from './splash-core.mjs'
 
 const out = process.stdout
-
-const NOCOLOR = process.env.FORCE_COLOR === undefined
-  ? Boolean(process.env.NO_COLOR)
-  : !['', '1', '2', '3', 'true'].includes(process.env.FORCE_COLOR)
-const TRUECOLOR_FLAG = (process.env.MERCURY_TRUECOLOR || '').trim().toLowerCase()
 
 const TRUECOLOR_QUERY_MS = 50
 const TRUECOLOR_SENTINEL = '\x1b[c'
@@ -109,11 +104,10 @@ function askTruecolorOnce() {
 }
 
 let askedTruecolor = SHOULD_ASK_TRUECOLOR ? await askTruecolorOnce() : null
-const TRUECOLOR =
-  !NOCOLOR &&
-  !/^(dumb|linux)$/.test(process.env.TERM || '') &&
-  TRUECOLOR_FLAG !== '0' &&
-  (['1', 'true', 'yes', 'on'].includes(TRUECOLOR_FLAG) || truecolorFingerprintOf(process.env) !== null || askedTruecolor === true)
+const TIER = splashTierOf(process.env, process.platform, askedTruecolor === true)
+const NOCOLOR = TIER === 'plain'
+const TRUECOLOR = TIER === 'truecolor'
+const ANSI16 = TIER === '16'
 const COMPACT_HOST_COLS = 100
 const COMPACT_HOST_ROWS = 26
 const compactHost = (c, r) => CINEMATIC && !(c >= COMPACT_HOST_COLS && r >= COMPACT_HOST_ROWS)
@@ -791,7 +785,7 @@ function persistedThemeName() {
 const persistedTheme = persistedThemeName() || DEFAULT_THEME_FAMILY
 adoptGroundFamily(persistedTheme === 'true-black' ? 'true-black' : 'dark')
 
-const core = createSplashCore({ nocolor: NOCOLOR, truecolor: TRUECOLOR, accent: CRITTER_KEY })
+const core = createSplashCore({ nocolor: NOCOLOR, truecolor: TRUECOLOR, ansi16: ANSI16, accent: CRITTER_KEY })
 const {
   R, DIM,
   rgbFg, rgbBg, hexFg,

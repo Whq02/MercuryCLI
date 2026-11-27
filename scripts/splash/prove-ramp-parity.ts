@@ -9,7 +9,7 @@ import { deriveFocalRamp } from '../../src/screen/theme/mercuryTokens.ts'
 import { shouldHonorNoColor, truecolorFingerprint, TRUECOLOR_QUERY, truecolorEcho, truecolorAskable } from '../../src/screen/renderer/colorize.ts'
 import { isEnvTruthy } from '../../src/platform/environment/envUtils.ts'
 import { getFlagSpec } from '../../src/platform/substrate/flagRegistry.ts'
-import { GROUND, GROUND_FAMILIES, adoptGroundFamily, truecolorFingerprintOf, TRUECOLOR_QUERY as BAKED_TRUECOLOR_QUERY, TRUECOLOR_ECHO_TRUTH, truecolorEchoOf, truecolorAskableOf } from '../../assets/splash/splash-core.mjs'
+import { GROUND, GROUND_FAMILIES, adoptGroundFamily, truecolorFingerprintOf, TRUECOLOR_QUERY as BAKED_TRUECOLOR_QUERY, TRUECOLOR_ECHO_TRUTH, truecolorEchoOf, truecolorAskableOf, splashTierOf } from '../../assets/splash/splash-core.mjs'
 import { NIGHT, OASIS_GROUND, TRUE_BLACK_GROUND } from '../../src/screen/theme/mercuryPalette.ts'
 import { DEFAULT_THEME_SETTING } from '../../src/screen/theme/systemTheme.ts'
 import { checker } from '../engine-durability/harness.ts'
@@ -94,26 +94,26 @@ t.section('§3 — baked capability truth equals the canonical law')
     if (term !== null) env.TERM = term ?? undefined
     if (colorterm !== null) env.COLORTERM = colorterm ?? undefined
     if (program !== null) env.TERM_PROGRAM = program ?? undefined
+    const termVal = term ?? ''
     const want = shouldHonorNoColor(env)
       ? 'plain'
-      : /^(dumb|linux)$/.test(term ?? '')
-        ? '256'
-        : mt === '0'
-          ? '256'
-          : isEnvTruthy(mt ?? undefined)
-            ? 'truecolor'
-            : truecolorFingerprint(env) === null
-              ? '256'
-              : 'truecolor'
+      : !termVal || termVal === 'dumb'
+        ? 'plain'
+        : termVal !== 'linux' && mt !== '0' && (isEnvTruthy(mt ?? undefined) || truecolorFingerprint(env) !== null)
+          ? 'truecolor'
+          : /-(?:256color|256)$/.test(termVal)
+            ? '256'
+            : '16'
     if (mode !== want) allOk = false
+    if (splashTierOf(env, 'linux') !== mode) allOk = false
     if (truecolorFingerprintOf(env) !== truecolorFingerprint(env)) splashOk = false
   }
-  t.check(`all ${TRUTH.length} truth rows match shouldHonorNoColor + the flag + the fingerprint law`, allOk, JSON.stringify(TRUTH))
+  t.check(`all ${TRUTH.length} truth rows match shouldHonorNoColor + the flag + the fingerprint + 16-tier law and splashTierOf`, allOk, JSON.stringify(TRUTH))
   t.check('the splash reads the same fingerprint as the process on every truth row', splashOk)
   const modes = new Set(TRUTH.map(r => r[6]))
   t.check(
-    'the table exercises all three modes (plain, 256, truecolor)',
-    modes.has('plain') && modes.has('256') && modes.has('truecolor'),
+    'the table exercises all four modes (plain, 16, 256, truecolor)',
+    modes.has('plain') && modes.has('16') && modes.has('256') && modes.has('truecolor'),
     [...modes].join(','),
   )
   t.check(
@@ -280,24 +280,32 @@ t.section('§7 — GLOW: accent families + the mirrored greeting law')
       `${hexOf(f.main)} ${hexOf(f.deep)} ${hexOf(f.soft)}`,
     )
   }
-  const { rgbToXterm256 } = await import('../../src/screen/renderer/cell-grid.ts')
+  const { rgbToXterm256, rgbToAnsi16 } = await import('../../src/screen/renderer/cell-grid.ts')
   const to256 = (t2: number[]): number => rgbToXterm256(t2[0]!, t2[1]!, t2[2]!)
+  const to16 = (t2: number[]): number => {
+    const n = rgbToAnsi16(t2[0]!, t2[1]!, t2[2]!)
+    return n < 8 ? 30 + n : 82 + n
+  }
   const sampleOf = (ramp: number[][], u: number): number[] => {
     const s = Math.min(1, Math.max(0, u)) * (ramp.length - 1)
     const i = Math.min(ramp.length - 2, Math.floor(s))
     return mixc(ramp[i]!, ramp[i + 1]!, s - i)
   }
   const fams256Ok = Object.entries(fams).every(([, f]) => {
-    const ext = f as typeof f & { t256mid?: number; wordR256?: number[]; wordD256?: number[] }
+    const ext = f as typeof f & { t256mid?: number; t16?: number; t16deep?: number; t16mid?: number; wordR256?: number[]; wordD256?: number[] }
     const wantR = Array.from({ length: core.WORD_W }, (_, x) => to256(sampleOf(f.ramp, x / (core.WORD_W - 1))))
     const wantD = Array.from({ length: core.WORD_W }, (_, x) => to256(mixc(f.deep, sampleOf(f.ramp, x / (core.WORD_W - 1)), 0.5)))
+    const mid = mixc(f.deep, f.main, 0.5)
     return f.t256 === to256(f.main) &&
       f.t256deep === to256(f.deep) &&
-      ext.t256mid === to256(mixc(f.deep, f.main, 0.5)) &&
+      ext.t256mid === to256(mid) &&
+      ext.t16 === to16(f.main) &&
+      ext.t16deep === to16(f.deep) &&
+      ext.t16mid === to16(mid) &&
       JSON.stringify(ext.wordR256) === JSON.stringify(wantR) &&
       JSON.stringify(ext.wordD256) === JSON.stringify(wantD)
   })
-  t.check('all four families bake t256, t256deep, t256mid, wordR256 and wordD256 from rgbToXterm256', fams256Ok)
+  t.check('all four families bake 256 and 16 codes and wordmark ramps from rgbToXterm256 and rgbToAnsi16', fams256Ok)
   t.check(
     'DEFAULT_CRITTER == critterData.DEFAULT_CRITTER_KEY (a fresh splash and its booted session wear the same creature)',
     core.DEFAULT_CRITTER === cd.DEFAULT_CRITTER_KEY,
