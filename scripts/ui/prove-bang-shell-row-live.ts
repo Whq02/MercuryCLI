@@ -87,7 +87,7 @@ if (driver.kind !== 'posix-pty') {
   type Cell = { c: string }
   type Mark = { label: string; grid: Cell[][]; atMs: number; atTick: number }
   type Receipt = { atTick: number; ts: number }
-  const CHAT = 'shift + ← boot face'
+  const CHAT = 'Type a prompt'
   void keyHintLabel
   const command = `sh -c 'c=ABCD; u=https://github.com/login; echo "! First copy your one-time code: $c-1234" >&2; echo "Open $u/device in your browser" >&2; perl -MTime::HiRes=time -e "print time" > first-bytes.txt; sleep ${WAIT_S}'`
   const on = (needle: string, data: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({
