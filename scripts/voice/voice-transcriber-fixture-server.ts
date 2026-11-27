@@ -93,8 +93,7 @@ function listen(port: number): void {
       process.exit(2)
     }
   })
-  server.listen(port, '127.0.0.1', () => {
-    console.log(`PORT ${port}`)
-  })
+  server.listen(port, '127.0.0.1')
 }
+server.once('listening', () => console.log(`PORT ${(server.address() as { port: number }).port}`))
 listen(35100)
