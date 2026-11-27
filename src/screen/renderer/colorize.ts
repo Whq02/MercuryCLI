@@ -108,7 +108,7 @@ export function truecolorAskable(env: Record<string, string | undefined> = hostE
   if (chalk.level >= 3 || shouldHonorNoColor(env) || env.FORCE_COLOR !== undefined) return false
   if (env.TMUX || env.STY || env.TERM_PROGRAM === 'Apple_Terminal' || readTruecolorFlag() !== undefined) return false
   const term = env.TERM
-  return term !== undefined && term !== 'dumb' && term !== 'linux'
+  return term !== undefined && term !== 'dumb' && term !== 'linux' && !term.startsWith('screen')
 }
 
 export function takeTruecolorAnswer(echoed: boolean): boolean {

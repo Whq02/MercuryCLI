@@ -186,6 +186,7 @@ section('§5 who is asked: nobody whose depth the environment already settles')
   check('TERM=dumb is not asked', at(0, { TERM: 'dumb' }) === false, `${fix} must be false for TERM=dumb`)
   check('tmux is not asked', at(2, { TERM: 'tmux-256color', TMUX: '/tmp/tmux-1/default,1,0' }) === false, `${fix} must be false under TMUX`)
   check('GNU screen is not asked (it hands the request\'s body to the outer terminal as text)', at(2, { TERM: 'screen-256color', STY: '4242.pts-0.host' }) === false && at(1, { TERM: 'screen', STY: '4242.pts-0.host' }) === false, `${fix} must be false under STY`)
+  check('a TERM that begins screen is not asked (across an SSH hop GNU screen\'s TERM arrives and STY does not)', at(2, { TERM: 'screen-256color' }) === false && at(1, { TERM: 'screen' }) === false && at(2, { TERM: 'screen.xterm-256color' }) === false, `${fix} must be false where TERM begins screen`)
   check('Apple Terminal by name is not asked', at(2, { TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal' }) === false, `${fix} must be false for TERM_PROGRAM=Apple_Terminal`)
   check('NO_COLOR is not asked', at(0, { TERM: 'xterm-256color', NO_COLOR: '1' }) === false, `${fix} must be false under NO_COLOR`)
   check('FORCE_COLOR is not asked', at(2, { TERM: 'xterm-256color', FORCE_COLOR: '2' }) === false, `${fix} must be false when FORCE_COLOR is set`)
@@ -383,6 +384,7 @@ for (const [name, env] of [
   ['no-color', { TERM: 'xterm-256color', NO_COLOR: '1' }],
   ['tmux', { TERM: 'tmux-256color', TMUX: '/tmp/tmux-1/default,1,0' }],
   ['gnu-screen', { TERM: 'screen', STY: '4242.pts-0.host' }],
+  ['screen-across-ssh', { TERM: 'screen-256color' }],
   ['linux-console', { TERM: 'linux' }],
   ['apple-terminal', { TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal' }],
 ] as const) {
