@@ -20,6 +20,19 @@ export const isGreyInk = (ink: string): boolean => isHexInk(ink) && ink.slice(0,
 export const inkOf = (color: string): string => color.replace('#', '').toLowerCase()
 export const isBlock = (cell: Cell): boolean => BLOCKS.has(cell.c)
 
+export function basicColourCodes(bytes: Uint8Array): number {
+  let count = 0
+  for (const match of Buffer.from(bytes).toString('latin1').matchAll(/\x1b\[([0-9;]*)m/g)) {
+    const params = (match[1] ?? '').split(';').map(Number)
+    for (let i = 0; i < params.length; i++) {
+      const p = params[i]!
+      if (p === 38 || p === 48) i += params[i + 1] === 2 ? 4 : 2
+      else if ((p >= 30 && p <= 37) || (p >= 40 && p <= 47) || (p >= 90 && p <= 97) || (p >= 100 && p <= 107)) count++
+    }
+  }
+  return count
+}
+
 export function artRows(grid: Grid): { critter: number[]; wordmark: number[] } {
   const rule = grid.findIndex(row => row.filter(cell => cell.c === '─').length >= 20 && !row.some(cell => cell.c === '╭' || cell.c === '╰'))
   const rows = grid.map((row, y) => (row.filter(isBlock).length >= 3 ? y : -1)).filter(y => y >= 0)

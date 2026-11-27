@@ -257,6 +257,11 @@ const grayRgb = (n: number): Rgb => {
   return [v, v, v]
 }
 
+const consoleRgb = (n: number): Rgb => {
+  const lift = n < 8 ? 0 : 85
+  return [(n & 1 ? 170 : 0) + lift, (n === 3 ? 85 : n & 2 ? 170 : 0) + lift, (n & 4 ? 170 : 0) + lift]
+}
+
 export function xterm256ToRgb(n: number): Rgb | null {
   return n < 16 ? null : n <= 231 ? cubeRgb(n - 16) : n <= 255 ? grayRgb(n) : null
 }
@@ -278,9 +283,11 @@ function oklab(r: number, g: number, b: number): Lab {
   return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s]
 }
 
-const XTERM256_OKLAB: readonly Lab[] = Array.from({ length: 240 }, (_, i) => oklab(...(i < 216 ? cubeRgb(i) : grayRgb(i + 16))))
+const PALETTE_OKLAB: readonly Lab[] = Array.from({ length: 256 }, (_, n) => oklab(...(n < 16 ? consoleRgb(n) : n < 232 ? cubeRgb(n - 16) : grayRgb(n))))
 
 const XTERM256_CHROMA_WEIGHT = 2
+
+const ANSI16_CHROMA_WEIGHT = 3
 
 const NEAREST_MEMO_LIMIT = 4096
 
@@ -288,24 +295,37 @@ const nearestMemo = new Map<number, number>()
 
 const colorByte = (v: number): number => Math.max(0, Math.min(255, Math.round(v)))
 
-export function rgbToXterm256(r: number, g: number, b: number): number {
-  const key = (colorByte(r) << 16) | (colorByte(g) << 8) | colorByte(b)
+function nearestOf(first: number, end: number, chromaWeight: number, r: number, g: number, b: number): number {
+  const rgb = (colorByte(r) << 16) | (colorByte(g) << 8) | colorByte(b)
+  const key = end * 0x1000000 + rgb
   const known = nearestMemo.get(key)
   if (known !== undefined) return known
-  const [l, a, bb] = oklab(key >> 16, (key >> 8) & 255, key & 255)
-  let nearest = 0
+  const [l, a, bb] = oklab(rgb >> 16, (rgb >> 8) & 255, rgb & 255)
+  let nearest = first
   let least = Infinity
-  for (let i = 0; i < XTERM256_OKLAB.length; i++) {
-    const [pl, pa, pb] = XTERM256_OKLAB[i]!
-    const distance = (pl - l) ** 2 + XTERM256_CHROMA_WEIGHT * (pa - a) ** 2 + XTERM256_CHROMA_WEIGHT * (pb - bb) ** 2
+  for (let i = first; i < end; i++) {
+    const [pl, pa, pb] = PALETTE_OKLAB[i]!
+    const distance = (pl - l) ** 2 + chromaWeight * (pa - a) ** 2 + chromaWeight * (pb - bb) ** 2
     if (distance < least) {
       least = distance
       nearest = i
     }
   }
   if (nearestMemo.size >= NEAREST_MEMO_LIMIT) nearestMemo.clear()
-  nearestMemo.set(key, 16 + nearest)
-  return 16 + nearest
+  nearestMemo.set(key, nearest)
+  return nearest
+}
+
+export function rgbToXterm256(r: number, g: number, b: number): number {
+  return nearestOf(16, 256, XTERM256_CHROMA_WEIGHT, r, g, b)
+}
+
+export function rgbToAnsi16(r: number, g: number, b: number): number {
+  return nearestOf(0, 16, ANSI16_CHROMA_WEIGHT, r, g, b)
+}
+
+export function rgbToAnsi8(r: number, g: number, b: number): number {
+  return nearestOf(0, 8, ANSI16_CHROMA_WEIGHT, r, g, b)
 }
 
 type ColorChannel = 38 | 48
