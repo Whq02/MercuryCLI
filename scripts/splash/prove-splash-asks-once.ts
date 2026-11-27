@@ -116,6 +116,8 @@ function hasPrintable(bytes: string): boolean {
 
 async function runArm(opts: {
   reply: string | readonly string[] | null
+  replyDelayMs?: number
+  enterDelayMs?: number
   extraEnv?: Record<string, string>
   sendEnter?: boolean
 }): Promise<RunOutcome> {
@@ -163,16 +165,21 @@ async function runArm(opts: {
           querySeenAt = now
           if (!replied && opts.reply !== null) {
             replied = true
-            if (typeof opts.reply === 'string') {
-              child.stdin.write(opts.reply)
-            } else {
-              const parts = opts.reply
-              parts.forEach((part, idx) => {
-                setTimeout(() => {
-                  if (!child.killed && child.exitCode === null) child.stdin.write(part)
-                }, idx * 8)
-              })
+            const delay = opts.replyDelayMs ?? 0
+            const sendReply = (): void => {
+              if (typeof opts.reply === 'string') {
+                if (!child.killed && child.exitCode === null) child.stdin.write(opts.reply)
+              } else {
+                const parts = opts.reply!
+                parts.forEach((part, idx) => {
+                  setTimeout(() => {
+                    if (!child.killed && child.exitCode === null) child.stdin.write(part)
+                  }, idx * 8)
+                })
+              }
             }
+            if (delay > 0) setTimeout(sendReply, delay)
+            else sendReply()
           }
         }
         const firstSyncEnd = raw.indexOf('\x1b[?2026l')
@@ -184,7 +191,7 @@ async function runArm(opts: {
             setTimeout(() => {
               if (raw.includes('boot menu')) menuShownBeforeEnter = true
               if (!child.killed && child.exitCode === null) child.stdin.write('\r')
-            }, 35)
+            }, opts.enterDelayMs ?? 35)
           }
         }
       })
@@ -270,7 +277,19 @@ section('§1 query arms — echo, BEL echo, split echo, 0m, refusal, sentinel al
   check(`silence: first paint waits for the bound once (${silence.queryToPaintMs ?? 'no-query'}ms, target ${SILENCE_MIN_MS}..${SILENCE_MAX_MS}ms)`, silence.queryToPaintMs !== null && silence.queryToPaintMs >= SILENCE_MIN_MS && silence.queryToPaintMs <= SILENCE_MAX_MS, `queryToPaintMs=${silence.queryToPaintMs}`)
   check('silence: first painted screen is the 256 tier', silence.firstFrame.includes('\x1b[38;5;') && !silence.firstFrame.includes('\x1b[38;2;') && silence.firstScreen !== null)
   check('silence: Enter launches cleanly (exit 20)', silence.exitCode === 20, `exit=${silence.exitCode}`)
-  check('silence: splash-action.json carries truecolor: false', silence.receipt?.truecolor === false, JSON.stringify(silence.receipt))
+  check('silence: splash-action.json carries truecolor: pending (unanswered before exit)', silence.receipt?.truecolor === 'pending', JSON.stringify(silence.receipt))
+
+  const lateEcho = await runArm({ reply: ECHO_REPLY, replyDelayMs: 80, enterDelayMs: 90 })
+  check('late echo (80ms, waiting splash still up): writes request once, paints 256 first, upgrades receipt to truecolor: true, Enter exits 20', lateEcho.requestCount === 1 && lateEcho.requestBeforePaint && lateEcho.firstFrame.includes('\x1b[38;5;') && !lateEcho.firstFrame.includes('\x1b[38;2;') && !lateEcho.menuShownBeforeEnter && lateEcho.exitCode === 20 && lateEcho.receipt?.truecolor === true, `count=${lateEcho.requestCount} exit=${lateEcho.exitCode} receipt=${JSON.stringify(lateEcho.receipt)}`)
+
+  const lateSplit = await runArm({ reply: ['\x1bP1$r0;48:2', '::1:2:3m\x1b\\', '\x1b[?62;22c'], replyDelayMs: 48, enterDelayMs: 90 })
+  check('late split echo across 50ms bound: paints 256 first, never leaks keys, upgrades receipt to truecolor: true', lateSplit.requestCount === 1 && lateSplit.firstFrame.includes('\x1b[38;5;') && !lateSplit.menuShownBeforeEnter && lateSplit.exitCode === 20 && lateSplit.receipt?.truecolor === true, `count=${lateSplit.requestCount} exit=${lateSplit.exitCode} receipt=${JSON.stringify(lateSplit.receipt)}`)
+
+  const lateSentinel = await runArm({ reply: SENTINEL_REPLY, replyDelayMs: 80, enterDelayMs: 90 })
+  check('late sentinel alone (80ms, waiting splash still up): paints 256, settles receipt to truecolor: false', lateSentinel.requestCount === 1 && lateSentinel.firstFrame.includes('\x1b[38;5;') && lateSentinel.exitCode === 20 && lateSentinel.receipt?.truecolor === false, `count=${lateSentinel.requestCount} exit=${lateSentinel.exitCode} receipt=${JSON.stringify(lateSentinel.receipt)}`)
+
+  const cinematicPending = await runArm({ reply: null, extraEnv: { MERCURY_FULLSCREEN: '1' }, sendEnter: false })
+  check('cinematic silence: exits 0 cleanly with screen held and truecolor: pending', cinematicPending.requestCount === 1 && cinematicPending.exitCode === 0 && cinematicPending.receipt?.screen === 'held' && cinematicPending.receipt?.truecolor === 'pending', `count=${cinematicPending.requestCount} exit=${cinematicPending.exitCode} receipt=${JSON.stringify(cinematicPending.receipt)}`)
 }
 
 section('§2 no-ask environments — no request written, no truecolor field in receipt')

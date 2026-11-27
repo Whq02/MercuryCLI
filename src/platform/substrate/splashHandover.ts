@@ -92,9 +92,11 @@ export function disarmTensorFoldDeepLink(): void {
 
 const FRESH_MS = 120_000
 
+export type SplashTruecolorAnswer = boolean | 'pending'
+
 interface SplashReceiptDecision {
   apply: { chdir?: string; spliceArg?: string } | null
-  truecolor?: boolean
+  truecolor?: SplashTruecolorAnswer
   reason:
     | 'applied'
     | 'no-file'
@@ -137,7 +139,7 @@ export function decideSplashReceipt(
     return { apply: null, reason: 'foreign-launch' }
   }
   if (Math.abs(now - receipt.ts) >= FRESH_MS) return { apply: null, reason: 'stale' }
-  const answered = typeof receipt.truecolor === 'boolean' ? { truecolor: receipt.truecolor } : {}
+  const answered: { truecolor?: SplashTruecolorAnswer } = typeof receipt.truecolor === 'boolean' || receipt.truecolor === 'pending' ? { truecolor: receipt.truecolor } : {}
   if (receipt.action === undefined) {
     return { apply: null, ...answered, reason: 'screen-only' }
   }
@@ -172,7 +174,7 @@ export function decideSplashReceipt(
   }
 }
 
-export function consumeSplashHandover(): boolean | undefined {
+export function consumeSplashHandover(): SplashTruecolorAnswer | undefined {
   if (flagEnv('MERCURY_SPLASH_HANDOFF') !== '1') return
   deleteFlagEnv('MERCURY_SPLASH_HANDOFF')
   let raw: string | null = null

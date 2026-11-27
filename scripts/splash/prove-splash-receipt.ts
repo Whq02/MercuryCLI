@@ -216,6 +216,10 @@ section('(5) truecolor receipt field — accepted by decideSplashReceipt and wri
   const d = (raw: string | null) => decideSplashReceipt(raw, NOW, dirExists)
   check('screen-only receipt carrying truecolor: true still reads as screen-only', d(fresh({ screen: 'held', truecolor: true })).reason === 'screen-only')
   check('screen-only receipt carrying truecolor: false still reads as screen-only', d(fresh({ screen: 'restored', truecolor: false })).reason === 'screen-only')
+  check('screen-only receipt carrying truecolor: pending hands pending on', d(fresh({ screen: 'held', truecolor: 'pending' })).truecolor === 'pending')
+  check('stale pending receipt hands nothing on', decideSplashReceipt(JSON.stringify({ version: 1, ts: NOW - 121_000, screen: 'held', truecolor: 'pending' }), NOW, dirExists).truecolor === undefined)
+  check('foreign-launch pending receipt hands nothing on', decideSplashReceipt(fresh({ screen: 'held', truecolor: 'pending', launchId: 'L1' }), NOW, dirExists, 'L2').truecolor === undefined)
+  check('invalid truecolor string hands nothing on', d(fresh({ screen: 'held', truecolor: 'yes' })).truecolor === undefined)
   check('action receipt carrying truecolor: true still applies its action', d(fresh({ action: 'continue', dir: '/proof/project', truecolor: true })).apply?.spliceArg === '--continue')
   check('cancel receipt carrying truecolor: false still reads as cancel-ignored', d(fresh({ action: 'cancel', truecolor: false })).reason === 'cancel-ignored')
 

@@ -69,7 +69,7 @@ function stripTerminalReplies(buf, onDecrqss, onDa1, waiting) {
 function askTruecolorOnce() {
   return new Promise(resolve => {
     let settled = false
-    let result = false
+    let result = 'pending'
     const finish = val => {
       if (settled) return
       settled = true
@@ -99,7 +99,7 @@ function askTruecolorOnce() {
       if (stripped.text !== '') queuedBeforePaint += stripped.text
       if (decided || queuedBeforePaint.includes('\x03')) finish(result)
     }
-    const timer = setTimeout(() => finish(false), TRUECOLOR_QUERY_MS)
+    const timer = setTimeout(() => finish('pending'), TRUECOLOR_QUERY_MS)
     timer.unref?.()
     try { process.stdin.setRawMode(true) } catch { }
     process.stdin.resume()
@@ -108,7 +108,7 @@ function askTruecolorOnce() {
   })
 }
 
-const askedTruecolor = SHOULD_ASK_TRUECOLOR ? await askTruecolorOnce() : null
+let askedTruecolor = SHOULD_ASK_TRUECOLOR ? await askTruecolorOnce() : null
 const TRUECOLOR =
   !NOCOLOR &&
   !/^(dumb|linux)$/.test(process.env.TERM || '') &&
@@ -1429,7 +1429,12 @@ process.stdin.on('data', buf => {
   pendingInput = ''
   clearTimeout(pendingTimer)
   clearTimeout(replyPendingTimer)
-  const stripped = stripTerminalReplies(merged, null, null, false)
+  const stripped = stripTerminalReplies(
+    merged,
+    setting => { if (askedTruecolor === 'pending') askedTruecolor = truecolorEchoOf(setting) },
+    () => { if (askedTruecolor === 'pending') askedTruecolor = false },
+    false,
+  )
   replyPending = stripped.pending
   if (replyPending !== '') {
     replyPendingTimer = setTimeout(() => { replyPending = '' }, TRUECOLOR_QUERY_MS)

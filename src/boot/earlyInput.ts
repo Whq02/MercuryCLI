@@ -93,9 +93,9 @@ function openDepthAnswer(): { onReply: () => ((reply: string) => void) | undefin
   }
 }
 
-export function startCapturingEarlyInput(askDepth = false, splashAnswered?: boolean): () => Promise<void> {
+export function startCapturingEarlyInput(askDepth = false, splashAnswered?: boolean | 'pending'): () => Promise<void> {
   const settled = (): Promise<void> => Promise.resolve()
-  if (askDepth && splashAnswered !== undefined) takeTruecolorAnswer(splashAnswered)
+  if (askDepth && typeof splashAnswered === 'boolean') takeTruecolorAnswer(splashAnswered)
   if (!process.stdin.isTTY || capturing || isSessionRunArgv()) return settled
   capturing = true
   capturedBuffer = ''
@@ -104,7 +104,7 @@ export function startCapturingEarlyInput(askDepth = false, splashAnswered?: bool
     process.stdin.setRawMode?.(true)
     if (process.stdout.isTTY) process.stdout.write('\x1b[0m')
     process.stdin.ref()
-    const depth = askDepth && splashAnswered === undefined && process.stdout.isTTY && truecolorAskable() ? openDepthAnswer() : null
+    const depth = askDepth && (splashAnswered === undefined || splashAnswered === 'pending') && process.stdout.isTTY && truecolorAskable() ? openDepthAnswer() : null
     let held = ''
     const drain = (): void => {
       let chunk: string | Buffer | null = process.stdin.read()
@@ -116,7 +116,7 @@ export function startCapturingEarlyInput(askDepth = false, splashAnswered?: bool
     readableHandler = drain
     process.stdin.on('readable', drain)
     if (depth === null) return settled
-    process.stdout.write(TRUECOLOR_QUERY)
+    if (splashAnswered !== 'pending') process.stdout.write(TRUECOLOR_QUERY)
     return depth.settle
   } catch (error) {
     passedOver(error)
