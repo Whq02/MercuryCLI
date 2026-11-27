@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import { homedir, tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve, sep } from 'node:path'
 import { defaultMercuryHome } from '../../src/platform/environment/envUtils.ts'
+import { accountHome } from '../lib/proofGuard.cjs'
 import { accountStoreHome, homeIsAccountStore, refuseProofWriteIntoAccountStore } from '../../src/models/roads/proofHomeGuard.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -321,6 +322,13 @@ try {
   check(probe === 'none', 'that entry runs with the local-server probe off', `probe=${JSON.stringify(probe)}`)
   check(readdirSync(join(home, '.mercury')).sort().join(',') === before, "the operator's own .mercury is untouched (no seed, no write)", readdirSync(join(home, '.mercury')).join(','))
   check(JSON.parse(readFileSync(join(home, '.mercury', 'settings.json'), 'utf8')).engine?.model === OWNER_MODEL, 'its settings.json still carries the model line, unread and unwritten')
+  const account: string = process.platform === 'win32' ? home : accountHome()
+  for (const store of ['.mercury', '.mercury2']) {
+    const named = join(account, store)
+    const entry = spawnSync(BUN, ['scripts/lib/proofHomePreload.ts'], { cwd: ROOT, env: clean({ MERCURY_CONFIG_DIR: named }), encoding: 'utf8' })
+    const [landed = ''] = entry.stdout.split('\n')
+    check(entry.status === 0 && landed !== '' && !landed.startsWith(named) && scratchHome(landed, scratch), `a scripts/ entry launched with MERCURY_CONFIG_DIR at ${store} under the account's own home, whatever HOME says, runs on a scratch home`, `rc=${entry.status} home=${landed} ${entry.stderr.trim()}; configHomeIsReal in scripts/lib/loginDriverGuard.ts takes the account's home from the system, never from HOME alone, and every name there that begins .mercury`)
+  }
 
   const guardProbe = (env: NodeJS.ProcessEnv): { rc: number | null; out: string } => {
     const r = spawnSync('bash', ['-c', '. "$1" || exit 78; suite_env_guard "$2"; printf "%s\\n" "${MERCURY_LOCAL_PROBE_TARGETS:-}"', '_', join(ROOT, 'scripts', 'lib', 'suite-env.sh'), join(ROOT, 'scripts', 'gate', 'run-all.sh')], {
