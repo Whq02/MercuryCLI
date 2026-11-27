@@ -121,14 +121,13 @@ export async function loadTranscriptFromFile(
       throw new Error('No messages found in JSONL file')
     }
 
-    const leafMessage = findLatestMessage(messages.values(), msg =>
-      leafUuids.has(msg.uuid),
-    )
+    const elected = electConversationEnd(messages)
+    const leafMessage = elected === undefined ? findLatestMessage(messages.values(), msg => leafUuids.has(msg.uuid)) : (elected.rows.at(-1) ?? elected.primary)
     if (!leafMessage) {
       throw new Error('No valid conversation chain found in JSONL file')
     }
 
-    const transcript = buildConversationChain(messages, leafMessage)
+    const transcript = elected?.rows ?? buildConversationChain(messages, leafMessage)
     const sessionId = leafMessage.sessionId as UUID
     return {
       ...chainListing(transcript, transcript.at(-1)!, filePath),
@@ -469,10 +468,10 @@ export async function lastSession(
   sessionId: UUID,
 ): Promise<SessionListing | null> {
   const fold = await loadSessionFile(sessionId)
-  if (fold.messages.size === 0) return null
-  const leaf = resumeLeafOf(fold.messages)
+  const elected = electConversationEnd(fold.messages)
+  const leaf = elected === undefined ? lastRowOfSessionWithNoTurn(fold.messages) : (elected.rows.at(-1) ?? elected.primary)
   if (!leaf) return null
-  const chain = buildConversationChain(fold.messages, leaf)
+  const chain = elected?.rows ?? buildConversationChain(fold.messages, leaf)
   const anchor = chain.at(-1) ?? leaf
   const summary = fold.summaries.get(leaf.uuid)
   return {
@@ -483,7 +482,7 @@ export async function lastSession(
   }
 }
 
-export function resumeLeafOf(messages: Map<UUID, TranscriptMessage>): TranscriptMessage | undefined {
+export function lastRowOfSessionWithNoTurn(messages: Map<UUID, TranscriptMessage>): TranscriptMessage | undefined {
   const nonSidechainParents = new Set<UUID>()
   for (const msg of messages.values()) {
     if (!msg.isSidechain && msg.parentUuid) nonSidechainParents.add(msg.parentUuid)
