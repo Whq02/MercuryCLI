@@ -46,6 +46,7 @@ await requireBrowser()
 
 const ROAD = 'the launch in src/integrations/browser/session/launch.ts must hand the driver handleSIGINT, handleSIGTERM and handleSIGHUP as false, so that on a signal the product’s own shutdown (gracefulShutdown in src/platform/processes/gracefulShutdown.ts) is the one road: it asks the browser to quit and waits'
 const base = join(process.env.MERCURY_CONFIG_DIR ?? '', 'signal-road')
+const NO_PROOF_BROWSER_WRAPPER = { MERCURY_SUITE_BROWSER_CLEANER: '1' }
 const linesOf = (file: string): string[] => (existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(Boolean) : [])
 const alive = (pid: number): boolean => {
   if (pid <= 0) return false
@@ -74,7 +75,7 @@ async function ranUnder(label: string, signal: NodeJS.Signals, how: { frozen?: b
   mkdirSync(home, { recursive: true })
   const notes = join(home, 'notes.txt')
   const mark = join(home, 'hook-ran.txt')
-  const session = spawn(process.execPath, [import.meta.path, 'session', notes, mark, how.endpoint ?? ''], { env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_HOME: home }, stdio: ['ignore', 'pipe', 'pipe'] })
+  const session = spawn(process.execPath, [import.meta.path, 'session', notes, mark, how.endpoint ?? ''], { env: { ...process.env, ...NO_PROOF_BROWSER_WRAPPER, MERCURY_CONFIG_DIR: home, MERCURY_HOME: home }, stdio: ['ignore', 'pipe', 'pipe'] })
   let said = ''
   session.stdout?.on('data', (chunk: Buffer) => { said += chunk.toString('utf8') })
   session.stderr?.on('data', (chunk: Buffer) => { said += chunk.toString('utf8') })
@@ -131,6 +132,7 @@ if (process.platform === 'win32') {
   console.log('\n  a signal a process can answer is a POSIX road: S2 to S4 do not run on win32')
 } else {
   section('S2 a signal to a session with a browser up: the product’s own shutdown ends the browser by asking, runs its end hook, and exits with its own code')
+  console.log('    each session runs without the proof machinery’s browser wrapper (scripts/lib/proofBrowser.cjs turns a kill of a proof’s browser into a protocol close): what is read here is how the product itself ends its browser; a browser a scene leaves is ended by its pid')
   for (const [signal, code] of [['SIGTERM', 143], ['SIGINT', 130], ['SIGHUP', 129]] as Array<[NodeJS.Signals, number]>) {
     const ran = await ranUnder(signal.toLowerCase(), signal)
     const browserEnd = ran.notes.find(line => line.startsWith('browser-exit '))?.slice('browser-exit '.length) ?? 'not seen by the session'
