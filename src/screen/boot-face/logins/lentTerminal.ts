@@ -41,11 +41,13 @@ export async function lendTerminal<T>(
   if (!stdin.isTTY || !stdout.isTTY || instance === undefined) return null
 
   await instance.awaitTerminalQueries()
+  if (instance.isPaused) return null
   drainStdin(stdin)
   markConsoleLent()
   instance.enterAlternateScreen()
   try {
-    return { value: await during(stdout, stdin) }
+    const value = during(stdout, stdin)
+    return { value: value instanceof Promise ? await value : value }
   } finally {
     if (options.child !== undefined) reclaimTerminalAfterChild(options.child)
     instance.exitAlternateScreen()

@@ -92,13 +92,14 @@ mock.module('../../src/models/roads/huggingface/huggingfaceLogin.js', () => ({ .
 mock.module('../../src/platform/host-os/browser.js', () => ({ openBrowser: async () => false, openPath: async () => false }))
 const lentTerminal: null | typeof import('../../src/screen/boot-face/logins/lentTerminal.js') = await import('../../src/screen/boot-face/logins/lentTerminal.js').catch(() => null)
 const shown: string[] = []
+let lineStreams: { stdin: NodeJS.ReadStream; stdout: NodeJS.WriteStream } | null = null
 const realLentTerminal = lentTerminal === null ? null : { ...lentTerminal }
 if (realLentTerminal !== null) {
   mock.module('../../src/screen/boot-face/logins/lentTerminal.js', () => ({
     ...realLentTerminal,
     showSignInAddressLine: async (address: string) => {
       shown.push(address)
-      return true
+      return lineStreams === null ? true : realLentTerminal.showSignInAddressLine(address, lineStreams)
     },
   }))
 }
@@ -778,7 +779,7 @@ try {
       24,
       { mouseTracking: true },
     )
-    const [out, ink] = [...screenInstances.entries()].at(-1) as unknown as [{ writes: string[]; emit(event: string): boolean; listenerCount(event: string): number }, { options: { stdin: NodeJS.ReadStream; stdout: NodeJS.WriteStream }; isMouseTrackingEnabled(): boolean }]
+    const [out, ink] = [...screenInstances.entries()].at(-1) as unknown as [{ writes: string[]; emit(event: string): boolean; listenerCount(event: string): number }, { options: { stdin: NodeJS.ReadStream; stdout: NodeJS.WriteStream }; isMouseTrackingEnabled(): boolean; editorHandoverDepth: number }]
     const streams = { stdin: ink.options.stdin, stdout: ink.options.stdout }
     await waitFor(() => m.screen().includes('stream row 2'), 2000)
     for (const [key, name] of [[KEY.esc, 'Esc'], [KEY.enter, 'Enter']] as const) {
@@ -837,6 +838,41 @@ try {
         `ended=${String(ended)} back=${back} last=${last}`,
       )
     }
+    const linesTaken = (from: number): number => {
+      let lines = 0
+      for (let index = out.writes.length - 1; index >= from; index--) {
+        if (!out.writes[index]!.includes(OPENAI_URL)) continue
+        lines++
+        out.writes.splice(index, 1)
+      }
+      return lines
+    }
+    const readers = streams.stdin.listenerCount('readable')
+    const rawWas = streams.stdin.isRaw
+    const twiceFrom = out.writes.length
+    const first = showLine === undefined ? Promise.resolve(false) : showLine(OPENAI_URL, streams)
+    const second = showLine === undefined ? Promise.resolve(false) : showLine(OPENAI_URL, streams)
+    await settle(300)
+    const secondSaid = await Promise.race([second, settle(50).then(() => 'still up' as const)])
+    const twiceLines = linesTaken(twiceFrom)
+    m.push(KEY.enter)
+    const firstSaid = await Promise.race([first, settle(1500).then(() => 'still up' as const)])
+    await settle(200)
+    check(
+      'A TERMINAL ALREADY LENT IS NEVER LENT AGAIN: two calls in one turn of the loop write ONE line, the second answers false at once, and ONE Enter gives the keyboard back whole (the reader on, raw mode and the mouse as they were)',
+      twiceLines === 1 && secondSaid === false && firstSaid === true && streams.stdin.listenerCount('readable') === readers && streams.stdin.isRaw === rawWas && ink.isMouseTrackingEnabled(),
+      `lines ${twiceLines} · second ${String(secondSaid)} · first ${String(firstSaid)} · readers ${readers} → ${streams.stdin.listenerCount('readable')} · raw ${String(rawWas)} → ${String(streams.stdin.isRaw)}`,
+    )
+    const lend = realLentTerminal?.lendTerminal
+    const depths: number[] = []
+    const work = (): number => depths.push(ink.editorHandoverDepth)
+    const [one, two] = await Promise.all([lend === undefined ? null : lend(work, streams), lend === undefined ? null : lend(work, streams)])
+    await settle(200)
+    check(
+      "a lend whose work is done before it returns (the Devin row's) is over before the next begins: two calls in one turn run one after the other, never one inside the other, and the reader is on after both",
+      one !== null && two !== null && depths.join() === '1,1' && streams.stdin.listenerCount('readable') === readers && streams.stdin.isRaw === rawWas,
+      `depths ${depths.join()} · readers ${readers} → ${streams.stdin.listenerCount('readable')} · raw ${String(rawWas)} → ${String(streams.stdin.isRaw)}`,
+    )
     const before = out.writes.length
     const nowhere = showLine === undefined ? null : await showLine(OPENAI_URL)
     check('with no terminal to lend (no screen on the process output) nothing is written and it says so', nowhere === false && out.writes.slice(before).every(write => !write.includes(OPENAI_URL)), String(nowhere))
@@ -993,6 +1029,71 @@ try {
     await settle(400)
     check('a drag that begins on a row that holds no address is not c', receipts === copies && shown.length === askedAgain, `copies=${receipts - copies} asked=${shown.length - askedAgain}`)
     at.m.unmount()
+
+    takeRoad('unconfirmed')
+    const live = await waiting(80, 24)
+    live.m.push('c')
+    const standing = await waitFor(() => words(live.m.screen()).includes(SENT_URL), 2000)
+    const [liveOut, liveInk] = [...screenInstances.entries()].at(-1) as unknown as [{ writes: string[] }, { options: { stdin: NodeJS.ReadStream; stdout: NodeJS.WriteStream }; isMouseTrackingEnabled(): boolean }]
+    const liveIn = liveInk.options.stdin
+    const linesUp = (from: number): number => {
+      let lines = 0
+      for (let index = liveOut.writes.length - 1; index >= from; index--) {
+        if (!liveOut.writes[index]!.includes(OPENAI_URL)) continue
+        lines++
+        liveOut.writes.splice(index, 1)
+      }
+      return lines
+    }
+    const whole = (): boolean => liveIn.listenerCount('readable') === readers && liveIn.isRaw === rawWas && liveInk.isMouseTrackingEnabled()
+    const readers = liveIn.listenerCount('readable')
+    const rawWas = liveIn.isRaw
+    const wholeDrag = (): string => {
+      const rows = span(live.m)
+      return mouse(0, rows.col + 2, rows.first) + mouse(32, rows.col + 20, rows.last) + mouse(0, rows.col + 20, rows.last, true)
+    }
+    lineStreams = { stdin: liveIn, stdout: liveInk.options.stdout }
+    let from = liveOut.writes.length
+    live.m.push(`c${wholeDrag()}`)
+    await settle(400)
+    const keyAndDrag = linesUp(from)
+    live.m.push(KEY.enter)
+    await settle(500)
+    check(
+      'a c and a whole drag in ONE read while the sentence stands lend the terminal ONCE: one line, and ONE Enter gives the keyboard back whole',
+      standing && keyAndDrag === 1 && whole() && words(live.m.screen()).includes(SENT_URL),
+      `lines ${keyAndDrag} · readers ${readers} → ${liveIn.listenerCount('readable')} · raw ${String(rawWas)} → ${String(liveIn.isRaw)} · mouse ${String(liveInk.isMouseTrackingEnabled())}`,
+    )
+    from = liveOut.writes.length
+    live.m.push('c\x1b[Ic')
+    await settle(400)
+    const keyReportKey = linesUp(from)
+    live.m.push(KEY.enter)
+    await settle(500)
+    check(
+      'c, a focus report and c in ONE read lend it ONCE too: one line, one Enter, the keyboard whole',
+      keyReportKey === 1 && whole() && draft(live.m.screen()) === 0,
+      `lines ${keyReportKey} · draft ${draft(live.m.screen())} · readers ${readers} → ${liveIn.listenerCount('readable')} · raw ${String(rawWas)} → ${String(liveIn.isRaw)}`,
+    )
+    from = liveOut.writes.length
+    live.m.push('cc')
+    const twoLetters = await waitFor(() => draft(live.m.screen()) === 2, 2000)
+    check('…and what is typed next reaches the paste field: cc in ONE read is two letters there and no line, as on 1.1.0', twoLetters && linesUp(from) === 0, `draft ${draft(live.m.screen())}`)
+    from = liveOut.writes.length
+    live.m.push(`ccc${wholeDrag()}${wholeDrag()}`)
+    await settle(400)
+    const lettersAndDrags = linesUp(from)
+    live.m.push(KEY.enter)
+    await settle(500)
+    live.m.push('z')
+    const afterAll = await waitFor(() => draft(live.m.screen()) === 6, 2000)
+    check(
+      'three c and two whole drags in ONE read: the letters are typed, the terminal is lent ONCE, and one Enter gives the keyboard back whole',
+      lettersAndDrags === 1 && afterAll && whole(),
+      `lines ${lettersAndDrags} · draft ${draft(live.m.screen())} · readers ${readers} → ${liveIn.listenerCount('readable')} · raw ${String(rawWas)} → ${String(liveIn.isRaw)} · mouse ${String(liveInk.isMouseTrackingEnabled())}`,
+    )
+    lineStreams = null
+    live.m.unmount()
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
