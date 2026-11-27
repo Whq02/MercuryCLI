@@ -7,6 +7,7 @@ import { errorMessage, getErrnoCode } from '../../../platform/errors/errors.js'
 import { logError } from '../../../platform/logs/errorLog.js'
 import { subprocessEnv } from '../../../platform/processes/subprocessEnv.js'
 import { parseOwnerKey, type OwnerKey } from '../../../engine/run-owner/ownerKey.js'
+import { launchFailure } from '../browserLibraries.js'
 import { driverNodeGate, resolveBrowser, type BrowserResolution } from '../browserResolver.js'
 import { MAIN_TAB, type Wiring, type Hold, type Session, type OwnerBrowserState, BROWSER_PROTOCOL_TIMEOUT_MS, EXITED, MOVE_FAILED, RESTARTED, type EnsureSessionRefusal, type EnsureBrowserSessionOptions, type PageIdentity, type PagePresented, type PageKit } from './shapes.js'
 import { clearIdleLease, armIdleLease, type CloseOutcome, tempProfileDirOf, tempProfiles, closeChild, closePage, endHold, holdOf, type LaunchDriver, launchDriverForProof, ownerStates, installExitHook, browserSessionCap, liveBrowserSessionCensus, originOf, closeHoldNetwork, noteEnded, endDownloads, sweepDownloads, holdGone, reapDeadHolds, leaveHold } from './owners.js'
@@ -370,6 +371,9 @@ async function placeTab(
       const browser = await launch({
         executablePath: resolution!.executablePath,
         headless,
+        handleSIGINT: process.listenerCount('SIGINT') === 0,
+        handleSIGTERM: process.listenerCount('SIGTERM') === 0,
+        handleSIGHUP: process.listenerCount('SIGHUP') === 0,
         protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
         env: subprocessEnv(),
         defaultViewport: { width: 1280, height: 800 },
@@ -382,7 +386,7 @@ async function placeTab(
         ],
         ...(profileDir ? { userDataDir: profileDir } : {}),
         args: launchArgs,
-      })
+      }).catch(async (error: unknown) => { throw await launchFailure(error, resolution!.executablePath) })
       unhanded = browser
       const temp = tempProfileDirOf(browser)
       if (temp !== null) {

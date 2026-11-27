@@ -19,7 +19,8 @@ const { loadConversationForResume } = await import('../../src/sessions/resume/co
 const { createBranchSession } = await import('../../src/sessions/branches/branchManifest.ts')
 const { transcriptMessageIndex } = await import('../../src/sessions/transcripts/materialize.ts')
 const { _resetTranscriptReaderForTesting } = await import('../../src/sessions/transcripts/transcriptReader.ts')
-const { adoptResumedSessionFile, flushSessionStorage, getTranscriptPath, recordTranscript, resetProjectForTesting } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { adoptResumedSessionFile, flushSessionStorage, getTranscriptPath, lastSession, loadTranscriptFile, loadTranscriptFromFile, recordTranscript, resetProjectForTesting } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { replayUpdatesOf, sessionLineOf } = await import('../../src/integrations/acp/server/replay.ts')
 const { switchSession } = await import('../../src/boot/process-state/processState.ts')
 const { asSessionId } = await import('../../src/sessions/transcripts/ids.ts')
 const { createFoldBoundaryMessage, createSystemMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
@@ -43,9 +44,9 @@ function section(title: string): void {
 const j = (value: unknown): string => JSON.stringify(value) ?? ''
 
 type Row = { uuid: UUID; type: string; message?: { model?: string; content?: unknown } }
-type Seen = { ids: UUID[]; lastTurn: UUID | undefined; interruption?: string; sessionId?: string; told?: { uuid: UUID; meta: boolean }; displaced?: UUID[] | 'none' }
+type Seen = { ids: UUID[]; lastTurn: UUID | undefined; interruption?: string; sessionId?: string; told?: { uuid: UUID; meta: boolean }; displaced?: UUID[] | 'none'; leaf?: UUID; replayed?: boolean }
 type Source = { id: string; file: string }
-type Door = { name: string; hint: string; read: (source: Source) => Promise<Seen | null> }
+type Door = { name: string; hint: string; read: (source: Source, end?: UUID) => Promise<Seen | null> }
 
 const ELECTION = 'electConversationEnd (src/sessions/transcripts/conversationEnd.ts)'
 function seenOf(rows: readonly Row[]): Pick<Seen, 'ids' | 'lastTurn'> {
@@ -68,7 +69,43 @@ const pathDoor: Door = {
   hint: `walkTranscriptFile in src/sessions/resume/conversationRecovery.ts must take the conversation and its end from ${ELECTION}, never from the newest row of the file`,
   read: source => resumed(source.id, source.file),
 }
-const doors: Door[] = [pathDoor]
+const idDoor: Door = {
+  name: 'id',
+  hint: `lastSession in src/sessions/transcripts/sessionListings.ts must take the conversation and its end from ${ELECTION}, never from the newest row of the file`,
+  read: source => resumed(source.id, undefined),
+}
+const idListingDoor: Door = {
+  name: 'id listing',
+  hint: `lastSession in src/sessions/transcripts/sessionListings.ts must list the rows of ${ELECTION} and anchor leafUuid on the last of them`,
+  read: async source => {
+    _resetTranscriptReaderForTesting()
+    const listing = await lastSession(source.id as UUID)
+    return listing === null ? null : { ...seenOf(listing.messages), sessionId: listing.sessionId, leaf: listing.leafUuid }
+  },
+}
+const replayDoor: Door = {
+  name: 'ACP replay',
+  hint: `sessionLineOf in src/integrations/acp/server/replay.ts must return the rows of ${ELECTION}`,
+  read: async (source, end) => {
+    _resetTranscriptReaderForTesting()
+    const line = sessionLineOf((await loadTranscriptFile(source.file)).messages)
+    const content = line.find(row => row.uuid === end)?.message?.content
+    const said = Array.isArray(content) ? content.flatMap(block => (block.type === 'text' ? [block.text] : [])) : []
+    const replayed = replayUpdatesOf(line).flatMap(update => (update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text' ? [update.content.text] : []))
+    return { ...seenOf(line), replayed: end === undefined ? undefined : said.length > 0 && said.every(text => replayed.includes(text)) }
+  },
+}
+const fileListingDoor: Door = {
+  name: 'file listing',
+  hint: `loadTranscriptFromFile in src/sessions/transcripts/sessionListings.ts must list the rows of ${ELECTION} and anchor leafUuid on the last of them`,
+  read: async source => {
+    _resetTranscriptReaderForTesting()
+    const listing = await loadTranscriptFromFile(source.file)
+    return { ...seenOf(listing.messages), leaf: listing.leafUuid }
+  },
+}
+const doors: Door[] = [pathDoor, idDoor, idListingDoor, replayDoor, fileListingDoor]
+const resumeDoors: Door[] = [pathDoor, idDoor]
 
 function endsOnTheLiveEnd(door: Door, scene: LeafScene, seen: Seen | null): void {
   const label = `${scene.name} by ${door.name}`
@@ -78,9 +115,9 @@ function endsOnTheLiveEnd(door: Door, scene: LeafScene, seen: Seen | null): void
   }
   check(
     `${label}: the conversation ends on its last finished reply, holds the reply before it, and no interruption is invented`,
-    seen.lastTurn === scene.end && seen.ids.includes(scene.final) && (seen.interruption ?? 'none') === 'none',
+    seen.lastTurn === scene.end && seen.ids.includes(scene.final) && (seen.interruption ?? 'none') === 'none' && (seen.leaf ?? scene.end) === scene.end && seen.replayed !== false,
     door.hint,
-    j({ endsOnEnd: seen.lastTurn === scene.end, hasEnd: seen.ids.includes(scene.end), hasFinal: seen.ids.includes(scene.final), interruption: seen.interruption, rows: seen.ids.length }),
+    j({ endsOnEnd: seen.lastTurn === scene.end, hasEnd: seen.ids.includes(scene.end), hasFinal: seen.ids.includes(scene.final), interruption: seen.interruption, leafIsEnd: seen.leaf === undefined ? undefined : seen.leaf === scene.end, replayed: seen.replayed, rows: seen.ids.length }),
   )
   if (scene.summary !== undefined) {
     check(`${label}: the active summary is in the conversation`, seen.ids.includes(scene.summary), door.hint, j({ rows: seen.ids.length }))
@@ -106,10 +143,10 @@ console.log(' a resumed session ends on the live end, by every door')
 console.log('============================================================')
 
 try {
-  section(`§1 ${LEAF_SCENES.length} written scenes, each read by its path (an explicit .jsonl, run -c, a daemon claim)`)
+  section(`§1 ${LEAF_SCENES.length} written scenes, each read through every door (a path: an explicit .jsonl, run -c, a daemon claim; a bare id; the ACP replay; a file as a listing)`)
   for (const name of LEAF_SCENES) {
     const scene = await writeLeafScene(name)
-    for (const door of doors) endsOnTheLiveEnd(door, scene, await door.read({ id: scene.sid, file: scene.file }))
+    for (const door of doors) endsOnTheLiveEnd(door, scene, await door.read({ id: scene.sid, file: scene.file }, scene.end))
   }
 
   section('§2 a copied branch file by its path: the whole record copied, a prefix that stops before the final reply, a branch whose own sitting wrote only a notice')
@@ -151,9 +188,9 @@ try {
       const seen = await door.read({ id: scene.sid, file: scene.file })
       check(
         `unfinished by ${door.name}: the conversation holds the summary, the finished reply, the second prompt and its open call, without the late result, and a resume is told the turn was cut`,
-        seen !== null && wanted.every(id => seen.ids.includes(id)) && !seen.ids.includes(scene.reports[0]!) && (seen.interruption ?? 'interrupted_prompt') === 'interrupted_prompt',
+        seen !== null && wanted.every(id => seen.ids.includes(id)) && !seen.ids.includes(scene.reports[0]!) && (seen.interruption ?? 'interrupted_prompt') === 'interrupted_prompt' && (seen.leaf ?? second.end) === second.end,
         door.hint,
-        j({ holds: seen === null ? null : wanted.map(id => seen.ids.includes(id)), hasLate: seen?.ids.includes(scene.reports[0]!), interruption: seen?.interruption }),
+        j({ holds: seen === null ? null : wanted.map(id => seen.ids.includes(id)), hasLate: seen?.ids.includes(scene.reports[0]!), interruption: seen?.interruption, leafIsEnd: seen?.leaf === undefined ? undefined : seen.leaf === second.end }),
       )
     }
   }
@@ -201,7 +238,7 @@ try {
     await flushSessionStorage()
     const refused: Array<[string, Source]> = [['a fold line alone', alone], ['a fold line and a crew row', noted], ['notes alone', { id: notes, file: getTranscriptPath() }]]
     for (const [name, source] of refused) {
-      check(`${name}, by path: refused as before, no conversation is made up`, (await pathDoor.read(source)) === null, `${pathDoor.hint}; ${NO_TURN}`)
+      for (const door of resumeDoors) check(`${name}, by ${door.name}: refused as before, no conversation is made up`, (await door.read(source)) === null, `${door.hint}; ${NO_TURN}`)
     }
   }
 
@@ -256,7 +293,7 @@ try {
     ]
     for (const [name, shape] of cutShapes) {
       const cut = await turn(shape)
-      for (const door of doors) {
+      for (const door of resumeDoors) {
         const seen = await door.read(cut.source)
         check(
           `${name}, by ${door.name}: the resume is told the turn was cut, by the sentence the product adds and not by a notice`,

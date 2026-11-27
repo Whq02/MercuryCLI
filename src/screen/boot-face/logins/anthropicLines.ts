@@ -43,7 +43,7 @@ export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: n
       if (snap.pastePromptUp) {
         lines.push('Browser did not open? Use this URL:');
         lines.push(...wrapHard(flow.url, width));
-        lines.push(snap.copied ? 'copied to clipboard' : 'c copies the URL');
+        lines.push(snap.copied ? 'copied to clipboard' : snap.copyNote ?? 'c copies the URL');
         lines.push('Paste code here if prompted:');
         lines.push(maskedDraftLine(draftLen));
         lines.push('esc cancels the wait');

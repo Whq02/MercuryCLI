@@ -12,6 +12,7 @@ prove-browser-birth-truth.ts
 prove-browser-bounds.ts
 prove-browser-click-enclosing.ts
 prove-browser-close-finish.ts
+prove-browser-cover-wait.ts
 prove-browser-crash.ts
 prove-browser-download-paths.ts
 prove-browser-downloads.ts
@@ -34,10 +35,12 @@ prove-browser-frames-reached.ts
 prove-browser-gone.ts
 prove-browser-identity-pages.ts
 prove-browser-idle-lease.ts
+prove-browser-layer-named.ts
 prove-browser-lifecycle.ts
 prove-browser-locale-identity.ts
 prove-browser-marked-names.ts
 prove-browser-misses-named.ts
+prove-browser-missing-libraries.ts
 prove-browser-model-switch.ts
 prove-browser-navigation-truth.ts
 prove-browser-popup-headers.ts
@@ -51,6 +54,7 @@ prove-browser-runner-end.ts
 prove-browser-screenshot-geometry.ts
 prove-browser-screenshot-scale.ts
 prove-browser-secrets.ts
+prove-browser-signal-road.ts
 prove-browser-stealth.ts
 prove-browser-tab-auth-memory.ts
 prove-browser-tabs.ts
@@ -58,4 +62,5 @@ prove-browser-transfer-boundaries.ts
 prove-browser-upload-clear.ts
 prove-browser-upload-share.ts
 prove-browser-uploads.ts
+prove-browser-wait-misses.ts
 prove-open-url-words.ts

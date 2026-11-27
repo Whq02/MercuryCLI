@@ -71,7 +71,7 @@ section('§2 the row\'s words per state, with and without a crew, at three width
   }
   check('idle, no crew: "ready"', bar.statusLine(live('idle', false), status(), none) === 'ready')
   check('idle, the crew running on (esc left them): the crew\'s clock, never "ready"', bar.statusLine(live('idle', false), status(), crew) === 'crewmates thought for 28m')
-  check('idle, the crew settled: "ready" (the landed rows keep their time in the CREW box)', bar.statusLine(live('idle', false), status(), receipt) === 'ready')
+  check('idle, the crew settled: "ready" (the landed rows keep their time in the crew panel)', bar.statusLine(live('idle', false), status(), receipt) === 'ready')
   const wait: SeatStatusV1['wait'] = { kind: 'first-byte', cold: false, promptTokens: 900, model: 'Opus 5', budgetMs: 120_000, sinceMs: NOW - 3_000, attempt: 1 }
   check('the first-byte wait outranks the crew\'s clock, and speaks its limit in minutes', bar.statusLine(live('thinking'), status({ wait }), crew) === 'waiting for the first byte from Opus 5 — gives up after 2m', bar.statusLine(live('thinking'), status({ wait }), crew))
   check('the wait on agents outranks the crew\'s clock (the runner\'s own count words)', bar.statusLine(live('waiting', true, 2), status(), crew) === 'waiting on 2 crewmates')

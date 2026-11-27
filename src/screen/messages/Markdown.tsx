@@ -65,6 +65,7 @@ function buildMarkdownBlocks(
   cleaned: string,
   theme: Parameters<typeof formatToken>[1],
   highlight: CliHighlight | null,
+  literalBackslashes = false,
 ): MarkdownBlock[] {
   if (!hasMarkdownMarkers(cleaned)) {
     const trimmed = cleaned.trim()
@@ -83,7 +84,7 @@ function buildMarkdownBlocks(
       flushProse()
       blocks.push({ kind: 'table', token: token as Tokens.Table })
     } else {
-      proseBuf += formatToken(token, theme, 0, null, null, highlight)
+      proseBuf += formatToken(token, theme, 0, null, null, highlight, Infinity, literalBackslashes)
     }
   }
   flushProse()
@@ -97,6 +98,7 @@ function renderBlocks(
   highlight: CliHighlight | null,
   leadingInline: React.ReactNode,
   trailingInline: React.ReactNode,
+  literalBackslashes = false,
 ): Rendered {
   const firstIsProse = blocks.length > 0 && blocks[0]!.kind === 'prose'
   const lastIsProse =
@@ -120,7 +122,12 @@ function renderBlocks(
     const block = blocks[i]!
     if (block.kind === 'table') {
       elements.push(
-        <MarkdownTable key={`t-${i}`} token={block.token} highlight={highlight} />,
+        <MarkdownTable
+          key={`t-${i}`}
+          token={block.token}
+          highlight={highlight}
+          literalBackslashes={literalBackslashes}
+        />,
       )
     } else {
       const includeLeading = i === 0 && hasLeading
@@ -150,12 +157,14 @@ export function Markdown({
   color,
   leadingInline,
   trailingInline,
+  literalBackslashes = false,
 }: {
   children: string
   dimColor?: boolean
   color?: string
   leadingInline?: React.ReactNode
   trailingInline?: React.ReactNode
+  literalBackslashes?: boolean
 }): React.ReactNode {
   const [theme] = useTheme()
   const accent = useSessionAccent()
@@ -169,8 +178,8 @@ export function Markdown({
   )
 
   const blocks = useMemo(
-    () => buildMarkdownBlocks(cleaned, theme, highlight),
-    [cleaned, theme, accent.accent, highlight],
+    () => buildMarkdownBlocks(cleaned, theme, highlight, literalBackslashes),
+    [cleaned, theme, accent.accent, highlight, literalBackslashes],
   )
 
   if (blocks.length === 0) {
@@ -195,6 +204,7 @@ export function Markdown({
     highlight,
     leadingInline,
     trailingInline,
+    literalBackslashes,
   )
 
   return (

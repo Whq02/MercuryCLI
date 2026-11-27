@@ -131,7 +131,7 @@ try {
   {
     const buildId = '158.0.8127.90'
     const firstTry = runChild(home, 'fail-empty', buildId)
-    check('failed attempt propagates its error and leaves no empty build folder behind', !firstTry.ok && firstTry.called === 1 && (firstTry.message ?? '').includes('no zip archiver') && !firstTry.buildDirExists, show(firstTry))
+    check('failed attempt propagates its error and leaves no empty build folder behind', !firstTry.ok && firstTry.called === 1 && (firstTry.message ?? '').includes(process.platform === 'linux' ? 'this machine lacks unzip' : 'no zip archiver') && !firstTry.buildDirExists, show(firstTry))
     const secondTry = runChild(home, 'land', buildId)
     check('the retry lands cleanly on the next provision', secondTry.ok && secondTry.called === 1 && secondTry.exeExists, show(secondTry))
     rmSync(join(home, 'browsers'), { recursive: true, force: true })

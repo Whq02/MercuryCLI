@@ -76,7 +76,7 @@ function machineWithFakeService(): { m: ReturnType<typeof createAnthropicLoginMa
       shadowWarning: () => null,
       recordSignIn: () => {},
       settings: () => ({}),
-      clipboard: async () => null,
+      clipboard: async () => ({ sequence: '', answer: 'copied' as const }),
       writeStdout: () => {},
       log: () => {},
       setTimer: bed.setTimer,

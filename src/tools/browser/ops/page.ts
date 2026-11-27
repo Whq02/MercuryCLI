@@ -39,6 +39,19 @@ export function preview(text: string, cap = 40): string {
   return text.length > cap ? `${text.slice(0, cap)}…` : text
 }
 
+export const MISS_LOOK_MS = 1000
+export const LAYER_ROOT = 'dialog, [role="dialog"], [role="alertdialog"], [aria-modal="true"]'
+const PAGE_WORDS_CAP = 80
+
+function pageWords(text: string): string {
+  return preview(text.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' '), PAGE_WORDS_CAP)
+}
+
+export function elementName(el: { tag: string; id: string; cls: string }): string {
+  const cls = el.cls.split(/\s+/).filter(Boolean).slice(0, 2).join('.')
+  return pageWords(`${el.tag}${el.id ? `#${el.id}` : ''}${cls ? `.${cls}` : ''}`)
+}
+
 export async function tabLine(live: LiveSession): Promise<string> {
   const title = live.crashed ? '' : await withDeadline(live.page.title().catch(passedOverAs('')), 1000, () => '', { unref: true })
   const vp = live.page.viewport()
@@ -298,6 +311,45 @@ export function frameListing(owner: OwnerKey, s: LiveSession): string {
   const frames = s.page.frames().filter(f => f.parentFrame() !== null)
   const address = (url: string): string => (sessionAttached(s) && !originApproved(owner, originOf(url)) ? (url.split(/[?#]/)[0] ?? url) : url)
   return frames.length ? `\nFrames: ${frames.map((f, i) => `${i + 1} = ${address(f.url())}`).join('; ')}` : ''
+}
+
+type LayerSeen = { tag: string; id: string; cls: string; words: string }
+
+function titleAndLayerIn(roots: string): { title: string; layer: LayerSeen | null } {
+  const above = (el: Element): Element | null => el.assignedSlot ?? el.parentElement ?? (el.getRootNode() instanceof ShadowRoot ? (el.getRootNode() as ShadowRoot).host : null)
+  const held = new Map<Element, { points: number; overPage: boolean }>()
+  for (let i = 1; i <= 5; i++) {
+    for (let j = 1; j <= 5; j++) {
+      const stack = document.elementsFromPoint((innerWidth * i) / 6, (innerHeight * j) / 6)
+      let root: Element | null = null
+      for (let cur: Element | null = stack[0] ?? null; cur !== null && cur !== document.body && cur !== document.documentElement; cur = above(cur)) {
+        if (getComputedStyle(cur).position === 'fixed' || cur.matches(roots)) root = cur
+      }
+      const over = root
+      if (over === null) continue
+      const seen = held.get(over) ?? { points: 0, overPage: false }
+      held.set(over, { points: seen.points + 1, overPage: seen.overPage || stack.some(el => el !== document.body && el !== document.documentElement && !over.contains(el)) })
+    }
+  }
+  const most = [...held].sort((a, b) => b[1].points - a[1].points)[0]
+  if (most === undefined || most[1].points <= 12 || !most[1].overPage) return { title: document.title, layer: null }
+  const el = most[0]
+  return { title: document.title, layer: { tag: el.tagName.toLowerCase(), id: el.id, cls: typeof el.className === 'string' ? el.className : '', words: ((el as HTMLElement).innerText ?? '').replace(/\s+/g, ' ').trim().slice(0, 400) } }
+}
+
+function layerNote(layer: LayerSeen | null): string {
+  return layer === null ? '' : `\n  note: a layer covers most of the viewport: ${elementName(layer)}${layer.words === '' ? '' : ` ${JSON.stringify(pageWords(layer.words))}`}`
+}
+
+export async function coveringLayerNote(s: LiveSession): Promise<string> {
+  const seen = await withDeadline(s.page.evaluate(titleAndLayerIn, LAYER_ROOT).catch(passedOverAs(null)), MISS_LOOK_MS, () => null, { unref: true })
+  return layerNote(seen?.layer ?? null)
+}
+
+export async function titleAndLayerNote(s: LiveSession): Promise<{ title: string; layer: string }> {
+  const realm = (s.page.mainFrame() as Frame & { isolatedRealm(): Pick<Frame, 'evaluate'> }).isolatedRealm()
+  const seen = await withDeadline(realm.evaluate(titleAndLayerIn, LAYER_ROOT).catch(passedOverAs(null)), MISS_LOOK_MS, () => null, { unref: true })
+  return seen === null ? { title: await s.page.title(), layer: '' } : { title: seen.title, layer: layerNote(seen.layer) }
 }
 
 export function errorPageWords(s: LiveSession): string {
