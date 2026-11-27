@@ -5,11 +5,11 @@ next                    │   ▀▄▄▄▀▄▄▄▀                       
   /health               │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
   /memory               │                                                                                                                  │
   /goal                 │                                                                                                                  │
-                        │ 18:12:41 [sam] ❯ private reasoning                                                                               │
+                        │ 20:19:58 [sam] ❯ private reasoning                                                                               │
 files · project         │                                                                                                                  │
   ↵ browse              │ ✻ thinking… — the provider returned no thinking text for this model                                              │
                         │                                                                                                                  │
-vitals                  │ 18:12:41 [Mercury] Private reasoning answer.                                                                     │
+usage                   │ 20:19:58 [Mercury] Private reasoning answer.                                                                     │
   spend $0.00           │                                                                                                                  │
   ctx 0% · 1000k        │                                                                                                                  │
   health — run /health  │                                                                                                                  │

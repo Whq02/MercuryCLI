@@ -5,11 +5,11 @@ next                    │   ▀▄▄▄▀▄▄▄▀                       
   /health               │ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
   /memory               │                                                                                                                  │
   /goal                 │                                                                                                                  │
-                        │ 18:12:41 [sam] ❯ private reasoning                                                                               │
+                        │ 20:19:58 [sam] ❯ private reasoning                                                                               │
 files · project         │                                                                                                                  │
-  ↵ browse              │ 18:12:41 [Mercury] Private reasoning answer.                                                                     │
+  ↵ browse              │ 20:19:58 [Mercury] Private reasoning answer.                                                                     │
                         │                                                                                                                  │
-vitals                  │ 18:12:50 [sam] ❯ visible reasoning                                                                               │
+usage                   │ 20:20:07 [sam] ❯ visible reasoning                                                                               │
   spend $0.00           │                                                                                                                  │
   ctx 0% · 1000k        │ ● Preserved thinking: 2 thinking blocks written by Opus 4.8 stay out of the requests to Opus 5.5 (the            │
   health — run /health  │ conversation switched models); the model re-plans without them.                                                  │
@@ -18,7 +18,7 @@ vitals                  │ 18:12:50 [sam] ❯ visible reasoning                
                         │   Visible reasoning body.                                                                                        │
                         │                                                                                                                  │
                         │                                                                                                                  │
-                        │ 18:12:50 [Mercury] Visible reasoning answer.                                                                     │
+                        │ 20:20:07 [Mercury] Visible reasoning answer.                                                                     │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │

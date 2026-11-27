@@ -9,7 +9,7 @@ next                    │ ╭────────────────�
 files · project         │ │   Fable 5.2           claude-fable-5-2                       1M ctx                      │ │
   ↵ browse              │ │   Fable 5.1           claude-fable-5-1                       1M ctx                      │ │
                         │ │   Fable 5             claude-fable-5                         1M ctx                      │ │
-vitals                  │ │   Sonnet 5.5          claude-sonnet-5-5                      1M ctx                      │ │
+usage                   │ │   Sonnet 5.5          claude-sonnet-5-5                      1M ctx                      │ │
   spend —               │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
   ctx — · —             │ │ ❯ Opus 5.5            claude-opus-5-5           current      1M ctx                      │ │
   health — run /health  │ │   Opus 5              claude-opus-5                          1M ctx                      │ │

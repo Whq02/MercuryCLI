@@ -9,7 +9,7 @@ next                    │ │ Mercury · config                               
 files · project         │ │ › Thinking                          n/a — Opus 5.5 keeps thinking on                     │ │
   ↵ browse              │ │   This model thinks on every request; the setting cannot turn it off — /effort is the    │ │
                         │ │ lever.                                                                                   │ │
-vitals                  │ │                                                                                          │ │
+usage                   │ │                                                                                          │ │
   spend —               │ │                                                                                          │ │
   ctx — · —             │ │                                                                                          │ │
   health — run /health  │ │                                                                                          │ │

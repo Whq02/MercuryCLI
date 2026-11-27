@@ -9,7 +9,7 @@ next                    │ │ Mercury · config                               
 files · orchard         │ │ › Auto-compact                      on                                                   │ │
   ↵ browse              │ │   Auto-compact window               auto                                                 │ │
                         │ │   Session concourse                 on                                                   │ │
-vitals                  │ │   Seats                             17 · this machine's reading                          │ │
+usage                   │ │   Seats                             17 · this machine's reading                          │ │
   spend —               │ │   Tips                              on                                                   │ │
   ctx — · —             │ │   Reduced motion                    off                                                  │ │
   health — run /health  │ │   Ping                              on                                                   │ │

@@ -84,6 +84,7 @@ prove-transcript-search-steps.tsx
 prove-task-recency-expiry.tsx
 prove-message-renderer-edges.tsx
 prove-connect-lifecycle.ts
+prove-logins-sign-in-small-window.ts
 prove-file-hyperlinks.ts
 prove-file-open-fresh-query.ts
 prove-task-transcript-settle.tsx

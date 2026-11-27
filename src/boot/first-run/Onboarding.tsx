@@ -21,7 +21,7 @@ import { AMBER, FAINT, IVORY, SECOND } from '../../screen/theme/mercuryPalette.j
 import { MercurySetupFrame, useFirstRunCardsCentred, type SetupRailStep } from './MercurySetupFrame.js'
 import { getSyntaxTheme } from '../../screen/structured-diff/colorDiff.js'
 import { StructuredDiff } from '../../screen/structured-diff/StructuredDiff.js'
-import { AnimatedCritterArt } from '../../screen/widgets/AnimatedCritterArt.js'
+import { CritterArt } from '../../screen/widgets/CritterArt.js'
 import { GLYPH } from '../../screen/theme/glyphs.js'
 import { InteractiveRow } from '../../screen/widgets/InteractiveRow.js'
 import { useSessionAccent } from '../../screen/widgets/sessionAccent.js'
@@ -89,7 +89,7 @@ function FittingMascot({ rows }: { rows: number }): React.ReactNode {
   const accent = useSessionAccent()
   const def = critterDefForKey(accent.key)
   if (rows < 29) return null
-  return <AnimatedCritterArt def={def} specimen />
+  return <CritterArt def={def} />
 }
 
 function ThemeFitting({

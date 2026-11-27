@@ -56,7 +56,7 @@ const sse = (event: string, data: unknown): string => `event: ${event}\ndata: ${
 const finish = (reason: string): string => sse('message_delta', { type: 'message_delta', delta: { stop_reason: reason, stop_sequence: null }, usage: { output_tokens: 20 } }) + sse('message_stop', { type: 'message_stop' })
 const linesOf = (p: Grid): string[] => p.grid.map(row => row.map(c => c.c).join(''))
 function pane(lines: string[]): string[] {
-  const top = lines.findIndex(l => /^(?:╭─+╮|(?:crew \d+|work|runs|recent|goal|workbench|next|files|saturn|vitals)[^╭]*)╭─+╮/.test(l))
+  const top = lines.findIndex(l => /^(?:╭─+╮|(?:crew \d+|work|runs|recent|goal|workbench|next|files|schedule|usage)[^╭]*)╭─+╮/.test(l))
   if (top < 0) return []
   const left = lines[top]!.startsWith('╭') ? lines[top]!.indexOf('╭', 1) : lines[top]!.indexOf('╭')
   const right = lines[top]!.indexOf('╮', left + 1)
