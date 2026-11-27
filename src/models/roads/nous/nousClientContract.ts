@@ -14,7 +14,7 @@ import { compareClientContractVersions, readAnswerText } from '../../../engine/r
 export const NOUS_PORTAL_CLIENT_ID = 'hermes-cli'
 export const NOUS_PORTAL_SIGNIN_SCOPE = 'inference:invoke'
 export const NOUS_CLIENT_CONTRACT_RELEASE = '0.23.4'
-export const NOUS_CLIENT_CONTRACT_AS_OF = '2026-11-25'
+export const NOUS_CLIENT_CONTRACT_AS_OF = '2026-11-27'
 export const NOUS_CLIENT_SOURCE_DEFAULT_BASE = 'https://api.github.com'
 export const NOUS_CLIENT_SOURCE_REPO = 'NousResearch/hermes-agent'
 export const NOUS_CLIENT_SOURCE_FILE = 'hermes_cli/auth_constants.py'
