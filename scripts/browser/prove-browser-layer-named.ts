@@ -73,6 +73,8 @@ for (const [label, query] of [['a plain page', 'wall=none'], ['a fixed shell tha
   const absent = await run({ op: 'click', selector: '#nowhere', timeoutMs: 600 })
   check(`${label}: open and a miss say nothing of a layer`, opened.outcome === 'succeeded' && named(opened.result) === 0 && absent.outcome === 'failed' && named(absent.result) === 0, `${opened.result} | ${absent.result} — change: ${NOTE}`)
   check(`${label}: the miss is the sentence it was`, absent.result === 'click failed: no element for selector #nowhere within the 600ms deadline (the act auto-waits; the element never appeared)', `${absent.result} — change: ${NOTE}`)
+  const [head = '', count = '', ...more] = opened.result.split('\n')
+  check(`${label}: open’s answer is its two lines and no more: the address, the status and the page’s title, then the count of its text`, more.length === 0 && head.startsWith(`open: ${at(query)} [200] — watch (`) && head.endsWith(')') && /^ {2}page: \d+ chars of body text$/.test(count), `${JSON.stringify(opened.result)} — change: titleAndLayerNote in src/tools/browser/ops/page.ts reads the title and the layer in one call; openOp in src/tools/browser/ops/navigateOps.ts prints both`)
 }
 
 section('S4 a wall that arrives after the load: open cannot name it; the first act that fails under it does')

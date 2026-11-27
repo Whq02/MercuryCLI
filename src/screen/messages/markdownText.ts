@@ -91,9 +91,10 @@ export function applyMarkdown(
   theme: ThemeName,
   highlight?: CliHighlight | null,
   maxWidth = process.stdout.columns ?? Infinity,
+  literalBackslashes = false,
 ): string {
   configureMarked()
-  return marked.lexer(stripPromptXMLTags(content)).map(token => formatToken(token, theme, 0, null, null, highlight, maxWidth)).join('').trim()
+  return marked.lexer(stripPromptXMLTags(content)).map(token => formatToken(token, theme, 0, null, null, highlight, maxWidth, literalBackslashes)).join('').trim()
 }
 
 
@@ -101,8 +102,9 @@ function renderChildren(
   tokens: Token[] | undefined,
   theme: ThemeName,
   highlight?: CliHighlight | null,
+  literalBackslashes = false,
 ): string {
-  return tokens?.map(token => formatToken(token, theme, 0, null, null, highlight)).join('') ?? ''
+  return tokens?.map(token => formatToken(token, theme, 0, null, null, highlight, Infinity, literalBackslashes)).join('') ?? ''
 }
 
 function listItemMarker(orderedListNumber: number | null, listDepth: number): string {
@@ -120,12 +122,13 @@ export function formatToken(
   parent?: Token | null,
   highlight?: CliHighlight | null,
   widthBudget = Infinity,
+  literalBackslashes = false,
 ): string {
   const current = token as MarkedToken
-  const childrenOf = (owner: { tokens?: Token[] }) => owner.tokens?.map(child => formatToken(child, theme, 0, null, current, highlight)).join('') ?? ''
+  const childrenOf = (owner: { tokens?: Token[] }) => owner.tokens?.map(child => formatToken(child, theme, 0, null, current, highlight, Infinity, literalBackslashes)).join('') ?? ''
   switch (current.type) {
     case 'blockquote':
-      return renderChildren(current.tokens, theme, highlight).split('\n').map(line =>
+      return renderChildren(current.tokens, theme, highlight, literalBackslashes).split('\n').map(line =>
         stripAnsi(line).trim() ? `${chalk.dim(BLOCKQUOTE_BAR)} ${chalk.italic(line)}` : line,
       ).join('\n')
     case 'code': {
@@ -137,10 +140,10 @@ export function formatToken(
       return linkifyCodeUrls(highlight.highlight(current.text, { language })) + '\n'
     }
     case 'codespan': return color('info', theme)(current.text)
-    case 'em': return chalk.italic(renderChildren(current.tokens, theme, highlight))
-    case 'strong': return chalk.bold(renderChildren(current.tokens, theme, highlight))
+    case 'em': return chalk.italic(renderChildren(current.tokens, theme, highlight, literalBackslashes))
+    case 'strong': return chalk.bold(renderChildren(current.tokens, theme, highlight, literalBackslashes))
     case 'heading': {
-      const body = renderChildren(current.tokens, theme, highlight)
+      const body = renderChildren(current.tokens, theme, highlight, literalBackslashes)
       return (current.depth === 1 ? chalk.bold.italic.underline(body) : chalk.bold(body)) + '\n\n'
     }
     case 'hr': return '---\n'
@@ -152,13 +155,13 @@ export function formatToken(
     }
     case 'list': {
       const start = typeof current.start === 'number' ? current.start : 1
-      return current.items.map((item, i) => formatToken(item, theme, listDepth, current.ordered ? start + i : null, current, highlight)).join('')
+      return current.items.map((item, i) => formatToken(item, theme, listDepth, current.ordered ? start + i : null, current, highlight, Infinity, literalBackslashes)).join('')
     }
     case 'list_item': {
       const indent = '  '.repeat(listDepth + 1)
       return current.tokens.map((child, i) => {
         const nested = child.type === 'list'
-        const body = formatToken(child, theme, nested ? listDepth + 1 : listDepth, i === 0 ? orderedListNumber : null, i === 0 ? current : null, highlight)
+        const body = formatToken(child, theme, nested ? listDepth + 1 : listDepth, i === 0 ? orderedListNumber : null, i === 0 ? current : null, highlight, Infinity, literalBackslashes)
         return i === 0 || nested ? body : body.split('\n').map(line => line && indent + line).join('\n')
       }).join('')
     }
@@ -173,10 +176,10 @@ export function formatToken(
       const marker = listItemMarker(orderedListNumber, listDepth)
       return marker + body.replaceAll('\n', '\n' + ' '.repeat(stringWidth(marker))) + '\n'
     }
-    case 'table': return renderTable(current, theme, highlight, widthBudget)
-    case 'br':
+    case 'table': return renderTable(current, theme, highlight, widthBudget, literalBackslashes)
+    case 'br': return literalBackslashes && current.raw.startsWith('\\') ? current.raw : '\n'
     case 'space': return '\n'
-    case 'escape': return current.text
+    case 'escape': return literalBackslashes && current.text !== '<' && current.text !== '>' ? current.raw : current.text
     default: return ''
   }
 }
@@ -189,12 +192,13 @@ function renderTable(
   theme: ThemeName,
   highlight: CliHighlight | null | undefined,
   widthBudget: number,
+  literalBackslashes = false,
 ): string {
   const headerCells = table.header.map(cell =>
-    renderChildren(cell.tokens, theme, highlight),
+    renderChildren(cell.tokens, theme, highlight, literalBackslashes),
   )
   const rows = table.rows.map(row =>
-    row.map(cell => renderChildren(cell.tokens, theme, highlight)),
+    row.map(cell => renderChildren(cell.tokens, theme, highlight, literalBackslashes)),
   )
   const columns = headerCells.length
 
