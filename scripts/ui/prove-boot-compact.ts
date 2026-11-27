@@ -177,16 +177,16 @@ for (const [cols, rows] of sizes) {
     }
     if (cols === 80 && rows === 21) {
       check('80x21: the banner and rule stand above the centred card', boot.some(l => l.includes('██▄██')) && boot.some(l => l.includes('─'.repeat(40))), 'the 80x21 compact face should show the banner and rule above the card (composeCompactFace in assets/splash/splash-core.mjs); top rows: ' + boot.slice(0, 8).join(' | '))
-      check('80x21: the framed card is 37 wide, centred, with the hint as its last inner row', boot.some(l => l === topBorder(37, 21)) && boot.some(l => l.trim().startsWith('╰')) && boot.some(liveInFrameHint), 'the 80x21 card frame is wrong in the live face; fix the card width, centring or hint row in composeCompactFace in assets/splash/splash-core.mjs. Boot frame is printed above')
+      check('80x21: the framed card is 36 wide, centred, with the hint as its last inner row', boot.some(l => l === topBorder(36, 22)) && boot.some(l => l.trim().startsWith('╰')) && boot.some(liveInFrameHint), 'the 80x21 card frame is wrong in the live face; fix the card width, centring or hint row in composeCompactFace in assets/splash/splash-core.mjs. Boot frame is printed above')
     }
     if (cols === 80 && rows === 14) {
-      check('80x14: the banner gives way and the centred 37-wide frame holds the hint', !boot.some(l => l.includes('██▄██')) && boot.some(l => l === topBorder(37, 21)) && boot.some(liveInFrameHint), 'the 80x14 compact frame is wrong in the live face; fix composeCompactFace in assets/splash/splash-core.mjs. Boot frame is printed above')
+      check('80x14: the banner gives way and the centred 36-wide frame holds the hint', !boot.some(l => l.includes('██▄██')) && boot.some(l => l === topBorder(36, 22)) && boot.some(liveInFrameHint), 'the 80x14 compact frame is wrong in the live face; fix composeCompactFace in assets/splash/splash-core.mjs. Boot frame is printed above')
     }
     if (cols === 60 && rows === 16) {
-      check('60x16: the five-row card fits with the banner and 37-wide centred frame', boot.some(l => l.includes('██▄██')) && boot.some(l => l === topBorder(37, 11)) && boot.some(liveInFrameHint), 'the 60x16 compact frame is wrong in the live face; fix composeCompactFace in assets/splash/splash-core.mjs. Boot frame is printed above')
+      check('60x16: the five-row card fits with the banner and 36-wide centred frame', boot.some(l => l.includes('██▄██')) && boot.some(l => l === topBorder(36, 12)) && boot.some(liveInFrameHint), 'the 60x16 compact frame is wrong in the live face; fix composeCompactFace in assets/splash/splash-core.mjs. Boot frame is printed above')
     }
     if (cols === 40 && rows === 10) {
-      check('40x10: the banner gives way and the 37-wide frame keeps all rows and the caret on screen', !boot.some(l => l.includes('██▄██')) && boot[0] === topBorder(37, 1) && boot.some(liveInFrameHint) && boot.some(l => l.includes('❯ New Session')), 'the 40x10 compact frame is wrong in the live face; fix composeCompactFace in assets/splash/splash-core.mjs. Boot frame is printed above')
+      check('40x10: the banner gives way and the 36-wide frame keeps all rows and the caret on screen', !boot.some(l => l.includes('██▄██')) && boot[0] === topBorder(36, 2) && boot.some(liveInFrameHint) && boot.some(l => l.includes('❯ New Session')), 'the 40x10 compact frame is wrong in the live face; fix composeCompactFace in assets/splash/splash-core.mjs. Boot frame is printed above')
     }
     if (!compact) {
       check(`${cols}x${rows}: the full-size face is untouched (its own ready line, its key-map at the left, no compact frame)`, paintsBootFaceReady(joined(boot)) && (boot[rows - 1] ?? '').startsWith('  ' + CONCOURSE_HINT_HOST) && !boot.some(liveInFrameHint), 'the full-size Boot face (100x26 and up) must not use the compact frame or lose its left-aligned key-map; check the size gate in src/screen/boot-face/splash/face.tsx. Boot frame is printed above')
