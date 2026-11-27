@@ -143,7 +143,7 @@ export async function installVerb(options: InstallCliOptions = {}): Promise<neve
     }
     lines.push(describePathOutcome(result.path, roots.isWindows, homedir(), !result.changed))
     lines.push('configuration and sessions live in your Mercury home and were not touched')
-    lines.push('next: `mercury update --check` keeps this install current (no GitHub sign-in needed)')
+    lines.push('next: `mercury update` keeps this install current (no GitHub sign-in needed)')
     return cliOk(lines.join('\n'))
   }
   return cliError(`install refused${result.stage ? ` at ${result.stage}` : ''}: ${result.reason}\n  ${result.remedy}${result.receiptPath ? `\n  receipt: ${result.receiptPath}` : ''}`)
