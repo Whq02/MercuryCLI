@@ -831,8 +831,8 @@ Each wire carries its provider's documented quirks, the same pins the wire
 sends from: reasoning-effort vocabularies, sampling restrictions
 (the Kimi reasoning models fix their sampling, so that lane never sends
 temperature), output-knob names, and usage-field spellings. The local lane
-serves discovered servers (TensorFold in [TENSORFOLD.md](TENSORFOLD.md), Ollama,
-LM Studio, vLLM, llama.cpp) at each
+serves discovered servers (llama.cpp, Ollama, LM Studio, vLLM, and TensorFold
+in [TENSORFOLD.md](TENSORFOLD.md)) at each
 model's own base URL, omitting what a server kind does not support. Its
 context window is never a number Mercury decides: a model's served window is
 read from the server before a request is judged against it (Ollama loads the

@@ -68,12 +68,10 @@ export const ANTHROPIC_FAMILY_ROW_LABEL = 'Anthropic — Claude subscription or 
 export function loginFamilyRows({ engineLegs, tensorfold, externalAgents }: { engineLegs: boolean; tensorfold?: TensorFoldOffer | null; externalAgents?: boolean }): LoginFamilyRow[] {
   const offered = tensorfold === undefined || tensorfold === null ? undefined : tensorFoldFamilyRow(tensorfold)
   return [
-    ...(offered !== undefined && tensorfold?.kind !== 'host' ? [offered] : []),
     ...(engineLegs
       ? [{ label: 'OpenAI — ChatGPT subscription or API key', value: 'openai' as const }]
       : []),
     { label: ANTHROPIC_FAMILY_ROW_LABEL, value: 'anthropic' },
-    ...(offered !== undefined && tensorfold?.kind === 'host' ? [offered] : []),
     ...(engineLegs
       ? [
           {
@@ -106,6 +104,7 @@ export function loginFamilyRows({ engineLegs, tensorfold, externalAgents }: { en
         ]
       : []),
     ...(externalAgents === true ? [devinExternalAgentRow()] : []),
+    ...(offered !== undefined ? [offered] : []),
   ]
 }
 
@@ -227,8 +226,8 @@ export function loginFamilyNameOf(row: LoginFamilyRow): string {
 }
 
 export function connectableLoginFamilyWords(tensorfold = false): string {
-  const names = [...(tensorfold ? ['TensorFold'] : []), ...loginFamilyRows({ engineLegs: true })
+  const names = [...loginFamilyRows({ engineLegs: true })
     .filter(row => row.value !== 'openai' && row.value !== 'anthropic')
-    .map(loginFamilyNameOf)]
+    .map(loginFamilyNameOf), ...(tensorfold ? ['TensorFold'] : [])]
   return `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`
 }
