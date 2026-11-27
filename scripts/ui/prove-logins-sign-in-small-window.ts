@@ -135,7 +135,7 @@ const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
 
 const FIX_PANE = 'src/screen/boot-face/logins/menuModel.ts marks a waiting sign-in must-read-whole and hands the composer loginsFlowNoticeOf(flow) as detailOverrideWhole; assets/splash/splash-core.mjs paints those words in the block and leaves the wide layout where the pane still does not fit'
 const FIX_FLOOR = 'src/screen/boot-face/logins/menuModel.ts hands the composer detailOverrideWholeElse (loginsFlowNoticeWhereCutOf) while the unconfirmed sentence stands; composeBootMenuClassic in assets/splash/splash-core.mjs then lets the notice take the list rows it needs and paints those words where the address still does not fit; the other ending is signInCopyNoteWhereCut in src/models/sign-in/signInCopy.ts'
-const FIX_LINE = 'src/screen/boot-face/logins/lentTerminal.ts: showSignInAddressLine lends the terminal (lendTerminal), writes the address alone on its line and waits for Enter or Esc by a listener (returnPressed), never by a blocking read; flowKeys.ts, SignInFlow.tsx and SignInCopyLine.tsx call it on a second c; BootLoginsScreen.tsx claims a press on a row that holds the address (loginsAddressRows): a drag from it copies by copyFlowAddress in flowKeys.ts, never by the keys, and a click does nothing; a resize while the line is up writes it again'
+const FIX_LINE = 'src/screen/boot-face/logins/lentTerminal.ts: showSignInAddressLine lends the terminal (lendTerminal), writes the address alone on its line and waits for Enter or Esc by a listener (returnPressed), never by a blocking read; flowKeys.ts, SignInFlow.tsx and SignInCopyLine.tsx call it on a second c; BootLoginsScreen.tsx claims a press on a row that holds the address (loginsAddressRows): a drag from it copies by copyFlowAddress in flowKeys.ts, never by the keys, and a click (isClickSlop of the press and the release, the test every screen asks) does nothing; a resize while the line is up writes it again'
 const FIX_COPY = 'src/models/sign-in/signInCopy.ts decides what c may say (signInCopyAnswerOf) and words it; boot-face/logins/flowKeys.ts, widgets/faces/anthropicLoginModel.ts and flow-cards/SignInCopyLine.tsx read it, and SignInCopyLine and BootLoginsScreen hand the mouse back while the sentence stands'
 let fix = FIX_PANE
 let failures = 0
@@ -926,6 +926,23 @@ try {
     }
     await click(sure.m, sure.col + 5, sure.first)
     check('a clipboard that answers: c, c, c, then one click on the address: three copies, not four', receipts === answered + 3, `copies ${receipts - answered}`)
+    const quiet = await waitFor(() => !sure.m.screen().includes('copied to clipboard'), 4000)
+    sure.m.push(mouse(0, sure.col + 5, sure.first))
+    await painted(40)
+    sure.m.push(mouse(0, sure.col + 6, sure.first, true))
+    await settle(500)
+    check(
+      'a press that slips one cell before its release is a click, as on every other screen: still three copies and no ack',
+      quiet && receipts === answered + 3 && !sure.m.screen().includes('copied to clipboard'),
+      `copies ${receipts - answered} · ack ${sure.m.screen().includes('copied to clipboard')}`,
+    )
+    sure.m.push(mouse(0, sure.col + 5, sure.first))
+    await painted(40)
+    sure.m.push(mouse(32, sure.col + 9, sure.first))
+    await painted(40)
+    sure.m.push(mouse(0, sure.col + 5, sure.first, true))
+    await settle(500)
+    check('…and a press that wanders and is released where it began is a click too', receipts === answered + 3, `copies ${receipts - answered}`)
     sure.m.push('x')
     sure.m.push('y')
     const typed = await waitFor(() => draft(sure.m.screen()) === 2, 2000)
@@ -954,9 +971,17 @@ try {
     check('with no clipboard in reach a drag over the address says the sentence, as c does', told && shown.length === asked && clipboardHeld() === '', words(at.m.screen()).slice(0, 260))
     await click(at.m, at.col + 5, span(at.m).first)
     check('…a click while the sentence stands does nothing: the one-line screen is not shown', shown.length === asked && words(at.m.screen()).includes(SENT_URL), `asked=${shown.length - asked}`)
+    const row = span(at.m)
+    at.m.push(mouse(0, row.col + 2, row.first))
+    await painted(40)
+    at.m.push(mouse(32, row.col + 12, row.first))
+    await painted(40)
+    at.m.push(mouse(0, row.col + 12, row.first, true))
+    const inRow = await waitFor(() => shown.length === asked + 1, 2000)
+    check('…a drag of ten cells inside one row of it is the second c: the whole address on one line', inRow && shown.at(-1) === OPENAI_URL, `asked=${shown.length - asked}`)
     await drag({ m: at.m, ...span(at.m) })
-    const second = await waitFor(() => shown.length === asked + 1, 2000)
-    check('…and a second drag is the second c: the whole address on one line', second && shown.at(-1) === OPENAI_URL, `asked=${shown.length - asked}`)
+    const second = await waitFor(() => shown.length === asked + 2, 2000)
+    check('…and so is a drag from its first row to its last', second && shown.at(-1) === OPENAI_URL, `asked=${shown.length - asked}`)
     const roster = at.m.screen().split('\n').findIndex(row => row.includes('❯'))
     const copies = receipts
     const askedAgain = shown.length

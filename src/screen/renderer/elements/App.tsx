@@ -15,6 +15,7 @@ import {
 } from '../../cockpit/warmBackground.js'
 import { EventEmitter } from '../events/emitter.js'
 import { bumpInputEventSeqForMouse } from '../events/input-event.js'
+import { isClickSlop } from '../events/text-gesture.js'
 import {
   finishSelection,
   hasSelection,
@@ -540,8 +541,7 @@ export function handleMouseEvent(app: App, atom: ParsedMouse): void {
     selection.anchorSpan === null &&
     selection.anchor !== null &&
     bounds !== null &&
-    bounds.start.row === bounds.end.row &&
-    bounds.end.col - bounds.start.col <= 1
+    isClickSlop(bounds.start, bounds.end)
 
   if (isSlop) {
     selection.focus = null

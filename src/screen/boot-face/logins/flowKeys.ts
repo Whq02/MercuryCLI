@@ -5,7 +5,7 @@ import type { OpenFlowState } from './flowLines.js';
 import { showSignInAddressLine } from './lentTerminal.js';
 import type { LoginsFlowContext } from './context.js';
 import type { Key } from '../../themedRenderer.js';
-import type { TextGesture } from '../../renderer/events/text-gesture.js';
+import { isClickSlop, type TextGesture } from '../../renderer/events/text-gesture.js';
 import { startTimeout } from '../../../platform/async/timers.js';
 
 export function receiptFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFlowState, { kind: 'receipt' }>, key: Key): void {
@@ -88,20 +88,17 @@ function copyFlowAddress(ctx: LoginsFlowContext): void {
   else if (current.kind === 'anthropic') copyAnthropicAddress(ctx);
 }
 
-export type AddressPress = { col: number; row: number; moved: boolean };
+export type AddressPress = { col: number; row: number };
 
 export function addressDragGesture(ctx: LoginsFlowContext, held: { current: AddressPress | null }, gesture: TextGesture): boolean {
   if (gesture.kind === 'press') {
-    held.current = { col: gesture.localCol, row: gesture.localRow, moved: false };
+    held.current = { col: gesture.localCol, row: gesture.localRow };
     return true;
   }
   const press = held.current;
-  if (press === null) return true;
-  if (gesture.localCol !== press.col || gesture.localRow !== press.row) press.moved = true;
-  if (gesture.kind === 'release') {
-    held.current = null;
-    if (press.moved) copyFlowAddress(ctx);
-  }
+  if (gesture.kind !== 'release' || press === null) return true;
+  held.current = null;
+  if (!isClickSlop(press, { col: gesture.localCol, row: gesture.localRow })) copyFlowAddress(ctx);
   return true;
 }
 
