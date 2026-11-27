@@ -1,18 +1,48 @@
-import { lstatSync, readlinkSync, realpathSync } from 'node:fs'
+import { lstatSync, readlinkSync, realpathSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, parse, relative, resolve, sep } from 'node:path'
+import { accountHome } from './proofGuard.cjs'
 
 export function defaultConfigHome(): string {
   return resolve(join(homedir(), '.mercury'))
 }
 
-export function configHomeIsReal(env: NodeJS.ProcessEnv = process.env): boolean {
+export function configHomeIsReal(env: NodeJS.ProcessEnv = process.env, cwd: string = process.cwd()): boolean {
   const pinned = env.MERCURY_CONFIG_DIR?.trim()
   if (pinned === undefined || pinned === '') return true
-  const target = canonicalPath(pinned)
+  const named = resolve(cwd, pinned)
+  const target = canonicalPath(named)
   const root = canonicalPath(defaultConfigHome())
   const inside = relative(root, target)
-  return inside === '' || inside !== '..' && !inside.startsWith(`..${sep}`) && !isAbsolute(inside)
+  if (inside === '' || inside !== '..' && !inside.startsWith(`..${sep}`) && !isAbsolute(inside)) return true
+  return [named, target].some(operatorsOwnStore)
+}
+
+function operatorsOwnStore(path: string): boolean {
+  let folder = parse(path).root
+  for (const name of path.slice(folder.length).split(sep)) {
+    if (name.toLowerCase().startsWith('.mercury') && sameFolder(folder, systemAccountHome())) return true
+    folder = join(folder, name)
+  }
+  return false
+}
+
+function systemAccountHome(): string {
+  try {
+    return accountHome()
+  } catch {
+    return homedir()
+  }
+}
+
+function sameFolder(one: string, other: string): boolean {
+  try {
+    const a = statSync(one, { bigint: true })
+    const b = statSync(other, { bigint: true })
+    return a.dev === b.dev && a.ino === b.ino
+  } catch {
+    return false
+  }
 }
 
 function canonicalPath(path: string): string {

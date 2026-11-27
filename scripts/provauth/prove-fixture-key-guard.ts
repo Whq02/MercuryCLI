@@ -30,10 +30,11 @@ const FIXTURE = 'zz-SECRETBYTES-0f9e8d7c6b5a4321'
 const REAL = 'AIzaSyA0000000000000000000000000000000'
 
 const { guardLoginDriverWrite, configHomeIsReal, defaultConfigHome } = await import('../lib/loginDriverGuard.ts')
+const { accountHome } = await import('../lib/proofGuard.cjs')
 const { looksLikeProofFixtureKey, deriveFamilySlotGroups } = await import('../../src/models/roads/accountSlots.ts')
 const { writeStoredGeminiApiKey, readStoredGeminiApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
 
-const homeHint = 'fix configHomeIsReal in scripts/lib/loginDriverGuard.ts so that only the default config home and paths inside it read as the real store'
+const homeHint = "fix configHomeIsReal in scripts/lib/loginDriverGuard.ts so that a missing pin, the default config home, every folder under the account's home whose name begins .mercury, and paths inside them read as the real store, and nothing else does"
 const guardHint = 'fix guardLoginDriverWrite in scripts/lib/loginDriverGuard.ts so that it throws (message naming the real store) only when configHomeIsReal reads true'
 const fixtureHint = 'fix looksLikeProofFixtureKey in src/models/roads/account-slots/keyLane.ts'
 {
@@ -43,7 +44,8 @@ const fixtureHint = 'fix looksLikeProofFixtureKey in src/models/roads/account-sl
   check('configHomeIsReal: a pin naming the default home reads real', configHomeIsReal({ MERCURY_CONFIG_DIR: join(homedir(), '.mercury') }) && configHomeIsReal({ MERCURY_CONFIG_DIR: join(homedir(), '.mercury') + '/' }), homeHint)
   check('configHomeIsReal: a scratch pin is not the real store', !configHomeIsReal({ MERCURY_CONFIG_DIR: '/tmp/prove-fixture-scratch' }), homeHint)
   check('configHomeIsReal: a nested path under the real store is still real', configHomeIsReal({ MERCURY_CONFIG_DIR: join(defaultConfigHome(), 'nested', 'missing') }), homeHint)
-  check('configHomeIsReal: a sibling sharing the prefix is not real', !configHomeIsReal({ MERCURY_CONFIG_DIR: `${defaultConfigHome()}-proof` }), homeHint)
+  const account: string = process.platform === 'win32' ? homedir() : accountHome()
+  check("configHomeIsReal: beside the default home, a folder whose name begins .mercury is the operator's too (a profile's store) and one whose name does not is not", configHomeIsReal({ MERCURY_CONFIG_DIR: join(account, '.mercury-proof') }) && configHomeIsReal({ MERCURY_CONFIG_DIR: join(account, '.mercury2', 'nested') }) && !configHomeIsReal({ MERCURY_CONFIG_DIR: join(account, 'mercury-proof') }), homeHint)
   const alias = join(process.env.MERCURY_CONFIG_DIR!, 'home-link')
   symlinkSync(defaultConfigHome(), alias, 'dir')
   try {

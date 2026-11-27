@@ -260,5 +260,5 @@ function installProofGuard() {
     process.stderr.write(`proof guard: not installed (${error.message}); this process can remove, rename and link over the account's own temp root, config home and cache home\n`)
   }
 }
-module.exports = { proofEntry, openSystemLibrary, carryProofGuard }
+module.exports = { proofEntry, openSystemLibrary, carryProofGuard, accountHome }
 installProofGuard()
