@@ -1,10 +1,13 @@
 import chalk from 'chalk'
+import { rgbToAnsi16, rgbToAnsi8, rgbToXterm256 } from './cell-grid.js'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { isEnvTruthy } from '../../platform/environment/envUtils.js'
 import instances from './instances.js'
 import type { Color, TextStyles } from './styles.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { hostEnv } from '../../platform/environment/hostEnv.js'
+import { ESC } from './termio/ansi.js'
+import { csi } from './termio/csi.js'
 
 export type ColorType = 'foreground' | 'background'
 
@@ -27,6 +30,12 @@ function honorNoColor(): boolean {
 }
 export const CHALK_DISABLED_FOR_NO_COLOR = honorNoColor()
 if (hostEnv().FORCE_COLOR !== undefined && !['', '1', '2', '3', 'true'].includes(hostEnv().FORCE_COLOR!)) chalk.level = 0
+
+function unknownTermTakesColor(env: Record<string, string | undefined>): boolean {
+  if (shouldHonorNoColor(env) || env.FORCE_COLOR !== undefined || env.CI !== undefined) return false
+  return Boolean(env.TERM) && env.TERM !== 'dumb'
+}
+if (chalk.level === 0 && process.stdout.isTTY && unknownTermTakesColor(hostEnv())) chalk.level = 1
 
 export function truecolorFingerprint(
   env: Record<string, string | undefined> = hostEnv(),
@@ -71,8 +80,9 @@ function clampChalkLevelForMercury(): boolean {
 export const CHALK_CLAMPED_FOR_MERCURY: boolean = clampChalkLevelForMercury()
 
 function boostChalkLevelForMercury(): boolean {
-  if (CHALK_CLAMPED_FOR_MERCURY || chalk.level !== 2) return false
+  if (CHALK_CLAMPED_FOR_MERCURY || chalk.level < 1 || chalk.level > 2) return false
   if (!isEnvTruthy(readTruecolorFlag())) return false
+  if (chalk.level === 1 && hostEnv().TERM === 'linux') return false
   chalk.level = 3
   return true
 }
@@ -87,6 +97,29 @@ function clampChalkLevelForTmux(): boolean {
 export const CHALK_CLAMPED_FOR_TMUX: boolean = clampChalkLevelForTmux()
 
 export const DETECTED_CHALK_LEVEL: number = chalk.level
+
+export const TRUECOLOR_QUERY = `${ESC}7${csi('48;2;1;2;3m')}${ESC}P$qm${ESC}\\${csi('0m')}${ESC}8`
+
+export function truecolorEcho(setting: string): boolean {
+  return /(?:^|;)48[:;]2[:;](?:\d*[:;])?1[:;]2[:;]3(?:;|m|$)/.test(setting)
+}
+
+export function truecolorAskable(env: Record<string, string | undefined> = hostEnv()): boolean {
+  if (chalk.level >= 3 || shouldHonorNoColor(env) || env.FORCE_COLOR !== undefined) return false
+  if (env.TMUX || env.TERM_PROGRAM === 'Apple_Terminal' || readTruecolorFlag() !== undefined) return false
+  const term = env.TERM
+  return term !== undefined && term !== 'dumb' && term !== 'linux'
+}
+
+export function takeTruecolorAnswer(echoed: boolean): boolean {
+  if (!echoed || !truecolorAskable()) return false
+  chalk.level = 3
+  return true
+}
+
+export function truecolorAnswered(): boolean {
+  return chalk.level > DETECTED_CHALK_LEVEL
+}
 
 let monochromeTheme = false
 
@@ -119,6 +152,7 @@ export function colorDepthWhy(): string {
   if (CHALK_CLAMPED_FOR_TMUX) return 'tmux carries 256 colors unless it is configured for 24-bit'
   if (CHALK_CLAMPED_FOR_MERCURY) return 'MERCURY_TRUECOLOR=0 clamps the depth to 256 colors'
   if (CHALK_BOOSTED_FOR_MERCURY) return 'MERCURY_TRUECOLOR=1 forces the full depth'
+  if (truecolorAnswered()) return 'the terminal answered at start that it keeps 24-bit color'
   if (CHALK_BOOSTED_FOR_FINGERPRINT) {
     return `${TRUECOLOR_FINGERPRINT} names a terminal with 24-bit color that does not advertise it`
   }
@@ -131,6 +165,11 @@ export function colorDepthWhy(): string {
     return 'the terminal advertises no 24-bit color (COLORTERM is unset and no known truecolor terminal is named)'
   }
   return 'the terminal advertises fewer than 256 colors'
+}
+
+export function colorDepth(): 'truecolor' | '256' | '16' | 'none' {
+  if (colorStripped()) return 'none'
+  return chalk.level >= 3 ? 'truecolor' : chalk.level === 2 ? '256' : '16'
 }
 
 type Painter = { fg: (s: string) => string; bg: (s: string) => string }
@@ -156,6 +195,28 @@ const NAMED_PAINTERS: Record<string, Painter> = {
 
 const ANSI256_RE = /^ansi256\((\d+)\)$/
 const RGB_RE = /^rgb\( ?(\d+), ?(\d+), ?(\d+) ?\)$/
+const HEX_RE = /[a-f\d]{6}|[a-f\d]{3}/i
+
+function hexChannels(color: string): [number, number, number] {
+  const digits = HEX_RE.exec(color)?.[0] ?? '000000'
+  const value = parseInt(digits.length === 3 ? [...digits].map(digit => digit + digit).join('') : digits, 16)
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255]
+}
+
+function paintNearest(str: string, r: number, g: number, b: number, type: ColorType, depth: '256' | '16'): string {
+  if (type === 'foreground') return chalk.ansi256(depth === '256' ? rgbToXterm256(r, g, b) : rgbToAnsi16(r, g, b))(str)
+  return chalk.bgAnsi256(depth === '256' ? rgbToXterm256(r, g, b) : rgbToAnsi8(r, g, b))(str)
+}
+
+export function rgbSgr(r: number, g: number, b: number, type: ColorType): string {
+  const depth = colorDepth()
+  const channel = type === 'foreground' ? 38 : 48
+  if (depth === 'truecolor') return `\x1b[${channel};2;${r};${g};${b}m`
+  if (depth !== '16') return `\x1b[${channel};5;${rgbToXterm256(r, g, b)}m`
+  if (type === 'background') return `\x1b[${40 + rgbToAnsi8(r, g, b)}m`
+  const index = rgbToAnsi16(r, g, b)
+  return `\x1b[${index < 8 ? 30 + index : 82 + index}m`
+}
 
 export function colorize(
   str: string,
@@ -175,6 +236,8 @@ export function colorize(
   }
 
   if (color.startsWith('#')) {
+    const depth = colorDepth()
+    if (depth === '256' || depth === '16') return paintNearest(str, ...hexChannels(color), type, depth)
     return type === 'foreground' ? chalk.hex(color)(str) : chalk.bgHex(color)(str)
   }
 
@@ -191,6 +254,8 @@ export function colorize(
     const r = Number(match[1])
     const g = Number(match[2])
     const b = Number(match[3])
+    const depth = colorDepth()
+    if (depth === '256' || depth === '16') return paintNearest(str, r, g, b, type, depth)
     return type === 'foreground' ? chalk.rgb(r, g, b)(str) : chalk.bgRgb(r, g, b)(str)
   }
 

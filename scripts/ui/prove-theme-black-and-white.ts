@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { colorSgrSequences, readTeeFrames } from './appleTerminalReading.ts'
+import { basicColourCodes } from './colourDepthJourney.ts'
 import { fixture, ROOT } from './viewportFixture.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
@@ -191,7 +192,7 @@ writeFrames(stored)
   check('/appearance lists the three rows with Black and white focused', picker !== undefined && textOf(picker.grid).some(l => l.includes('Oasis dark')) && textOf(picker.grid).some(l => l.includes('True Black')) && textOf(picker.grid).some(l => /[❯>] .*Black and white/.test(l)), picker ? textOf(picker.grid).filter(l => /Black and white|True Black|Oasis dark/.test(l)).join(' | ') : 'no picker mark')
   check('the picker frame is still plain (the demo diff included)', picker !== undefined && colouredCells(picker.grid) === 0, picker ? `${colouredCells(picker.grid)} coloured cells` : 'no picker mark')
   check('the status line says the syntax colour is absent on this appearance', picker !== undefined && textOf(picker.grid).some(l => l.includes('no colour on Black and white')), picker ? textOf(picker.grid).filter(l => l.includes('Syntax')).join(' | ') : 'no picker mark')
-  check('↑ previews True Black: colour returns to the frame', preview !== undefined && colouredCells(preview.grid) > 0 && colourSgrCount(bytesBetween(stored, 'picker', 'preview-true-black')) > 0, preview ? `${colouredCells(preview.grid)} coloured cells · ${colourSgrCount(bytesBetween(stored, 'picker', 'preview-true-black'))} colour sequences` : 'no preview mark')
+  check('↑ previews True Black: colour returns to the frame', preview !== undefined && colouredCells(preview.grid) > 0 && colourSgrCount(bytesBetween(stored, 'picker', 'preview-true-black')) + basicColourCodes(bytesBetween(stored, 'picker', 'preview-true-black')) > 0, preview ? `${colouredCells(preview.grid)} coloured cells · ${colourSgrCount(bytesBetween(stored, 'picker', 'preview-true-black'))} indexed or 24-bit and ${basicColourCodes(bytesBetween(stored, 'picker', 'preview-true-black'))} basic colour sequences` : 'no preview mark')
   check('esc releases the preview: the frame is plain again and the picker is gone', restored !== undefined && colouredCells(restored.grid) === 0 && !textOf(restored.grid).some(l => l.includes('Oasis dark')), restored ? `${colouredCells(restored.grid)} coloured cells` : 'no restored mark')
   check('the stored theme is untouched by the preview', (JSON.parse(readFileSync(stored.config, 'utf8')) as { theme?: string }).theme === 'mono')
 }

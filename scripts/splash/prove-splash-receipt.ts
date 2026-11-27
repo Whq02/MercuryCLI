@@ -210,6 +210,89 @@ section('(4) writer-side pins — the asset speaks ONLY the new protocol')
   check('the receipt embeds the LH-01 launch id when the launcher minted one', src.includes('MERCURY_LAUNCH_ID') && src.includes('launchId: LAUNCH_ID'))
 }
 
+section('(5) truecolor receipt field — accepted by decideSplashReceipt and written by the splash only when asked')
+{
+  hintWhere = 'to fix, check writeSplashAction and writeScreenReceipt in assets/splash/mercury-splash.mjs'
+  const d = (raw: string | null) => decideSplashReceipt(raw, NOW, dirExists)
+  check('screen-only receipt carrying truecolor: true still reads as screen-only', d(fresh({ screen: 'held', truecolor: true })).reason === 'screen-only')
+  check('screen-only receipt carrying truecolor: false still reads as screen-only', d(fresh({ screen: 'restored', truecolor: false })).reason === 'screen-only')
+  check('screen-only receipt carrying truecolor: pending hands pending on', d(fresh({ screen: 'held', truecolor: 'pending' })).truecolor === 'pending')
+  check('stale pending receipt hands nothing on', decideSplashReceipt(JSON.stringify({ version: 1, ts: NOW - 121_000, screen: 'held', truecolor: 'pending' }), NOW, dirExists).truecolor === undefined)
+  check('foreign-launch pending receipt hands nothing on', decideSplashReceipt(fresh({ screen: 'held', truecolor: 'pending', launchId: 'L1' }), NOW, dirExists, 'L2').truecolor === undefined)
+  check('invalid truecolor string hands nothing on', d(fresh({ screen: 'held', truecolor: 'yes' })).truecolor === undefined)
+  check('action receipt carrying truecolor: true still applies its action', d(fresh({ action: 'continue', dir: '/proof/project', truecolor: true })).apply?.spliceArg === '--continue')
+  check('cancel receipt carrying truecolor: false still reads as cancel-ignored', d(fresh({ action: 'cancel', truecolor: false })).reason === 'cancel-ignored')
+
+  const { spawn } = await import('node:child_process')
+  const { resolve } = await import('node:path')
+  const { fileURLToPath } = await import('node:url')
+  const { dirname } = await import('node:path')
+  const { TRUECOLOR_QUERY } = await import('../../src/screen/renderer/colorize.ts')
+  const splashPath = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets', 'splash', 'mercury-splash.mjs')
+  const reqBytes = TRUECOLOR_QUERY + '\x1b[c'
+  const boot = [
+    "import { resolve } from 'node:path'",
+    "import { pathToFileURL } from 'node:url'",
+    'const [p] = process.argv.slice(1)',
+    "Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })",
+    "Object.defineProperty(process.stdout, 'columns', { get: () => 120, configurable: true })",
+    "Object.defineProperty(process.stdout, 'rows', { get: () => 44, configurable: true })",
+    "Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })",
+    'process.stdin.setRawMode = () => process.stdin',
+    'await import(pathToFileURL(resolve(p)).href)',
+  ].join('\n')
+  const runSplash = async (extraEnv: Record<string, string>, reply: string | null, key: string): Promise<Record<string, unknown> | null> => {
+    const scratch = mkdtempSync(join(tmpdir(), 'splash-receipt-tc-'))
+    try {
+      await new Promise<void>(done => {
+        const child = spawn('node', ['--input-type=module', '-e', boot, splashPath], {
+          env: {
+            PATH: process.env.PATH ?? '/usr/bin:/bin',
+            HOME: scratch,
+            TERM: 'xterm-256color',
+            MERCURY_HOME: scratch,
+            MERCURY_CONFIG_DIR: scratch,
+            MERCURY_CREDENTIAL_STORE: 'file',
+            MERCURY_LOCAL_PROBE_TARGETS: 'none',
+            MERCURY_FULLSCREEN: '0',
+            MERCURY_LAUNCH_RIPPLE: '0',
+            MERCURY_REDUCED_MOTION: '1',
+            MERCURY_SPLASH_IDLE_MS: '5000',
+            ...extraEnv,
+          },
+          stdio: ['pipe', 'pipe', 'pipe'],
+        })
+        let raw = ''
+        let replied = false
+        let keyed = false
+        const kill = setTimeout(() => { try { child.kill('SIGKILL') } catch {} }, 5000)
+        child.stdout.on('data', (chunk: Buffer) => {
+          raw += chunk.toString('latin1')
+          if (!replied && reply !== null && raw.includes(reqBytes)) {
+            replied = true
+            child.stdin.write(reply)
+          }
+          if (!keyed && raw.includes('\x1b[?2026l')) {
+            keyed = true
+            setTimeout(() => { if (!child.killed && child.exitCode === null) child.stdin.write(key) }, 25)
+          }
+        })
+        child.on('close', () => { clearTimeout(kill); done() })
+      })
+      const p = join(scratch, 'splash-action.json')
+      return existsSync(p) ? (JSON.parse(readFileSync(p, 'utf8')) as Record<string, unknown>) : null
+    } finally {
+      rmSync(scratch, { recursive: true, force: true })
+    }
+  }
+  const echoEnter = await runSplash({}, '\x1bP1$r0;48:2::1:2:3m\x1b\\\x1b[?62;22c', '\r')
+  check('asked + echo + Enter (writeScreenReceipt): receipt carries truecolor: true', echoEnter?.truecolor === true && echoEnter?.screen === 'restored', JSON.stringify(echoEnter))
+  const zeroCancel = await runSplash({}, '\x1bP1$r0m\x1b\\\x1b[?62;22c', '\x03')
+  check('asked + 0m + Ctrl-C (writeSplashAction + writeScreenReceipt): receipt carries action: cancel and truecolor: false', zeroCancel?.action === 'cancel' && zeroCancel?.truecolor === false, JSON.stringify(zeroCancel))
+  const noAsk = await runSplash({ COLORTERM: 'truecolor' }, null, '\r')
+  check('not asked (COLORTERM=truecolor): receipt omits truecolor field', noAsk !== null && !Object.hasOwn(noAsk, 'truecolor'), JSON.stringify(noAsk))
+}
+
 console.log('\n============================================================')
 if (failures === 0) {
   console.log(' ✅ SPLASH RECEIPT PROOFS PASS')

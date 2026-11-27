@@ -134,15 +134,15 @@ function isX10Head(head: string): boolean {
 
 function isReplyBody(head: string, s: string, x10Mouse: boolean): boolean {
   if (head.length > 2 && head.endsWith(ESC)) return s.startsWith('\\')
-  if (head === ESC) return /^(?:\[[\x20-\x7e]|\]\d|P>)/.test(s)
+  if (head === ESC) return /^(?:\[[\x20-\x7e]|\]\d|P>|P[01]\$)/.test(s)
   if (head === ESC + ']') return /^\d/.test(s)
-  if (head === ESC + 'P') return s.startsWith('>')
+  if (head === ESC + 'P') return /^(?:>|[01]\$)/.test(s)
   if (!head.startsWith(CSI_HEAD) || s === '') return false
   const code = s.charCodeAt(0)
   return x10Mouse && isX10Head(head) ? code >= 0x20 && code !== 0x7f : isCsiByte(code)
 }
 
-const REPLY_STRING_HEAD = /^\x1b(?:\]\d+(?:;|$)|P>(?:\||$))/
+const REPLY_STRING_HEAD = /^\x1b(?:\]\d+(?:;|$)|P>(?:\||$)|P[01]\$(?:r|$))/
 
 function isReplyStringHead(s: string): boolean {
   return REPLY_STRING_HEAD.test(s)

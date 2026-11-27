@@ -1,6 +1,6 @@
 import { shouldSkipHighlight } from '../../../screen/highlighted-code/cliHighlight.js'
 import { diffArrays } from 'diff'
-import { truecolorActive } from '../../../screen/renderer/colorize.js'
+import { colorDepth, rgbSgr } from '../../../screen/renderer/colorize.js'
 import { stringWidth } from '../../../screen/renderer/stringWidth.js'
 import { expandTabs } from '../../../screen/renderer/tabstops.js'
 import { logError } from '../../logs/errorLog.js'
@@ -22,50 +22,13 @@ function paletteIndex(index: number): Color {
 
 const TERMINAL_DEFAULT: Color = { r: 0, g: 0, b: 0, a: 1 }
 
-type ColorMode = 'truecolor' | 'color256'
-
-function detectColorMode(): ColorMode {
-  return truecolorActive() ? 'truecolor' : 'color256'
-}
-
-
-const CHANNEL_THRESHOLDS = [48, 115, 155, 195, 235]
-
-const CUBE_LEVELS = [0, 95, 135, 175, 215, 255]
-
-function quantizeChannel(channel: number): number {
-  let level = 0
-  for (const threshold of CHANNEL_THRESHOLDS) {
-    if (channel >= threshold) level++
-  }
-  return level
-}
-
-function quantizeToAnsi256(r: number, g: number, b: number): number {
-  const ri = quantizeChannel(r)
-  const gi = quantizeChannel(g)
-  const bi = quantizeChannel(b)
-  const cubeCode = 16 + 36 * ri + 6 * gi + bi
-  const mean = (r + g + b) / 3
-  if (mean < 5) return 16
-  if (mean > 244 && ri === gi && gi === bi) return cubeCode
-  const step = Math.max(0, Math.min(23, Math.round((mean - 8) / 10)))
-  const grayLevel = 8 + 10 * step
-  const cr = CUBE_LEVELS[ri]!
-  const cg = CUBE_LEVELS[gi]!
-  const cb = CUBE_LEVELS[bi]!
-  const cubeDist = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2
-  const grayDist = (r - grayLevel) ** 2 + (g - grayLevel) ** 2 + (b - grayLevel) ** 2
-  return cubeDist <= grayDist ? cubeCode : 232 + step
-}
-
 const RESET = '\x1b[0m'
 const DIM = '\x1b[2m'
 const UNDIM = '\x1b[22m'
 
 type StyledBlock = { text: string; fg: Color; bg: Color }
 
-function fgEscape(color: Color, mode: ColorMode): string {
+function fgEscape(color: Color): string {
   if (color.a === 0) {
     const idx = color.r
     if (idx < 8) return `\x1b[${30 + idx}m`
@@ -73,11 +36,10 @@ function fgEscape(color: Color, mode: ColorMode): string {
     return `\x1b[38;5;${idx}m`
   }
   if (color.a === 1) return '\x1b[39m'
-  if (mode === 'truecolor') return `\x1b[38;2;${color.r};${color.g};${color.b}m`
-  return `\x1b[38;5;${quantizeToAnsi256(color.r, color.g, color.b)}m`
+  return rgbSgr(color.r, color.g, color.b, 'foreground')
 }
 
-function bgEscape(color: Color, mode: ColorMode): string {
+function bgEscape(color: Color): string {
   if (color.a === 0) {
     const idx = color.r
     if (idx < 8) return `\x1b[${40 + idx}m`
@@ -85,21 +47,19 @@ function bgEscape(color: Color, mode: ColorMode): string {
     return `\x1b[48;5;${idx}m`
   }
   if (color.a === 1) return '\x1b[49m'
-  if (mode === 'truecolor') return `\x1b[48;2;${color.r};${color.g};${color.b}m`
-  return `\x1b[48;5;${quantizeToAnsi256(color.r, color.g, color.b)}m`
+  return rgbSgr(color.r, color.g, color.b, 'background')
 }
 
 function emitBlocks(
   blocks: StyledBlock[],
-  mode: ColorMode,
   dim: boolean,
   skipBackgrounds: boolean,
 ): string {
   let out = RESET
   if (dim) out += DIM
   for (const block of blocks) {
-    out += fgEscape(block.fg, mode)
-    if (!skipBackgrounds) out += bgEscape(block.bg, mode)
+    out += fgEscape(block.fg)
+    if (!skipBackgrounds) out += bgEscape(block.bg)
     out += block.text
   }
   out += RESET
@@ -206,7 +166,7 @@ function buildDiffTheme(themeName: string): DiffTheme {
       scopes: LIGHT_SCOPES,
     }
   }
-  if (detectColorMode() === 'truecolor') {
+  if (colorDepth() === 'truecolor') {
     return {
       addedLineBg: rgb(8, 38, 32),
       addedWordBg: rgb(14, 64, 54),
@@ -604,7 +564,7 @@ function renderLines(
   hasMarkers: boolean,
   wordRanges: Map<number, CharRange[]>,
 ): string[] {
-  const mode = detectColorMode()
+  const plain = !hasMarkers || colorDepth() === '16'
   const theme = buildDiffTheme(themeName)
   const language = detectLanguage(filePath, firstLine)
   const effectiveWidth = Math.max(1, width - gutterWidth - 2 - (hasMarkers ? 1 : 0))
@@ -674,7 +634,7 @@ function renderLines(
       if (!marked && !dim) {
         gutter = { ...gutter, text: `${DIM}${gutter.text}${UNDIM}` }
       }
-      out.push(emitBlocks([gutter, ...withMarker], mode, dim, !hasMarkers))
+      out.push(emitBlocks([gutter, ...withMarker], dim, plain))
     })
   })
   return out
@@ -773,13 +733,4 @@ export function getSyntaxTheme(uiTheme: string): SyntaxTheme {
   const theme =
     uiTheme === 'dark' || uiTheme === 'true-black' ? 'Monokai Extended' : 'GitHub'
   return { theme, source: null }
-}
-
-export const __test = {
-  tokenize,
-  pairChangedLines,
-  wordDiff,
-  quantizeToAnsi256,
-  emitBlocks,
-  detectLanguage,
 }
