@@ -132,6 +132,7 @@ export function returnPressedWhileLent(this: Pick<ScreenInstance, 'options'>, on
       passedOver(error)
     }
     stdin.on('readable', onReadable)
+    stdin.read(0)
     stdout.on('resize', onResize)
   })
 }

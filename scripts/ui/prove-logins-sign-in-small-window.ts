@@ -3,9 +3,11 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mock } from 'bun:test'
+import { EventEmitter } from 'node:events'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { Readable } from 'node:stream'
 import stripAnsi from 'strip-ansi'
 import type { LoginsFlowPaneV1 } from '../../src/screen/boot-face/logins/flowLines.js'
 import type { Mounted } from '../lib/settingsPopupHarness.ts'
@@ -91,6 +93,8 @@ mock.module('../../src/models/roads/moonshot/moonshotLogin.js', () => ({ ...kimi
 mock.module('../../src/models/roads/huggingface/huggingfaceLogin.js', () => ({ ...hfLogin, runHuggingfaceDeviceLogin: deviceRun }))
 mock.module('../../src/platform/host-os/browser.js', () => ({ openBrowser: async () => false, openPath: async () => false }))
 const lentTerminal: null | typeof import('../../src/screen/boot-face/logins/lentTerminal.js') = await import('../../src/screen/boot-face/logins/lentTerminal.js').catch(() => null)
+const lentWait: null | typeof import('../../src/screen/renderer/instance/stdin.js') = await import('../../src/screen/renderer/instance/stdin.js').catch(() => null)
+const consoleRead: null | typeof import('../../src/screen/renderer/root/console-read.js') = await import('../../src/screen/renderer/root/console-read.js').catch(() => null)
 const shown: string[] = []
 let lineStreams: { stdin: NodeJS.ReadStream; stdout: NodeJS.WriteStream } | null = null
 const realLentTerminal = lentTerminal === null ? null : { ...lentTerminal }
@@ -136,7 +140,7 @@ const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
 
 const FIX_PANE = 'src/screen/boot-face/logins/menuModel.ts marks a waiting sign-in must-read-whole and hands the composer loginsFlowNoticeOf(flow) as detailOverrideWhole; assets/splash/splash-core.mjs paints those words in the block and leaves the wide layout where the pane still does not fit'
 const FIX_FLOOR = 'src/screen/boot-face/logins/menuModel.ts hands the composer detailOverrideWholeElse (loginsFlowNoticeWhereCutOf) while the unconfirmed sentence stands; composeBootMenuClassic in assets/splash/splash-core.mjs then lets the notice take the list rows it needs and paints those words where the address still does not fit; the other ending is signInCopyNoteWhereCut in src/models/sign-in/signInCopy.ts'
-const FIX_LINE = 'src/screen/boot-face/logins/lentTerminal.ts: showSignInAddressLine lends the terminal (lendTerminal), writes the address alone on its line and waits for Enter or Esc by a listener the renderer owns (returnPressedWhileLent in src/screen/renderer/instance/stdin.ts), never by a blocking read, and never lends a terminal already lent; flowKeys.ts, SignInFlow.tsx and SignInCopyLine.tsx call it on a second c; BootLoginsScreen.tsx claims a press on a row that holds the address (loginsAddressRows): a drag from it copies by copyFlowAddress in flowKeys.ts, never by the keys, and a click (isClickSlop of the press and the release, the test every screen asks) does nothing; a resize while the line is up writes it again'
+const FIX_LINE = 'src/screen/boot-face/logins/lentTerminal.ts: showSignInAddressLine lends the terminal (lendTerminal), writes the address alone on its line and waits for Enter or Esc by a listener the renderer owns (returnPressedWhileLent in src/screen/renderer/instance/stdin.ts), which starts the read again itself (stdin.read(0)) because Windows holds the console read while the terminal is lent (holdConsoleRead in src/screen/renderer/root/console-read.ts), never by a blocking read, and never lends a terminal already lent; flowKeys.ts, SignInFlow.tsx and SignInCopyLine.tsx call it on a second c; BootLoginsScreen.tsx claims a press on a row that holds the address (loginsAddressRows): a drag from it copies by copyFlowAddress in flowKeys.ts, never by the keys, and a click (isClickSlop of the press and the release, the test every screen asks) does nothing; a resize while the line is up writes it again'
 const FIX_COPY = 'src/models/sign-in/signInCopy.ts decides what c may say (signInCopyAnswerOf) and words it; boot-face/logins/flowKeys.ts, widgets/faces/anthropicLoginModel.ts and flow-cards/SignInCopyLine.tsx read it, and SignInCopyLine and BootLoginsScreen hand the mouse back while the sentence stands'
 let fix = FIX_PANE
 let failures = 0
@@ -876,6 +880,57 @@ try {
     const before = out.writes.length
     const nowhere = showLine === undefined ? null : await showLine(OPENAI_URL)
     check('with no terminal to lend (no screen on the process output) nothing is written and it says so', nowhere === false && out.writes.slice(before).every(write => !write.includes(OPENAI_URL)), String(nowhere))
+    class ConsoleStandIn extends Readable {
+      isTTY = true
+      isRaw = true
+      private stopped = true
+      private typed: Buffer[] = []
+      _handle = {
+        reading: false,
+        readStop: (): void => {
+          this.stopped = true
+        },
+      }
+      setRawMode(on: boolean): this {
+        this.isRaw = on
+        return this
+      }
+      override _read(): void {
+        this._handle.reading = true
+        this.stopped = false
+        this.deliver()
+      }
+      type(keys: string): void {
+        this.typed.push(Buffer.from(keys))
+        this.deliver()
+      }
+      private deliver(): void {
+        if (!this.stopped) for (const chunk of this.typed.splice(0)) this.push(chunk)
+      }
+    }
+    const enterWhileLent = async (held: boolean): Promise<string> => {
+      const reader = new ConsoleStandIn()
+      const appReader = (): void => {
+        while (reader.read() !== null) {}
+      }
+      reader.on('readable', appReader)
+      await settle(20)
+      reader.removeListener('readable', appReader)
+      const holds = held && consoleRead !== null && consoleRead.holdConsoleRead(reader as unknown as NodeJS.ReadStream, 'win32')
+      reader.setRawMode(false)
+      const wait = lentWait?.returnPressedWhileLent
+      const up = wait === undefined ? Promise.resolve(false) : wait.call({ options: { stdin: reader, stdout: new EventEmitter() } } as never, () => {}).then(() => true)
+      await settle(60)
+      reader.type('\r')
+      const returned = await Promise.race([up, settle(800).then(() => false)])
+      return `held=${String(holds)} returned=${String(returned)} raw=${String(reader.isRaw)}`
+    }
+    const [heldSaid, openSaid] = [await enterWhileLent(true), await enterWhileLent(false)]
+    check(
+      "WHERE THE CONSOLE'S READ IS HELD WHILE THE TERMINAL IS LENT (Windows): the wait starts the read again in the turn that took the screen's reader off, so Enter returns; where nothing holds it (every other system) Enter returns as before",
+      heldSaid === 'held=true returned=true raw=false' && openSaid === 'held=false returned=true raw=false',
+      `${heldSaid} · ${openSaid}`,
+    )
     m.unmount()
   }
 
