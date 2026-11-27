@@ -176,8 +176,8 @@ if (driver.kind !== 'posix-pty') {
       const left = title.lastIndexOf('│', at)
       const right = title.indexOf('│', at)
       if (left < 0 || right < 0) return ''
-      const row = rows.map(line => line.slice(left, right + 1)).find(line => line.includes('│ │ ')) ?? ''
-      return row.split('│ │ ')[1]?.replace(/\s{2,}.*$/, '').trim() ?? ''
+      const row = rows.map(line => line.slice(left, right + 1)).find(line => line.includes('│ ❯ ')) ?? ''
+      return row.split('│ ❯ ')[1]?.replace(/\s{2,}.*$/, '').trim() ?? ''
     }
     const opened = frame('opened')
     const painted = frame('painted')
