@@ -51,7 +51,10 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 
 const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
-const { interpretCommandResult } = await import('../../src/tools/shell/commandSemantics.ts')
+const { closingTableCommand, interpretCommandResult } = await import('../../src/tools/shell/commandSemantics.ts')
+const { parseCommandRaw, preparedCommandRoot } = await import('../../src/platform/shell/bash/parser.ts')
+const rootOf = (command: string) => parseCommandRaw(command)
+const table = async (command: string, code: number) => interpretCommandResult(command, code, '', '', undefined, await rootOf(command))
 const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 
 let appState = getDefaultAppState()
@@ -113,13 +116,13 @@ if (listed.ok) {
 section('§4 exit 2 and above stay errors; other words are untouched')
 const two = await drive('which() { return 2; }; which x')
 check('a which that exits 2 is still an error ending `Exited with code 2`', !two.ok && /Exited with code 2/.test(two.ok ? '' : two.error), `${two.ok ? JSON.stringify(two.content.slice(0, 120)) : two.error.slice(0, 120)} — only exit 1 of which is a result; interpretCommandResult in src/tools/shell/commandSemantics.ts must leave exit 2 an error`)
-check('the table reads which exit 2 as an error', interpretCommandResult('which foo', 2, '', '').isError === true, 'interpretCommandResult in src/tools/shell/commandSemantics.ts must treat which exit 2 as an error')
-check('the table reads which exit 1 as a result with the label', JSON.stringify(interpretCommandResult('which foo', 1, '', '')) === JSON.stringify({ isError: false, message: 'a name was not found' }))
-check('the table reads command -v exit 1 as a result with the label', JSON.stringify(interpretCommandResult('command -v foo', 1, '', '')) === JSON.stringify({ isError: false, message: 'a name was not found' }))
-check('the table reads command -V exit 1 the same way', interpretCommandResult('command -V foo', 1, '', '').isError === false)
-check('a bare `command foo` (no -v) keeps the default reading: exit 1 is an error', interpretCommandResult('command foo', 1, '', '').isError === true)
-check('which through env and assignments is still which', interpretCommandResult('FOO=1 env -i which foo', 1, '', '').isError === false)
-check('grep exit 1 keeps its own label', JSON.stringify(interpretCommandResult('grep x y', 1, '', '')) === JSON.stringify({ isError: false, message: 'no matches found' }))
+check('the table reads which exit 2 as an error', (await table('which foo', 2)).isError === true, 'interpretCommandResult in src/tools/shell/commandSemantics.ts must treat which exit 2 as an error')
+check('the table reads which exit 1 as a result with the label', JSON.stringify((await table('which foo', 1))) === JSON.stringify({ isError: false, message: 'a name was not found' }))
+check('the table reads command -v exit 1 as a result with the label', JSON.stringify((await table('command -v foo', 1))) === JSON.stringify({ isError: false, message: 'a name was not found' }))
+check('the table reads command -V exit 1 the same way', (await table('command -V foo', 1)).isError === false)
+check('a bare `command foo` (no -v) keeps the default reading: exit 1 is an error', (await table('command foo', 1)).isError === true)
+check('which through env and assignments is still which', (await table('FOO=1 env -i which foo', 1)).isError === false)
+check('grep exit 1 keeps its own label', JSON.stringify((await table('grep x y', 1))) === JSON.stringify({ isError: false, message: 'no matches found' }))
 const plainFail = await drive('cat /mercury-no-such-file-0x')
 check('an ordinary non-zero exit is still an error ending `Exited with code 1`', !plainFail.ok && /Exited with code 1/.test(plainFail.ok ? '' : plainFail.error), `${plainFail.ok ? 'settled as a result' : plainFail.error.slice(-80)} — only the lookup commands in the table in src/tools/shell/commandSemantics.ts may read exit 1 as a result`)
 
@@ -259,7 +262,6 @@ if (served.origin === 'engine') {
 
   section("§7 the user's traps, options and output are the same with the marks as without them (the same frame twice, in each bash)")
   const { createBashShellProvider } = await import('../../src/platform/shell/bashProvider.ts')
-  const { closingTableCommand } = await import('../../src/tools/shell/commandSemantics.ts')
   const SIDE = `${WORK}/side`
   const TRACE = `${WORK}/trace`
   const INSTALL = `${WORK}/install`
@@ -384,8 +386,7 @@ if (served.origin === 'engine') {
     const provider = await createBashShellProvider(systemShellAt(shell), { skipSnapshot: process.platform !== 'win32' })
     const version = spawnSync(shell, ['-c', 'printf %s "$BASH_VERSION"'], { encoding: 'utf8' }).stdout
     for (const [label, command, kind] of SCENES) {
-      await BashTool.prepare?.({ command } as never)
-      const closing = closingTableCommand(command)
+      const closing = closingTableCommand(command, await rootOf(command))
       const runs: string[] = []
       let marked = false
       for (const withMarks of [false, true]) {
@@ -415,8 +416,7 @@ if (served.origin === 'engine') {
 
   const engine = await createBashShellProvider({ ...systemShellAt(served.path), origin: 'engine' }, { skipSnapshot: true })
   const plain = `grep missing ${LEFT}`
-  await BashTool.prepare?.({ command: plain } as never)
-  const underEngine = await engine.buildExecCommand(plain, { id: 'engine', closing: closingTableCommand(plain) })
+  const underEngine = await engine.buildExecCommand(plain, { id: 'engine', closing: closingTableCommand(plain, await rootOf(plain)) })
   check('a frame built for the bundled engine carries no marks (it has no pipeline record to read them with)', underEngine.closingMarks === undefined, `${underEngine.commandString} — buildExecCommand in src/platform/shell/bashProvider.ts marks only a bash, never a record whose origin is engine`)
 
   section('§8 the marks are gone when the command has settled')
@@ -465,8 +465,7 @@ if (served.origin === 'engine') {
   const framedOnWindows = async (temp: string, far: string, tag: string, commands: string[]): Promise<{ rows: Framed[]; detail: string }> => {
     const asked: Array<{ id: string; command: string; closing: ReturnType<typeof closingTableCommand> }> = []
     for (const [i, command] of commands.entries()) {
-      await BashTool.prepare?.({ command } as never)
-      asked.push({ id: `${tag}${i}`, command, closing: closingTableCommand(command) })
+      asked.push({ id: `${tag}${i}`, command, closing: closingTableCommand(command, await rootOf(command)) })
     }
     const inputs = join(STAND_IN, `${tag}.json`)
     writeFileSync(inputs, JSON.stringify(asked))
@@ -552,6 +551,61 @@ if (served.origin === 'engine') {
       check(`bash ${version} · the frame a bash started with -l gets ends on 2 without calling exit, so the user's ~/.bash_logout is not read (the marks leave a status of 2 or more through exit, which a login shell answers by reading that file)`, JSON.stringify(login.start) === '["-c","-l"]' && asLogin.status === 2 && !existsSync(LOGOUT_READ), `${asLogin.said}; the logout file was ${existsSync(LOGOUT_READ) ? 'read' : 'not read'} — ${WINDOWS_HINT}`)
     }
   }
+
+  section('§10 the reading rests on the tree the call itself holds: a collection between the permission check and the call changes no reading')
+  const ROOT_HINT = 'runShellCommand in src/tools/shell/BashTool.tsx hands the tree its own parse answered to closingTableCommand and interpretCommandResult (src/tools/shell/commandSemantics.ts); neither may look the command up by its text, whose entry names the newest parse and is gone when that tree is collected'
+  type Asker = { checkPermissions: (input: never, context: never) => Promise<{ behavior: string }> }
+  const turn = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 5))
+  const entryGoes = async (command: string): Promise<boolean> => {
+    for (let round = 0; round < 12; round++) {
+      await turn()
+      Bun.gc(true)
+      await turn()
+      const stands = preparedCommandRoot(command) !== null
+      await turn()
+      if (!stands) return true
+    }
+    return false
+  }
+  const readAs = (ran: Drive): string => (ran.ok ? (ran.out.code === 0 ? 'ok' : (ran.out.returnCodeInterpretation ?? `result with exit ${String(ran.out.code)}`)) : 'error')
+  const askedThenCalled = async (command: string): Promise<{ gone: boolean; said: string }> => {
+    const input = { command }
+    await BashTool.prepare?.(input as never)
+    await (BashTool as unknown as Asker).checkPermissions(input as never, toolContext)
+    const gone = await entryGoes(command)
+    try {
+      const result = await (BashTool as unknown as Caller).call(input as never, toolContext)
+      return { gone, said: readAs({ ok: true, out: result.data as Out, content: '' }) }
+    } catch {
+      return { gone, said: 'error' }
+    }
+  }
+  const HELD: Array<[string, string, Want]> = [
+    ['a variable, a pipe and a closing grep that misses', "F=$(printf 'alpha\\nbeta\\n'); printf '%s\\n' \"$F\" | grep -c nomatch", 'no matches found'],
+    ['a loop, then a closing grep', `for x in a b; do printf '%s\\n' "$x" >/dev/null; done; grep missing ${LEFT}`, 'no matches found'],
+    ['a job, then a closing grep', `sleep 0 & grep missing ${LEFT}`, 'no matches found'],
+    ['a script that sets a trap, which carries no marks', `trap 'exit 1' EXIT; grep same ${LEFT}`, 'no matches found'],
+    ['a script that turns verbose on, which carries no marks', `set -v\ngrep missing ${LEFT}`, 'no matches found'],
+    ['pipefail and a first stage that fails', `set -o pipefail; false | grep same ${LEFT}`, 'error'],
+    ['a closing grep that && skips', `false && grep missing ${LEFT}`, 'error'],
+  ]
+  for (const [label, command, want] of HELD) {
+    const before = readAs(await drive(command))
+    const again = await askedThenCalled(command)
+    check(`${label}: asked for again, its tree collected between the permission check and the call, it reads ${want} as the call before it did`, before === want && again.gone && again.said === want, `${JSON.stringify(command)} read ${before}, then ${again.said}${again.gone ? '' : ' (twelve collections did not take the tree, so this check shows nothing)'} — ${ROOT_HINT}`)
+  }
+  const handed = `true; grep missing ${LEFT}`
+  const kept = await rootOf(handed)
+  await (BashTool as unknown as Asker).checkPermissions({ command: handed } as never, toolContext)
+  const handedGone = await entryGoes(handed)
+  check("with the text's own entry gone, the closing statement is found in the tree that was handed over", handedGone && closingTableCommand(handed, kept)?.stage === `grep missing ${LEFT}`, `${handedGone ? JSON.stringify(closingTableCommand(handed, kept)) : 'twelve collections did not take the tree, so this check shows nothing'} — ${ROOT_HINT}`)
+  check('no tree at all leaves a script unmarked', closingTableCommand(handed, null) === undefined, ROOT_HINT)
+  check("…and its exit 1 is read by the whole text's first word", interpretCommandResult(`grep missing ${LEFT}`, 1, '', '', undefined, null).message === 'no matches found' && interpretCommandResult(handed, 1, '', '', undefined, null).isError === true, ROOT_HINT)
+  const pad = `# ${'x'.repeat(10_000)}`
+  check('a command longer than the parser reads has no tree', (await rootOf(`grep missing ${LEFT} ${pad}`)) === null)
+  const longMiss = readAs(await drive(`grep missing ${LEFT} ${pad}`))
+  const longScript = readAs(await drive(`true; grep missing ${LEFT} ${pad}`))
+  check("…and through the tool it is read by its first word: a grep that misses is a result, a longer script is an error", longMiss === 'no matches found' && longScript === 'error', `${longMiss}, ${longScript} — ${ROOT_HINT}`)
 }
 
 for (const dir of [SCRATCH, proofHome]) {

@@ -45,6 +45,7 @@ import { prepareBashReadOnly, preparedBashReadsOnly } from './readOnlyValidation
 import { bashToolHasPermission } from './bashPermissions.js'
 import {
   parseForSecurity,
+  splitCommandFromRoot,
   splitCommandWithOperators,
   pinnedCommandAnalysis,
 } from '../../permissions/rules/decision/commandAnalysis.js'
@@ -290,7 +291,7 @@ function userFacingName(input: Partial<BashToolInput> | undefined): string {
   return BASH_TOOL_NAME
 }
 
-function shellRunPlan(input: BashToolInput, context: ToolUseContext, cwd: string) {
+function shellRunPlan(input: BashToolInput, context: ToolUseContext, cwd: string, root: unknown) {
   const setToolJSX = context.setToolJSX
   const setTaskState = context.setAppStateForTasks ?? context.setAppState
 
@@ -300,18 +301,19 @@ function shellRunPlan(input: BashToolInput, context: ToolUseContext, cwd: string
     requestedTimeout !== undefined && requestedTimeout > getMaxTimeoutMs()
       ? `The timeout asked for (${formatDuration(requestedTimeout)}) is above the cap (${formatDuration(getMaxTimeoutMs())}), so ${formatDuration(getMaxTimeoutMs())} applied; a command that needs longer runs with run_in_background.`
       : undefined
-  const firstSubcommand = pinnedCommandAnalysis.splitCommand(input.command)[0]?.trim() ?? input.command.trim()
+  const firstSubcommand = splitCommandFromRoot(input.command, root)[0]?.trim() ?? input.command.trim()
   const shouldAutoBackground = !BACKGROUND_TASKS_DISABLED && !NEVER_AUTO_BACKGROUND.has(firstCommandWord(firstSubcommand))
 
   const creations = snapshotCreations(input.command, cwd)
   const launchedAt = Date.now()
-  const closing = closingTableCommand(input.command)
+  const closing = closingTableCommand(input.command, root)
   return { setToolJSX, setTaskState, requestedTimeout, effectiveTimeout, timeoutClampNotice, shouldAutoBackground, creations, launchedAt, closing }
 }
 
 interface PostProcessNeeds {
   input: BashToolInput
   closing: ReturnType<typeof closingTableCommand>
+  root: unknown
   creations: ReturnType<typeof snapshotCreations>
   editorTerminalNote: string | undefined
   agentId: string | undefined
@@ -323,7 +325,7 @@ interface PostProcessNeeds {
   timeoutClampNotice: string | undefined
 }
 
-async function postProcess(result: ExecResult, { input, closing, creations, editorTerminalNote, agentId, shouldAutoBackground, cwd, abortController, shellCommand, webNotice, timeoutClampNotice }: PostProcessNeeds): Promise<Out> {
+async function postProcess(result: ExecResult, { input, closing, root, creations, editorTerminalNote, agentId, shouldAutoBackground, cwd, abortController, shellCommand, webNotice, timeoutClampNotice }: PostProcessNeeds): Promise<Out> {
   let prLinkNote: string | undefined
   if (result.backgroundTaskId === undefined) {
     prLinkNote = await trackGitOperations(input.command, result.code, result.stdout)
@@ -339,7 +341,7 @@ async function postProcess(result: ExecResult, { input, closing, creations, edit
   const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd })
   if (boxLine !== null) accumulator.append(boxLine + '\n')
   const ran = closing === undefined || result.closingEndedOnOne === undefined ? undefined : { stage: closing.stage, endedOnOne: result.closingEndedOnOne, pipeline: result.pipelineStatus }
-  const interpretation = interpretCommandResult(input.command, result.code, result.stdout, '', ran)
+  const interpretation = interpretCommandResult(input.command, result.code, result.stdout, '', ran, root)
   const returnCodeInterpretation = interpretation.message
   const exitNote =
     !interpretation.isError && result.code !== 0 && interpretation.message !== undefined
@@ -611,6 +613,7 @@ async function* runShellCommand(
   await sayWhatTheShellOwes(context)
   const cwd = resolveShellCwd(input.cwd)
   const webNotice = await shellWebContentNotice(input.command)
+  const root = await pinnedCommandAnalysis.parseCommandRaw(input.command)
   const {
     setToolJSX,
     setTaskState,
@@ -621,7 +624,7 @@ async function* runShellCommand(
     creations,
     launchedAt,
     closing,
-  } = shellRunPlan(input, context, cwd)
+  } = shellRunPlan(input, context, cwd, root)
   const owner = processOwnerForLane(context.agentId ?? null)
   const isBackgroundRequest = !BACKGROUND_TASKS_DISABLED && Boolean(input.run_in_background)
 
@@ -684,6 +687,7 @@ async function* runShellCommand(
   const postNeeds: PostProcessNeeds = {
     input,
     closing,
+    root,
     creations,
     editorTerminalNote,
     agentId: context.agentId,
