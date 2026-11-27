@@ -66,7 +66,6 @@ export {
   listRepoSessions,
   listRepoSessionsProgressive,
   loadCrewmateTranscripts,
-  loadTranscriptFromFile,
   carrySessionBriefs,
   reAppendSessionMetadata,
   restoreSessionMetadata,

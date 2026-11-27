@@ -19,7 +19,7 @@ const { loadConversationForResume } = await import('../../src/sessions/resume/co
 const { createBranchSession } = await import('../../src/sessions/branches/branchManifest.ts')
 const { transcriptMessageIndex } = await import('../../src/sessions/transcripts/materialize.ts')
 const { _resetTranscriptReaderForTesting } = await import('../../src/sessions/transcripts/transcriptReader.ts')
-const { adoptResumedSessionFile, flushSessionStorage, getTranscriptPath, lastSession, loadTranscriptFile, loadTranscriptFromFile, recordTranscript, resetProjectForTesting } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { adoptResumedSessionFile, flushSessionStorage, getTranscriptPath, lastSession, loadTranscriptFile, recordTranscript, resetProjectForTesting } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 const { replayUpdatesOf, sessionLineOf } = await import('../../src/integrations/acp/server/replay.ts')
 const { switchSession } = await import('../../src/boot/process-state/processState.ts')
 const { asSessionId } = await import('../../src/sessions/transcripts/ids.ts')
@@ -95,16 +95,7 @@ const replayDoor: Door = {
     return { ...seenOf(line), replayed: end === undefined ? undefined : said.length > 0 && said.every(text => replayed.includes(text)) }
   },
 }
-const fileListingDoor: Door = {
-  name: 'file listing',
-  hint: `loadTranscriptFromFile in src/sessions/transcripts/sessionListings.ts must list the rows of ${ELECTION} and anchor leafUuid on the last of them`,
-  read: async source => {
-    _resetTranscriptReaderForTesting()
-    const listing = await loadTranscriptFromFile(source.file)
-    return { ...seenOf(listing.messages), leaf: listing.leafUuid }
-  },
-}
-const doors: Door[] = [pathDoor, idDoor, idListingDoor, replayDoor, fileListingDoor]
+const doors: Door[] = [pathDoor, idDoor, idListingDoor, replayDoor]
 const resumeDoors: Door[] = [pathDoor, idDoor]
 
 function endsOnTheLiveEnd(door: Door, scene: LeafScene, seen: Seen | null): void {
@@ -143,7 +134,7 @@ console.log(' a resumed session ends on the live end, by every door')
 console.log('============================================================')
 
 try {
-  section(`§1 ${LEAF_SCENES.length} written scenes, each read through every door (a path: an explicit .jsonl, run -c, a daemon claim; a bare id; the ACP replay; a file as a listing)`)
+  section(`§1 ${LEAF_SCENES.length} written scenes, each read through every door (a path: an explicit .jsonl, run -c, a daemon claim; a bare id; the ACP replay)`)
   for (const name of LEAF_SCENES) {
     const scene = await writeLeafScene(name)
     for (const door of doors) endsOnTheLiveEnd(door, scene, await door.read({ id: scene.sid, file: scene.file }, scene.end))
