@@ -265,12 +265,13 @@ section('§6 THE RESUME SIBLING — a resumed session whose retained model has n
     timestamp: new Date(NOW - 6 * 60_000).toISOString(),
     ...extra,
   })
+  const promptUuid2 = '00000000-0000-4000-8000-aaaaaaaaaaaa'
   writeFileSync(
     file2,
     encodeSeedTranscript(
       [
-        row({ type: 'user', message: { role: 'user', content: 'resume me' } }),
-        row({ type: 'assistant', message: { id: 'msg_5555', type: 'message', role: 'assistant', model: 'claude-opus-5', content: [{ type: 'text', text: 'a reply.' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } }),
+        row({ uuid: promptUuid2, type: 'user', message: { role: 'user', content: 'resume me' } }),
+        row({ parentUuid: promptUuid2, timestamp: new Date(NOW - 6 * 60_000 + 1000).toISOString(), type: 'assistant', message: { id: 'msg_5555', type: 'message', role: 'assistant', model: 'claude-opus-5', content: [{ type: 'text', text: 'a reply.' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } }),
       ] as never,
       sessionId2,
     ),
@@ -337,7 +338,11 @@ section('§6 THE RESUME SIBLING — a resumed session whose retained model has n
     }
     const [beforeLine, final2] = (JSON.parse(res2.stdout) as { screens: { atMs: number; rows: string[] }[] }).screens
     const t2 = (g: { rows: string[] }): string => g.rows.join('\n')
-    check('the resumed session was ADMITTED — the cockpit, never a refusal naming the retained model', /\? for shortcuts/.test(t2(beforeLine)) && !/model refused/.test(t2(beforeLine)), beforeLine.rows.filter(r => r.trim().length > 0).slice(-5).map(r => r.trim().slice(0, 100)).join(' | '))
+    check(
+      'the resumed session was ADMITTED — the cockpit, never a refusal naming the retained model',
+      /Type a prompt/.test(t2(beforeLine)) && /not signed in · \/logins/.test(t2(beforeLine)) && !/model refused/.test(t2(beforeLine)) && /\? for shortcuts/.test(t2(final2)) && !/model refused/.test(t2(final2)),
+      `${beforeLine.rows.filter(r => r.trim().length > 0).slice(-5).map(r => r.trim().slice(0, 100)).join(' | ')} — at the end: ${final2.rows.filter(r => r.trim().length > 0).slice(-2).map(r => r.trim().slice(0, 100)).join(' | ')} — fix: the frame before the shell line holds the composer (Type a prompt) and the status row (not signed in · /logins), the last frame holds the legend (? for shortcuts), and neither names a refusal; the admission of a session whose model has no credential is in src/daemon/concourse-workers/admit.ts`,
+    )
     check("the receipt names the dropped model and its door — the first model send picks the neutral default, /model chooses", /has no credential here/.test(t2(beforeLine)) && /claude-opus-5/.test(t2(beforeLine)) && /\/model chooses/.test(t2(beforeLine)), beforeLine.rows.filter(r => /credential|model/.test(r)).map(r => r.trim().slice(0, 110)).join(' | '))
     check('the shell line RAN on the modelless runner — its output stands in the transcript', final2.rows.some(r => /resumed-ok/.test(r) && !/echo/.test(r)), final2.rows.filter(r => /resumed-ok/.test(r)).map(r => r.trim().slice(0, 100)).join(' | '))
     const revived = Object.values(workersAfter).find(w => w.sessionId === sessionId2 && w.endedAt === undefined)
