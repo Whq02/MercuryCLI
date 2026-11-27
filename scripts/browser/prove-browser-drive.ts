@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 process.env.MERCURY_BROWSER ??= '1'
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 const ROOT = join(import.meta.dir, '..', '..')
 
@@ -337,13 +338,13 @@ console.log('§6 waitFor')
   t0 = Date.now()
   const miss = await run({ op: 'waitFor', selector: '#never-appears', timeoutMs: 600 })
   dt = Date.now() - t0
-  check('a miss fails naming the bounded deadline', miss.outcome === 'failed' && miss.result.includes('deadline 600ms exceeded') && dt >= 500 && dt < 3000, `${miss.result} · ${dt}ms`)
+  check('a miss fails naming the bounded deadline', miss.outcome === 'failed' && miss.result.includes('within the 600ms deadline') && dt >= 500 && dt < 3000, `${miss.result} · ${dt}ms`)
 }
 
 console.log('§6b waitFor visibility states')
 {
   const present = await run({ op: 'waitFor', selector: '#modal', timeoutMs: 600 })
-  check('a pre-rendered HIDDEN modal no longer reads as present (visible default)', present.outcome === 'failed' && present.result.includes('deadline 600ms exceeded'), present.result)
+  check('a pre-rendered HIDDEN modal no longer reads as present (visible default)', present.outcome === 'failed' && present.result.includes('within the 600ms deadline'), present.result)
   const attached = await run({ op: 'waitFor', selector: '#modal', state: 'attached', timeoutMs: 4000 })
   check('state:"attached" is the explicit presence-only escape', attached.outcome === 'succeeded', attached.result)
   await run({ op: 'click', selector: '#reveal-btn' })

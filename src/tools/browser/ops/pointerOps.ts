@@ -3,9 +3,9 @@ import type { ToolEffectOutcome, ToolUseContext } from '../../kit/tool.js'
 import type { UploadSource } from '../../../integrations/browser/browserUploads.js'
 import { ensureScratchpadDir } from '../../../platform/files/scratchpad.js'
 import type { ToolPermissionContext } from '../../../permissions/rules/permissions.js'
-import { type LiveSession, pageWhere, targetOrigin } from './page.js'
+import { type LiveSession, coveringLayerNote, pageWhere, targetOrigin } from './page.js'
 import { actConsequences, markAct, settleAfterAct } from './settle.js'
-import { actDeadline, actOriginGate, clickGate, heldFrameRefusal, resolveActTarget, settleBoundingBox } from './targets.js'
+import { actDeadline, actOriginGate, clickGate, clickGateWhenClear, heldFrameRefusal, rememberClick, resolveActTarget, settleBoundingBox } from './targets.js'
 import { humanClickPoint, humanMoveTo, pickTargetPoint } from './human.js'
 import { sendUpload } from './upload.js'
 import type { OpDone, OpRun } from './ops.js'
@@ -23,6 +23,7 @@ export async function clickOp(s: LiveSession, { input, owner, signalFor }: OpRun
   const marks = markAct(s)
   const deadline = actDeadline(input)
   let target: string
+  let waited = ''
   if (input.selector) {
     const handle = await resolveActTarget(s, input.selector, deadline, signalFor(s), input.frame)
     const strayed = await heldFrameRefusal(owner, s, input.op, handle)
@@ -33,17 +34,26 @@ export async function clickOp(s: LiveSession, { input, owner, signalFor }: OpRun
     }
     await handle.scrollIntoView()
     await settleBoundingBox(handle, deadline)
-    const refusal = await clickGate(handle)
+    const gate = input.force === true ? null : await clickGateWhenClear(s, handle, marks.at + deadline)
+    const refusal = gate === null ? await clickGate(handle) : gate.clear ? null : gate.refusal
     if (refusal !== null && !(input.force === true && refusal.includes('covered by'))) {
-      result = `click ${input.selector} refused: ${refusal} — nothing clicked`
+      result = `click ${input.selector} refused: ${refusal} — nothing clicked${gate === null || gate.clear ? '' : gate.stood}${refusal.includes('covered by') ? await coveringLayerNote(s) : ''}`
       outcome = 'failed'
       return { result, outcome }
     }
     if (input.force === true && refusal !== null) await handle.evaluate(el => (el as HTMLElement).click())
     else {
       const pt = await pickTargetPoint(s, handle)
-      await humanClickPoint(s, pt.x, pt.y)
+      const afterWait = gate !== null && gate.clear && gate.waited !== ''
+      const atPress = await humanClickPoint(s, pt.x, pt.y, afterWait ? () => clickGate(handle) : undefined)
+      if (atPress !== null) {
+        result = `click ${input.selector} refused: ${atPress} — nothing clicked (looked at again right before the press)${atPress.includes('covered by') ? await coveringLayerNote(s) : ''}`
+        outcome = 'failed'
+        return { result, outcome }
+      }
     }
+    rememberClick(s, handle)
+    waited = gate === null || !gate.clear ? '' : gate.waited
     target = `${input.selector}${input.force === true && refusal !== null ? ' (forced DOM click)' : ''}`
   } else {
     const vp = s.page.viewport()
@@ -61,6 +71,7 @@ export async function clickOp(s: LiveSession, { input, owner, signalFor }: OpRun
     after === marks.url
       ? `click ${target} at ${pageWhere(s)}`
       : `click ${target} — navigated to ${pageWhere(s)} (from ${marks.url}; waitFor settles late loads)`
+  result += waited
   result += actConsequences(s, marks)
   outcome = 'succeeded'
   return { result, outcome }

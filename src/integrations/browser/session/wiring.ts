@@ -153,6 +153,12 @@ export function targetIdOf(page: Page): string | null {
   return typeof target?._targetId === 'string' ? target._targetId : null
 }
 
+export function forgetClicked(session: Session): void {
+  const held = session.clicked
+  session.clicked = null
+  void held?.target.dispose().catch(passedOver)
+}
+
 export function tabSession(state: OwnerBrowserState, hold: Hold, tab: string, page: Page, wiring: Wiring): Session {
   const session: Session = {
     tab,
@@ -183,6 +189,7 @@ export function tabSession(state: OwnerBrowserState, hold: Hold, tab: string, pa
     profileDir: hold.profileDir,
     headless: hold.headless,
     cursor: { x: 160, y: 120 },
+    clicked: null,
   }
   sessionHolds.set(session, hold)
   sessionWirings.set(session, wiring)
@@ -244,6 +251,7 @@ export function listenPage(state: OwnerBrowserState, session: Session, wiring: W
   }
   page.on('framenavigated', frame => {
     if (frame.parentFrame() === null) {
+      forgetClicked(session)
       navWatch.frames = 0
       nav.seq++
       if (/^https?:/i.test(frame.url())) nav.web++

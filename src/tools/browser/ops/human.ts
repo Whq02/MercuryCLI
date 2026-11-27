@@ -89,18 +89,21 @@ export async function pickTargetPoint(
   return safe ? { x: jx, y: jy } : base
 }
 
-export async function humanClickPoint(s: LiveSession, x: number, y: number): Promise<void> {
+export async function humanClickPoint(s: LiveSession, x: number, y: number, refusedAtPress?: () => Promise<string | null>): Promise<string | null> {
   await humanMoveTo(s, { x, y })
   const dwellMs =
     HUMAN_CLICK_DWELL_MIN_MS +
     Math.floor(Math.random() * (HUMAN_CLICK_DWELL_MAX_MS - HUMAN_CLICK_DWELL_MIN_MS + 1))
   await bounded(dwellMs)
+  const refusal = refusedAtPress === undefined ? null : await refusedAtPress()
+  if (refusal !== null) return refusal
   await s.page.mouse.down()
   const holdMs =
     HUMAN_CLICK_HOLD_MIN_MS +
     Math.floor(Math.random() * (HUMAN_CLICK_HOLD_MAX_MS - HUMAN_CLICK_HOLD_MIN_MS + 1))
   await bounded(holdMs)
   await s.page.mouse.up()
+  return null
 }
 
 export async function humanTypeText(s: LiveSession, text: string): Promise<void> {

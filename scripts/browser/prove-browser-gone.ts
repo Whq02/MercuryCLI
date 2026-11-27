@@ -83,6 +83,7 @@ class FixtureChild {
     title: async () => 'fixture',
     frames: () => [],
     $: async () => null,
+    $eval: () => this.wait(undefined, 'Protocol error (Runtime.callFunctionOn): Target closed'),
     waitForSelector: (selector: string, opts: { signal?: AbortSignal }) =>
       this.wait(opts.signal, `Waiting for selector \`${selector}\` failed`),
     waitForFunction: (_fn: unknown, opts: { signal?: AbortSignal }) =>

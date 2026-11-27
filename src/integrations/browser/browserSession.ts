@@ -10,6 +10,7 @@ export { presentToFrames, sessionOfFrame } from './session/births.js'
 export { browserProfileDirForOrigin, ensureBrowserSession, closeBrowserSession, closeBrowserSessionDetailed } from './session/launch.js'
 export { firstNavigation, popupInFlight, popupsSettled, bringTabToFront } from './session/navigation.js'
 export { attachBrowserSession, parseAttachEndpoint, refreshAttachedTabs } from './session/attach.js'
+export { forgetClicked } from './session/wiring.js'
 
 export function screenshotPath(label: string): string {
   const dir = path.join(getMercuryHome(), 'browser-shots')

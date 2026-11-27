@@ -1,9 +1,9 @@
 import type { ElementHandle, Frame, Page } from 'puppeteer-core'
-import { type CheckedTarget, approveWebOrigin, consumeCheckedActOrigin, originApproved, sessionAttached } from '../../../integrations/browser/browserSession.js'
+import { type CheckedTarget, approveWebOrigin, consumeCheckedActOrigin, forgetClicked, originApproved, sessionAttached } from '../../../integrations/browser/browserSession.js'
 import type { OwnerKey } from '../../../engine/run-owner/ownerKey.js'
 import { type Input, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './schema.js'
 import { isDriverTimeout } from './failures.js'
-import { type LiveSession, actOrigin, heldFrameOrigin, targetSurface } from './page.js'
+import { LAYER_ROOT, type LiveSession, MISS_LOOK_MS, actOrigin, bounded, coveringLayerNote, elementName, heldFrameOrigin, targetSurface } from './page.js'
 import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
 import { withDeadline } from '../../../platform/async/deadline.js'
 
@@ -73,8 +73,8 @@ async function framedOnly(s: LiveSession, selector: string): Promise<string | nu
   try {
     const children = s.page.frames().filter(f => f.parentFrame() !== null)
     if (children.length === 0) return null
-    if ((await s.page.$(selector)) !== null) return null
-    const held = await Promise.all(children.map(frame => withDeadline(frame.$(selector).catch(passedOverAs(null)), 1000, () => null, { unref: true })))
+    if (await withDeadline(s.page.$(selector).then(found => found !== null), MISS_LOOK_MS, () => true, { unref: true })) return null
+    const held = await Promise.all(children.map(frame => withDeadline(frame.$(selector).catch(passedOverAs(null)), MISS_LOOK_MS, () => null, { unref: true })))
     const holder = children[held.findIndex(handle => handle !== null)]
     return holder === undefined ? null : (holder.url().split('?')[0] ?? holder.url())
   } catch (error) {
@@ -85,6 +85,86 @@ async function framedOnly(s: LiveSession, selector: string): Promise<string | nu
 
 function framedTargetWords(selector: string, frameUrl: string): string {
   return `${selector} lives inside a child frame (${frameUrl}); set frame to its index from extract or a unique URL substring`
+}
+
+function hiddenWords(found: ElementHandle<Element>): Promise<string> {
+  return found
+    .evaluate(el => {
+      const above = (node: Element): Element | null => node.assignedSlot ?? node.parentElement ?? (node.getRootNode() instanceof ShadowRoot ? (node.getRootNode() as ShadowRoot).host : null)
+      const part = (node: Element): { tag: string; id: string; cls: string } => ({ tag: node.tagName.toLowerCase(), id: node.id, cls: typeof node.className === 'string' ? node.className : '' })
+      let hider: Element | null = null
+      let how = ''
+      for (let cur: Element | null = el; cur !== null && hider === null; cur = above(cur)) {
+        if (getComputedStyle(cur).display !== 'none') continue
+        hider = cur
+        how = cur.hasAttribute('hidden') ? 'the hidden attribute' : 'display:none'
+      }
+      if (hider === null && getComputedStyle(el).visibility !== 'visible') {
+        hider = el
+        how = `visibility:${getComputedStyle(el).visibility}`
+        for (let cur = above(el); cur !== null && getComputedStyle(cur).visibility !== 'visible'; cur = above(cur)) hider = cur
+      }
+      if (hider === null) {
+        const box = el.getBoundingClientRect()
+        if (box.width > 0 && box.height > 0) return null
+        hider = el
+        how = 'zero-sized'
+      }
+      let control: Element | null = null
+      for (let cur: Element | null = el; cur !== null && control === null; cur = cur === hider ? null : above(cur)) {
+        if (cur.id !== '') control = document.querySelector(`[aria-controls~="${CSS.escape(cur.id)}"]`)
+      }
+      return { hider: part(hider), how, control: control === null ? null : { ...part(control), expanded: control.getAttribute('aria-expanded') } }
+    })
+    .then(read => {
+      if (read === null) return ''
+      const opens = read.control === null ? '' : `; ${elementName(read.control)}${read.control.expanded === 'true' || read.control.expanded === 'false' ? ` [aria-expanded="${read.control.expanded}"]` : ''} controls it`
+      return `; hidden by ${elementName(read.hider)} (${read.how})${opens}`
+    }, passedOverAs(''))
+}
+
+function shadowHostOf(s: LiveSession, selector: string, frame: Input['frame']): Promise<{ tag: string; id: string; cls: string } | null> {
+  return withDeadline(
+    targetSurface(s, frame)
+      .evaluate(wanted => {
+        const within = (scope: Document | ShadowRoot): { tag: string; id: string; cls: string } | null => {
+          for (const el of scope.querySelectorAll('*')) {
+            const shadow = el.shadowRoot
+            if (shadow === null) continue
+            if (shadow.querySelector(wanted) !== null) return { tag: el.tagName.toLowerCase(), id: el.id, cls: typeof el.className === 'string' ? el.className : '' }
+            const deeper = within(shadow)
+            if (deeper !== null) return deeper
+          }
+          return null
+        }
+        return within(document)
+      }, selector)
+      .catch(passedOverAs(null)),
+    MISS_LOOK_MS,
+    () => null,
+    { unref: true },
+  )
+}
+
+export async function selectorMissWords(
+  s: LiveSession,
+  selector: string,
+  deadline: number,
+  frame: Input['frame'],
+  watched: 'visible' | 'attached',
+  absentNote = '',
+): Promise<string> {
+  const [attached, framed, layer, host] = await Promise.all([
+    watched === 'visible' ? withDeadline(targetSurface(s, frame).$(selector).then<string | false>(found => (found === null ? false : hiddenWords(found))).catch(passedOverAs(false)), MISS_LOOK_MS, () => null, { unref: true }) : false,
+    frame === undefined ? framedOnly(s, selector) : null,
+    coveringLayerNote(s),
+    shadowHostOf(s, selector, frame),
+  ])
+  if (typeof attached === 'string') return `${selector} is present but never became visible within the ${deadline}ms deadline (hidden or zero-sized — acts need a visible target; waitFor state:"attached" can read its arrival)${attached}${layer}`
+  if (framed !== null) return framedTargetWords(selector, framed)
+  if (attached === null) return `${selector} did not become visible within the ${deadline}ms deadline, and the page did not answer within ${MISS_LOOK_MS}ms when asked whether it is there (its script may be busy)`
+  const where = host === null ? framesDiagnosis(s) : `; it is inside the shadow root of ${elementName(host)}: the selector ">>> ${selector}" reaches it`
+  return `no element for selector ${selector} within the ${deadline}ms deadline${absentNote}${where}${layer}`
 }
 
 export async function resolveActTarget(
@@ -104,17 +184,7 @@ export async function resolveActTarget(
       .setVisibility('visible')
       .waitHandle({ signal })) as ElementHandle<Element>
   } catch (err) {
-    if (isDriverTimeout(err)) {
-      const attached = await surface.$(selector).catch(passedOverAs(null))
-      const framedLate = attached || frame !== undefined ? null : await framedOnly(s, selector)
-      throw new Error(
-        attached
-          ? `${selector} is present but never became visible within the ${deadline}ms deadline (hidden or zero-sized — acts need a visible target; waitFor state:"attached" can read its arrival)`
-          : framedLate !== null
-            ? framedTargetWords(selector, framedLate)
-            : `no element for selector ${selector} within the ${deadline}ms deadline (the act auto-waits; the element never appeared)${framesDiagnosis(s)}`,
-      )
-    }
+    if (isDriverTimeout(err)) throw new Error(await selectorMissWords(s, selector, deadline, frame, 'visible', ' (the act auto-waits; the element never appeared)'))
     throw err
   }
 }
@@ -131,9 +201,7 @@ export async function resolveReadTarget(
     if (!handle) throw new Error(`no element for selector ${selector} within the ${deadline}ms deadline`)
     return handle as ElementHandle<Element>
   } catch (err) {
-    if (isDriverTimeout(err)) {
-      throw new Error(`no element for selector ${selector} within the ${deadline}ms deadline${framesDiagnosis(s)}`)
-    }
+    if (isDriverTimeout(err)) throw new Error(await selectorMissWords(s, selector, deadline, frame, 'attached'))
     throw err
   }
 }
@@ -161,9 +229,15 @@ export async function isDisabledTarget(handle: ElementHandle<Element>): Promise<
   )
 }
 
-export async function clickGate(handle: ElementHandle<Element>): Promise<string | null> {
-  const disabled = await isDisabledTarget(handle)
-  if (disabled) return 'the target is disabled'
+interface Cover {
+  hop: ElementHandle<Element>
+  x: number
+  y: number
+  point: { x: number; y: number }
+  occluder: string
+}
+
+async function coverOf(handle: ElementHandle<Element>): Promise<Cover | null> {
   const point = await handle.clickablePoint()
   let current: ElementHandle<Element> | null = handle
   while (current !== null) {
@@ -191,19 +265,156 @@ export async function clickGate(handle: ElementHandle<Element>): Promise<string 
           }
         }
         if (!hit) return 'the viewport edge'
-        const id = hit.id ? `#${hit.id}` : ''
-        const cls = typeof hit.className === 'string' && hit.className.trim() !== '' ? `.${hit.className.split(/\s+/).filter(Boolean).slice(0, 2).join('.')}` : ''
-        return `${hit.tagName.toLowerCase()}${id}${cls}`
+        return { tag: hit.tagName.toLowerCase(), id: hit.id, cls: typeof hit.className === 'string' ? hit.className : '' }
       },
       x,
       y,
       current === handle,
       ENCLOSING_CONTROL,
     )
-    if (occluder) return `the click point (${Math.round(point.x)}, ${Math.round(point.y)}) is covered by ${occluder}; click the covering element to dismiss it, or scroll the target into view; after reading the overlay, force: true dispatches a DOM click to the target`
+    if (occluder) return { hop: current, x, y, point, occluder: typeof occluder === 'string' ? occluder : elementName(occluder) }
     current = container
   }
   return null
+}
+
+function coveredWords(cover: Cover): string {
+  return `the click point (${Math.round(cover.point.x)}, ${Math.round(cover.point.y)}) is covered by ${cover.occluder}; click the covering element to dismiss it, or scroll the target into view; after reading the overlay, force: true dispatches a DOM click to the target`
+}
+
+export async function clickGate(handle: ElementHandle<Element>): Promise<string | null> {
+  if (await isDisabledTarget(handle)) return 'the target is disabled'
+  const cover = await coverOf(handle)
+  return cover === null ? null : coveredWords(cover)
+}
+
+const COVER_CLICKED_MS = 5000
+const COVER_SETTLE_MS = 2000
+const COVER_DRIFT_MS = 1000
+const COVER_STEP_MS = 50
+
+async function coverMotion(cover: Cover): Promise<{ settlesIn: number | null; drifts: boolean }> {
+  return cover.hop.evaluate(
+    async (_el, px, py, soon) => {
+      const above = (el: Element): Element | null => el.assignedSlot ?? el.parentElement ?? (el.getRootNode() instanceof ShadowRoot ? (el.getRootNode() as ShadowRoot).host : null)
+      const at = (): Element | null => {
+        let hit = document.elementFromPoint(px, py)
+        while (hit?.shadowRoot) {
+          const inner = hit.shadowRoot.elementFromPoint(px, py)
+          if (!inner || inner === hit) break
+          hit = inner
+        }
+        return hit
+      }
+      const reading = (el: Element): string => {
+        const box = el.getBoundingClientRect()
+        let opacity = 1
+        for (let cur: Element | null = el; cur !== null; cur = above(cur)) opacity *= Number(getComputedStyle(cur).opacity)
+        return [box.x, box.y, box.width, box.height, opacity].join(' ')
+      }
+      const first = at()
+      if (first === null) return { settlesIn: null, drifts: false }
+      let settlesIn: number | null = null
+      let steady = false
+      for (let cur: Element | null = first; cur !== null; cur = above(cur)) {
+        for (const run of cur.getAnimations()) {
+          if (run.playState !== 'running') continue
+          const played = Number(run.currentTime ?? 0)
+          const left = run.playbackRate > 0 ? (Number(run.effect?.getComputedTiming().endTime ?? 0) - played) / run.playbackRate : run.playbackRate < 0 ? played / -run.playbackRate : Infinity
+          if (left > soon) steady = true
+          else settlesIn = Math.max(settlesIn ?? 0, left)
+        }
+      }
+      const before = reading(first)
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(null))))
+      return { settlesIn, drifts: at() !== first || (!steady && settlesIn === null && reading(first) !== before) }
+    },
+    cover.x,
+    cover.y,
+    COVER_SETTLE_MS,
+  )
+}
+
+async function coverHoldsClick(s: LiveSession, cover: Cover): Promise<boolean> {
+  const clicked = s.clicked
+  if (clicked === null || clicked.target.frame !== cover.hop.frame || Date.now() >= clicked.at + COVER_CLICKED_MS) return false
+  return clicked.target
+    .evaluate(
+      (last, target, px, py, roots) => {
+        const above = (el: Element): Element | null => el.assignedSlot ?? el.parentElement ?? (el.getRootNode() instanceof ShadowRoot ? (el.getRootNode() as ShadowRoot).host : null)
+        const line = (el: Element): Element[] => {
+          const up: Element[] = []
+          for (let cur: Element | null = el; cur !== null; cur = above(cur)) up.push(cur)
+          return up
+        }
+        const layer = (up: Element[]): Element | undefined =>
+          up.findLast(el => el !== document.body && el !== document.documentElement && (getComputedStyle(el).position === 'fixed' || el.matches(roots)))
+        let hit = document.elementFromPoint(px, py)
+        while (hit?.shadowRoot) {
+          const inner = hit.shadowRoot.elementFromPoint(px, py)
+          if (!inner || inner === hit) break
+          hit = inner
+        }
+        if (hit === null) return false
+        const mine = line(last)
+        const its = line(hit)
+        const shared = layer(mine)
+        const tie = mine.includes(hit) ? hit : its.includes(last) ? last : shared !== undefined && shared === layer(its) ? shared : null
+        return tie !== null && !line(target).includes(tie)
+      },
+      cover.hop,
+      cover.x,
+      cover.y,
+      LAYER_ROOT,
+    )
+    .catch(passedOverAs(false))
+}
+
+export function rememberClick(s: LiveSession, target: ElementHandle<Element>): void {
+  forgetClicked(s)
+  const mine = { target, at: Date.now() }
+  s.clicked = mine
+  void bounded(COVER_CLICKED_MS).then(() => {
+    if (s.clicked === mine) forgetClicked(s)
+  })
+}
+
+type ClickGate = { clear: true; waited: string } | { clear: false; refusal: string; stood: string }
+
+export async function clickGateWhenClear(s: LiveSession, handle: ElementHandle<Element>, until: number): Promise<ClickGate> {
+  const began = Date.now()
+  const page = s.nav.seq
+  let first: string | null = null
+  let watchBy = 0
+  let because: string | null = null
+  for (;;) {
+    try {
+      if (await isDisabledTarget(handle)) return { clear: false, refusal: 'the target is disabled', stood: '' }
+      const cover = await coverOf(handle)
+      if (cover === null) return { clear: true, waited: first === null ? '' : `\n  note: the click waited ${Date.now() - began}ms for ${first}, which covered the target, to leave` }
+      if (first === null) {
+        first = cover.occluder
+        const motion = await coverMotion(cover)
+        if (motion.settlesIn !== null) {
+          watchBy = Date.now() + motion.settlesIn + 2 * COVER_STEP_MS
+          because = 'the cover was animating'
+        } else if (motion.drifts) {
+          watchBy = Date.now() + COVER_DRIFT_MS
+          because = 'the cover was changing'
+        }
+      }
+      const held = await coverHoldsClick(s, cover)
+      if (held) because = 'the last click landed in the cover'
+      const now = Date.now()
+      if (now >= until || !(held || now < watchBy)) {
+        return { clear: false, refusal: coveredWords(cover), stood: because === null ? ` (watched ${now - began}ms: the cover did not move)` : ` (watched ${now - began}ms because ${because}: the target stayed covered)` }
+      }
+      await bounded(COVER_STEP_MS)
+    } catch (err) {
+      if (first !== null && (s.nav.seq !== page || s.navWatch.pendingUrl !== null)) return { clear: false, refusal: `the page navigated away while the click waited for ${first} to leave`, stood: '' }
+      throw err
+    }
+  }
 }
 
 export async function probeEditableTarget(s: LiveSession, requested: ElementHandle<Element> | null, frame?: Input['frame']) {
