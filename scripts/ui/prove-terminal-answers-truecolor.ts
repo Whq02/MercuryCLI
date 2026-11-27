@@ -33,6 +33,7 @@ const ESC = '\x1b'
 const ST = ESC + '\\'
 const ECHO = `${ESC}P1$r0;48:2::1:2:3m${ST}`
 const ECHO_ITERM2 = `${ESC}P1$r0;48:2:1:1:2:3m${ST}`
+const ECHO_KITTY = `${ESC}P1$r0;48:2:1:2:3m${ST}`
 const ECHO_SEMICOLONS = `${ESC}P1$r48;2;1;2;3m\x07`
 const ZERO = `${ESC}P1$r0m${ST}`
 const REFUSED = `${ESC}P0$r${ST}`
@@ -130,7 +131,7 @@ section('§3 the answer is a terminal response, in one piece or split, and never
   }
   const fixKnow = 'interpretResponse in src/screen/renderer/input/interpreter.ts must know DCS 0|1 $ r … ST as a terminal response'
   const fixHead = 'the reply-head rules in src/screen/renderer/input/scanner.ts (isReplyBody, REPLY_STRING_HEAD) must take P0$ and P1$ beside P>'
-  for (const [name, reply] of [['an echo', ECHO], ['iTerm2\'s echo', ECHO_ITERM2], ['an echo ended by BEL', ECHO_SEMICOLONS], ['a bare reset', ZERO], ['a refusal', REFUSED]] as const) {
+  for (const [name, reply] of [['an echo', ECHO], ['iTerm2\'s echo', ECHO_ITERM2], ['kitty\'s echo', ECHO_KITTY], ['an echo ended by BEL', ECHO_SEMICOLONS], ['a bare reset', ZERO], ['a refusal', REFUSED]] as const) {
     const whole = interpreter.interpretResponse(reply)
     check(`${name} is read as a response`, whole !== null && (whole as { type: string }).type === 'decrqss', `${fixKnow}; got ${JSON.stringify(whole)}`)
     const late = feedAll([reply, 'zq'], false)
@@ -337,6 +338,8 @@ fullDepth(echo, 'TERM=xterm-256color, what SSH hands over')
 composerClean(echo)
 const echoIterm = await capture({ name: 'echo-iterm2', env: { TERM: 'xterm-256color' }, reply: ECHO_ITERM2, upTo: 'boot' })
 fullDepth(echoIterm, 'iTerm2 3.7.6\'s own reply, byte for byte')
+const echoKitty = await capture({ name: 'echo-kitty', env: { TERM: 'xterm-256color' }, reply: ECHO_KITTY, upTo: 'boot' })
+fullDepth(echoKitty, 'kitty 0.45.0\'s own twenty bytes, its TERM set to xterm-256color by hand')
 const echoBel = await capture({ name: 'echo-semicolons-bel', env: { TERM: 'xterm-256color' }, reply: ECHO_SEMICOLONS, upTo: 'boot' })
 fullDepth(echoBel, 'the semicolon form, ended by BEL')
 const echoXterm = await capture({ name: 'echo-xterm', env: { TERM: 'xterm' }, reply: ECHO, upTo: 'boot' })
