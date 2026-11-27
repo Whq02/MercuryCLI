@@ -171,9 +171,33 @@ async function textArrives(surface: ReturnType<typeof targetSurface>, needle: st
   }
 }
 
-function pageKeepsText(needle: string): boolean {
+function pageHoldsText(needle: string, rendered: boolean): boolean {
   const norm = (x: string): string => x.replace(/\s+/g, ' ').trim().toLowerCase()
-  return norm(document.body?.textContent ?? '').includes(norm(needle))
+  return norm((rendered ? document.body?.innerText : document.body?.textContent) ?? '').includes(norm(needle))
+}
+
+async function textShows(surface: ReturnType<typeof targetSurface>, needle: string, deadline: number, signal: AbortSignal): Promise<boolean> {
+  const answered = new AbortController()
+  const onFrame = new AbortController()
+  const either = AbortSignal.any([signal, answered.signal])
+  const everyFrame = surface.waitForFunction(pageHoldsText, { timeout: deadline, polling: 'raf', signal: either }, needle, true).then(
+    () => true,
+    error => {
+      if (isDriverTimeout(error)) return false
+      throw error
+    },
+  )
+  everyFrame.then(
+    saw => {
+      if (saw) onFrame.abort()
+    },
+    () => onFrame.abort(),
+  )
+  try {
+    return (await withDeadline(textArrives(surface, needle, deadline, either), deadline, () => false, { signal: onFrame.signal, onAbort: () => everyFrame, unref: true })) || (await everyFrame)
+  } finally {
+    answered.abort()
+  }
 }
 
 async function textElsewhere(owner: OwnerKey, s: LiveSession, needle: string, frame: Input['frame']): Promise<string> {
@@ -186,7 +210,7 @@ async function textElsewhere(owner: OwnerKey, s: LiveSession, needle: string, fr
           : withDeadline(rendersText(child, needle), MISS_LOOK_MS, () => false, { unref: true }),
       ),
     ),
-    withDeadline(targetSurface(s, frame).evaluate(pageKeepsText, needle).catch(passedOverAs(false)), MISS_LOOK_MS, () => false, { unref: true }),
+    withDeadline(targetSurface(s, frame).evaluate(pageHoldsText, needle, false).catch(passedOverAs(false)), MISS_LOOK_MS, () => false, { unref: true }),
   ])
   const at = held.indexOf(true)
   if (at !== -1) return `; child frame ${at + 1} (${children[at]!.url().split('?')[0]}) holds it (set frame to wait there)`
@@ -222,7 +246,7 @@ export async function waitForOp(s: LiveSession, { input, owner, signalFor }: OpR
         state === 'hidden' ? 'hidden/gone' : state === 'visible' ? 'present and visible' : 'present (attached)'
       result = `waitFor selector ${input.selector}: ${landedState} after ${Date.now() - t0}ms at ${pageWhere(s)}`
     } else if (input.text !== undefined) {
-      if (!(await textArrives(targetSurface(s, input.frame), input.text, deadline, signalFor(s)))) {
+      if (!(await textShows(targetSurface(s, input.frame), input.text, deadline, signalFor(s)))) {
         result = `waitFor ${waited}${await waitMissWords(owner, s, input, deadline)}`
         outcome = 'failed'
         return { result, outcome }

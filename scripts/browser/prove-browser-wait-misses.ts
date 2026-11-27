@@ -23,6 +23,7 @@ const A = await serve(0, (req: http.IncomingMessage, res: http.ServerResponse) =
 <script>
 const root = document.getElementById('host').attachShadow({ mode: 'open' })
 root.innerHTML = '<button id="deep">Deep button</button><p>shadow words</p>'
+window.__flash = (after, shown, deep) => setTimeout(() => { const p = document.createElement('p'); p.textContent = deep ? 'deep flash words' : 'flash words'; (deep ? root : document.body).appendChild(p); setTimeout(() => p.remove(), shown) }, after)
 window.__late = ms => setTimeout(() => { const p = document.createElement('p'); p.textContent = 'late shadow words'; root.appendChild(p) }, ms)
 </script>
 <iframe src="/framed" title="inner frame"></iframe>`)
@@ -169,6 +170,19 @@ section('S8 waitFor text reads what extract prints: the text of open shadow root
   check('control: a text of the page itself is found at once', plain.outcome === 'succeeded' && plain.ms < 1000, `${plain.ms}ms ${plain.result}`)
   const never = await run({ op: 'waitFor', text: 'never here', timeoutMs: 600 })
   check('control: a miss runs its deadline and keeps its sentence', never.outcome === 'failed' && never.ms >= 500 && never.ms < 2600 && never.result === `waitFor text "never here" failed at ${HERE}: not in the page's rendered text within the 600ms deadline`, `${never.ms}ms ${never.result}`)
+}
+
+section('S9 a text that is on the page for 40 ms: the wait still looks at every frame, as it did before the deep reader came')
+{
+  const FRAME = 'the text wait of waitForOp in src/tools/browser/ops/navigateOps.ts must keep the in-page look at every frame (the page’s own innerText) beside the stepped deep reader; the first to see the text answers'
+  const flash = (deep: boolean): Promise<void> => pageOf().evaluate((d: boolean) => { (window as unknown as { __flash: (after: number, shown: number, deep: boolean) => void }).__flash(350, 40, d) }, deep)
+  await flash(false)
+  const seen = await run({ op: 'waitFor', text: 'flash words', timeoutMs: 1500 })
+  check('a text of the page shown for 40 ms, 350 ms in, is seen', seen.outcome === 'succeeded' && seen.result.startsWith('waitFor text "flash words": present after ') && seen.ms < 1200, `${seen.ms}ms ${seen.result} — change: ${FRAME}`)
+  await flash(true)
+  const deep = await run({ op: 'waitFor', text: 'deep flash words', timeoutMs: 1500 })
+  console.log(`    the bound, named: a text shown for 40 ms INSIDE a shadow root is read by the stepped reader alone (a look every 100 ms) and may be missed; this run: ${deep.outcome} after ${deep.ms}ms`)
+  check('a text shown for 40 ms inside a shadow root answers one way or the other within its deadline', (deep.outcome === 'succeeded' || deep.outcome === 'failed') && deep.ms < 2700, `${deep.ms}ms ${deep.result}`)
 }
 
 await finish('prove-browser-wait-misses')
