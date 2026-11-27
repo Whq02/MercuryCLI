@@ -62,6 +62,8 @@ function accountHome() {
   if (typeof home !== 'string' || !path.isAbsolute(home)) throw new Error(`the account record names no home: ${JSON.stringify(home)}`)
   return home
 }
+const STORE = '.mercury'
+let stores = null
 function accountRoots() {
   const uid = process.getuid()
   let temp = '/tmp'
@@ -72,13 +74,30 @@ function accountRoots() {
   try {
     const home = accountHome()
     const cache = path.join(home, ...(process.platform === 'darwin' ? ['Library', 'Caches'] : ['.cache']), 'mercury-nodejs')
-    found.push({ label: "the account's config home", path: path.join(home, '.mercury') })
+    found.push({ label: "the account's config home", path: path.join(home, STORE) })
     found.push({ label: "the account's cache home", path: cache })
     found.push({ label: "the account's session folders in its cache home", path: path.join(cache, `mercury-${uid}`) })
+    stores = { label: "one of the account's config homes", folder: home }
+    try {
+      for (const name of fs.readdirSync(home)) {
+        if (name !== STORE && name.toLowerCase().startsWith(STORE)) found.push({ label: stores.label, path: path.join(home, name) })
+      }
+    } catch (error) {
+      process.stderr.write(`proof guard: the account's home could not be listed (${error.message}); a config home beside ${STORE} is guarded by its name alone in this process\n`)
+    }
   } catch (error) {
     process.stderr.write(`proof guard: the account's home could not be read (${error.message}); its config home and cache home are not guarded in this process\n`)
   }
   return found
+}
+function accountStore(place) {
+  if (stores === null) return null
+  const name = said(path.basename(place))
+  if (!name.toLowerCase().startsWith(STORE)) return null
+  const home = seen(stores.folder, true)
+  const folder = seen(onDisk(path.dirname(place)), true)
+  if (home === null || home.key === '' || folder === null || folder.key !== home.key) return null
+  return { how: 'is', root: { label: stores.label, path: path.join(stores.folder, name) } }
 }
 function namedRoots() {
   return (process.env.MERCURY_SUITE_GUARDED || '').split(path.delimiter).filter(Boolean).map(entry => ({ label: 'a guarded root', path: path.resolve(entry) }))
@@ -149,7 +168,7 @@ function landing(target) {
       if (folded(path.basename(holder)) === name && seen(path.dirname(holder), true)?.key === folder.key) return { how: 'would hold', root }
     }
   }
-  return null
+  return accountStore(place)
 }
 function standing(target, lands) {
   const here = seen(onDisk(target), false)
@@ -168,7 +187,11 @@ function standing(target, lands) {
     }
     if (held.some(folder => seen(folder, true)?.key === here.key)) return { how: 'holds', root }
   }
-  return null
+  return accountStore(target)
+}
+function rootAt(place, lands) {
+  const found = standing(Buffer.from(String(place)).toString('latin1'), lands === true)
+  return found === null ? null : { how: found.how, label: found.root.label, path: found.root.path }
 }
 function bytes(raw) {
   if (typeof raw === 'string') return Buffer.from(raw)
@@ -260,5 +283,5 @@ function installProofGuard() {
     process.stderr.write(`proof guard: not installed (${error.message}); this process can remove, rename and link over the account's own temp root, config home and cache home\n`)
   }
 }
-module.exports = { proofEntry, openSystemLibrary, carryProofGuard, accountHome }
+module.exports = { proofEntry, openSystemLibrary, carryProofGuard, accountHome, rootAt }
 installProofGuard()

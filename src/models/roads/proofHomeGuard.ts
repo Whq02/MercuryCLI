@@ -25,12 +25,15 @@ export function homeIsAccountStore(home: string): boolean {
   const store = accountStoreHome()
   const inside = relative(canonicalPath(store), canonicalPath(home))
   if (inside === '' || (inside !== '..' && !inside.startsWith(`..${sep}`) && !isAbsolute(inside))) return true
-  const profile = (base: string, path: string): boolean => {
-    const name = relative(base, path).split(sep)[0] ?? ''
+  const profile = (name: string): boolean => {
     const id = Number(name.slice(basename(store).length))
     return Number.isInteger(id) && id >= 2 && name === basename(homeOf(store, id))
   }
-  return profile(dirname(store), resolve(home)) || profile(canonicalPath(dirname(store)), canonicalPath(home))
+  const parent = canonicalPath(dirname(store))
+  for (let at = resolve(home); dirname(at) !== at; at = dirname(at)) {
+    if (profile(basename(at)) && canonicalPath(dirname(at)) === parent) return true
+  }
+  return profile(relative(parent, canonicalPath(home)).split(sep)[0] ?? '')
 }
 
 function canonicalPath(path: string, seen: Set<string> = new Set()): string {

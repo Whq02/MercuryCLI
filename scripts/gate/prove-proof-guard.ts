@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
-import { delimiter, join, resolve } from 'node:path'
+import { basename, delimiter, dirname, join, resolve } from 'node:path'
 
 const root = resolve(process.env.PROOF_SUBJECT_ROOT ?? join(import.meta.dir, '../..'))
 const guard = join(root, 'scripts/lib/proofGuard.cjs')
@@ -25,7 +25,9 @@ const clean = Object.fromEntries(Object.entries(process.env as Record<string, st
 const base = mkdtempSync(join(realpathSync('/tmp'), 'ppg-'))
 const token = `${process.pid}.${Date.now().toString(36)}`
 type Tried = { shape: string; outcome: string; stands: boolean; error?: { code: unknown; syscall: unknown; path: unknown } }
-type Facts = { guarded: string[] | null; refused?: Tried[]; underNode?: Tried[]; folds?: boolean; allowed?: Tried[]; runs?: Array<{ name: string; status: number | null; refusals: string[]; stands: boolean }>; environment?: { home: boolean; cache: boolean } }
+type Judged = { shape: string; said: string | null }
+type Facts = { guarded: string[] | null; refused?: Tried[]; underNode?: Tried[]; folds?: boolean; allowed?: Tried[]; runs?: Array<{ name: string; status: number | null; refusals: string[]; stands: boolean }>; environment?: { home: boolean; cache: boolean }; judged?: Judged[]; unjudged?: Judged[]; standing?: Judged[]; second?: Judged[] | null }
+const besideTheFirst = (path: string, home: string): boolean => dirname(path) === home && basename(path) !== '.mercury' && basename(path).toLowerCase().startsWith('.mercury')
 const world = (name: string): string => {
   const at = join(base, name)
   mkdirSync(join(at, 'account', 'root', 'session'), { recursive: true })
@@ -110,7 +112,16 @@ try {
     }
     check("the guard's list opens with the account's temp root, config home, cache home and the session folders inside it, read from the account record and the uid", record.status === 0 && home !== '' && guarded.slice(0, 4).join('\n') === expected.map(realParent).join('\n'), `${JSON.stringify(guarded.slice(0, 4))} against ${JSON.stringify(expected.map(realParent))}`)
     check('the run was started with HOME and XDG_CACHE_HOME pointed at stand-ins, and the list did not follow them', run.facts?.environment?.home === true && run.facts.environment.cache === true && !guarded.some(path => path.startsWith(join(run.at, 'stand-in'))), JSON.stringify(run.facts?.environment))
-    check('the three paths the proof named follow the four', guarded.slice(4).join(delimiter) === named(run.at), JSON.stringify(guarded.slice(4)))
+    const beside = guarded.slice(4, -3)
+    check(`the three paths the proof named close the list, and between the four and them stand only the account's other config homes, read as names from one listing of its home (${beside.length} on this machine)`, guarded.slice(-3).join(delimiter) === named(run.at) && beside.every(path => besideTheFirst(path, realpathSync(home))), JSON.stringify(guarded.slice(4)))
+    const judged = run.facts?.judged ?? []
+    check(`a config home that does not stand yet is a root by its name and its folder: ${judged.length} places a call would land (a name that begins .mercury under the account's home, in capitals, spelled through ".", through a link, .mercury2, .mercury3) are each a root`, judged.length === 6 && judged.every(place => place.said === 'is'), JSON.stringify(judged))
+    const unjudged = run.facts?.unjudged ?? []
+    check('a path inside one, the name without its dot, such a name under another folder, and a call that only acts where nothing stands are no root, as for .mercury itself', unjudged.length === 4 && unjudged.every(place => place.said === null), JSON.stringify(unjudged))
+    const standing = run.facts?.standing ?? []
+    check(`each config home that stands beside the first is a root to a call that acts on it (${beside.length} on this machine)`, standing.length === beside.length && standing.every(place => place.said === 'is'), JSON.stringify(standing))
+    const second = run.facts?.second
+    check(second === null ? 'no .mercury2 stands under the account\'s home on this machine: that a home which stands is a root by what it is, however it is spelled, is not held here' : 'the .mercury2 that stands under the account\'s home is a root by what it is, not by how it is spelled: to a call that acts on it, through a link with a trailing separator, and with a trailing "/."', second === null || (second !== undefined && second.length === 3 && second.every(place => place.said === 'is')), JSON.stringify(second))
     const stopped = (run.facts?.allowed ?? []).filter(tried => tried.outcome !== 'went through')
     check("a stand-in home's config folder, a stand-in cache home, the stand-in home itself and a link under the temp root's name in another folder are the proof's own: every call goes through", run.code === 0 && (run.facts?.allowed ?? []).length === 5 && stopped.length === 0 && refusalLines(run.said).length === 0, `rc=${run.code} ${JSON.stringify(stopped)} ${refusalLines(run.said).join(' | ')}`)
   }
@@ -147,7 +158,8 @@ appendFileSync(receipt, name + ': ' + outcome + ' · root stands ' + existsSync(
     const homeless = spawnSync(process.execPath, ['-e', list], { cwd: at, env: { ...clean, MERCURY_SUITE_OF_ONE: 'held', MERCURY_SUITE_LIBC: join(at, 'no-such-library'), BUN_OPTIONS: `"--preload=${guard}"` }, encoding: 'utf8' })
     check("bun with no library to read the account record through: one line says the home's two roots are not guarded here, and the temp root still is", homeless.status === 0 && homeless.stderr === `proof guard: the account's home could not be read (${join(at, 'no-such-library')} did not open); its config home and cache home are not guarded in this process\n` && homeless.stdout.trim() === JSON.stringify([join(realpathSync('/tmp'), `mercury-${process.getuid!()}`)]), `rc=${homeless.status} ${homeless.stdout} ${homeless.stderr}`)
     const armed = spawnSync(process.execPath, ['-e', list], { cwd: at, env: { ...clean, MERCURY_SUITE_OF_ONE: 'held', BUN_OPTIONS: `"--preload=${guard}"` }, encoding: 'utf8' })
-    check('control: the same start with the library in place says nothing and guards four roots', armed.status === 0 && armed.stderr === '' && (JSON.parse(armed.stdout || 'null') as string[] | null)?.length === 4, `rc=${armed.status} ${armed.stdout} ${armed.stderr}`)
+    const armedList = JSON.parse(armed.stdout || 'null') as string[] | null
+    check('control: the same start with the library in place says nothing and guards its four roots, and behind them only config homes that stand beside the first', armed.status === 0 && armed.stderr === '' && armedList !== null && armedList.length >= 4 && armedList.slice(4).every(path => besideTheFirst(path, dirname(armedList[1]!))), `rc=${armed.status} ${armed.stdout} ${armed.stderr}`)
   }
 
   section('a process that is no proof is left alone: an entry outside scripts/, started with no mark of a proof run')
