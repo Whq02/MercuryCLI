@@ -11,10 +11,10 @@ const repo = resolve(import.meta.dir, '..', '..')
 const fixHint = "fix the door in src/models/sign-in/lifecycle/lockedRefresh.ts (the lock file it takes before its own lock, and the pair it keeps when a refused refresh blanked the stored token while its accepted answer was out) or the road's refreshLockFile in src/models/roads/openai/openaiAccounts.ts and src/models/roads/xai/xaiOauth.ts; each process is scripts/provauth/lib/build-refresh-child.ts"
 let failures = 0
 let passes = 0
-function check(label: string, ok: boolean, detail = ''): void {
+function check(label: string, ok: boolean, detail = '', hint = fixHint): void {
   if (ok) passes++
   else failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : `${detail ? ` — ${detail}` : ''} — ${fixHint}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : `${detail ? ` — ${detail}` : ''} — ${hint}`}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))
 const within = (work: Promise<unknown>, ms: number): Promise<boolean> => Promise.race([work.then(() => true), sleep(ms).then(() => false)])
@@ -121,11 +121,10 @@ interface Process {
   go: () => void
   kill: () => void
 }
-function start(build: Build, road: Road, home: string, base: string, clockAheadMs = 0): Process {
-  const proc = spawn(process.execPath, ['run', join(import.meta.dir, 'lib', 'build-refresh-child.ts'), roots[build], road, String(clockAheadMs)], {
-    env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_OPENAI_AUTH_BASE: base, MERCURY_XAI_AUTH_BASE: base },
-    stdio: ['pipe', 'pipe', 'pipe'],
-  })
+const childCommand = (build: Build, road: Road, clockAheadMs: number, lifeMs?: number): string[] => ['run', join(import.meta.dir, 'lib', 'build-refresh-child.ts'), roots[build], road, String(clockAheadMs), ...(lifeMs === undefined ? [] : [String(lifeMs)])]
+const childEnv = (home: string, base: string): NodeJS.ProcessEnv => ({ ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_OPENAI_AUTH_BASE: base, MERCURY_XAI_AUTH_BASE: base })
+function start(build: Build, road: Road, home: string, base: string, clockAheadMs = 0, lifeMs?: number): Process {
+  const proc = spawn(process.execPath, childCommand(build, road, clockAheadMs, lifeMs), { env: childEnv(home, base), stdio: ['pipe', 'pipe', 'pipe'] })
   let out = ''
   let err = ''
   const ready = gate()
@@ -253,6 +252,54 @@ async function lockHeldPastThePatience(road: Road): Promise<Outwaited> {
   }
 }
 
+const NO_PROVIDER = 'http://127.0.0.1:9'
+const GONE_WITHIN_MS = 10_000
+const LIFE_MS = 2_000
+const alive = (pid: number): boolean => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+interface Left {
+  pid: number | undefined
+  goneAfterMs: number | undefined
+  said: string
+}
+async function leftByItsParent(how: 'ended' | 'was killed'): Promise<Left> {
+  const parentScript = `
+const child = require('node:child_process').spawn(process.execPath, ${JSON.stringify(childCommand('tree', 'openai', 0))}, { stdio: ['pipe', 'pipe', 'pipe'] })
+let out = ''
+child.stdout.on('data', chunk => {
+  out += String(chunk)
+  if (!out.includes('"ready":true')) return
+  console.log(JSON.stringify({ left: child.pid }))
+  ${how === 'ended' ? 'process.exit(1)' : "process.kill(process.pid, 'SIGKILL')"}
+})
+child.on('close', () => process.exit(1))
+`
+  const parent = spawn(process.execPath, ['-e', parentScript], { env: childEnv(signedInHome('openai').home, NO_PROVIDER), stdio: ['ignore', 'pipe', 'pipe'] })
+  let said = ''
+  parent.stdout.on('data', chunk => { said += String(chunk) })
+  parent.stderr.on('data', chunk => { said += String(chunk) })
+  if (!(await within(new Promise<void>(done => parent.on('close', () => done())), 60_000))) parent.kill('SIGKILL')
+  const pid = Number(/"left":(\d+)/.exec(said)?.[1])
+  if (!Number.isInteger(pid)) return { pid: undefined, goneAfterMs: undefined, said: said.slice(-300) }
+  const from = Date.now()
+  while (alive(pid) && Date.now() - from < GONE_WITHIN_MS) await sleep(50)
+  const goneAfterMs = alive(pid) ? undefined : Date.now() - from
+  if (goneAfterMs === undefined) process.kill(pid, 'SIGKILL')
+  return { pid, goneAfterMs, said: '' }
+}
+async function neverToldToGo(): Promise<{ end: Ended; afterMs: number }> {
+  const from = Date.now()
+  const silent = start('tree', 'openai', signedInHome('openai').home, NO_PROVIDER, 0, LIFE_MS)
+  if (!(await within(silent.ended, 30_000))) silent.kill()
+  return { end: await silent.ended, afterMs: Date.now() - from }
+}
+
 const beside = spawnSync('git', ['-C', repo, 'cat-file', '-e', `${RELEASED_SRC_TREE}^{tree}`]).status === 0
 if (beside) unpackReleasedSource()
 else console.log(`the scenes that run 1.1.0 beside this tree are not staged: this clone does not hold the released source (the src tree of tag v1.1.0, ${RELEASED_SRC_TREE.slice(0, 10)}); a clone with its history does`)
@@ -302,5 +349,13 @@ const [chatgptWaited, grokWaited] = await outwaited
 check('ChatGPT: after its wait the call answers the pair that stands, having asked nothing', chatgptWaited.waitedMs > 15_000 && chatgptWaited.end.answer === 'rt-0' && chatgptWaited.presented.length === 0 && chatgptWaited.stored === 'rt-0' && chatgptWaited.stampStands, JSON.stringify(chatgptWaited))
 check("Grok, the stamp five seconds old when the call began: after its wait the call refuses in 1.1.0's own words, having asked nothing", grokWaited.waitedMs > 15_000 && grokWaited.end.threw === 'Another process is refreshing Grok; retry after it finishes.' && grokWaited.presented.length === 0 && grokWaited.stored === 'rt-0' && grokWaited.stampStands, JSON.stringify(grokWaited))
 
+console.log('── a process of this proof does not outlive its parent, nor its own bound ──')
+const childHint = 'fix scripts/provauth/lib/build-refresh-child.ts: it ends when its stdin ends or closes (its parent is gone), and at the bound its fourth argument sets on its life'
+for (const how of ['ended', 'was killed'] as const) {
+  const left = await leftByItsParent(how)
+  check(`its parent ${how} while it waited to be told to go: it is gone within ${GONE_WITHIN_MS / 1000} s`, left.goneAfterMs !== undefined, left.pid === undefined ? `its parent never named it: ${left.said}` : `pid ${left.pid} was still alive ${GONE_WITHIN_MS} ms after its parent; this proof ended it`, childHint)
+}
+const silent = await neverToldToGo()
+check(`started with a life of ${LIFE_MS} ms and never told to go, it ends by itself at that bound`, silent.end.threw === `this process outlived its bound of ${LIFE_MS} ms`, JSON.stringify(silent), childHint)
 console.log(failures === 0 ? `\nREFRESH BESIDE THE RELEASED BUILD GREEN (${passes} checks; real processes of ${beside ? 'the released 1.1.0 source and of this tree' : 'this tree alone, the released source not being in this clone'}, loopback token servers, no live host)` : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

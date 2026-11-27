@@ -1,7 +1,12 @@
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const [root = '', road = '', clockAheadMs = '0'] = process.argv.slice(2)
+const [root = '', road = '', clockAheadMs = '0', lifeMs = '120000'] = process.argv.slice(2)
+setTimeout(() => {
+  console.log(JSON.stringify({ threw: `this process outlived its bound of ${lifeMs} ms` }))
+  process.exit(3)
+}, Number(lifeMs))
+for (const parentGone of ['end', 'close']) process.stdin.once(parentGone, () => process.exit(2))
 const from = <T>(file: string): Promise<T> => import(join(root, 'src', file)) as Promise<T>
 const { enableConfigs } = await from<typeof import('../../../src/platform/settings/config.ts')>('platform/settings/config.ts')
 enableConfigs()
