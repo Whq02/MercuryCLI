@@ -2,7 +2,7 @@ import type { BootMenuData } from '../../../../assets/splash/splash-core.mjs';
 import { loginsSwitchableFamily, loginsRosterEntryOf, loginsLegendOf, loginsSummaryRows, loginsStatusLine, type LoginsScreenFactsV1, loginsRosterRows, loginsRosterDetailLines } from './facts.js';
 import { loginsPickOptions } from './pickLines.js';
 import type { useAnthropicLoginModel } from '../../widgets/faces/anthropicLoginModel.js';
-import { type LoginsFlowPaneV1, loginsFlowPaneLines, type OpenFlowState, loginsFlowStatusOf, loginsFlowLegendOf, loginsFlowNoticeOf } from './flowLines.js';
+import { type LoginsFlowPaneV1, loginsFlowPaneLines, type OpenFlowState, loginsFlowStatusOf, loginsFlowLegendOf, loginsFlowNoticeOf, loginsFlowCopyUnconfirmed } from './flowLines.js';
 
 export function loginsMenuModelOf(
   facts: LoginsScreenFactsV1,
@@ -26,6 +26,7 @@ export function loginsMenuModelOf(
           detailOverride: loginsFlowPaneLines(opts.flow),
           ...((opts.flow.kind === 'key' && (opts.flow.leg === 'xai' || opts.flow.leg === 'xai-management' || opts.flow.leg === 'mistral' || opts.flow.leg === 'mistral-admin')) || (opts.flow.kind === 'receipt' && opts.flow.external === true) || signIn !== null ? { detailOverrideConfirms: true } : {}),
           ...(signIn !== null ? { detailOverrideWhole: signIn } : {}),
+          ...(loginsFlowCopyUnconfirmed(opts.flow) ? { detailOverrideOverList: true } : {}),
           legend: loginsFlowLegendOf(opts.flow),
           statusRight: loginsFlowStatusOf(opts.flow),
         }

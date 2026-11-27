@@ -85,7 +85,7 @@ function freshHome(id: string): string {
   return home
 }
 
-async function capture(opts: { id: string; home: string; keyed: boolean; sends: Send[]; rows?: number; total?: number }): Promise<Capture> {
+async function capture(opts: { id: string; home: string; keyed: boolean; sends: Send[]; rows?: number; total?: number; env?: Record<string, string>; resizes?: Send[] }): Promise<Capture> {
   const api = await startFixtureApi([{ kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }])
   const cfgPath = join(SCRATCH, `cfg-${opts.id}.json`)
   const outPath = join(SCRATCH, `grid-${opts.id}.json`)
@@ -97,6 +97,7 @@ async function capture(opts: { id: string; home: string; keyed: boolean; sends: 
       cols: 120,
       rows: opts.rows ?? 40,
       sends: opts.sends,
+      ...(opts.resizes ? { resizes: opts.resizes } : {}),
       total: opts.total ?? 300,
       out: outPath,
     }),
@@ -120,6 +121,7 @@ async function capture(opts: { id: string; home: string; keyed: boolean; sends: 
       ...(opts.keyed ? { ANTHROPIC_API_KEY: 'fixture-key-000' } : {}),
       BROWSER: NO_BROWSER,
       SSH_CONNECTION: 'proof',
+      ...opts.env,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
@@ -385,6 +387,117 @@ console.log('L4 — the face’s OpenAI browser leg: c copies and the masked pas
   check('L4 a paste containing a c still types: `paste: •••▌`, no copy', draftDots(typed, 'paste:') === 3 && !typed.includes(FACE_ACK), String(draftDots(typed, 'paste:')))
   check('L4 esc returns to the roster', back.includes(ROSTER_LEGEND))
   report('l4', c, ['paste:', HANDLES_WAY_OUT, FACE_ACK], failures > before)
+  reapHome(home)
+}
+
+const AGAIN = 'press c again'
+const RETURN_WORDS = 'Press Enter to return to Mercury…'
+const NO_CLIPBOARD = { MERCURY_CLIPBOARD_FILE: '' }
+const NARROW = 97
+function lineScreen(frame: string): { address: string; rows: number; alone: boolean } {
+  const lines = frame.split('\n')
+  let end = 1
+  while (end < lines.length && lines[end]!.trim() !== '') end++
+  const held = lines.slice(1, end)
+  const address = held.map(row => row.trimEnd()).join('')
+  const alone =
+    lines[0]!.trim() === '' &&
+    held.length > 1 &&
+    held.slice(0, -1).every(row => !/\s/.test(row)) &&
+    !/\s/.test(address) &&
+    (lines[end] ?? '').trim() === '' &&
+    (lines[end + 1] ?? '').trimEnd() === RETURN_WORDS &&
+    lines.slice(end + 2).every(row => row.trim() === '')
+  return { address, rows: held.length, alone }
+}
+
+console.log('L5 — the face with no clipboard in reach: c says so, a second c writes the address on one line of the terminal’s own, Enter returns')
+{
+  const home = freshHome('face-line')
+  const c = await capture({
+    id: 'l5-face-line',
+    home,
+    keyed: false,
+    rows: 24,
+    env: NO_CLIPBOARD,
+    resizes: [{ afterMark: 'kept', afterMs: 400, cols: NARROW, rows: 24 }],
+    sends: [
+      ...FACE_TO_ROSTER(),
+      g(ROSTER_LEGEND, ENTER, { mark: 'roster', awaitSettleTicks: 3 }),
+      g('ChatGPT subscription — browser sign-in', ENTER, { mark: 'pick' }),
+      g(HANDLES_EMPTY_PASTE, 'c', { mark: 'wait' }),
+      g(AGAIN, 'c', { mark: 'said', awaitSettleTicks: 3 }),
+      g(RETURN_WORDS, '\x1b[O', { mark: 'line', awaitSettleTicks: 3 }),
+      g(RETURN_WORDS, 'x', { mark: 'still', awaitSettleTicks: 3 }),
+      g(RETURN_WORDS, '', { mark: 'kept', awaitSettleTicks: 3 }),
+      g(RETURN_WORDS, ENTER, { mark: 'narrow', awaitPattern: `(?m)^.{${NARROW}}$`, awaitSettleTicks: 5 }),
+      g(AGAIN, ESC, { mark: 'returned', awaitSettleTicks: 3 }),
+      g(ROSTER_LEGEND, ESC, { mark: 'back', awaitSettleTicks: 3 }),
+      ...QUIT,
+    ],
+  })
+  const said = markText(c, 'said')
+  const line = lineScreen(markText(c, 'line'))
+  const returned = markText(c, 'returned')
+  const before = failures
+  check('L5 the drive walked every screen', marksLanded(c, ['roster', 'pick', 'wait', 'said', 'line', 'still', 'kept', 'narrow', 'returned', 'back']), `exit ${c.status}`)
+  check('L5 c with no clipboard in reach never says copied: the sentence names the second c', said.includes(AGAIN) && !said.includes(FACE_ACK) && draftDots(said, 'paste:') === 0, '', 'src/models/sign-in/signInCopy.ts words the unconfirmed copy; src/screen/boot-face/logins/flowKeys.ts reads it')
+  check(
+    'L5 the second c leaves Mercury’s screen for the address alone: from the first column, on rows the terminal itself wrapped, a blank row above, the return words under a blank row, nothing else',
+    line.alone && /^https:\/\/auth\.openai\.com\/oauth\/authorize\?\S+originator=mercury$/.test(line.address) && line.address.length > 300,
+    `${line.rows} rows · ${line.address.length} chars · alone ${line.alone}`,
+    'showSignInAddressLine in src/screen/boot-face/logins/lentTerminal.ts writes a blank line, the address, a blank line and the return words, and nothing else',
+  )
+  check('L5 it is the address the pane painted', said.replace(/\s+/g, '').includes(line.address), '', 'the second c in src/screen/boot-face/logins/flowKeys.ts must hand showSignInAddressLine the pane’s own address')
+  check('L5 a focus report and a stray key leave the line up', lineScreen(markText(c, 'still')).address === line.address && lineScreen(markText(c, 'kept')).address === line.address, '', 'returnPressed in src/screen/boot-face/logins/lentTerminal.ts must end on Enter or a lone Esc only')
+  const narrow = lineScreen(markText(c, 'narrow'))
+  check(
+    `L5 the window made narrower while the line is up (120 to ${NARROW} columns): the line is written again at that width, the whole address and nothing else`,
+    narrow.alone && narrow.address === line.address && narrow.rows === Math.ceil(line.address.length / NARROW),
+    `${narrow.rows} rows · ${narrow.address.length} of ${line.address.length} chars · alone ${narrow.alone}`,
+    'showSignInAddressLine in src/screen/boot-face/logins/lentTerminal.ts must clear the screen and write the line again on a resize while it waits',
+  )
+  check('L5 Enter returns to the waiting sign-in as it was: the sentence, an empty paste line', returned.includes(AGAIN) && draftDots(returned, 'paste:') === 0 && returned.includes('logins'), String(draftDots(returned, 'paste:')), 'lendTerminal in src/screen/boot-face/logins/lentTerminal.ts must give the screen and the keys back')
+  check('L5 esc then returns to the roster', markText(c, 'back').includes(ROSTER_LEGEND))
+  report('l5', c, ['paste:', AGAIN, RETURN_WORDS], failures > before)
+  reapHome(home)
+}
+
+console.log('L6 — the /logins card with no clipboard in reach: the same second c, and Esc returns')
+{
+  const home = freshHome('card-line')
+  const c = await capture({
+    id: 'l6-card-line',
+    home,
+    keyed: true,
+    env: NO_CLIPBOARD,
+    sends: [
+      ...FACE_TO_CARD('openai'),
+      g('OpenAI — ChatGPT subscription or API key', ENTER, { mark: 'card', awaitPattern: '❯ OpenAI — ChatGPT subscription or API key', awaitStableTicks: 3 }),
+      g('ChatGPT subscription — browser sign-in', ENTER, { mark: 'arm-pick' }),
+      g(OPENAI_FIELD, 'c', { mark: 'wait' }),
+      g(AGAIN, 'c', { mark: 'said', awaitSettleTicks: 3 }),
+      g(RETURN_WORDS, ESC, { mark: 'line', awaitSettleTicks: 3 }),
+      g(AGAIN, ESC, { mark: 'returned', awaitSettleTicks: 3 }),
+      g(COMPOSER, '', { mark: 'closed', awaitSettleTicks: 4 }),
+      ...QUIT,
+    ],
+  })
+  const said = markText(c, 'said')
+  const line = lineScreen(markText(c, 'line'))
+  const returned = markText(c, 'returned')
+  const before = failures
+  check('L6 the drive walked every screen', marksLanded(c, ['card', 'arm-pick', 'wait', 'said', 'line', 'returned', 'closed']), `exit ${c.status}`)
+  check('L6 c with no clipboard in reach never says copied: the card’s sentence names the second c', said.includes(AGAIN) && !said.includes(CARD_ACK) && fieldAfter(said, OPENAI_FIELD) === '', '', 'useSignInCopy in src/models/sign-in/flow-cards/SignInCopyLine.tsx words the unconfirmed copy')
+  check(
+    'L6 the second c leaves the chat for the address alone, as on the face',
+    line.alone && /^https:\/\/auth\.openai\.com\/oauth\/authorize\?\S+originator=mercury$/.test(line.address) && line.address.length > 300,
+    `${line.rows} rows · ${line.address.length} chars · alone ${line.alone}`,
+    'useSignInCopy in src/models/sign-in/flow-cards/SignInCopyLine.tsx must call showSignInAddressLine on a second c for a URL',
+  )
+  check('L6 Esc returns to the card as it was: the sentence, an empty field', returned.includes(AGAIN) && fieldAfter(returned, OPENAI_FIELD) === '', JSON.stringify(fieldAfter(returned, OPENAI_FIELD)))
+  check('L6 esc then closes the card back to the composer', markText(c, 'closed').includes(COMPOSER))
+  report('l6', c, [OPENAI_FIELD, AGAIN, RETURN_WORDS], failures > before)
   reapHome(home)
 }
 

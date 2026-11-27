@@ -2,8 +2,10 @@ import { OPENAI_DEVICE_STOPPED_RECEIPT } from '../../../models/roads/openai/open
 import { writeGeminiOauthClientConfig } from '../../../models/roads/gemini/geminiAccounts.js';
 import { copyForSignIn, signInCopySaid, SIGN_IN_COPY_ACK_MS } from '../../../models/sign-in/signInCopy.js';
 import type { OpenFlowState } from './flowLines.js';
+import { showSignInAddressLine } from './lentTerminal.js';
 import type { LoginsFlowContext } from './context.js';
 import type { Key } from '../../themedRenderer.js';
+import { isClickSlop, type TextGesture } from '../../renderer/events/text-gesture.js';
 import { startTimeout } from '../../../platform/async/timers.js';
 
 export function receiptFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFlowState, { kind: 'receipt' }>, key: Key): void {
@@ -22,31 +24,82 @@ export function receiptFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFlo
 }
 
 export function deviceFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFlowState, { kind: 'device' }>, input: string, key: Key): void {
-  const { deviceRunRef, setFlow, setDraft, openPick } = ctx;
+  const { deviceRunRef, setDraft, openPick } = ctx;
   if (key.escape) {
     deviceRunRef.current += 1;
     setDraft('');
     openPick(current.device.family);
     return;
   }
-  if (
-    input === 'c' &&
-    !key.ctrl &&
-    !key.meta &&
-    current.device.phase === 'waiting' &&
-    current.device.verificationUri !== undefined
-  ) {
-    const run = deviceRunRef.current;
-    void copyForSignIn(current.device.verificationUri).then(answer => {
-      if (run !== deviceRunRef.current) return;
-      setFlow(f => (f?.kind === 'device' ? { kind: 'device', device: { ...f.device, ...signInCopySaid(answer, 'URL') } } : f));
-      if (answer !== 'copied') return;
-      startTimeout(() => {
-        if (run !== deviceRunRef.current) return;
-        setFlow(f => (f?.kind === 'device' ? { kind: 'device', device: { ...f.device, copied: false } } : f));
-      }, SIGN_IN_COPY_ACK_MS);
-    });
+  if (input === 'c' && !key.ctrl && !key.meta) copyDeviceAddress(ctx, current);
+}
+
+function copyDeviceAddress(ctx: LoginsFlowContext, current: Extract<OpenFlowState, { kind: 'device' }>): void {
+  const { deviceRunRef, setFlow } = ctx;
+  if (current.device.phase !== 'waiting' || current.device.verificationUri === undefined) return;
+  if (typeof current.device.copyNote === 'string') {
+    void showSignInAddressLine(current.device.verificationUri);
+    return;
   }
+  const run = deviceRunRef.current;
+  void copyForSignIn(current.device.verificationUri).then(answer => {
+    if (run !== deviceRunRef.current) return;
+    setFlow(f => (f?.kind === 'device' ? { kind: 'device', device: { ...f.device, ...signInCopySaid(answer, 'URL') } } : f));
+    if (answer !== 'copied') return;
+    startTimeout(() => {
+      if (run !== deviceRunRef.current) return;
+      setFlow(f => (f?.kind === 'device' ? { kind: 'device', device: { ...f.device, copied: false } } : f));
+    }, SIGN_IN_COPY_ACK_MS);
+  });
+}
+
+function copyHandlesAddress(ctx: LoginsFlowContext, current: Extract<OpenFlowState, { kind: 'handles' }>): void {
+  const { deviceRunRef, setFlow } = ctx;
+  const h = current.handles;
+  if (h.phase !== 'waiting' || h.authorizeUrl === undefined) return;
+  if (typeof h.copyNote === 'string') {
+    void showSignInAddressLine(h.authorizeUrl);
+    return;
+  }
+  const run = deviceRunRef.current;
+  void copyForSignIn(h.authorizeUrl).then(answer => {
+    if (run !== deviceRunRef.current) return;
+    setFlow(f => (f?.kind === 'handles' ? { kind: 'handles', handles: { ...f.handles, ...signInCopySaid(answer, 'URL') } } : f));
+    if (answer !== 'copied') return;
+    startTimeout(() => {
+      if (run !== deviceRunRef.current) return;
+      setFlow(f => (f?.kind === 'handles' ? { kind: 'handles', handles: { ...f.handles, copied: false } } : f));
+    }, SIGN_IN_COPY_ACK_MS);
+  });
+}
+
+function copyAnthropicAddress({ model }: LoginsFlowContext): void {
+  const snap = model.flow;
+  if (snap.name !== 'waiting') return;
+  if (typeof model.copyNote === 'string') void showSignInAddressLine(snap.url);
+  else model.copyUrl();
+}
+
+function copyFlowAddress(ctx: LoginsFlowContext): void {
+  const current = ctx.flowRef.current;
+  if (current === null) return;
+  if (current.kind === 'device') copyDeviceAddress(ctx, current);
+  else if (current.kind === 'handles') copyHandlesAddress(ctx, current);
+  else if (current.kind === 'anthropic') copyAnthropicAddress(ctx);
+}
+
+export type AddressPress = { col: number; row: number };
+
+export function addressDragGesture(ctx: LoginsFlowContext, held: { current: AddressPress | null }, gesture: TextGesture): boolean {
+  if (gesture.kind === 'press') {
+    held.current = { col: gesture.localCol, row: gesture.localRow };
+    return true;
+  }
+  const press = held.current;
+  if (gesture.kind !== 'release' || press === null) return true;
+  held.current = null;
+  if (!isClickSlop(press, { col: gesture.localCol, row: gesture.localRow })) copyFlowAddress(ctx);
+  return true;
 }
 
 export function handlesFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFlowState, { kind: 'handles' }>, input: string, key: Key): void {
@@ -71,16 +124,7 @@ export function handlesFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFlo
     return;
   }
   if (input === 'c' && !key.ctrl && !key.meta && h.phase === 'waiting' && draftRef.current === '' && h.authorizeUrl !== undefined) {
-    const run = deviceRunRef.current;
-    void copyForSignIn(h.authorizeUrl).then(answer => {
-      if (run !== deviceRunRef.current) return;
-      setFlow(f => (f?.kind === 'handles' ? { kind: 'handles', handles: { ...f.handles, ...signInCopySaid(answer, 'URL') } } : f));
-      if (answer !== 'copied') return;
-      startTimeout(() => {
-        if (run !== deviceRunRef.current) return;
-        setFlow(f => (f?.kind === 'handles' ? { kind: 'handles', handles: { ...f.handles, copied: false } } : f));
-      }, SIGN_IN_COPY_ACK_MS);
-    });
+    copyHandlesAddress(ctx, current);
     return;
   }
   if (input === 'd' && !key.ctrl && !key.meta && h.leg === 'openai-browser' && h.phase === 'waiting' && draftRef.current === '') {
@@ -232,7 +276,7 @@ export function anthropicFlowKeys(ctx: LoginsFlowContext, input: string, key: Ke
     return;
   }
   if (input === 'c' && !key.ctrl && !key.meta && snap.name === 'waiting' && model.pastePromptUp && draftRef.current === '') {
-    model.copyUrl();
+    copyAnthropicAddress(ctx);
     return;
   }
   if (key.backspace || key.delete) {

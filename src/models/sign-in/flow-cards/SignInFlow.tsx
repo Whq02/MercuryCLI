@@ -23,6 +23,7 @@ import { useAnthropicLoginModel } from '../../../screen/widgets/faces/anthropicL
 import { CompatConnect } from './CompatConnect.js'
 import { DEVIN_EXTERNAL_AGENT_VALUE, localRoadOpen, loginFamilyRows, SIGN_IN_LATER_ROW, TENSORFOLD_FAMILY_VALUE, type LoginFamilyValue, type TensorFoldOffer } from './loginFamilyRows.js'
 import { DevinCliCard } from '../../../screen/boot-face/logins/DevinCliCard.js'
+import { showSignInAddressLine } from '../../../screen/boot-face/logins/lentTerminal.js'
 import { localDiscoverySummary } from '../../roads/local/localCatalogue.js'
 import { refreshLocalDiscovery } from '../../roads/local/localDiscovery.js'
 import { armFaceDoorDeepLink, armTensorFoldDeepLink, disarmTensorFoldDeepLink } from '../../../platform/substrate/splashHandover.js'
@@ -219,7 +220,8 @@ export function ConsoleOAuthFlow({
       !key.shift
     ) {
       event.stopImmediatePropagation()
-      model.copyUrl()
+      if (typeof model.copyNote === 'string') void showSignInAddressLine(model.flow.url)
+      else model.copyUrl()
       return
     }
     if (
