@@ -290,6 +290,12 @@ section('§1 query arms — echo, BEL echo, split echo, 0m, refusal, sentinel al
 
   const cinematicPending = await runArm({ reply: null, extraEnv: { MERCURY_FULLSCREEN: '1' }, sendEnter: false })
   check('cinematic silence: exits 0 cleanly with screen held and truecolor: pending', cinematicPending.requestCount === 1 && cinematicPending.exitCode === 0 && cinematicPending.receipt?.screen === 'held' && cinematicPending.receipt?.truecolor === 'pending', `count=${cinematicPending.requestCount} exit=${cinematicPending.exitCode} receipt=${JSON.stringify(cinematicPending.receipt)}`)
+
+  const xtermEcho = await runArm({ reply: ECHO_REPLY, extraEnv: { TERM: 'xterm' } })
+  check('TERM=xterm + echo: asks once, paints 24-bit, writes truecolor: true', xtermEcho.requestCount === 1 && xtermEcho.requestBeforePaint && xtermEcho.firstFrame.includes('\x1b[38;2;') && !xtermEcho.firstFrame.includes('\x1b[38;5;') && xtermEcho.receipt?.truecolor === true && xtermEcho.exitCode === 20, `count=${xtermEcho.requestCount} exit=${xtermEcho.exitCode} receipt=${JSON.stringify(xtermEcho.receipt)}`)
+
+  const xtermZero = await runArm({ reply: ZERO_M_REPLY, extraEnv: { TERM: 'xterm' } })
+  check('TERM=xterm + 0m: asks once, paints basic 16 tier (no 38;5; or 38;2;), writes truecolor: false', xtermZero.requestCount === 1 && xtermZero.requestBeforePaint && !xtermZero.firstFrame.includes('\x1b[38;5;') && !xtermZero.firstFrame.includes('\x1b[38;2;') && /\x1b\[(?:3[0-7]|9[0-7])m/.test(xtermZero.firstFrame) && xtermZero.receipt?.truecolor === false && xtermZero.exitCode === 20, `count=${xtermZero.requestCount} exit=${xtermZero.exitCode} receipt=${JSON.stringify(xtermZero.receipt)}`)
 }
 
 section('§2 no-ask environments — no request written, no truecolor field in receipt')
