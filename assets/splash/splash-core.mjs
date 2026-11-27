@@ -51,7 +51,6 @@ const HEADSTD = [
   '.....................................................',
 ]
 
-
 const WORD = [
   'RR.RR...RRRRR...RRRRR...RRRRR...R...R...RRRRR...R...R',
   'RRRRR...R.......R...R...R.......R...R...R...R...R...R',
@@ -245,18 +244,29 @@ const mixc = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t))
 const RAMP = [[221,68,68],[229,132,132],[232,183,175]]
 const RAMP_FIXTURE = [[0,221,68,68,172,59,59],[7,223,85,85,173,68,68],[15,226,105,105,175,78,78],[22,228,122,122,176,86,86],[26,229,132,132,176,91,91],[30,229,140,139,176,95,95],[37,230,154,150,177,102,100],[45,231,169,163,177,110,107],[52,232,183,175,178,117,113]]
 const CAPABILITY_TRUTH = [[null,null,null,"xterm-256color","truecolor",null,"truecolor"],["1",null,null,"xterm-256color","truecolor",null,"plain"],["1","1",null,"xterm-256color","truecolor",null,"truecolor"],["",null,null,"xterm-256color","truecolor",null,"truecolor"],["1","",null,"xterm-256color","truecolor",null,"truecolor"],[null,null,"0","xterm-256color","truecolor",null,"256"],[null,null,null,"dumb","truecolor",null,"256"],[null,null,null,"linux","truecolor",null,"256"],["1",null,"0","xterm-256color","truecolor",null,"plain"],[null,null,null,"xterm-256color",null,null,"256"],[null,null,null,"xterm-256color",null,"Apple_Terminal","256"],[null,null,null,"xterm-256color","truecolor","Apple_Terminal","truecolor"],[null,null,null,"xterm-256color","24bit",null,"truecolor"],[null,null,null,"xterm-256color",null,"vscode","truecolor"],[null,null,null,"xterm-256color",null,"iTerm.app","truecolor"],[null,null,null,"xterm-kitty",null,null,"truecolor"],[null,null,"1","xterm-256color",null,null,"truecolor"],[null,null,"1","xterm-256color",null,"Apple_Terminal","truecolor"],["1","1",null,"xterm-256color",null,null,"256"],[null,null,"1","linux",null,null,"256"]]
+const TRUECOLOR_QUERY = "\u001b7\u001b[48;2;1;2;3m\u001bP$qm\u001b\\\u001b[0m\u001b8"
+const TRUECOLOR_ECHO_TRUTH = [["0;48:2::1:2:3m",true],["0;48:2:1:1:2:3m",true],["48:2:1:2:3m",true],["0;48;2;1;2;3m",true],["0;8;30;48:2::1:2:3m",true],["48;2;0;1;2;3m",true],["0m",false],["0;48:5:16m",false],["0;38:2::1:2:3m",false],["0;48:2::1:2:30m",false],["",false]]
 export function truecolorFingerprintOf(env) {
   const colorterm = env.COLORTERM
   if (colorterm === 'truecolor' || colorterm === '24bit') return `COLORTERM=${colorterm}`
   if (env.WT_SESSION) return 'WT_SESSION (Windows Terminal)'
   const program = env.TERM_PROGRAM
-  if (program === 'vscode' || program === 'iTerm.app' || program === 'WezTerm' || program === 'ghostty') {
-    return `TERM_PROGRAM=${program}`
-  }
+  if (program === 'vscode' || program === 'iTerm.app' || program === 'WezTerm' || program === 'ghostty') return `TERM_PROGRAM=${program}`
   const term = env.TERM
   if (term === 'xterm-kitty' || term === 'xterm-ghostty' || term === 'wezterm') return `TERM=${term}`
-  if (env.KITTY_WINDOW_ID) return 'KITTY_WINDOW_ID (kitty)'
-  return null
+  return env.KITTY_WINDOW_ID ? 'KITTY_WINDOW_ID (kitty)' : null
+}
+export function truecolorEchoOf(setting) {
+  return /(?:^|;)48[:;]2[:;](?:\d*[:;])?1[:;]2[:;]3(?:;|m|$)/.test(setting)
+}
+export function truecolorAskableOf(env, platform = process.platform) {
+  if (platform === 'win32' || env.MERCURY_SPLASH_ONESHOT === '1') return false
+  const fc = env.FORCE_COLOR
+  if (Boolean(env.NO_COLOR) && (fc === undefined || !['', '1', '2', '3', 'true'].includes(fc))) return false
+  if (fc !== undefined || env.TMUX || env.TERM_PROGRAM === 'Apple_Terminal' || env.MERCURY_TRUECOLOR !== undefined) return false
+  if (truecolorFingerprintOf(env) !== null) return false
+  const term = env.TERM
+  return term !== undefined && term !== 'dumb' && term !== 'linux'
 }
 const rampSample = u => {
   const s = Math.min(1, Math.max(0, u)) * (RAMP.length - 1)
@@ -326,23 +336,12 @@ const SGR_RE = /\x1b\[[0-9;]*m/g
 const cpWidth = cp => {
   if (cp === 0x200d) return 0
   if (
-    (cp >= 0x1100 && cp <= 0x115f) ||
-    cp === 0x2329 || cp === 0x232a ||
-    (cp >= 0x2e80 && cp <= 0x303e) ||
-    (cp >= 0x3041 && cp <= 0x33ff) ||
-    (cp >= 0x3400 && cp <= 0x4dbf) ||
-    (cp >= 0x4e00 && cp <= 0x9fff) ||
-    (cp >= 0xa000 && cp <= 0xa4cf) ||
-    (cp >= 0xa960 && cp <= 0xa97f) ||
-    (cp >= 0xac00 && cp <= 0xd7a3) ||
-    (cp >= 0xf900 && cp <= 0xfaff) ||
-    (cp >= 0xfe10 && cp <= 0xfe19) ||
-    (cp >= 0xfe30 && cp <= 0xfe6f) ||
-    (cp >= 0xff00 && cp <= 0xff60) ||
-    (cp >= 0xffe0 && cp <= 0xffe6) ||
-    (cp >= 0x1f300 && cp <= 0x1f64f) ||
-    (cp >= 0x1f680 && cp <= 0x1f6ff) ||
-    (cp >= 0x1f900 && cp <= 0x1f9ff) ||
+    (cp >= 0x1100 && cp <= 0x115f) || cp === 0x2329 || cp === 0x232a ||
+    (cp >= 0x2e80 && cp <= 0x303e) || (cp >= 0x3041 && cp <= 0x33ff) || (cp >= 0x3400 && cp <= 0x4dbf) ||
+    (cp >= 0x4e00 && cp <= 0x9fff) || (cp >= 0xa000 && cp <= 0xa4cf) || (cp >= 0xa960 && cp <= 0xa97f) ||
+    (cp >= 0xac00 && cp <= 0xd7a3) || (cp >= 0xf900 && cp <= 0xfaff) || (cp >= 0xfe10 && cp <= 0xfe19) ||
+    (cp >= 0xfe30 && cp <= 0xfe6f) || (cp >= 0xff00 && cp <= 0xff60) || (cp >= 0xffe0 && cp <= 0xffe6) ||
+    (cp >= 0x1f300 && cp <= 0x1f64f) || (cp >= 0x1f680 && cp <= 0x1f6ff) || (cp >= 0x1f900 && cp <= 0x1f9ff) ||
     (cp >= 0x20000 && cp <= 0x3fffd)
   ) return 2
   return 1
@@ -1474,4 +1473,4 @@ function composeCompactFace(cols, rows, opts) {
   }
 }
 
-export { HEADSTD, WORD, MENU, MODEL_NAMES, RAMP, RAMP_FIXTURE, CAPABILITY_TRUTH, ACCENT_FAMILIES, DEFAULT_CRITTER, vis, cpWidth, MARK_RE, padVis, wrapWords, zipCols, placeBlock, mixc, rampSample }
+export { HEADSTD, WORD, MENU, MODEL_NAMES, RAMP, RAMP_FIXTURE, CAPABILITY_TRUTH, TRUECOLOR_QUERY, TRUECOLOR_ECHO_TRUTH, ACCENT_FAMILIES, DEFAULT_CRITTER, vis, cpWidth, MARK_RE, padVis, wrapWords, zipCols, placeBlock, mixc, rampSample }

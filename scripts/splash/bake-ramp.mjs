@@ -18,7 +18,7 @@ if (registerOnlyRequested(ROW)) process.exit(0)
 const { TERRA, BELLY, IVORY, CLAW } = await import('../../src/screen/theme/mercuryPalette.ts')
 const { deriveAccentSoft, deriveFocalRamp } = await import('../../src/screen/theme/mercuryTokens.ts')
 const { rampSampleAt } = await import('../../src/screen/widgets/focalRamp.ts')
-const { shouldHonorNoColor, truecolorFingerprint } = await import('../../src/screen/renderer/colorize.ts')
+const { shouldHonorNoColor, truecolorFingerprint, TRUECOLOR_QUERY, truecolorEcho } = await import('../../src/screen/renderer/colorize.ts')
 const { isEnvTruthy } = await import('../../src/platform/environment/envUtils.ts')
 const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
 const critterData = await import('../../src/screen/cockpit/critterData.ts')
@@ -79,7 +79,20 @@ const modeOf = c => {
   return truecolorFingerprint(env) === null ? '256' : 'truecolor'
 }
 const TRUTH = CASES.map(c => [c.NO_COLOR, c.FORCE_COLOR, c.MERCURY_TRUECOLOR, c.TERM, c.COLORTERM, c.TERM_PROGRAM, modeOf(c)])
-
+const ECHO_SAMPLES = [
+  '0;48:2::1:2:3m',
+  '0;48:2:1:1:2:3m',
+  '48:2:1:2:3m',
+  '0;48;2;1;2;3m',
+  '0;8;30;48:2::1:2:3m',
+  '48;2;0;1;2;3m',
+  '0m',
+  '0;48:5:16m',
+  '0;38:2::1:2:3m',
+  '0;48:2::1:2:30m',
+  '',
+]
+const ECHO_TRUTH = ECHO_SAMPLES.map(s => [s, truecolorEcho(s)])
 const hexOf = t => '#' + t.map(v => v.toString(16).padStart(2, '0')).join('')
 const cube256 = t => {
   const LV = [0, 95, 135, 175, 215, 255]
@@ -121,10 +134,12 @@ const block = [
   `const RAMP = ${JSON.stringify(RAMP)}`,
   `const RAMP_FIXTURE = ${JSON.stringify(FIXTURE)}`,
   `const CAPABILITY_TRUTH = ${JSON.stringify(TRUTH)}`,
+  `const TRUECOLOR_QUERY = ${JSON.stringify(TRUECOLOR_QUERY)}`,
+  `const TRUECOLOR_ECHO_TRUTH = ${JSON.stringify(ECHO_TRUTH)}`,
 ].join('\n')
 
 const src = readFileSync(SPLASH, 'utf8')
-const re = /^const RAMP = [^\n]*\nconst RAMP_FIXTURE = [^\n]*\nconst CAPABILITY_TRUTH = [^\n]*$/m
+const re = /^const RAMP = [^\n]*\nconst RAMP_FIXTURE = [^\n]*\nconst CAPABILITY_TRUTH = [^\n]*(?:\nconst TRUECOLOR_QUERY = [^\n]*\nconst TRUECOLOR_ECHO_TRUTH = [^\n]*)?$/m
 const famRe = /^const ACCENT_FAMILIES = \{\n[\s\S]*?^\}\nconst DEFAULT_CRITTER = [^\n]*$/m
 if (!re.test(src)) {
   console.error('bake-ramp: no RAMP · RAMP_FIXTURE · CAPABILITY_TRUTH declarations in the splash — add them first')
