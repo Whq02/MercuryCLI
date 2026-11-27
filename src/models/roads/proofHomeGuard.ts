@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { isENOENT } from '../../platform/errors/errors.js'
+import { homeOf } from '../../platform/profiles/profiles.js'
 
 export function proofProcessName(): string | undefined {
   const marked = flagEnv('MERCURY_PROOF')?.trim()
@@ -21,8 +22,15 @@ export function accountStoreHome(): string {
 }
 
 export function homeIsAccountStore(home: string): boolean {
-  const inside = relative(canonicalPath(accountStoreHome()), canonicalPath(home))
-  return inside === '' || (inside !== '..' && !inside.startsWith(`..${sep}`) && !isAbsolute(inside))
+  const store = accountStoreHome()
+  const inside = relative(canonicalPath(store), canonicalPath(home))
+  if (inside === '' || (inside !== '..' && !inside.startsWith(`..${sep}`) && !isAbsolute(inside))) return true
+  const profile = (base: string, path: string): boolean => {
+    const name = relative(base, path).split(sep)[0] ?? ''
+    const id = Number(name.slice(basename(store).length))
+    return Number.isInteger(id) && id >= 2 && name === basename(homeOf(store, id))
+  }
+  return profile(dirname(store), resolve(home)) || profile(canonicalPath(dirname(store)), canonicalPath(home))
 }
 
 function canonicalPath(path: string, seen: Set<string> = new Set()): string {
