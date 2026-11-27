@@ -180,7 +180,7 @@ if (driver.kind !== 'posix-pty') {
       check("reopened: the previous row still carries no state word", p >= 0 && !/\bcurrent\b/.test(ls[p] ?? ''), `only the newest Fable row may read current after the set; got ${(ls[p] ?? '').trim()}`)
       const paneStart = Math.max(0, (ls.find(l => l.includes('╭')) ?? '').indexOf('╭'))
       const under = (ls[n + 1] ?? '').slice(paneStart).replace(/[╭╮╰╯─│┃┏┓┗┛━\s]/g, '')
-      check('reopened: no description line under the selected newest row (a blank, then the previous row)', n >= 0 && under === '' && (p === n + 1 || p === n + 2), `remove the description line under the selected newest row in the picker (src/commands/model/picker) and keep getModelOptions descriptions empty; line under it, family / previous index: "${(ls[n + 1] ?? '').trim()}" ${n} / ${p}`)
+      check('reopened: no description line under the selected newest row (the previous row next, or a blank between)', n >= 0 && (p === n + 1 || (under === '' && p === n + 2)), `remove the description line under the selected newest row in the picker (src/commands/model/picker) and keep getModelOptions descriptions empty; line under it, family / previous index: "${(ls[n + 1] ?? '').trim()}" ${n} / ${p}`)
       check('reopened: both moments belong to one product run (the picker header is back)', ls.join('\n').includes('Mercury · model') && reopened.atTick > (picker?.atTick ?? 0), 'the reopened frame must carry the Mercury · model header (MODEL_PICKER_TITLE in src/models/facts/modelPickerGroups.ts) and come after the picker frame')
     }
   } else {
