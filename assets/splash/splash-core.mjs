@@ -262,7 +262,7 @@ export function truecolorAskableOf(env, platform = process.platform) {
   if (fc !== undefined || env.TMUX || env.STY || env.TERM_PROGRAM === 'Apple_Terminal' || env.MERCURY_TRUECOLOR !== undefined) return false
   if (truecolorFingerprintOf(env) !== null) return false
   const term = env.TERM
-  return term !== undefined && term !== 'dumb' && term !== 'linux'
+  return term !== undefined && term !== 'dumb' && term !== 'linux' && !term.startsWith('screen')
 }
 export function splashTierOf(env, platform = process.platform, echoed = false) {
   const fc = env.FORCE_COLOR

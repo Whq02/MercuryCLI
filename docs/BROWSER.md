@@ -114,6 +114,6 @@ Frame acts require approval for the frame's own origin. The embedding page's app
 
 ## Covered targets
 
-A selector click checks for overlays in the frame and its embedding frames. When another element covers the target, the result names it and suggests clicking it to dismiss it or scrolling the target into view.
+A selector click checks for overlays in the frame and its embedding frames. When another element covers the target and stays, the result names it, says how long the cover was watched, and suggests clicking it to dismiss it or scrolling the target into view. A cover that is on its way out (it is animating or changing, or the last click landed in it) is watched instead, and the click lands at the first clear look with a note of how long it waited. A layer that covers most of the viewport is named in the answer.
 
 After reading the overlay, `force: true` with a selector dispatches a DOM click directly to the covered target. This is not a pointer click through the overlay. The default actionability check remains in place, and disabled controls still refuse.

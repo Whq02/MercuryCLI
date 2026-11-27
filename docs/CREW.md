@@ -352,7 +352,8 @@ settle, so the notice is read at that boundary and never after a full timer.
 `/crew` shows the directory with presence and external seat attach/detach.
 To use an installed ACP v1 agent, run `/crew attach opencode`, `/crew attach goose`, or
 `/crew attach devin`. For Devin, **Logins/Keys → Devin CLI (external agent)** opens the CLI’s
-own sign-in; Mercury does not store that credential or add a Devin model to `/model`.
+own sign-in when `devin` is installed (when it is not, the row says so and opens
+nothing); Mercury does not store that credential or add a Devin model to `/model`.
 Send work with `/crew send <seat-id> <prompt>`, read the last reply with `/crew seats`,
 and interrupt it with `/crew cancel <seat-id>`. The agent runs its own tools; Mercury
 shows the permission requests it sends.

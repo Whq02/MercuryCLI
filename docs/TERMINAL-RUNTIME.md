@@ -485,7 +485,9 @@ A command's exit code decides how its result reads. A non-zero exit is a
 failure named by its code, except for the lookups and comparisons whose
 exit of 1 is an answer: `grep`, `rg`, `find`, `pgrep`, `diff`, `cmp`, `test`,
 `[`, `which` and `command -v`, judged by the last stage of a pipeline after any
-leading variable assignments or `env`. Their result is not an error; it carries the answer
+leading variable assignments or `env`. Where the shell reports what ran last,
+an exit of 1 that an earlier command left is a failure and not that lookup's
+answer. A lookup's own result is not an error; it carries the answer
 and the code (`no matches found (exit code 1)`,
 `no process matched (exit code 1)`, `files differ (exit
 code 1)`, `condition is false (exit code 1)`), and an exit of 2 or more
