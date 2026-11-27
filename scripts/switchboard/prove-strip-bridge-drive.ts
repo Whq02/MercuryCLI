@@ -310,7 +310,7 @@ console.log('S4 — --chat: the menu lands, ↵ births, then menu ⇄ chat with 
   const landing = markText(c, 'landing')
   const menu = markText(c, 'menu')
   check('S4 the landing is the boot menu (L15) — no chat born at boot', isChatWorldFace(landing) && !isChat(landing), firstRows(landing))
-  check('S4 the --chat face carries NO Session Manager (Concourse) row and its row says "⇧→ no chat open"', !landing.includes('Session Manager (Concourse)') && landing.includes(FACE_NO_CHAT), landing.split('\n').filter(l => /Concourse|⇧|shift\+/.test(l)).join(' | '))
+  check('S4 the --chat face carries NO Session Manager row and its row says "⇧→ no chat open"', !landing.includes('Session Manager') && landing.includes(FACE_NO_CHAT), landing.split('\n').filter(l => /Concourse|⇧|shift\+/.test(l)).join(' | '))
   check('S4 ↵ births the chat', isChat(markText(c, 'chat')), firstRows(markText(c, 'chat')))
   check('S4 ⇧← from the chat is the BOOT MENU directly — no concourse between (the plain world)', isChatWorldFace(menu) && !isBoard(menu), firstRows(menu))
   check(`S4 the menu's row names the chat ("${FACE_TO_CHAT}") — the one stop to its right`, menu.includes(FACE_TO_CHAT) && !menu.includes(FACE_TO_CONCOURSE), hintRows(menu))

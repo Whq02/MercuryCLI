@@ -33,7 +33,7 @@ t.section('§1 — THE FACE AND BOOT MENU DOOR, BOTH HOSTS, EVERY WORLD')
   t.check('the four no-history rows keep their exact bytes', JSON.stringify(rowsOf(FULL)) === JSON.stringify([
     { key: 'new', label: 'New Session', ctx: 'start fresh here' },
     { key: 'logins', label: 'Logins/Keys', ctx: 'sign in to providers' },
-    { key: 'concourse', label: 'Session Manager (Concourse)', ctx: 'the live board' },
+    { key: 'concourse', label: 'Session Manager', ctx: 'the live board' },
     { key: 'menu', label: 'Boot Menu', ctx: 'configure boot env' },
   ]))
   t.check('Boot Menu stays LAST in both worlds', full[full.length - 1] === 'menu' && chat[chat.length - 1] === 'menu')
@@ -56,7 +56,7 @@ t.section('§1 — THE FACE AND BOOT MENU DOOR, BOTH HOSTS, EVERY WORLD')
     const menuLine = (r: { lines: string[] }) => r.lines.findIndex(l => l.includes('Boot Menu'))
     t.check(`${cols}x${rows}: Boot Menu sits on the same line on both hosts, last in the card`, menuLine(launcher) === menuLine(face) && menuLine(face) === face.actionLines[face.actionLines.length - 1])
     const chatFace = lockup(null, cols, rows)
-    t.check(`${cols}x${rows}: the --chat composition carries four action rows and no Session Manager (Concourse)`, chatFace.actionLines.length === 4 && chatFace.lines.some(l => l.includes('Boot Menu')) && !chatFace.lines.some(l => l.includes('Session Manager (Concourse)')))
+    t.check(`${cols}x${rows}: the --chat composition carries four action rows and no Session Manager`, chatFace.actionLines.length === 4 && chatFace.lines.some(l => l.includes('Boot Menu')) && !chatFace.lines.some(l => l.includes('Session Manager')))
   }
 }
 
@@ -160,8 +160,8 @@ t.section('§5 — THE STILLS: the face with the row (both worlds) and the manag
   }
   const fullFace = readStill('face-full-120x40') ?? ''
   const chatFace = readStill('face-chat-120x40') ?? ''
-  t.check('the full-world still carries the five approved rows and no removed face rows', fullFace.includes('New Session') && fullFace.includes('Continue Last Session') && fullFace.includes('Logins/Keys') && fullFace.includes('Session Manager (Concourse)') && fullFace.includes('Boot Menu') && !fullFace.includes('MCPs & Skills') && !fullFace.includes('Health Check'))
-  t.check('the --chat still carries Boot Menu and no Session Manager (Concourse)', chatFace.includes('Boot Menu') && !chatFace.includes('Session Manager (Concourse)'))
+  t.check('the full-world still carries the five approved rows and no removed face rows', fullFace.includes('New Session') && fullFace.includes('Continue Last Session') && fullFace.includes('Logins/Keys') && fullFace.includes('Session Manager') && fullFace.includes('Boot Menu') && !fullFace.includes('MCPs & Skills') && !fullFace.includes('Health Check'))
+  t.check('the --chat still carries Boot Menu and no Session Manager', chatFace.includes('Boot Menu') && !chatFace.includes('Session Manager'))
   const manager = readStill('manager-120x40') ?? ''
   t.check('the manager still: two titled sections, the master row above its items in each, every state a word', manager.includes('MCPs') && manager.indexOf('MCPs') < manager.indexOf('Skills') && manager.includes('orchard-tools (extension)') && manager.indexOf('orchard-tools (extension)') < manager.indexOf('ext:orchard-tools:db') && manager.includes(' on') && manager.includes('Applies'))
   const mid = readStill('manager-120x40-midcycle') ?? ''

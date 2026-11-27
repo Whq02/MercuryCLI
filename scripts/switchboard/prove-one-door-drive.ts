@@ -227,7 +227,7 @@ console.log('L3 — --chat: the boot menu is the landing, no session born; ↵ N
   printFrame('l3 (--chat: the chat after ↵)', c.lines)
   const face = markText(c, 'face')
   check('L3 the landing is the boot menu (the face), not a chat', face.includes('New Session') && paintsBootFaceReady(face) && !face.includes('m menu') && !face.includes(COMPOSER), face.slice(0, 120))
-  check('L3 the --chat face carries NO Session Manager (Concourse) row (New Session is the door)', !face.includes('Session Manager (Concourse)'), face.split('\n').filter(l => /Concourse|live view/i.test(l)).join(' | '))
+  check('L3 the --chat face carries NO Session Manager row (New Session is the door)', !face.includes('Session Manager'), face.split('\n').filter(l => /Concourse|live view/i.test(l)).join(' | '))
   check('L3 ↵ births exactly ONE session — none existed at boot (born at ↵, not at boot)', Object.keys(liveRecords(home)).length === 1 && Object.values(liveRecords(home))[0]?.bornBlankAt !== undefined, JSON.stringify(Object.keys(liveRecords(home))))
   check('L3 the chat is on screen after ↵ (the composer is live)', c.text.includes(COMPOSER), c.tail.slice(-200))
   const ms = enterLatencyMs(c)
@@ -248,7 +248,7 @@ console.log('L4 — --concourse-off persists across boots; --concourse-on turns 
   const b = await boot('l4b-bare-after-off', [])
   printFrame('l4b (bare boot after the switch)', b.lines)
   check('L4b the OFF state SURVIVED the restart: a bare boot\'s face advertises no concourse stop', b.text.includes(FACE_NO_CHAT) && !b.text.includes(FACE_TO_CONCOURSE), b.lines.filter(l => /concourse|⇧|no chat/i.test(l)).join(' | '))
-  check('L4b B1: the five-row menu still shows Session Manager (Concourse) and Boot Menu', b.text.includes('Session Manager (Concourse)') && b.text.includes('Boot Menu'))
+  check('L4b B1: the five-row menu still shows Session Manager and Boot Menu', b.text.includes('Session Manager') && b.text.includes('Boot Menu'))
   const cfg = JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')) as Record<string, unknown>
   check('L4b the persisted field is the registered one', cfg['concourseEnabled'] === false)
   reapHome(home)
