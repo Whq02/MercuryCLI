@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import { rgbToXterm256 } from './cell-grid.js'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { isEnvTruthy } from '../../platform/environment/envUtils.js'
 import instances from './instances.js'
@@ -156,6 +157,18 @@ const NAMED_PAINTERS: Record<string, Painter> = {
 
 const ANSI256_RE = /^ansi256\((\d+)\)$/
 const RGB_RE = /^rgb\( ?(\d+), ?(\d+), ?(\d+) ?\)$/
+const HEX_RE = /[a-f\d]{6}|[a-f\d]{3}/i
+
+function hexChannels(color: string): [number, number, number] {
+  const digits = HEX_RE.exec(color)?.[0] ?? '000000'
+  const value = parseInt(digits.length === 3 ? [...digits].map(digit => digit + digit).join('') : digits, 16)
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255]
+}
+
+function paintNearest256(str: string, r: number, g: number, b: number, type: ColorType): string {
+  const index = rgbToXterm256(r, g, b)
+  return type === 'foreground' ? chalk.ansi256(index)(str) : chalk.bgAnsi256(index)(str)
+}
 
 export function colorize(
   str: string,
@@ -175,6 +188,7 @@ export function colorize(
   }
 
   if (color.startsWith('#')) {
+    if (chalk.level === 2) return paintNearest256(str, ...hexChannels(color), type)
     return type === 'foreground' ? chalk.hex(color)(str) : chalk.bgHex(color)(str)
   }
 
@@ -191,6 +205,7 @@ export function colorize(
     const r = Number(match[1])
     const g = Number(match[2])
     const b = Number(match[3])
+    if (chalk.level === 2) return paintNearest256(str, r, g, b, type)
     return type === 'foreground' ? chalk.rgb(r, g, b)(str) : chalk.bgRgb(r, g, b)(str)
   }
 

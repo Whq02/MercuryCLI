@@ -1,3 +1,4 @@
+prove-256-paint-is-the-theme.ts
 prove-background-notice-fold.ts
 prove-backspace-burst.ts
 prove-bang-shell-row-live.ts

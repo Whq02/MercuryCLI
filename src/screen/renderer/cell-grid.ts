@@ -261,14 +261,49 @@ export function xterm256ToRgb(n: number): Rgb | null {
   return n < 16 ? null : n <= 231 ? cubeRgb(n - 16) : n <= 255 ? grayRgb(n) : null
 }
 
+type Lab = readonly [number, number, number]
+
+const linearLight = (v: number): number => {
+  const c = v / 255
+  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+}
+
+function oklab(r: number, g: number, b: number): Lab {
+  const lr = linearLight(r)
+  const lg = linearLight(g)
+  const lb = linearLight(b)
+  const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb)
+  const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb)
+  const s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb)
+  return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s]
+}
+
+const XTERM256_OKLAB: readonly Lab[] = Array.from({ length: 240 }, (_, i) => oklab(...(i < 216 ? cubeRgb(i) : grayRgb(i + 16))))
+
+const NEAREST_MEMO_LIMIT = 4096
+
+const nearestMemo = new Map<number, number>()
+
+const colorByte = (v: number): number => Math.max(0, Math.min(255, Math.round(v)))
+
 export function rgbToXterm256(r: number, g: number, b: number): number {
-  const level = (v: number): number => (v < 48 ? 0 : v < 115 ? 1 : Math.min(5, Math.floor((v - 35) / 40)))
-  const cube = [level(r), level(g), level(b)]
-  const nearestCube = [cubeLevel(cube[0]!), cubeLevel(cube[1]!), cubeLevel(cube[2]!)]
-  const gray = Math.max(0, Math.min(23, Math.round((0.299 * r + 0.587 * g + 0.114 * b - 8) / 10)))
-  const gv = 8 + 10 * gray
-  const distance = (a: number[], x: number, y: number, z: number): number => (a[0]! - x) ** 2 + (a[1]! - y) ** 2 + (a[2]! - z) ** 2
-  return distance(nearestCube, r, g, b) <= distance([gv, gv, gv], r, g, b) ? 16 + 36 * cube[0]! + 6 * cube[1]! + cube[2]! : 232 + gray
+  const key = (colorByte(r) << 16) | (colorByte(g) << 8) | colorByte(b)
+  const known = nearestMemo.get(key)
+  if (known !== undefined) return known
+  const [l, a, bb] = oklab(key >> 16, (key >> 8) & 255, key & 255)
+  let nearest = 0
+  let least = Infinity
+  for (let i = 0; i < XTERM256_OKLAB.length; i++) {
+    const [pl, pa, pb] = XTERM256_OKLAB[i]!
+    const distance = (pl - l) ** 2 + (pa - a) ** 2 + (pb - bb) ** 2
+    if (distance < least) {
+      least = distance
+      nearest = i
+    }
+  }
+  if (nearestMemo.size >= NEAREST_MEMO_LIMIT) nearestMemo.clear()
+  nearestMemo.set(key, 16 + nearest)
+  return 16 + nearest
 }
 
 type ColorChannel = 38 | 48
