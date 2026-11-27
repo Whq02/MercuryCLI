@@ -21,7 +21,7 @@ const SID_B = 'facef00d-bbbb-4bbb-8bbb-000000000002'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? detail + '; ' : ''}the label names the screen leg that failed; rerun with JOURNEY_KEEP_FIXTURE=1 JOURNEY_DEBUG=1 and read that leg's frame in /tmp/journey-<leg>-<pid>.json (grid) to see what painted instead`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? detail + '; ' : ''}the label names the screen leg that failed; rerun with JOURNEY_KEEP_FIXTURE=1 JOURNEY_DEBUG=1 and read that leg's frame in journey-<leg>-<pid>.json (grid) under ${tmpdir()} to see what painted instead`}`)
 }
 
 function git(...args: string[]): void {
@@ -68,6 +68,9 @@ function purgeDrafts(): void {
 
 const AGENT_REPORT_LINE = 'REPORT-LINE the journey manifest is pinned and the build is green.'
 
+const SEEDED_AT = Date.now()
+const seedStamp = (minutesBack: number, second: number): string => new Date(SEEDED_AT - minutesBack * 60_000 + second * 1000).toISOString()
+
 function writeSessions(): void {
   mkdirSync(PROJ_DIR, { recursive: true })
   const base = (sid: string) => (extra: Record<string, unknown>) => ({
@@ -78,14 +81,14 @@ function writeSessions(): void {
   const linesA = [
     a({ parentUuid: null, type: 'user', uuid: '00000000-0000-4000-a000-000000000001',
       message: { role: 'user', content: 'bump v1 in file-1 and scout the manifest' },
-      timestamp: '2026-06-19T13:00:01.000Z' }),
+      timestamp: seedStamp(60, 1) }),
     a({ parentUuid: '00000000-0000-4000-a000-000000000001', type: 'assistant',
       uuid: '00000000-0000-4000-a000-000000000002', requestId: 'req_j_1',
       message: { id: 'msg_j_1', type: 'message', role: 'assistant', model: 'claude-opus-4-8',
         content: [{ type: 'tool_use', id: 'toolu_j_edit1', name: 'Edit',
           input: { file_path: join(FIX, 'file-1.ts'), old_string: 'export const v1 = 1', new_string: 'export const v1 = 10' } }],
         stop_reason: 'tool_use', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
-      timestamp: '2026-06-19T13:00:02.000Z' }),
+      timestamp: seedStamp(60, 2) }),
     a({ parentUuid: '00000000-0000-4000-a000-000000000002', type: 'user',
       uuid: '00000000-0000-4000-a000-000000000003',
       message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_j_edit1', content: 'ok' }] },
@@ -96,14 +99,14 @@ function writeSessions(): void {
           lines: ['-export const v1 = 1', '+export const v1 = 10', ' export const w1 = 1'] }],
         userModified: false, replaceAll: false,
       },
-      timestamp: '2026-06-19T13:00:03.000Z' }),
+      timestamp: seedStamp(60, 3) }),
     a({ parentUuid: '00000000-0000-4000-a000-000000000003', type: 'assistant',
       uuid: '00000000-0000-4000-a000-000000000004', requestId: 'req_j_2',
       message: { id: 'msg_j_2', type: 'message', role: 'assistant', model: 'claude-opus-4-8',
         content: [{ type: 'tool_use', id: 'toolu_j_agent1', name: 'Crewmate',
           input: { description: 'Scout the manifest', prompt: 'Read the manifest and report.', crewmate_type: 'Explore' } }],
         stop_reason: 'tool_use', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
-      timestamp: '2026-06-19T13:00:04.000Z' }),
+      timestamp: seedStamp(60, 4) }),
     a({ parentUuid: '00000000-0000-4000-a000-000000000004', type: 'user',
       uuid: '00000000-0000-4000-a000-000000000005',
       message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_j_agent1', content: [{ type: 'text', text: AGENT_REPORT_LINE }] }] },
@@ -115,25 +118,25 @@ function writeSessions(): void {
           cache_read_input_tokens: 0, server_tool_use: null, service_tier: null, cache_creation: null },
         prompt: 'Read the manifest and report.',
       },
-      timestamp: '2026-06-19T13:00:05.000Z' }),
+      timestamp: seedStamp(60, 5) }),
     a({ parentUuid: '00000000-0000-4000-a000-000000000005', type: 'assistant',
       uuid: '00000000-0000-4000-a000-000000000006', requestId: 'req_j_3',
       message: { id: 'msg_j_3', type: 'message', role: 'assistant', model: 'claude-opus-4-8',
         content: [{ type: 'text', text: 'file-1 bumped; the manifest is pinned and the build is green.' }],
         stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
-      timestamp: '2026-06-19T13:00:06.000Z' }),
+      timestamp: seedStamp(60, 6) }),
   ]
   const b = base(SID_B)
   const linesB = [
     b({ parentUuid: null, type: 'user', uuid: '00000000-0000-4000-b000-000000000001',
       message: { role: 'user', content: 'session bravo standby' },
-      timestamp: '2026-06-19T12:00:01.000Z' }),
+      timestamp: seedStamp(120, 1) }),
     b({ parentUuid: '00000000-0000-4000-b000-000000000001', type: 'assistant',
       uuid: '00000000-0000-4000-b000-000000000002', requestId: 'req_j_b1',
       message: { id: 'msg_j_b1', type: 'message', role: 'assistant', model: 'claude-opus-4-8',
         content: [{ type: 'text', text: 'standing by in bravo.' }],
         stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
-      timestamp: '2026-06-19T12:00:02.000Z' }),
+      timestamp: seedStamp(120, 2) }),
   ]
   writeFileSync(join(PROJ_DIR, `${SID_A}.jsonl`), encodeSeedTranscript(linesA, SID_A))
   writeFileSync(join(PROJ_DIR, `${SID_B}.jsonl`), encodeSeedTranscript(linesB, SID_B))
@@ -194,8 +197,8 @@ function capture(
   const { cols = 120, rows = 50, sid = SID_A, ready = READY } = opts
   const daemonDir = SCRATCH(`daemon-${tag}`)
   seedSchedules(daemonDir)
-  const gridPath = `/tmp/journey-${tag}-${process.pid}.json`
-  const cfgPath = `/tmp/journey-${tag}-cfg-${process.pid}.json`
+  const gridPath = join(tmpdir(), `journey-${tag}-${process.pid}.json`)
+  const cfgPath = join(tmpdir(), `journey-${tag}-cfg-${process.pid}.json`)
   writeFileSync(cfgPath, JSON.stringify({
     argv: ['node', BIN, '--resume', sid, ...(process.env.JOURNEY_DEBUG === '1' ? ['--debug'] : [])],
     cwd: FIX, ...anchored(sends, total, ready), cols, rows, out: gridPath,
