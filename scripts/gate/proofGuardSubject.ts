@@ -207,6 +207,36 @@ if (mode === 'roots') {
   await allow('that link removed', () => unlinkSync(tempRoot))
   facts.allowed = allowed
   facts.environment = { home: process.env.HOME === home, cache: process.env.XDG_CACHE_HOME === cache }
+  const { accountHome, rootAt } = createRequire(import.meta.url)('../lib/proofGuard.cjs') as { accountHome: () => string; rootAt?: (place: string, lands: boolean) => { how: string } | null }
+  const account = accountHome()
+  const absent = `.mercury-ppg-${token}`
+  symlinkSync(join(account, absent), join(world, 'to-a-config-home'))
+  const judged = (shape: string, place: string, lands: boolean): { shape: string; said: string | null } => ({ shape, said: rootAt ? rootAt(place, lands)?.how ?? null : 'the guard hands out no reader of its judge' })
+  facts.judged = [
+    judged('a name that begins .mercury and does not stand, where a call would land', join(account, absent), true),
+    judged('the same name in capitals', join(account, absent.toUpperCase()), true),
+    judged('spelled through a "." and a separator written twice', `${account}${sep}.${sep}${sep}${absent}`, true),
+    judged('through a link in the proof\'s own folder to that name, spelled with a trailing separator', join(world, 'to-a-config-home') + sep, true),
+    judged('.mercury2, where a call would land', join(account, '.mercury2'), true),
+    judged('.mercury3, where a call would land', join(account, '.mercury3'), true),
+  ]
+  facts.unjudged = [
+    judged('a path inside one', join(account, '.mercury3', 'sessions', 'x'), true),
+    judged('the name without its dot', join(account, absent.slice(1)), true),
+    judged('such a name under another folder', join(world, absent), true),
+    judged('a call that only acts, where nothing stands', join(account, absent), false),
+  ]
+  facts.standing = ((guarded as string[] | null) ?? []).slice(4, -3).map(place => judged(place, place, false))
+  const second = join(account, '.mercury2')
+  if (lstatSync(second, { throwIfNoEntry: false }) === undefined) facts.second = null
+  else {
+    symlinkSync(second, join(world, 'to-the-second-home'))
+    facts.second = [
+      judged('a call that acts on it', second, false),
+      judged("through a link in the proof's own folder, spelled with a trailing separator", join(world, 'to-the-second-home') + sep, false),
+      judged('spelled with a trailing "/."', `${second}${sep}.`, false),
+    ]
+  }
 }
 
 writeFileSync(receipt, JSON.stringify(facts))

@@ -98,10 +98,10 @@ const fixtureHint = 'fix looksLikeProofFixtureKey in src/models/roads/account-sl
   const root = join(import.meta.dir, '..', '..')
   const standIn = mkdtempSync(join(tmpdir(), 'prove-fixture-account-'))
   mkdirSync(join(standIn, 'tmp'))
-  const proofWrites = (store: string): { said: string; left: string[] } => {
+  const proofWrites = (store: string, home: string = standIn): { said: string; left: string[] } => {
     mkdirSync(store, { recursive: true })
     const script = `globalThis.MACRO = { VERSION: '1.0.0' }; process.env.NODE_ENV = 'test'; const { writeStoredGeminiApiKey } = await import(${JSON.stringify(join(root, 'src', 'models', 'sign-in', 'account-ledger', 'providerSecrets.ts'))}); try { writeStoredGeminiApiKey(${JSON.stringify(FIXTURE)}); console.log('written') } catch (error) { console.log(error?.code ?? 'threw') }`
-    const ran = spawnSync(process.execPath, ['--eval', script], { cwd: root, encoding: 'utf8', env: { PATH: process.env.PATH ?? '', HOME: standIn, USERPROFILE: standIn, TMPDIR: join(standIn, 'tmp'), MERCURY_CONFIG_DIR: store, MERCURY_PROOF: 'prove-a-store-write.ts', MERCURY_CREDENTIAL_STORE: 'file', MERCURY_GEMINI_API_BASE: 'http://127.0.0.1:1', MERCURY_LOCAL_PROBE_TARGETS: 'none' } })
+    const ran = spawnSync(process.execPath, ['--eval', script], { cwd: root, encoding: 'utf8', env: { PATH: process.env.PATH ?? '', HOME: home, USERPROFILE: home, TMPDIR: join(standIn, 'tmp'), MERCURY_CONFIG_DIR: store, MERCURY_PROOF: 'prove-a-store-write.ts', MERCURY_CREDENTIAL_STORE: 'file', MERCURY_GEMINI_API_BASE: 'http://127.0.0.1:1', MERCURY_LOCAL_PROBE_TARGETS: 'none' } })
     return { said: ran.stdout.trim().split('\n').at(-1) || ran.stderr.trim().slice(-200), left: readdirSync(store) }
   }
   const productHint = "homeIsAccountStore in src/models/roads/proofHomeGuard.ts must take the first store under homedir() and every home homeOf in src/platform/profiles/profiles.ts spells beside it, and no other folder"
@@ -112,6 +112,14 @@ const fixtureHint = 'fix looksLikeProofFixtureKey in src/models/roads/account-sl
   for (const name of ['.mercury-account-b', '.mercury02', 'mercury2', join('scratch', '.mercury2')]) {
     const got = proofWrites(join(standIn, name))
     check(`the same write into ${name} goes through: a folder that only begins .mercury, or stands elsewhere, is no profile's store`, got.said === 'written' && got.left.length > 0, `${JSON.stringify(got)} — ${productHint}`)
+  }
+  const outside = mkdtempSync(join(tmpdir(), 'prove-fixture-outside-'))
+  mkdirSync(join(outside, 'a-store-moved-out'))
+  symlinkSync(join(outside, 'a-store-moved-out'), join(standIn, '.mercury4'), 'dir')
+  symlinkSync(standIn, join(outside, 'home-by-a-link'), 'dir')
+  for (const [how, home, pin] of [['the home named as it stands, the pin through a link to that home', standIn, join(outside, 'home-by-a-link', '.mercury4')], ['the home named through a link, the pin under the home as it stands', join(outside, 'home-by-a-link'), join(standIn, '.mercury4')]] as const) {
+    const got = proofWrites(pin, home)
+    check(`a profile's store that is itself a link out of the home is the account's own under either spelling of that home (${how}): the write is refused and nothing is written behind the link`, got.said === 'EPROOFHOME' && got.left.length === 0, `${JSON.stringify(got)} — ${productHint}`)
   }
 }
 
