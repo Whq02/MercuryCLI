@@ -24,17 +24,24 @@ export function keptLine<Id>(listed: readonly Id[], parentOf: (id: Id) => Id | n
     seen.add(id)
     if (!named.has(id)) { loose.unshift(id); continue }
     under.set(id, loose)
-    spine.unshift(id)
+    spine.push(id)
     loose = []
     whole = id === listed[0]
   }
   if (!whole) { under.clear(); spine.length = 0 }
-  const holder = new Map<Id, Id>()
+  const root = new Map<Id, Id>()
   const hung = new Map<Id, Id[]>()
+  const rootOf = (row: Id): Id => {
+    let at = row
+    for (let up = root.get(at); up !== undefined; up = root.get(at)) at = up
+    for (let from = row, up = root.get(from); up !== undefined && up !== at; from = up, up = root.get(from)) root.set(from, at)
+    return at
+  }
   const hang = (note: Id, row: Id): void => {
-    if (!moves.has(note) || holder.has(note)) return
-    for (let at: Id | undefined = row; at !== undefined; at = holder.get(at)) if (at === note) return
-    holder.set(note, row)
+    if (!moves.has(note) || root.has(note)) return
+    const above = rootOf(row)
+    if (above === note) return
+    root.set(note, above)
     const notes = hung.get(row)
     if (notes) notes.push(note)
     else hung.set(row, [note])
@@ -55,14 +62,16 @@ export function keptLine<Id>(listed: readonly Id[], parentOf: (id: Id) => Id | n
     }
     under.set(row, group)
   }
-  spine.forEach((row, at) => { if (at > 0) hang(row, spine[at - 1]!) })
+  for (let at = spine.length - 1; at > 0; at--) hang(spine[at - 1]!, spine[at]!)
   const line: Id[] = []
   for (const top of listed) {
-    if (holder.has(top)) continue
+    if (root.has(top)) continue
     const open = [top]
     for (let row = open.pop(); row !== undefined; row = open.pop()) {
-      line.push(row, ...(under.get(row) ?? []))
-      open.push(...(hung.get(row) ?? []).toReversed())
+      line.push(row)
+      for (const note of under.get(row) ?? []) line.push(note)
+      const notes = hung.get(row)
+      if (notes) for (let at = notes.length - 1; at >= 0; at--) open.push(notes[at]!)
     }
   }
   return line
