@@ -33,6 +33,12 @@ export interface SplashAccentFamily {
   ramp: number[][]
   t256: number
   t256deep: number
+  t256mid?: number
+  t16?: number
+  t16deep?: number
+  t16mid?: number
+  wordR256?: number[]
+  wordD256?: number[]
   key?: string
 }
 
@@ -132,16 +138,15 @@ export interface SplashCore {
   rgbFg(px: number[]): string
   rgbBg(px: number[]): string
   hexFg(hex: string, fb: number): string
-  fg256ish(px: number[]): string
-  paint(px: number[]): string
-  paintBg(px: number[]): string
+  paint(px: number[] | number): string
+  paintBg(px: number[] | number): string
   rasterHard(
     grid: string[],
-    toneAt?: (ch: string, x: number, W: number) => number[],
+    toneAt?: (ch: string, x: number, W: number) => number[] | number,
   ): { lines: string[]; width: number }
   dividerLine(width: number): string
-  wordTone(ch: string, x: number, W: number, phase?: GlowPhase | null): number[]
-  wordToneGlow(phase: GlowPhase | null): (ch: string, x: number, W: number) => number[]
+  wordTone(ch: string, x: number, W: number, phase?: GlowPhase | null): number[] | number
+  wordToneGlow(phase: GlowPhase | null): (ch: string, x: number, W: number) => number[] | number
   rampLabel(text: string): string
   rampSample(u: number): number[]
   sampleFace(u: number): number[]
@@ -176,7 +181,8 @@ export interface SplashCore {
   wrapWords(txt: string, w: number): string[]
   zipCols(a: string[], b: string[], aW: number, gap: number): string[]
   mixc(a: number[], b: number[], t: number): number[]
-  T256: { cream: number; red: number; faint: number; dim: number; dimred: number }
+  T256: { cream: number; ivory: number; red: number; faint: number; dim: number; dimred: number; midred: number; dune: number; teal: number; amber: number; crimson: number; dark: number; black: number }
+  T16: { cream: number; ivory: number; red: number; faint: number; dim: number; dimred: number; midred: number; dune: number; teal: number; amber: number; crimson: number; dark: number; black: number }
   CREAM: number[]
   RED: number[]
   VOID: number[]
@@ -195,9 +201,12 @@ export interface SplashCore {
   accentFg(): string
 }
 
+export type SplashTier = 'plain' | '16' | '256' | 'truecolor'
+
 export function createSplashCore(caps?: {
   nocolor?: boolean
   truecolor?: boolean
+  ansi16?: boolean
   accent?: string | SplashAccentFamily
 }): SplashCore
 
@@ -208,7 +217,12 @@ export const MODEL_NAMES: Record<string, string>
 export const RAMP: number[][]
 export const RAMP_FIXTURE: number[][]
 export const CAPABILITY_TRUTH: Array<Array<string | null>>
+export const TRUECOLOR_QUERY: string
+export const TRUECOLOR_ECHO_TRUTH: Array<[string, boolean]>
 export function truecolorFingerprintOf(env: Record<string, string | undefined>): string | null
+export function truecolorEchoOf(setting: string): boolean
+export function truecolorAskableOf(env: Record<string, string | undefined>, platform?: string): boolean
+export function splashTierOf(env: Record<string, string | undefined>, platform?: string, echoed?: boolean): SplashTier
 export const ACCENT_FAMILIES: Record<string, SplashAccentFamily>
 export const DEFAULT_CRITTER: string
 export function accentFamilyKeyOf(raw: unknown): string

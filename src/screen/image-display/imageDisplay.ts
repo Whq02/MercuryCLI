@@ -1,8 +1,7 @@
 
 import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
-import { rgbToXterm256 } from '../renderer/cell-grid.js'
-import { truecolorActive } from '../renderer/colorize.js'
+import { colorDepth, rgbSgr } from '../renderer/colorize.js'
 import { flagEnv } from '../../platform/substrate/flagRegistry.js'
 import { groundRgb } from './spriteToAnsi.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -156,7 +155,10 @@ export function imageLinkLine(filePath: string, reason: string): string {
   )
 }
 
+const SIXTEEN_COLORS = 'a picture in cells needs 256 colors and this terminal paints 16'
+
 export async function imageToCells(png: Buffer, maxCols = 76, maxRows = 22): Promise<string> {
+  if (colorDepth() === '16') throw new Error(SIXTEEN_COLORS)
   const sharp = await loadSharp()
   const { data, info } = await sharp(png)
     .resize(maxCols, maxRows * 2, { fit: 'inside' })
@@ -179,18 +181,12 @@ export async function imageToCells(png: Buffer, maxCols = 76, maxRows = 22): Pro
         const br = data[bot]!
         const bg = data[bot + 1]!
         const bb = data[bot + 2]!
-        line += truecolorActive()
-          ? `${ESC}[48;2;${tr};${tg};${tb}m${ESC}[38;2;${br};${bg};${bb}m▄`
-          : `${ESC}[48;5;${rgbToXterm256(tr, tg, tb)}m${ESC}[38;5;${rgbToXterm256(br, bg, bb)}m▄`
+        line += `${rgbSgr(tr, tg, tb, 'background')}${rgbSgr(br, bg, bb, 'foreground')}▄`
       } else if (ground) {
         const [gr, gg, gb] = ground
-        line += truecolorActive()
-          ? `${ESC}[48;2;${tr};${tg};${tb}m${ESC}[38;2;${gr};${gg};${gb}m▄`
-          : `${ESC}[48;5;${rgbToXterm256(tr, tg, tb)}m${ESC}[38;5;${rgbToXterm256(gr, gg, gb)}m▄`
+        line += `${rgbSgr(tr, tg, tb, 'background')}${rgbSgr(gr, gg, gb, 'foreground')}▄`
       } else {
-        line += truecolorActive()
-          ? `${ESC}[38;2;${tr};${tg};${tb}m▀`
-          : `${ESC}[38;5;${rgbToXterm256(tr, tg, tb)}m▀`
+        line += `${rgbSgr(tr, tg, tb, 'foreground')}▀`
       }
     }
     line += `${ESC}[0m`
@@ -245,6 +241,9 @@ export async function renderImageForTerminal(
       }
     }
     case 'cells':
+      if (colorDepth() === '16') {
+        return { protocol: 'link', payload: `[image] ${path.resolve(filePath)}\n        ${SIXTEEN_COLORS} — open the file directly.` }
+      }
       try {
         return { protocol, payload: await imageToCells(png, opts.maxCols, opts.maxRows) }
       } catch (err) {

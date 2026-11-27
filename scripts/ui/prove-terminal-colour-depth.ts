@@ -29,8 +29,6 @@ const colorize = await import('../../src/screen/renderer/colorize.ts')
 const profile = await import('../../src/screen/renderer/terminal-session/terminalProfile.ts')
 const cellGrid = await import('../../src/screen/renderer/cell-grid.ts')
 const palette = await import('../../src/screen/theme/mercuryPalette.ts')
-const colorDiff = await import('../../src/platform/native/color-diff/index.ts')
-const chalk = (await import('chalk')).default
 
 section('§1 the fingerprint decides: COLORTERM or a known truecolor terminal, never the name Apple_Terminal alone')
 {
@@ -171,21 +169,9 @@ section('§5 with COLORTERM=truecolor the same screens paint at full depth')
 
 section('§6 the 256-colour cells are the nearest of the truecolour palette, cell for cell')
 {
-  const inkIndex = (hex: string): number => {
-    const saved = chalk.level
-    chalk.level = 2
-    try {
-      return Number(/38;5;(\d+)m/.exec(chalk.hex(`#${hex}`)('x'))?.[1] ?? -1)
-    } finally {
-      chalk.level = saved
-    }
-  }
   const rgbOf = (hex: string): [number, number, number] => [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)]
   const hexOf = (n: number): string => (cellGrid.xterm256ToRgb(n) ?? [0, 0, 0]).map(v => v.toString(16).padStart(2, '0')).join('')
-  const nearest = (hex: string): Set<string> => {
-    const [r, g, b] = rgbOf(hex)
-    return new Set([hexOf(inkIndex(hex)), hexOf(colorDiff.__test.quantizeToAnsi256(r, g, b)), hexOf(cellGrid.rgbToXterm256(r, g, b))])
-  }
+  const nearest = (hex: string): string => hexOf(cellGrid.rgbToXterm256(...rgbOf(hex)))
   const canvases = new Set([palette.groundFamilyFor('dark').NIGHT, palette.groundFamilyFor('true-black').NIGHT].map(c => c.replace('#', '').toLowerCase()))
   const isHex = (v: string): boolean => /^[0-9a-f]{6}$/.test(v)
   const palette256 = new Set(Array.from({ length: 240 }, (_, i) => hexOf(i + 16)))
@@ -236,14 +222,14 @@ section('§6 the 256-colour cells are the nearest of the truecolour palette, cel
           }
           coloured++
           if (plane === 'bg' && got === 'default' && canvases.has(want)) { groundDropped++; continue }
-          if (!nearest(want).has(got)) wrong.push(`${mark} ${y}:${x} ${plane} ${want}→${got} (nearest ${[...nearest(want)].join('/')})`)
+          if (nearest(want) !== got) wrong.push(`${mark} ${y}:${x} ${plane} ${want}→${got} (nearest ${nearest(want)})`)
         }
       }
     }
     check(`${mark}: the glyphs match cell for cell`, glyphMismatch === 0, `the colour depth must not change glyphs; compare the ${mark} marks of apple-256 and apple-truecolor in the kept scratch; ${glyphMismatch} cells differ`)
     check(`${mark}: every coloured cell is the nearest 256 index of its truecolour value (${coloured} planes read, ${groundDropped} estate-ground cells on the terminal's own ground)`, coloured > 50 && wrong.length === 0, 'the 256-colour downgrade in src/screen/renderer/cell-grid.ts (rgbToXterm256) or src/screen/renderer/colorize.ts must give the nearest palette index: ' + wrong.slice(0, 6).join(' · '))
     if (mark === 'theme') {
-      check(`theme: the code preview (${previewCells} cells, the colour module's own 256 theme) paints palette entries only and keeps its colour structure`, previewCells > 100 && previewWrong.length === 0, 'the theme code preview must paint only 256-palette entries; see src/platform/native/color-diff/index.ts (quantizeToAnsi256): ' + previewWrong.slice(0, 6).join(' · '))
+      check(`theme: the code preview (${previewCells} cells, the colour module's own 256 theme) paints palette entries only and keeps its colour structure`, previewCells > 100 && previewWrong.length === 0, 'the theme code preview must paint only 256-palette entries; see fgEscape and bgEscape in src/platform/native/color-diff/index.ts: ' + previewWrong.slice(0, 6).join(' · '))
     }
   }
 }

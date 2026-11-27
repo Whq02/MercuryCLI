@@ -1032,10 +1032,12 @@ def _tier_screen_verdict(tc, other, cols, rows):
 
 
 _tc_pairs = sum(1 for row, bgs in _rendered_cells(raw_rf, 120, 44) for g, b in zip(row, bgs) if g == '▄' and b == 'b')
-for _label, _rawx in (('NO_COLOR', plainraw), ('256-fallback', raw256)):
-    _ok, _lower, _bad = _tier_screen_verdict(raw_rf, _rawx, 120, 44)
-    check(f'{_label}: the rendered frame is identical to truecolor cell for cell, the two-colour cells\' lower half excepted (colour-only across tiers; {_lower} such cells)',
-          _ok and _lower == _tc_pairs, f'{_bad or f"{_lower} lower-half cells of {_tc_pairs}"}')
+_ok, _lower, _bad = _tier_screen_verdict(raw_rf, plainraw, 120, 44)
+check(f'NO_COLOR: the rendered frame is identical to truecolor cell for cell, the two-colour cells\' lower half excepted (colour-only across tiers; {_lower} such cells)',
+      _ok and _lower == _tc_pairs, f'{_bad or f"{_lower} lower-half cells of {_tc_pairs}"}')
+_ok256, _lower256, _bad256 = _tier_screen_verdict(raw_rf, raw256, 120, 44)
+check(f'256-fallback: every rendered glyph equals truecolor cell for cell (two-colour cells carry both 256 inks; {_lower256} diffs)',
+      _ok256 and _lower256 == 0, f'{_bad256 or f"{_lower256} lower-half diffs"}')
 
 print('\n── ROUND 7: the flat-ground law (no field background; OSC 11 = the shared family ground)')
 raw_ground = run_pty(172, 42)

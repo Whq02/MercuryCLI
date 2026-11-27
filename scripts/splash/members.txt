@@ -13,3 +13,6 @@ prove-muse-row.ts
 prove-profiles-row-fits.ts
 prove-splash-cells.ts
 prove-splash-tiers.ts
+prove-splash-asks-once.ts
+prove-splash-256-is-the-theme.ts
+prove-splash-16-tier.ts

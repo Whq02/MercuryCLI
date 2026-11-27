@@ -1,3 +1,5 @@
+prove-16-colour-paint-is-basic.ts
+prove-256-paint-is-the-theme.ts
 prove-background-notice-fold.ts
 prove-backspace-burst.ts
 prove-bang-shell-row-live.ts
@@ -90,6 +92,7 @@ prove-store-poll-budget.ts
 prove-swarm-party-receipt.ts
 prove-tasks-mission.ts
 prove-teardown-mode-write.ts
+prove-terminal-answers-truecolor.ts
 prove-terminal-colour-depth.ts
 prove-terminal-handback.ts
 prove-tester-door.ts

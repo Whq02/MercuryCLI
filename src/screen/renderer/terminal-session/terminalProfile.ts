@@ -1,6 +1,6 @@
 
 import { env as detectedEnv } from '../../../platform/environment/env.js'
-import { truecolorFingerprint } from '../colorize.js'
+import { truecolorAnswered, truecolorFingerprint } from '../colorize.js'
 import {
   isModernWindowsTerminal,
   isProgressReportingAvailable,
@@ -124,12 +124,13 @@ export function resolveTerminalProfile(probe: ProfileProbe = {}): TerminalProfil
 
   const colorterm = env.COLORTERM
   const fingerprint = truecolorFingerprint(env)
+  const answered = probe.env === undefined && truecolorAnswered()
   checks.push({
     id: 'truecolor',
     label: '24-bit color',
     requirement: 'recommended',
-    ok: fingerprint !== null || conptyEra,
-    evidence: fingerprint ?? (conptyEra ? `Windows console build ${release} — every console since build 14931 renders 24-bit color, whatever the host names itself (COLORTERM=${colorterm ?? '(unset)'})` : `COLORTERM=${colorterm ?? '(unset)'} · no known truecolor terminal named`),
+    ok: fingerprint !== null || conptyEra || answered,
+    evidence: fingerprint ?? (answered ? 'the terminal answered at start that it keeps 24-bit color' : conptyEra ? `Windows console build ${release} — every console since build 14931 renders 24-bit color, whatever the host names itself (COLORTERM=${colorterm ?? '(unset)'})` : `COLORTERM=${colorterm ?? '(unset)'} · no known truecolor terminal named`),
     remediation:
       'This terminal advertises no 24-bit color, so Mercury paints in 256 colors unless MERCURY_TRUECOLOR=1 forces the full depth. The exact palette needs a terminal with 24-bit color: iTerm2, Ghostty, WezTerm, Kitty or Windows Terminal.',
   })

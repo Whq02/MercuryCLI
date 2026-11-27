@@ -1,5 +1,4 @@
-import { rgbToXterm256 } from '../renderer/cell-grid.js'
-import { truecolorActive } from '../renderer/colorize.js'
+import { rgbSgr } from '../renderer/colorize.js'
 import { terminalGround } from '../cockpit/oasisBg.js'
 
 type Sharp = typeof import('sharp').default
@@ -12,10 +11,8 @@ const loadSharp = (): Promise<Sharp> => {
 }
 
 const ESC = String.fromCharCode(27)
-const fgSgr = (r: number, g: number, b: number): string =>
-  truecolorActive() ? `${ESC}[38;2;${r};${g};${b}m` : `${ESC}[38;5;${rgbToXterm256(r, g, b)}m`
-const bgSgr = (r: number, g: number, b: number): string =>
-  truecolorActive() ? `${ESC}[48;2;${r};${g};${b}m` : `${ESC}[48;5;${rgbToXterm256(r, g, b)}m`
+const fgSgr = (r: number, g: number, b: number): string => rgbSgr(r, g, b, 'foreground')
+const bgSgr = (r: number, g: number, b: number): string => rgbSgr(r, g, b, 'background')
 export function groundRgb(): readonly [number, number, number] | null {
   const ground = terminalGround()
   if (ground.state === 'unknown') return null

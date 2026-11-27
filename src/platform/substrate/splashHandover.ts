@@ -92,8 +92,11 @@ export function disarmTensorFoldDeepLink(): void {
 
 const FRESH_MS = 120_000
 
+export type SplashTruecolorAnswer = boolean | 'pending'
+
 interface SplashReceiptDecision {
   apply: { chdir?: string; spliceArg?: string } | null
+  truecolor?: SplashTruecolorAnswer
   reason:
     | 'applied'
     | 'no-file'
@@ -126,7 +129,7 @@ export function decideSplashReceipt(
   ) {
     return { apply: null, reason: 'malformed' }
   }
-  const receipt = o as { ts: number; action?: unknown; dir?: unknown; launchId?: unknown }
+  const receipt = o as { ts: number; action?: unknown; dir?: unknown; launchId?: unknown; truecolor?: unknown }
   if (
     typeof receipt.launchId === 'string' &&
     receipt.launchId !== '' &&
@@ -136,13 +139,14 @@ export function decideSplashReceipt(
     return { apply: null, reason: 'foreign-launch' }
   }
   if (Math.abs(now - receipt.ts) >= FRESH_MS) return { apply: null, reason: 'stale' }
+  const answered: { truecolor?: SplashTruecolorAnswer } = typeof receipt.truecolor === 'boolean' || receipt.truecolor === 'pending' ? { truecolor: receipt.truecolor } : {}
   if (receipt.action === undefined) {
-    return { apply: null, reason: 'screen-only' }
+    return { apply: null, ...answered, reason: 'screen-only' }
   }
   if (typeof receipt.action !== 'string' || !ACTIONS.has(receipt.action)) {
-    return { apply: null, reason: 'unknown-action' }
+    return { apply: null, ...answered, reason: 'unknown-action' }
   }
-  if (receipt.action === 'cancel') return { apply: null, reason: 'cancel-ignored' }
+  if (receipt.action === 'cancel') return { apply: null, ...answered, reason: 'cancel-ignored' }
   const dir =
     typeof receipt.dir === 'string' && receipt.dir && dirExists(receipt.dir)
       ? receipt.dir
@@ -161,15 +165,16 @@ export function decideSplashReceipt(
       ? '--continue'
       : undefined
   if (dir === undefined && spliceArg === undefined) {
-    return { apply: null, reason: 'applied' }
+    return { apply: null, ...answered, reason: 'applied' }
   }
   return {
     apply: { ...(dir ? { chdir: dir } : {}), ...(spliceArg ? { spliceArg } : {}) },
+    ...answered,
     reason: 'applied',
   }
 }
 
-export function consumeSplashHandover(): void {
+export function consumeSplashHandover(): SplashTruecolorAnswer | undefined {
   if (flagEnv('MERCURY_SPLASH_HANDOFF') !== '1') return
   deleteFlagEnv('MERCURY_SPLASH_HANDOFF')
   let raw: string | null = null
@@ -210,7 +215,7 @@ export function consumeSplashHandover(): void {
       }
     }
   }
-  if (!decision.apply) return
+  if (!decision.apply) return decision.truecolor
   if (decision.apply.chdir) {
     try {
       process.chdir(decision.apply.chdir)
@@ -222,4 +227,5 @@ export function consumeSplashHandover(): void {
   if (decision.apply.spliceArg) {
     process.argv.splice(2, 0, decision.apply.spliceArg)
   }
+  return decision.truecolor
 }

@@ -6,20 +6,91 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, rea
 import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 
-import { adoptGroundFamily, createSplashCore, emitCells, HEADSTD, WORD, MENU, MODEL_NAMES, GROUND, assembleCardRows, withProfilesRow, fmtAge, ACCENT_FAMILIES, DEFAULT_CRITTER, accentFamilyKeyOf, glowPhaseAt, glowSettled, GLOW_TICK_MS, WORD_W, cpWidth, MARK_RE, truecolorFingerprintOf } from './splash-core.mjs'
+import { adoptGroundFamily, createSplashCore, emitCells, HEADSTD, WORD, MENU, MODEL_NAMES, GROUND, assembleCardRows, withProfilesRow, fmtAge, ACCENT_FAMILIES, DEFAULT_CRITTER, accentFamilyKeyOf, glowPhaseAt, glowSettled, GLOW_TICK_MS, WORD_W, cpWidth, MARK_RE, truecolorFingerprintOf, TRUECOLOR_QUERY, truecolorEchoOf, truecolorAskableOf, splashTierOf } from './splash-core.mjs'
 
 const out = process.stdout
 
-const NOCOLOR = process.env.FORCE_COLOR === undefined
-  ? Boolean(process.env.NO_COLOR)
-  : !['', '1', '2', '3', 'true'].includes(process.env.FORCE_COLOR)
-const TRUECOLOR_FLAG = (process.env.MERCURY_TRUECOLOR || '').trim().toLowerCase()
-const TRUECOLOR =
-  !NOCOLOR &&
-  !/^(dumb|linux)$/.test(process.env.TERM || '') &&
-  TRUECOLOR_FLAG !== '0' &&
-  (['1', 'true', 'yes', 'on'].includes(TRUECOLOR_FLAG) || truecolorFingerprintOf(process.env) !== null)
+const TRUECOLOR_QUERY_MS = 50
+const TRUECOLOR_SENTINEL = '\x1b[c'
+const SHOULD_ASK_TRUECOLOR =
+  process.env.MERCURY_SPLASH !== 'off' &&
+  process.env.MERCURY_SPLASH !== 'static' &&
+  Boolean(out.isTTY) &&
+  Boolean(process.stdin.isTTY) &&
+  truecolorAskableOf(process.env)
 
+let queuedBeforePaint = ''
+let replyPending = ''
+let replyPendingTimer = null
+
+function stripTerminalReplies(buf, onDecrqss, onDa1, waiting) {
+  let text = ''
+  let at = 0
+  while (at < buf.length) {
+    if (buf.charCodeAt(at) !== 0x1b) { text += buf[at++]; continue }
+    const rest = buf.slice(at)
+    if (waiting && (rest === '\x1b' || rest === '\x1b[')) return { text, pending: rest }
+    if (rest.startsWith('\x1bP')) {
+      const m = /^\x1bP[01](?:\$r([^\x07\x1b]*))?(?:\x07|\x1b\\)/.exec(rest)
+      if (m) { onDecrqss?.(m[1] ?? ''); at += m[0].length; continue }
+      if (/^\x1bP(?:[01](?:\$(?:r[^\x07\x1b]*\x1b?)?)?)?$/.test(rest)) return { text, pending: rest }
+    } else if (rest.startsWith('\x1b[?')) {
+      const m = /^\x1b\[\?[\d;]*c/.exec(rest)
+      if (m) { onDa1?.(); at += m[0].length; continue }
+      if (/^\x1b\[\?[\d;]*$/.test(rest)) return { text, pending: rest }
+    }
+    text += buf[at++]
+  }
+  return { text, pending: '' }
+}
+
+function askTruecolorOnce() {
+  return new Promise(resolve => {
+    let settled = false
+    let result = 'pending'
+    const finish = val => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      process.stdin.removeListener('data', onData)
+      resolve(val)
+    }
+    const onData = buf => {
+      let decided = false
+      const stripped = stripTerminalReplies(
+        replyPending + buf.toString('utf8'),
+        setting => {
+          if (!decided) {
+            decided = true
+            result = truecolorEchoOf(setting)
+          }
+        },
+        () => {
+          if (!decided) {
+            decided = true
+            result = false
+          }
+        },
+        true,
+      )
+      replyPending = stripped.pending
+      if (stripped.text !== '') queuedBeforePaint += stripped.text
+      if (decided || queuedBeforePaint.includes('\x03')) finish(result)
+    }
+    const timer = setTimeout(() => finish('pending'), TRUECOLOR_QUERY_MS)
+    timer.unref?.()
+    try { process.stdin.setRawMode(true) } catch { }
+    process.stdin.resume()
+    process.stdin.on('data', onData)
+    out.write(TRUECOLOR_QUERY + TRUECOLOR_SENTINEL)
+  })
+}
+
+let askedTruecolor = SHOULD_ASK_TRUECOLOR ? await askTruecolorOnce() : null
+const TIER = splashTierOf(process.env, process.platform, askedTruecolor === true)
+const NOCOLOR = TIER === 'plain'
+const TRUECOLOR = TIER === 'truecolor'
+const ANSI16 = TIER === '16'
 const COMPACT_HOST_COLS = 100
 const COMPACT_HOST_ROWS = 26
 const compactHost = (c, r) => CINEMATIC && !(c >= COMPACT_HOST_COLS && r >= COMPACT_HOST_ROWS)
@@ -697,7 +768,7 @@ function persistedThemeName() {
 const persistedTheme = persistedThemeName() || DEFAULT_THEME_FAMILY
 adoptGroundFamily(persistedTheme === 'true-black' ? 'true-black' : 'dark')
 
-const core = createSplashCore({ nocolor: NOCOLOR, truecolor: TRUECOLOR, accent: CRITTER_KEY })
+const core = createSplashCore({ nocolor: NOCOLOR, truecolor: TRUECOLOR, ansi16: ANSI16, accent: CRITTER_KEY })
 const {
   R, DIM,
   rgbFg, rgbBg, hexFg,
@@ -792,7 +863,14 @@ function writeSplashAction(action, dir) {
     mkdirSync(CONFIG_HOME, { recursive: true })
     writeFileSync(
       join(CONFIG_HOME, 'splash-action.json'),
-      JSON.stringify({ version: 1, ts: Date.now(), action, ...(dir ? { dir } : {}), ...(LAUNCH_ID ? { launchId: LAUNCH_ID } : {}) }) + '\n',
+      JSON.stringify({
+        version: 1,
+        ts: Date.now(),
+        action,
+        ...(dir ? { dir } : {}),
+        ...(LAUNCH_ID ? { launchId: LAUNCH_ID } : {}),
+        ...(askedTruecolor !== null ? { truecolor: askedTruecolor } : {}),
+      }) + '\n',
     )
   } catch { }
 }
@@ -809,6 +887,7 @@ function writeScreenReceipt(screen) {
         ...(lastSplashAction ? { action: lastSplashAction } : {}),
         ...(lastSplashActionDir ? { dir: lastSplashActionDir } : {}),
         ...(LAUNCH_ID ? { launchId: LAUNCH_ID } : {}),
+        ...(askedTruecolor !== null ? { truecolor: askedTruecolor } : {}),
         screen,
       }) + '\n',
     )
@@ -1219,8 +1298,21 @@ function restoreAndBrand() {
 
 let exiting = false
 let screenAtExit = null
+let pendingExit = null
+function finishPendingExit() {
+  if (!pendingExit) return
+  const fn = pendingExit; pendingExit = null; fn()
+}
 function collapse(code, drainCapMs = 2000) {
   if (exiting) return
+  if (replyPending !== '' && !cancelled) {
+    if (pendingExit) return
+    const hold = setTimeout(() => { replyPending = ''; finishPendingExit() }, TRUECOLOR_QUERY_MS)
+    hold.unref?.()
+    pendingExit = () => { clearTimeout(hold); collapse(code, drainCapMs) }
+    return
+  }
+  pendingExit = null
   exiting = true
   restoreAndBrand()
   flushBootEnv()
@@ -1307,8 +1399,8 @@ const coalesceStep = (pending, chunk) => {
 }
 let pendingInput = ''
 let pendingTimer = null
-process.stdin.on('data', buf => {
-  const step = coalesceStep(pendingInput, buf.toString('utf8'))
+function feedInput(text) {
+  const step = coalesceStep(pendingInput, text)
   pendingInput = step.pending
   clearTimeout(pendingTimer)
   if (step.dispatch !== null) {
@@ -1321,7 +1413,31 @@ process.stdin.on('data', buf => {
     if (s) handleKey(s)
   }, ESC_TIMEOUT_MS)
   pendingTimer.unref?.()
+}
+process.stdin.on('data', buf => {
+  const merged = replyPending + pendingInput + buf.toString('utf8')
+  pendingInput = ''
+  clearTimeout(pendingTimer)
+  clearTimeout(replyPendingTimer)
+  const stripped = stripTerminalReplies(
+    merged,
+    setting => { if (askedTruecolor === 'pending') askedTruecolor = truecolorEchoOf(setting) },
+    () => { if (askedTruecolor === 'pending') askedTruecolor = false },
+    false,
+  )
+  replyPending = stripped.pending
+  if (replyPending !== '') {
+    replyPendingTimer = setTimeout(() => { replyPending = ''; finishPendingExit() }, TRUECOLOR_QUERY_MS)
+    replyPendingTimer.unref?.()
+  }
+  if (stripped.text !== '') feedInput(stripped.text)
+  if (replyPending === '' && pendingExit) finishPendingExit()
 })
+if (!ONESHOT && queuedBeforePaint !== '') {
+  const early = queuedBeforePaint
+  queuedBeforePaint = ''
+  feedInput(early)
+}
 
 function handleKey(s) {
   if (s === '\x03') { cancelExit(); return }

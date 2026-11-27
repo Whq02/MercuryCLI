@@ -1,17 +1,13 @@
-const T256 = { cream: 230, red: 167, faint: 243, dim: 137, dimred: 95 }
+const T256 = {"cream":254,"ivory":254,"red":167,"faint":244,"dim":247,"dimred":88,"midred":124,"dune":238,"teal":72,"amber":179,"crimson":167,"dark":233,"black":16}
+const T16 = {"cream":97,"ivory":97,"red":91,"faint":90,"dim":37,"dimred":31,"midred":31,"dune":90,"teal":36,"amber":33,"crimson":91,"dark":30,"black":30}
 const CREAM = [240, 232, 214]
 const RED = [221, 68, 68]
 const VOID = [13, 24, 27]
 export const GROUND = VOID
-export const GROUND_FAMILIES = {
-  dark: [13, 24, 27],
-  'true-black': [0, 0, 0],
-}
+export const GROUND_FAMILIES = { dark: [13, 24, 27], 'true-black': [0, 0, 0] }
 export function adoptGroundFamily(name) {
-  const family = GROUND_FAMILIES[name] ?? GROUND_FAMILIES.dark
-  VOID[0] = family[0]
-  VOID[1] = family[1]
-  VOID[2] = family[2]
+  const f = GROUND_FAMILIES[name] ?? GROUND_FAMILIES.dark
+  VOID[0] = f[0]; VOID[1] = f[1]; VOID[2] = f[2]
 }
 const FAINT = '#71807B'
 const IVORY = '#EDE8DD'
@@ -50,7 +46,6 @@ const HEADSTD = [
   '.....................................................',
   '.....................................................',
 ]
-
 
 const WORD = [
   'RR.RR...RRRRR...RRRRR...RRRRR...R...R...RRRRR...R...R',
@@ -244,19 +239,39 @@ const MODEL_NAMES = {
 const mixc = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t))
 const RAMP = [[221,68,68],[229,132,132],[232,183,175]]
 const RAMP_FIXTURE = [[0,221,68,68,172,59,59],[7,223,85,85,173,68,68],[15,226,105,105,175,78,78],[22,228,122,122,176,86,86],[26,229,132,132,176,91,91],[30,229,140,139,176,95,95],[37,230,154,150,177,102,100],[45,231,169,163,177,110,107],[52,232,183,175,178,117,113]]
-const CAPABILITY_TRUTH = [[null,null,null,"xterm-256color","truecolor",null,"truecolor"],["1",null,null,"xterm-256color","truecolor",null,"plain"],["1","1",null,"xterm-256color","truecolor",null,"truecolor"],["",null,null,"xterm-256color","truecolor",null,"truecolor"],["1","",null,"xterm-256color","truecolor",null,"truecolor"],[null,null,"0","xterm-256color","truecolor",null,"256"],[null,null,null,"dumb","truecolor",null,"256"],[null,null,null,"linux","truecolor",null,"256"],["1",null,"0","xterm-256color","truecolor",null,"plain"],[null,null,null,"xterm-256color",null,null,"256"],[null,null,null,"xterm-256color",null,"Apple_Terminal","256"],[null,null,null,"xterm-256color","truecolor","Apple_Terminal","truecolor"],[null,null,null,"xterm-256color","24bit",null,"truecolor"],[null,null,null,"xterm-256color",null,"vscode","truecolor"],[null,null,null,"xterm-256color",null,"iTerm.app","truecolor"],[null,null,null,"xterm-kitty",null,null,"truecolor"],[null,null,"1","xterm-256color",null,null,"truecolor"],[null,null,"1","xterm-256color",null,"Apple_Terminal","truecolor"],["1","1",null,"xterm-256color",null,null,"256"],[null,null,"1","linux",null,null,"256"]]
+const CAPABILITY_TRUTH = [[null,null,null,"xterm-256color","truecolor",null,"truecolor"],["1",null,null,"xterm-256color","truecolor",null,"plain"],["1","1",null,"xterm-256color","truecolor",null,"truecolor"],["",null,null,"xterm-256color","truecolor",null,"truecolor"],["1","",null,"xterm-256color","truecolor",null,"truecolor"],[null,null,"0","xterm-256color","truecolor",null,"256"],[null,null,null,"dumb","truecolor",null,"plain"],[null,null,null,"linux","truecolor",null,"16"],["1",null,"0","xterm-256color","truecolor",null,"plain"],[null,null,null,"xterm-256color",null,null,"256"],[null,null,null,"xterm-256color",null,"Apple_Terminal","256"],[null,null,null,"xterm-256color","truecolor","Apple_Terminal","truecolor"],[null,null,null,"xterm-256color","24bit",null,"truecolor"],[null,null,null,"xterm-256color",null,"vscode","truecolor"],[null,null,null,"xterm-256color",null,"iTerm.app","truecolor"],[null,null,null,"xterm-kitty",null,null,"truecolor"],[null,null,"1","xterm-256color",null,null,"truecolor"],[null,null,"1","xterm-256color",null,"Apple_Terminal","truecolor"],["1","1",null,"xterm-256color",null,null,"256"],[null,null,"1","linux",null,null,"16"],[null,null,null,"xterm",null,null,"16"],[null,null,null,"xterm-color",null,null,"16"],[null,null,null,"screen",null,null,"16"],[null,null,null,"vt100",null,null,"16"],[null,null,null,"rxvt",null,null,"16"],[null,null,null,"alacritty",null,null,"16"],[null,null,null,"foot",null,null,"16"],[null,null,null,null,null,null,"plain"],[null,null,null,"xterm","truecolor",null,"truecolor"],[null,null,"1","xterm",null,null,"truecolor"]]
+const TRUECOLOR_QUERY = "\u001b7\u001b[48;2;1;2;3m\u001bP$qm\u001b\\\u001b[0m\u001b8"
+const TRUECOLOR_ECHO_TRUTH = [["0;48:2::1:2:3m",true],["0;48:2:1:1:2:3m",true],["48:2:1:2:3m",true],["0;48;2;1;2;3m",true],["0;8;30;48:2::1:2:3m",true],["48;2;0;1;2;3m",true],["0m",false],["0;48:5:16m",false],["0;38:2::1:2:3m",false],["0;48:2::1:2:30m",false],["",false]]
 export function truecolorFingerprintOf(env) {
   const colorterm = env.COLORTERM
   if (colorterm === 'truecolor' || colorterm === '24bit') return `COLORTERM=${colorterm}`
   if (env.WT_SESSION) return 'WT_SESSION (Windows Terminal)'
   const program = env.TERM_PROGRAM
-  if (program === 'vscode' || program === 'iTerm.app' || program === 'WezTerm' || program === 'ghostty') {
-    return `TERM_PROGRAM=${program}`
-  }
+  if (program === 'vscode' || program === 'iTerm.app' || program === 'WezTerm' || program === 'ghostty') return `TERM_PROGRAM=${program}`
   const term = env.TERM
   if (term === 'xterm-kitty' || term === 'xterm-ghostty' || term === 'wezterm') return `TERM=${term}`
-  if (env.KITTY_WINDOW_ID) return 'KITTY_WINDOW_ID (kitty)'
-  return null
+  return env.KITTY_WINDOW_ID ? 'KITTY_WINDOW_ID (kitty)' : null
+}
+export function truecolorEchoOf(setting) {
+  return /(?:^|;)48[:;]2[:;](?:\d*[:;])?1[:;]2[:;]3(?:;|m|$)/.test(setting)
+}
+export function truecolorAskableOf(env, platform = process.platform) {
+  if (platform === 'win32' || env.MERCURY_SPLASH_ONESHOT === '1') return false
+  const fc = env.FORCE_COLOR
+  if (Boolean(env.NO_COLOR) && (fc === undefined || !['', '1', '2', '3', 'true'].includes(fc))) return false
+  if (fc !== undefined || env.TMUX || env.TERM_PROGRAM === 'Apple_Terminal' || env.MERCURY_TRUECOLOR !== undefined) return false
+  if (truecolorFingerprintOf(env) !== null) return false
+  const term = env.TERM
+  return term !== undefined && term !== 'dumb' && term !== 'linux'
+}
+export function splashTierOf(env, platform = process.platform, echoed = false) {
+  const fc = env.FORCE_COLOR
+  if (fc === undefined ? Boolean(env.NO_COLOR) : !['', '1', '2', '3', 'true'].includes(fc)) return 'plain'
+  const term = env.TERM || ''
+  if (platform !== 'win32' && (!term || term === 'dumb')) return 'plain'
+  const flag = (env.MERCURY_TRUECOLOR || '').trim().toLowerCase()
+  if (!/^(dumb|linux)$/.test(term) && flag !== '0' && (['1', 'true', 'yes', 'on'].includes(flag) || truecolorFingerprintOf(env) !== null || echoed === true)) return 'truecolor'
+  return platform === 'win32' || /-(?:256color|256)$/.test(term) ? '256' : '16'
 }
 const rampSample = u => {
   const s = Math.min(1, Math.max(0, u)) * (RAMP.length - 1)
@@ -265,10 +280,10 @@ const rampSample = u => {
 }
 
 const ACCENT_FAMILIES = {
-  crab: { main: [221,68,68], deep: [123,50,50], soft: [229,132,132], ramp: [[221,68,68],[229,132,132],[232,183,175]], t256: 167, t256deep: 95 },
-  octopus: { main: [176,123,224], deep: [110,75,160], soft: [200,167,223], ramp: [[176,123,224],[200,167,223],[219,199,222]], t256: 140, t256deep: 61 },
-  jellyfish: { main: [111,199,232], deep: [63,126,150], soft: [161,212,228], ramp: [[111,199,232],[161,212,228],[199,222,224]], t256: 80, t256deep: 66 },
-  clam: { main: [22,216,176], deep: [14,147,119], soft: [108,222,194], ramp: [[22,216,176],[108,222,194],[173,227,208]], t256: 43, t256deep: 30 },
+  crab: { main: [221,68,68], deep: [123,50,50], soft: [229,132,132], ramp: [[221,68,68],[229,132,132],[232,183,175]], t256: 167, t256deep: 88, t256mid: 124, t16: 91, t16deep: 31, t16mid: 31, wordR256: [167,167,167,167,167,167,167,167,167,167,167,167,167,167,167,167,167,167,167,167,174,174,174,174,174,174,174,174,174,174,174,174,174,174,174,174,174,174,174,181,181,181,181,181,181,181,181,181,181,181,181,181,181], wordD256: [124,124,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,131,138] },
+  octopus: { main: [176,123,224], deep: [110,75,160], soft: [200,167,223], ramp: [[176,123,224],[200,167,223],[219,199,222]], t256: 140, t256deep: 61, t256mid: 97, t16: 35, t16deep: 35, t16mid: 35, wordR256: [140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,183,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,182,252,252,252], wordD256: [97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,140,139,139,139,139,139,139,139,139,139,139,139] },
+  jellyfish: { main: [111,199,232], deep: [63,126,150], soft: [161,212,228], ramp: [[111,199,232],[161,212,228],[199,222,224]], t256: 81, t256deep: 31, t256mid: 74, t16: 36, t16deep: 36, t16mid: 36, wordR256: [81,81,81,81,117,117,117,117,117,117,117,117,117,117,117,117,117,117,117,116,116,116,116,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,152,188,253], wordD256: [74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,74,73,73,73,73,73,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109,109] },
+  clam: { main: [22,216,176], deep: [14,147,119], soft: [108,222,194], ramp: [[22,216,176],[108,222,194],[173,227,208]], t256: 43, t256deep: 29, t256mid: 36, t16: 36, t16deep: 36, t16mid: 36, wordR256: [43,43,43,43,43,43,43,43,43,43,43,43,43,79,79,79,79,79,79,79,79,79,79,79,79,79,79,79,115,115,115,115,115,115,115,115,115,115,115,115,115,115,116,116,116,116,116,151,152,152,152,152,152], wordD256: [36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72,72] },
 }
 const DEFAULT_CRITTER = "crab"
 
@@ -278,14 +293,7 @@ export function accentFamilyKeyOf(raw) {
   return DEFAULT_CRITTER
 }
 
-const GLOW = {
-  TICK_MS: 80,
-  GREETING_MS: 2_700,
-  EASE_IN_MS: 350,
-  EASE_OUT_MS: 600,
-  LIFT: 0.45,
-  GAIN_LEVELS: 5,
-}
+const GLOW = { TICK_MS: 80, GREETING_MS: 2_700, EASE_IN_MS: 350, EASE_OUT_MS: 600, LIFT: 0.45, GAIN_LEVELS: 5 }
 const glowRadius = span => Math.max(3, Math.min(8, Math.round(span * 0.28)))
 const glowEnvelope = t => {
   if (t <= 0 || t >= GLOW.GREETING_MS) return 0
@@ -294,20 +302,11 @@ const glowEnvelope = t => {
   if (t > outStart) { const x = (GLOW.GREETING_MS - t) / GLOW.EASE_OUT_MS; return x * x }
   return 1
 }
-const glowPeakAt = (t, span) => {
-  if (span <= 1) return 0
-  const u = Math.min(1, Math.max(0, t / GLOW.GREETING_MS))
-  return ((1 - Math.cos(u * Math.PI)) / 2) * (span - 1)
-}
+const glowPeakAt = (t, span) => (span <= 1 ? 0 : ((1 - Math.cos(Math.min(1, Math.max(0, t / GLOW.GREETING_MS)) * Math.PI)) / 2) * (span - 1))
 export function glowPhaseAt(elapsedMs, spanCells) {
   if (elapsedMs >= GLOW.GREETING_MS) return null
   const gainLevel = Math.round(glowEnvelope(elapsedMs) * GLOW.GAIN_LEVELS)
-  if (gainLevel <= 0) return null
-  return {
-    peakCell: Math.round(glowPeakAt(elapsedMs, spanCells)),
-    gainLevel,
-    radiusCells: glowRadius(spanCells),
-  }
+  return gainLevel <= 0 ? null : { peakCell: Math.round(glowPeakAt(elapsedMs, spanCells)), gainLevel, radiusCells: glowRadius(spanCells) }
 }
 export function glowBoostAt(cellCenter, phase) {
   if (!phase) return 0
@@ -326,23 +325,12 @@ const SGR_RE = /\x1b\[[0-9;]*m/g
 const cpWidth = cp => {
   if (cp === 0x200d) return 0
   if (
-    (cp >= 0x1100 && cp <= 0x115f) ||
-    cp === 0x2329 || cp === 0x232a ||
-    (cp >= 0x2e80 && cp <= 0x303e) ||
-    (cp >= 0x3041 && cp <= 0x33ff) ||
-    (cp >= 0x3400 && cp <= 0x4dbf) ||
-    (cp >= 0x4e00 && cp <= 0x9fff) ||
-    (cp >= 0xa000 && cp <= 0xa4cf) ||
-    (cp >= 0xa960 && cp <= 0xa97f) ||
-    (cp >= 0xac00 && cp <= 0xd7a3) ||
-    (cp >= 0xf900 && cp <= 0xfaff) ||
-    (cp >= 0xfe10 && cp <= 0xfe19) ||
-    (cp >= 0xfe30 && cp <= 0xfe6f) ||
-    (cp >= 0xff00 && cp <= 0xff60) ||
-    (cp >= 0xffe0 && cp <= 0xffe6) ||
-    (cp >= 0x1f300 && cp <= 0x1f64f) ||
-    (cp >= 0x1f680 && cp <= 0x1f6ff) ||
-    (cp >= 0x1f900 && cp <= 0x1f9ff) ||
+    (cp >= 0x1100 && cp <= 0x115f) || cp === 0x2329 || cp === 0x232a ||
+    (cp >= 0x2e80 && cp <= 0x303e) || (cp >= 0x3041 && cp <= 0x33ff) || (cp >= 0x3400 && cp <= 0x4dbf) ||
+    (cp >= 0x4e00 && cp <= 0x9fff) || (cp >= 0xa000 && cp <= 0xa4cf) || (cp >= 0xa960 && cp <= 0xa97f) ||
+    (cp >= 0xac00 && cp <= 0xd7a3) || (cp >= 0xf900 && cp <= 0xfaff) || (cp >= 0xfe10 && cp <= 0xfe19) ||
+    (cp >= 0xfe30 && cp <= 0xfe6f) || (cp >= 0xff00 && cp <= 0xff60) || (cp >= 0xffe0 && cp <= 0xffe6) ||
+    (cp >= 0x1f300 && cp <= 0x1f64f) || (cp >= 0x1f680 && cp <= 0x1f6ff) || (cp >= 0x1f900 && cp <= 0x1f9ff) ||
     (cp >= 0x20000 && cp <= 0x3fffd)
   ) return 2
   return 1
@@ -565,43 +553,37 @@ export function emitCells(cells) {
   return sgr === '' ? out : out + '\x1b[0m'
 }
 
-export function createSplashCore({ nocolor = false, truecolor = true, accent } = {}) {
+export function createSplashCore({ nocolor = false, truecolor = true, ansi16 = false, accent } = {}) {
   const NOCOLOR = !!nocolor
   const TRUECOLOR = !NOCOLOR && !!truecolor
-  const ACC =
-    accent && typeof accent === 'object'
-      ? accent
-      : ACCENT_FAMILIES[accentFamilyKeyOf(accent ?? 'crab')] ?? ACCENT_FAMILIES.crab
+  const ANSI16 = !NOCOLOR && !TRUECOLOR && !!ansi16
+  const ACC = accent && typeof accent === 'object' ? accent : ACCENT_FAMILIES[accentFamilyKeyOf(accent ?? 'crab')] ?? ACCENT_FAMILIES.crab
   const ACC_MID = mixc(ACC.deep, ACC.main, 0.5)
   const ACC_HEX = '#' + ACC.main.map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase()
-
 const R = NOCOLOR ? '' : '\x1b[0m'
 const BOLD = NOCOLOR ? '' : '\x1b[1m'
 const BOLD_UL = NOCOLOR ? '' : '\x1b[1;4m'
 const DIM = NOCOLOR ? '' : '\x1b[2m'
-
 const rgbFg = ([r, g, b]) => (NOCOLOR ? '' : `\x1b[38;2;${r};${g};${b}m`)
 const rgbBg = ([r, g, b]) => (NOCOLOR ? '' : `\x1b[48;2;${r};${g};${b}m`)
+const BY16_HEX = { [IVORY]: T16.ivory, [FAINT]: T16.faint, [ACC_HEX]: ACC.t16 ?? T16.red }
 function hexFg(hex, fb) {
   if (NOCOLOR) return ''
+  if (ANSI16) return `\x1b[${BY16_HEX[hex] ?? ACC.t16 ?? T16.dim}m`
   if (!TRUECOLOR) return `\x1b[38;5;${fb}m`
   return rgbFg([parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)])
 }
-function fg256ish(px) {
-  if (NOCOLOR) return ''
-  const [r, g, b] = px
-  const is = a => a[0] === r && a[1] === g && a[2] === b
-  if (is(ACC.main) || is(ACC_MID)) return `\x1b[38;5;${ACC.t256}m`
-  if (is(ACC.deep)) return `\x1b[38;5;${ACC.t256deep}m`
-  if (r > 180 && g > 160) return `\x1b[38;5;${T256.cream}m`
-  if (r > 140 && g < 90) return `\x1b[38;5;${T256.red}m`
-  if (r > 90 && g < 60) return `\x1b[38;5;${T256.dimred}m`
-  return `\x1b[38;5;${T256.dim}m`
-}
-
-function paint(px) { return TRUECOLOR ? rgbFg(px) : fg256ish(px) }
-function paintBg(px) { return TRUECOLOR ? rgbBg(px) : '' }
-
+const BY_INK = new Map([
+  [CREAM.join(), [T256.cream, T16.cream]], [MIDCREAM.join(), [T256.dim, T16.dim]], [RED.join(), [T256.red, T16.red]],
+  [DEEPRED.join(), [T256.dimred, T16.dimred]], [MIDRED.join(), [T256.midred, T16.midred]], [DUNE.join(), [T256.dune, T16.dune]],
+  [TEALC.join(), [T256.teal, T16.teal]], [AMBERC.join(), [T256.amber, T16.amber]], [CRIMSONC.join(), [T256.crimson, T16.crimson]],
+  [GROUND_FAMILIES.dark.join(), [T256.dark, T16.dark]], [GROUND_FAMILIES['true-black'].join(), [T256.black, T16.black]],
+  [ACC.main.join(), [ACC.t256, ACC.t16 ?? T16.red]], [ACC.deep.join(), [ACC.t256deep, ACC.t16deep ?? T16.dimred]],
+  [ACC_MID.join(), [ACC.t256mid ?? ACC.t256, ACC.t16mid ?? ACC.t16 ?? T16.midred]],
+])
+const codeOf = (px, idx) => (typeof px === 'number' ? px : (BY_INK.get(px.join())?.[idx] ?? (idx ? T16.dim : T256.dim)))
+function paint(px) { return NOCOLOR ? '' : TRUECOLOR ? rgbFg(px) : ANSI16 ? `\x1b[${codeOf(px, 1)}m` : `\x1b[38;5;${codeOf(px, 0)}m` }
+function paintBg(px) { return NOCOLOR || ANSI16 ? '' : TRUECOLOR ? rgbBg(px) : `\x1b[48;5;${codeOf(px, 0)}m` }
 const PXA = { E: CREAM, e: MIDCREAM, R: ACC.main, r: ACC.deep, d: ACC_MID }
 
 function rasterHard(grid, toneAt) {
@@ -621,7 +603,7 @@ function rasterHard(grid, toneAt) {
       else if (t !== '.' && b === '.') { sgr = paint(px(t, x)); cell = '▀' }
       else if (t === '.' && b !== '.') { sgr = paint(px(b, x)); cell = '▄' }
       else if (t === b) { sgr = paint(px(t, x)); cell = '█' }
-      else if (TRUECOLOR) { sgr = paint(px(b, x)) + paintBg(px(t, x)); cell = '▄' }
+      else if (!NOCOLOR && !ANSI16) { sgr = paint(px(b, x)) + paintBg(px(t, x)); cell = '▄' }
       else { sgr = paint(px(t, x)) + paintBg(px(b, x)); cell = '▀' }
       if (sgr !== run) { line += R + sgr; run = sgr }
       line += cell
@@ -645,7 +627,12 @@ const sampleFace = u => {
 }
 
 const wordTone = (ch, x, W, phase = null) => {
-  if (!TRUECOLOR || (ch !== 'R' && ch !== 'd')) return PXA[ch]
+  if (ch !== 'R' && ch !== 'd') return PXA[ch]
+  if (!TRUECOLOR) {
+    if (NOCOLOR || ANSI16) return PXA[ch]
+    const tbl = ch === 'R' ? ACC.wordR256 : ACC.wordD256
+    return tbl ? tbl[W === tbl.length ? x : Math.min(tbl.length - 1, Math.max(0, Math.round((x / Math.max(1, W - 1)) * (tbl.length - 1))))] : ch === 'R' ? ACC.t256 : ACC.t256deep
+  }
   let u = x / (W - 1)
   const boost = glowBoostAt(x, phase)
   if (boost > 0) u = u + boost * (1 - u)
@@ -654,18 +641,18 @@ const wordTone = (ch, x, W, phase = null) => {
 }
 const wordToneGlow = phase => (ch, x, W) => wordTone(ch, x, W, phase)
 function rampLabel(text) {
-  if (!TRUECOLOR) return hexFg(IVORY, T256.cream) + text
+  if (NOCOLOR) return text
+  if (ANSI16) return hexFg(IVORY, T256.cream) + text
   let out = ''
   let run = null
   for (let i = 0; i < text.length; i++) {
     const u = (i + 0.5) / text.length
-    const sgr = rgbFg(sampleFace(u))
+    const sgr = TRUECOLOR ? rgbFg(sampleFace(u)) : `\x1b[38;5;${ACC.wordR256 ? ACC.wordR256[Math.min(ACC.wordR256.length - 1, Math.max(0, Math.round(u * (ACC.wordR256.length - 1))))] : ACC.t256}m`
     if (sgr !== run) { out += sgr; run = sgr }
     out += text[i]
   }
   return out
 }
-
 const PLATE_TONE = VOID
 const onPlate = s => {
   const p = paintBg(PLATE_TONE)
@@ -1463,16 +1450,16 @@ function composeCompactFace(cols, rows, opts) {
 
   return {
     R, BOLD, BOLD_UL, DIM,
-    rgbFg, rgbBg, hexFg, fg256ish, paint, paintBg,
+    rgbFg, rgbBg, hexFg, paint, paintBg,
     rasterHard, dividerLine, wordTone, wordToneGlow, rampLabel, rampSample, sampleFace,
     boxTop, boxBot, boxSep, boxRow, clipVis,
     composeHint, composeCard, composeStrip, composeProjects, composeLockup, composeCompactFace, placeBlock,
     composeBootMenu, composeBootMenuWide, composeBootMenuClassic,
     vis, cpWidth, MARK_RE, padVis, wrapWords, zipCols, mixc,
-    T256, CREAM, RED, VOID, FAINT, IVORY, MIDCREAM, DEEPRED, MIDRED, DUNE, PX,
+    T256, T16, CREAM, RED, VOID, FAINT, IVORY, MIDCREAM, DEEPRED, MIDRED, DUNE, PX,
     TEALC, AMBERC, CRIMSONC,
     ACCENT: ACC, ACCENT_HEX: ACC_HEX, accentFg,
   }
 }
 
-export { HEADSTD, WORD, MENU, MODEL_NAMES, RAMP, RAMP_FIXTURE, CAPABILITY_TRUTH, ACCENT_FAMILIES, DEFAULT_CRITTER, vis, cpWidth, MARK_RE, padVis, wrapWords, zipCols, placeBlock, mixc, rampSample }
+export { HEADSTD, WORD, MENU, MODEL_NAMES, RAMP, RAMP_FIXTURE, CAPABILITY_TRUTH, TRUECOLOR_QUERY, TRUECOLOR_ECHO_TRUTH, ACCENT_FAMILIES, DEFAULT_CRITTER, vis, cpWidth, MARK_RE, padVis, wrapWords, zipCols, placeBlock, mixc, rampSample }

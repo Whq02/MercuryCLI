@@ -38,7 +38,7 @@ type Wire = { kind: string; family?: string; phase?: string; at: number }
 type FamilyName = 'openrouter' | 'gemini' | 'huggingface' | 'local'
 const text = (grid: Grid): string => grid.map(row => row.map(cell => cell.c ?? ' ').join('').trimEnd()).join('\n')
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const liveRow = (name: string): string => `│ (?:│ | {2})(?:❯ )?${escapeRe(name)} {2,}[^\\s│╭╮╰╯─]`
+const liveRow = (name: string): string => `│ (?:│ | {2}|❯ )(?:❯ )?${escapeRe(name)} {2,}[^\\s│╭╮╰╯─]`
 const currentRow = (name: string): string => `${escapeRe(name)} {2,}\\S+ {2,}current`
 const live = (frame: string, name: string): boolean => new RegExp(liveRow(name)).test(frame)
 const current = (frame: string, name: string): boolean => new RegExp(currentRow(name)).test(frame)
