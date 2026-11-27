@@ -40,7 +40,7 @@ if (entryTakesProofHome) {
   for (const name of CALLER_REPOSITORY) delete process.env[name]
   installProofScratch({ ownHome: configHomeIsReal() })
   process.env.MERCURY_LOCAL_PROBE_TARGETS ??= 'none'
-  process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
+  process.env.MERCURY_CREDENTIAL_STORE ||= 'file'
   process.env.BROWSER ||= '/usr/bin/true'
   delete process.env.NO_COLOR
   delete process.env.FORCE_COLOR
@@ -70,4 +70,4 @@ if (!import.meta.main && !isBuildEntry && !isProductEntry) {
   }
 }
 
-if (import.meta.main) console.log(`${process.env.MERCURY_CONFIG_DIR ?? ''}\n${process.env.MERCURY_LOCAL_PROBE_TARGETS ?? ''}\n${process.env.NO_COLOR ?? ''}${process.env.FORCE_COLOR ?? ''}\n${Object.keys(process.env).filter(name => name.startsWith('GIT_')).sort().join(' ')}`)
+if (import.meta.main) console.log(`${process.env.MERCURY_CONFIG_DIR ?? ''}\n${process.env.MERCURY_LOCAL_PROBE_TARGETS ?? ''}\n${process.env.NO_COLOR ?? ''}${process.env.FORCE_COLOR ?? ''}\n${Object.keys(process.env).filter(name => name.startsWith('GIT_')).sort().join(' ')}\n${process.env.MERCURY_CREDENTIAL_STORE ?? ''}\n${process.env.BROWSER ?? ''}`)
