@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { posixPtyDriverOrSkip } from '../lib/captureDriver.ts'
 import { colorSgrSequences } from './appleTerminalReading.ts'
-import { basicColourCodes, colourDepthJourney, DIST, inkOf, isBlock, isHexInk, JOURNEY_MARKS, type Grid } from './colourDepthJourney.ts'
+import { artRows, basicColourCodes, bootHandOver, colourDepthJourney, DIST, inkOf, isBlock, isHexInk, JOURNEY_MARKS, type Grid } from './colourDepthJourney.ts'
 
 const driver = posixPtyDriverOrSkip('16-colour-paint-is-basic')
 if (!existsSync(DIST)) {
@@ -16,7 +16,7 @@ process.env.MERCURY_CONFIG_DIR = join(scratch, 'proof-home')
 
 const cellGrid = await import('../../src/screen/renderer/cell-grid.ts')
 const { AMBER, ASH, CLAW, FAINT, IVORY, SECOND, TERRA, groundFamilyFor } = await import('../../src/screen/theme/mercuryPalette.ts')
-const { JELLYFISH_HUE } = await import('../../src/screen/cockpit/critterData.ts')
+const { CRITTERS, JELLYFISH_HUE } = await import('../../src/screen/cockpit/critterData.ts')
 
 const DEPTH = 'colorDepth, colorize and rgbSgr in src/screen/renderer/colorize.ts decide what a colour becomes at 16 colours, rgbToAnsi16 and rgbToAnsi8 in src/screen/renderer/cell-grid.ts choose the code, and the highlighter in src/platform/native/color-diff/index.ts paints through rgbSgr'
 let failures = 0
@@ -145,7 +145,13 @@ for (const arm of basics) {
     const wrong: string[] = []
     let coloured = 0
     let turned = 0
+    const core = new Set(mark === 'boot' ? [...artRows(l).critter, ...artRows(l).wordmark] : [])
+    if (mark === 'boot') {
+      const grounded = l.flat().filter(cell => cell.bg === 'black').length
+      check(`boot: the card keeps its painted ground at 16 (${grounded} cells black) and the rows that hold nothing but the art are the splash core's 16 tier (${core.size} rows)`, grounded >= 200 && core.size > 10, 'splashCoreFor in src/screen/widgets/useSplashCoreAccent.ts must take from the 16 tier only the rows that hold nothing but the head or the wordmark')
+    }
     f.forEach((row, y) => row.forEach((cell, x) => {
+      if (core.has(y)) return
       if (glyph(cell) !== glyph(l[y]?.[x])) {
         turned++
         return
@@ -163,8 +169,37 @@ for (const arm of basics) {
         if (got !== INK_NAMES[code]) wrong.push(`${y}:${x} ${plane} ${want}→${got}, nearest ${INK_NAMES[code]}`)
       }
     }))
-    check(`${mark}: every coloured plane is its 24-bit ink through rgbToAnsi16, a ground through the eight (${coloured} planes; ${turned} half blocks turned over are not read)`, coloured > 50 && turned <= 8 && wrong.length === 0, `${wrong.length} planes differ: ${wrong.slice(0, 5).join(' · ')}; ${DEPTH}`)
+    check(`${mark}: every coloured plane is its 24-bit ink through rgbToAnsi16, a ground through the eight (${coloured} planes; ${turned} half blocks turned over and ${core.size} rows of the head and the wordmark are not read)`, coloured > 50 && turned <= 8 && wrong.length === 0, `${wrong.length} planes differ: ${wrong.slice(0, 5).join(' · ')}; ${DEPTH}`)
   }
+}
+
+section('§7 TERM=xterm: the launcher\'s last frame and the app\'s Boot face are one picture, the head and the wordmark')
+for (const critter of CRITTERS) {
+  const hand = await bootHandOver(driver, scratch, `hand-over-${critter.name}`, { TERM: 'xterm', MERCURY_CRITTER: critter.name })
+  const last = Math.max(-1, ...artRows(hand.boot).wordmark)
+  const painted = basicColourCodes(hand.app)
+  check(`${critter.name}: the launch reached the Boot face and the app painted it (${painted} basic codes of its own, the wordmark ends on row ${last})`, hand.status === 0 && painted > 100 && last > 10 && hand.splash.length === hand.boot.length, `the capture exited ${hand.status}; read hand-over-${critter.name}.log under ${scratch}: ${hand.log.slice(-300)}`)
+  const moved = hand.boot.slice(0, last + 1).flatMap((row, y) => row.flatMap((cell, x) => {
+    const was = hand.splash[y]?.[x]
+    return was !== undefined && glyph(was) === glyph(cell) && was.fg === cell.fg && was.bg === cell.bg ? [] : [`${y}:${x} '${glyph(was)}' ${was?.fg}/${was?.bg}→'${glyph(cell)}' ${cell.fg}/${cell.bg}`]
+  }))
+  check(`${critter.name}: no cell of the head or the wordmark changes glyph, ink or ground when the app takes the screen (${moved.length} do)`, moved.length === 0, `${moved.slice(0, 5).join(' · ')}; splashCoreFor in src/screen/widgets/useSplashCoreAccent.ts must hand the Boot screens the splash core's own 16 tier when colorDepth() is 16`)
+}
+
+section('§8 the reader of the core\'s rows learns the sixteen basic inks and refuses every other parameter as before')
+const { parseSplashRuns } = await import('../../src/screen/widgets/splashRuns.ts')
+const inkRead = (sgr: string): string => {
+  try {
+    return parseSplashRuns(`\x1b[${sgr}mx`)[0]?.fg ?? 'no ink'
+  } catch (error) {
+    return `refused: ${(error as Error).message}`
+  }
+}
+const basicInks = ['30', '31', '36', '37', '90', '91', '97'].map(inkRead).join(' ')
+check(`ESC[30m, 31, 36, 37, 90, 91 and 97 are read as the renderer's own named colours (${basicInks})`, basicInks === 'ansi:black ansi:red ansi:cyan ansi:white ansi:blackBright ansi:redBright ansi:whiteBright', 'parseSplashRuns in src/screen/widgets/splashRuns.ts must hand 30 to 37 and 90 to 97 on as ansi:<name> and ansi:<name>Bright')
+for (const sgr of ['40', '100', '38;5;9', '48;5;9', '39', '7', '29', '98']) {
+  const got = inkRead(sgr)
+  check(`ESC[${sgr}m is refused as it was`, got.startsWith(`refused: splashRuns: SGR parameter ${sgr.split(';')[0]} is outside the core's emitter vocabulary`), `it read ${got}; parseSplashRuns must throw on every parameter but 0, 1, 2, 4, 38;2, 48;2 and the sixteen basic inks`)
 }
 
 if (failures === 0) {

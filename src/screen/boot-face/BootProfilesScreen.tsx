@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Box, useInput } from '../themedRenderer.js';
-import { bootMenuAsks, bootMenuMicro, createSplashCore, WORD_W } from '../../../assets/splash/splash-core.mjs';
+import { bootMenuAsks, bootMenuMicro, WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { useEngineModel } from '../model-picker/useEngineModel.js';
 import { createProfile, listProfiles, removeProfile, renameProfile, type ProfileRow } from '../../platform/profiles/profiles.js';
 import { inheritSkills } from '../../integrations/skills/inheritSkills.js';
@@ -9,7 +9,7 @@ import { bootEnvironment } from './bootEnvironment.js';
 import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
-import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
+import { splashCoreFor, useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
 import { useBootComposition } from './useBootComposition.js';
 import { settingsRowLine } from './settings/rows.js';
 import { typedName } from './typedName.js';
@@ -162,7 +162,7 @@ export function BootProfilesScreen({ onClose, fullScene }: { onClose: () => void
 
   const { accent: coreAccent, rampStops } = useSplashCoreAccent();
   const core = useMemo(
-    () => createSplashCore({ nocolor: false, truecolor: true, accent: coreAccent }),
+    () => splashCoreFor(coreAccent),
     [coreAccent],
   );
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);

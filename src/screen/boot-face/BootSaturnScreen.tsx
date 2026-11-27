@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useInput } from '../themedRenderer.js';
-import { createSplashCore, WORD_W } from '../../../assets/splash/splash-core.mjs';
+import { WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { readSessionWorkers } from '../../daemon/concourse-workers/concourseWorkers.js';
 import { formatRelativeTimeAgo } from '../../platform/text/format.js';
 import {
@@ -33,7 +33,7 @@ import { keyHintLabel } from '../widgets/keyHintLabel.js';
 import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
-import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
+import { splashCoreFor, useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
 import { useBootComposition } from './useBootComposition.js';
 import { LOCAL_PULL_RECOMMENDATION } from '../../models/roads/local/localAccounts.js';
 import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js';
@@ -779,7 +779,7 @@ export function BootSaturnScreen(props: BootSaturnScreenProps = {}): React.React
   const rows = props.fullScene?.rows ?? Math.max(12, Math.min(24, termRows - 2));
   const { accent: coreAccent, rampStops } = useSplashCoreAccent();
   const core = useMemo(
-    () => createSplashCore({ nocolor: false, truecolor: true, accent: coreAccent }),
+    () => splashCoreFor(coreAccent),
     [coreAccent],
   );
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);
