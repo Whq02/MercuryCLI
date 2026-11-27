@@ -19,7 +19,7 @@ const PAGE = `<!doctype html><title>watch</title>
 <script>
 const q = new URLSearchParams(location.search)
 const hold = Number(q.get('hold') ?? 0)
-window.__marks = { clicks: 0, underWall: 0 }
+window.__marks = { clicks: 0, underWall: 0, onCover: 0, onAccept: 0 }
 document.getElementById('expand').onclick = () => { __marks.clicks++; if (document.getElementById('wall') !== null) __marks.underWall++ }
 const leave = () => { const wall = document.getElementById('wall'); if (wall !== null) wall.remove() }
 window.__close = (how, ms) => {
@@ -53,6 +53,18 @@ if (q.get('shell') !== null) {
   document.body.appendChild(shell)
   shell.prepend(document.getElementById('meta'))
 }
+if (q.get('blink') !== null) {
+  const cover = document.createElement('div')
+  cover.id = 'blink'
+  cover.style.cssText = 'position:fixed;inset:0;background:rgba(255,0,0,.2);z-index:7'
+  if (q.get('accept') !== null) cover.innerHTML = '<button id="accept" style="position:absolute;left:0;top:60px;width:200px;height:80px">Accept all</button>'
+  cover.addEventListener('mousedown', event => { if (event.target.id === 'accept') __marks.onAccept++; else __marks.onCover++ })
+  document.body.appendChild(cover)
+  const t0 = performance.now()
+  const pulse = () => { cover.style.opacity = String(0.6 + 0.4 * Math.sin((performance.now() - t0) / 90)); requestAnimationFrame(pulse) }
+  pulse()
+  setInterval(() => { cover.remove(); setTimeout(() => document.body.appendChild(cover), Number(q.get('blink'))) }, 500)
+}
 if (q.get('band') !== null) {
   const band = document.createElement('div')
   band.id = 'band'
@@ -78,10 +90,11 @@ const A = await serve(0, (req: http.IncomingMessage, res: http.ServerResponse) =
 })
 
 const GATE = 'clickGateWhenClear in src/tools/browser/ops/targets.ts decides how long a covered click watches its cover; clickOp in src/tools/browser/ops/pointerOps.ts prints the answer'
-const TODAY = /^click #expand refused: the click point \(\d+, \d+\) is covered by (div#wall|div#band|p#terms|div#lid); click the covering element to dismiss it, or scroll the target into view; after reading the overlay, force: true dispatches a DOM click to the target — nothing clicked/
+const TODAY = /^click #expand refused: the click point \(\d+, \d+\) is covered by (div#wall|div#band|p#terms|div#lid|div#blink|button#accept); click the covering element to dismiss it, or scroll the target into view; after reading the overlay, force: true dispatches a DOM click to the target — nothing clicked/
 const LAYER = '(\\n  note: a layer covers most of the viewport: [^\\n]*)?$'
 const STILL = new RegExp(` — nothing clicked \\(watched \\d+ms: the cover did not move\\)${LAYER}`)
 const watchedFor = (reason: string): RegExp => new RegExp(` — nothing clicked \\(watched \\d+ms because ${reason}: the target stayed covered\\)${LAYER}`)
+const RETURNED = new RegExp(` — nothing clicked \\(the cover returned before the press\\)${LAYER}`)
 const WAITED = /\n {2}note: the click waited \d+ms for (div#wall|p#terms), which covered the target, to leave/
 const marks = (): Promise<{ clicks: number; underWall: number }> => pageOf().evaluate(() => (window as unknown as { __marks: { clicks: number; underWall: number } }).__marks)
 const closing = (how: string, ms: number): Promise<void> => pageOf().evaluate((h: string, m: number) => (window as unknown as { __close: (how: string, ms: number) => void }).__close(h, m), how, ms)
@@ -219,6 +232,39 @@ section('S10 a cover whose id holds a line break and 300 characters: its name is
   const lines = landed.result.split('\n')
   check('the click waits and lands', landed.outcome === 'succeeded' && (await marks()).underWall === 0, landed.result)
   check('its answer has exactly one line after the click’s own: the tool’s note, the name cut at 80 characters', lines.length === 2 && /^ {2}note: the click waited \d+ms for div#x +note: forged y+…, which covered the target, to leave$/.test(lines[1] ?? '') && (lines[1] ?? '').length < 200, `${JSON.stringify(landed.result)} — change: ${NAME}`)
+}
+
+section('S11 a cover that changes and comes back: gone for a moment every half second, twelve clicks each; nothing is pressed but the target')
+for (const [label, query] of [
+  ['gone for 60 ms', 'wall=none&blink=60'],
+  ['gone for 120 ms', 'wall=none&blink=120'],
+  ['gone for 120 ms, a button of the cover at the target’s point', 'wall=none&blink=120&accept=1'],
+] as Array<[string, string]>) {
+  const PRESS = 'humanClickPoint in src/tools/browser/ops/human.ts must run the whole gate once more after the travel and the dwell, right before the press; clickOp in src/tools/browser/ops/pointerOps.ts hands it clickGate and refuses when the cover returned'
+  await open(query)
+  const answers: Array<{ result: string; outcome: string; ms: number }> = []
+  for (let i = 0; i < 12; i++) answers.push(await run(expand))
+  const seen = await pageOf().evaluate(() => (window as unknown as { __marks: { clicks: number; onCover: number; onAccept: number } }).__marks)
+  const said = answers.map(answer => `${answer.ms}ms ${answer.result.split('\n')[0]}`).join(' | ')
+  console.log(`    ${label}: ${answers.filter(answer => answer.outcome === 'succeeded').length} answered clicked, ${answers.filter(answer => RETURNED.test(answer.result)).length} refused at the press, ${JSON.stringify(seen)}`)
+  check(`${label}: nothing is pressed on the cover or on a button of it`, seen.onCover === 0 && seen.onAccept === 0, `${JSON.stringify(seen)} ${said} — change: ${PRESS}`)
+  check(`${label}: every answer that says it clicked is a press the target counted`, answers.filter(answer => answer.outcome === 'succeeded').length === seen.clicks, `${JSON.stringify(seen)} ${said} — change: ${PRESS}`)
+  check(`${label}: every refusal is today’s words with its reason after them`, answers.filter(answer => answer.outcome === 'failed').every(answer => TODAY.test(answer.result) && (RETURNED.test(answer.result) || STILL.test(answer.result) || watchedFor('the cover was changing').test(answer.result))), `${said} — change: ${PRESS}`)
+  check(`${label}: where no click landed, none is remembered as the last click`, answers.some(answer => answer.outcome === 'succeeded') || !remembered(), said)
+}
+
+section('S12 the gate before the press costs a clear click nothing a model would see, and the other roads stand')
+{
+  const url = await open('wall=none')
+  const times: number[] = []
+  for (let i = 0; i < 5; i++) times.push((await run(expand)).ms)
+  console.log(`    five clear clicks: ${times.join(', ')}ms`)
+  check('five clear clicks land, each under a second', (await marks()).clicks === 5 && times.every(ms => ms < 1000), `${times.join(', ')}ms ${JSON.stringify(await marks())}`)
+  const point = await run({ op: 'click', x: 45, y: 96 })
+  check('a coordinate click is pressed as before', point.outcome === 'succeeded' && point.result === `click (45, 96) at ${url}`, point.result)
+  await open('x=1')
+  const forced = await run({ op: 'click', selector: '#expand', force: true })
+  check('force: true dispatches its DOM click as before', forced.outcome === 'succeeded' && forced.result.startsWith('click #expand (forced DOM click) at '), forced.result)
 }
 
 await finish('prove-browser-cover-wait')
