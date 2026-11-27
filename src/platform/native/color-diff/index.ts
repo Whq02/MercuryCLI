@@ -1,5 +1,6 @@
 import { shouldSkipHighlight } from '../../../screen/highlighted-code/cliHighlight.js'
 import { diffArrays } from 'diff'
+import { rgbToXterm256 } from '../../../screen/renderer/cell-grid.js'
 import { truecolorActive } from '../../../screen/renderer/colorize.js'
 import { stringWidth } from '../../../screen/renderer/stringWidth.js'
 import { expandTabs } from '../../../screen/renderer/tabstops.js'
@@ -29,36 +30,6 @@ function detectColorMode(): ColorMode {
 }
 
 
-const CHANNEL_THRESHOLDS = [48, 115, 155, 195, 235]
-
-const CUBE_LEVELS = [0, 95, 135, 175, 215, 255]
-
-function quantizeChannel(channel: number): number {
-  let level = 0
-  for (const threshold of CHANNEL_THRESHOLDS) {
-    if (channel >= threshold) level++
-  }
-  return level
-}
-
-function quantizeToAnsi256(r: number, g: number, b: number): number {
-  const ri = quantizeChannel(r)
-  const gi = quantizeChannel(g)
-  const bi = quantizeChannel(b)
-  const cubeCode = 16 + 36 * ri + 6 * gi + bi
-  const mean = (r + g + b) / 3
-  if (mean < 5) return 16
-  if (mean > 244 && ri === gi && gi === bi) return cubeCode
-  const step = Math.max(0, Math.min(23, Math.round((mean - 8) / 10)))
-  const grayLevel = 8 + 10 * step
-  const cr = CUBE_LEVELS[ri]!
-  const cg = CUBE_LEVELS[gi]!
-  const cb = CUBE_LEVELS[bi]!
-  const cubeDist = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2
-  const grayDist = (r - grayLevel) ** 2 + (g - grayLevel) ** 2 + (b - grayLevel) ** 2
-  return cubeDist <= grayDist ? cubeCode : 232 + step
-}
-
 const RESET = '\x1b[0m'
 const DIM = '\x1b[2m'
 const UNDIM = '\x1b[22m'
@@ -74,7 +45,7 @@ function fgEscape(color: Color, mode: ColorMode): string {
   }
   if (color.a === 1) return '\x1b[39m'
   if (mode === 'truecolor') return `\x1b[38;2;${color.r};${color.g};${color.b}m`
-  return `\x1b[38;5;${quantizeToAnsi256(color.r, color.g, color.b)}m`
+  return `\x1b[38;5;${rgbToXterm256(color.r, color.g, color.b)}m`
 }
 
 function bgEscape(color: Color, mode: ColorMode): string {
@@ -86,7 +57,7 @@ function bgEscape(color: Color, mode: ColorMode): string {
   }
   if (color.a === 1) return '\x1b[49m'
   if (mode === 'truecolor') return `\x1b[48;2;${color.r};${color.g};${color.b}m`
-  return `\x1b[48;5;${quantizeToAnsi256(color.r, color.g, color.b)}m`
+  return `\x1b[48;5;${rgbToXterm256(color.r, color.g, color.b)}m`
 }
 
 function emitBlocks(
@@ -773,13 +744,4 @@ export function getSyntaxTheme(uiTheme: string): SyntaxTheme {
   const theme =
     uiTheme === 'dark' || uiTheme === 'true-black' ? 'Monokai Extended' : 'GitHub'
   return { theme, source: null }
-}
-
-export const __test = {
-  tokenize,
-  pairChangedLines,
-  wordDiff,
-  quantizeToAnsi256,
-  emitBlocks,
-  detectLanguage,
 }
