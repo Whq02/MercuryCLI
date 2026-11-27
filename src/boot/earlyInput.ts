@@ -82,7 +82,9 @@ function openDepthAnswer(): { onReply: () => ((reply: string) => void) | undefin
         startImmediate(() =>
           startImmediate(() => {
             if (!open) return resolve()
-            const timer = startTimeout(close, DEPTH_ANSWER_MS - (performance.now() - askedAt))
+            const left = DEPTH_ANSWER_MS - (performance.now() - askedAt)
+            if (left <= 0) return close()
+            const timer = startTimeout(close, left)
             wake = () => {
               stopTimeout(timer)
               resolve()

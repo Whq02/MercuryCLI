@@ -242,7 +242,7 @@ const pty = driver
 type Cell = { c: string; fg: string; bg: string; bold: boolean; rev: boolean }
 type Grid = Cell[][]
 type Arm = { name: string; marks: Map<string, Grid>; bytes: string; status: number | null; log: string; settledAfterMs: number[]; importMs: number[] }
-type Plan = { name: string; env: Record<string, string | undefined>; reply?: string; unaskedReply?: string; lateReply?: string; upTo: 'boot' | 'typed'; verb?: { args: string[]; prints: string; mark?: true }; receipt?: boolean | 'pending' }
+type Plan = { name: string; env: Record<string, string | undefined>; reply?: string; unaskedReply?: string; lateReply?: string; upTo: 'boot' | 'typed'; flags?: string[]; verb?: { args: string[]; prints: string; mark?: true }; receipt?: boolean | 'pending' }
 
 async function capture(plan: Plan): Promise<Arm> {
   const world = fixture(scratch)
@@ -277,7 +277,7 @@ async function capture(plan: Plan): Promise<Arm> {
   }
   const readyText = plan.verb?.prints ?? (plan.upTo === 'typed' ? 'zq' : '↑↓')
   const cfgFile = join(scratch, `${plan.name}.capture.json`)
-  writeFileSync(cfgFile, JSON.stringify({ argv: [node, DIST, ...(plan.verb?.args ?? [])], cwd: world.cwd, cols: 120, rows: 40, total: plan.verb === undefined ? 300 : 100, sends, readyText, readySettleTicks: 3, out }))
+  writeFileSync(cfgFile, JSON.stringify({ argv: [node, DIST, ...(plan.verb?.args ?? plan.flags ?? [])], cwd: world.cwd, cols: 120, rows: 40, total: plan.verb === undefined ? 300 : 100, sends, readyText, readySettleTicks: 3, out }))
   const child = spawn(pty.python, [captureEngineEntry(pty, ROOT), cfgFile], { cwd: world.cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
   let log = ''
   child.stdout.on('data', bytes => { log += String(bytes) })
@@ -337,6 +337,8 @@ function composerClean(arm: Arm): void {
   check(`${arm.name}: what is typed after the answer is what the composer holds, and nothing else`, /❯ zq\s*│/.test(line), `no byte of the answer may reach the composer; its row reads ${JSON.stringify(line.trim().slice(0, 80))}`)
 }
 
+const unanswered: Array<{ arm: Arm; asked: number }> = []
+
 section('§8 a terminal that echoes: 24-bit from the first painted cell')
 const echo = await capture({ name: 'echo', env: { TERM: 'xterm-256color' }, reply: ECHO, upTo: 'typed' })
 fullDepth(echo, 'TERM=xterm-256color, what SSH hands over')
@@ -360,6 +362,7 @@ const silent = await capture({ name: 'silent', env: { TERM: 'xterm-256color' }, 
 keptDepth(silent, 'the terminal answered nothing')
 check('silent: the request was written exactly once', asks(silent) === 1, `${fixAsk}; found ${asks(silent)}`)
 composerClean(silent)
+unanswered.push({ arm: silent, asked: 1 })
 const late = await capture({ name: 'late-echo', env: { TERM: 'xterm-256color' }, lateReply: ECHO, upTo: 'typed' })
 keptDepth(late, 'the echo came after the session screen was up')
 composerClean(late)
@@ -406,6 +409,7 @@ section('§11 a launch whose splash asked: the app asks nothing and takes the re
   check('receipt-pending with unasked echo: no request written and the Boot face paints 24-bit', pendEcho.status === 0 && pendEcho.marks.has('boot') && asks(pendEcho) === 0 && count(pendEcho.bytes, /[34]8;2;\d/g) > 100 && count(pendEcho.bytes, /[34]8;5;\d/g) === 0, `startCapturingEarlyInput on pending must listen without writing TRUECOLOR_QUERY; requests ${asks(pendEcho)}, 24-bit ${count(pendEcho.bytes, /[34]8;2;\d/g)}, 256-colour ${count(pendEcho.bytes, /[34]8;5;\d/g)}`)
   const pendSilent = await capture({ name: 'receipt-pending-silent', env: { TERM: 'xterm-256color' }, upTo: 'boot', receipt: 'pending' })
   check('receipt-pending on a silent terminal: no request written and stays at 256 colours', pendSilent.status === 0 && pendSilent.marks.has('boot') && asks(pendSilent) === 0 && count(pendSilent.bytes, /[34]8;2;\d/g) === 0 && count(pendSilent.bytes, /[34]8;5;\d/g) > 100, `requests ${asks(pendSilent)}, 24-bit ${count(pendSilent.bytes, /[34]8;2;\d/g)}, 256-colour ${count(pendSilent.bytes, /[34]8;5;\d/g)}`)
+  unanswered.push({ arm: pendSilent, asked: 0 })
   const pendOff = await capture({ name: 'receipt-pending-flag-off', env: { TERM: 'xterm-256color', MERCURY_TRUECOLOR: '0' }, upTo: 'boot', receipt: 'pending', unaskedReply: ECHO })
   check('receipt-pending under MERCURY_TRUECOLOR=0: override stands, no request, stays 256', pendOff.status === 0 && pendOff.marks.has('boot') && asks(pendOff) === 0 && count(pendOff.bytes, /[34]8;2;\d/g) === 0, `requests ${asks(pendOff)}, 24-bit ${count(pendOff.bytes, /[34]8;2;\d/g)}`)
 }
@@ -480,6 +484,19 @@ section('§15 one depth a launch: the splash and the session behind it paint at 
   check('TERM=xterm with an echo: the request was written exactly once', asks(arm) === 1, `the splash asks and hands its answer on, so the session does not ask again; found ${asks(arm)}`)
   check('TERM=xterm with an echo: the splash paints 24-bit codes and no 256-colour code', count(splash, /[34]8;2;\d/g) >= 20 && count(splash, /[34]8;5;\d/g) === 0, `${fix}; the splash wrote ${tally(splash)}`)
   check('TERM=xterm with an echo: the session paints 24-bit codes and no 256-colour code', count(session, /[34]8;2;\d/g) >= 50 && count(session, /[34]8;5;\d/g) === 0, `${fix}; the session wrote ${tally(session)}`)
+}
+
+section('§16 a window that time closes: nothing but Mercury\'s own bytes reaches the terminal before the first paint')
+{
+  const fix = 'openDepthAnswer in src/boot/earlyInput.ts must close a window whose time is spent at once and arm no timer whose duration is not above zero: until main() runs, a warning of the runtime is printed on the terminal'
+  unanswered.push({ arm: await capture({ name: 'unanswered-no-splash', env: { TERM: 'xterm-256color', MERCURY_SPLASH: 'off' }, upTo: 'boot' }), asked: 1 })
+  unanswered.push({ arm: await capture({ name: 'unanswered-chat', env: { TERM: 'xterm-256color' }, upTo: 'boot', flags: ['--chat'] }), asked: 1 })
+  unanswered.push({ arm: await capture({ name: 'unanswered-prompt-of-two-words', env: { TERM: 'xterm-256color' }, upTo: 'boot', verb: { args: ['zq wv'], prints: 'zq wv', mark: true } }), asked: 1 })
+  for (const { arm, asked } of unanswered) {
+    const foreign = /\(node:\d+\)[^\r\n]*|[^\r\n\x1b]*Warning:[^\r\n]*/.exec(arm.bytes)?.[0] ?? ''
+    check(`${arm.name}: the launch came up on a terminal that answered nothing, ${asked === 1 ? 'asked once' : 'not asked'}`, arm.status === 0 && (arm.marks.has('boot') || arm.marks.has('shown')) && asks(arm) === asked, `${asks(arm)} requests; marks ${[...arm.marks.keys()].join(',')}; ${arm.log.slice(-200)}`)
+    check(`${arm.name}: no line of the runtime's own is among the launch's bytes`, foreign === '', `${fix}; the terminal was sent ${JSON.stringify(foreign.slice(0, 160))}`)
+  }
 }
 
 if (failures === 0) rmSync(scratch, { recursive: true, force: true })
