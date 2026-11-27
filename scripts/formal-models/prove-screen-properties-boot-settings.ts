@@ -186,7 +186,7 @@ const ROW_LABELS = [
   'New Session',
   'Continue Last Session',
   'Logins/Keys',
-  'Session Manager (Concourse)',
+  'Session Manager',
   'Boot Menu',
   'Profiles',
 ] as const
@@ -335,10 +335,10 @@ async function mountBootFace(scenario: Pick<Scenario, 'history' | 'concourseLive
   const frame = await settleFrame()
   const expectedRows: RowLabel[] =
     scenario.history === 'none'
-      ? ['New Session', 'Logins/Keys', 'Session Manager (Concourse)', 'Boot Menu', 'Profiles']
-      : ['New Session', 'Continue Last Session', 'Logins/Keys', 'Session Manager (Concourse)', 'Boot Menu', 'Profiles']
+      ? ['New Session', 'Logins/Keys', 'Session Manager', 'Boot Menu', 'Profiles']
+      : ['New Session', 'Continue Last Session', 'Logins/Keys', 'Session Manager', 'Boot Menu', 'Profiles']
   const disabledRows = new Set<RowLabel>()
-  if (!scenario.concourseLive) disabledRows.add('Session Manager (Concourse)')
+  if (!scenario.concourseLive) disabledRows.add('Session Manager')
   return { frame, expectedSessionId, expectedRows, disabledRows }
 }
 
@@ -420,7 +420,7 @@ async function runScenario(
     if (resumedCalls.length !== 1 || resumedCalls[0]!.sessionId !== expectedSessionId || surfaceRoute.currentSurfaceRoute().kind !== 'repl') {
       throw new Error(`wrong boot action on Enter: expected Continue Last Session (${expectedSessionId}), got born=${bornCalls.length} resumed=${JSON.stringify(resumedCalls)} route=${surfaceRoute.currentSurfaceRoute().kind}`)
     }
-  } else if (expected === 'Session Manager (Concourse)') {
+  } else if (expected === 'Session Manager') {
     if (surfaceRoute.currentSurfaceRoute().kind !== 'concourse') {
       throw new Error(`wrong boot action on Enter: expected route=concourse, got ${surfaceRoute.currentSurfaceRoute().kind}`)
     }
@@ -573,14 +573,14 @@ try {
       t.check(`history=${history}: Esc from Logins/Keys keeps selection on Logins/Keys`, focusedRowLabels(frame)[0] === 'Logins/Keys', `got ${JSON.stringify(focusedRowLabels(frame))}`)
 
       frame = await sendKey(KEYS.down)
-      t.check(`history=${history}: down lands on Session Manager (Concourse)`, focusedRowLabels(frame)[0] === 'Session Manager (Concourse)', `got ${JSON.stringify(focusedRowLabels(frame))}`)
+      t.check(`history=${history}: down lands on Session Manager`, focusedRowLabels(frame)[0] === 'Session Manager', `got ${JSON.stringify(focusedRowLabels(frame))}`)
       await sendKey(KEYS.enter)
       t.check(`history=${history}: Enter opens concourse route`, surfaceRoute.currentSurfaceRoute().kind === 'concourse', `route=${surfaceRoute.currentSurfaceRoute().kind}`)
       const returned = surfaceRoute.leaveCurrentSurface()
       frame = await remountBootFace()
-      const backOnConcourse = returned.ok && surfaceRoute.currentSurfaceRoute().kind === 'boot-settings' && focusedRowLabels(frame)[0] === 'Session Manager (Concourse)'
+      const backOnConcourse = returned.ok && surfaceRoute.currentSurfaceRoute().kind === 'boot-settings' && focusedRowLabels(frame)[0] === 'Session Manager'
       t.check(
-        `history=${history}: Esc from Session Manager returns selection to Session Manager (Concourse)`,
+        `history=${history}: Esc from Session Manager returns selection to Session Manager`,
         backOnConcourse,
         backOnConcourse ? '' : `got ${JSON.stringify(focusedRowLabels(frame))} — ${hint}`,
       )

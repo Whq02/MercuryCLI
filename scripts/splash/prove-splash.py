@@ -173,7 +173,7 @@ check('launcher card present (New Session row — the bare-↵ path made visible
 check('head art dropped (no cream head SGR — actions outrank art)', '38;2;240;232;214' not in raw)
 check('the one-line strip fits at 80×24 (Model and Dir: present)', 'Model' in plain80 and 'Dir:' in plain80)
 check('every action row survives the empty-home face',
-      all(s in plain80 for s in ('New Session', 'Logins/Keys', 'Session Manager (Concourse)', 'Boot Menu')))
+      all(s in plain80 for s in ('New Session', 'Logins/Keys', 'Session Manager', 'Boot Menu')))
 check('fits the 24-row window', sum(1 for l in lines if l.strip()) <= 23,
       f"lines={sum(1 for l in lines if l.strip())}")
 check('every visible line fits 80 cols', all(len(l) <= 80 for l in lines), f'max={max(len(l) for l in lines)}')
@@ -186,7 +186,7 @@ plain80 = STRIP.sub('', raw)
 check('card grew (Continue Last Session row present)', 'Continue Last Session' in plain80)
 check('every action row survives the five-row card',
       all(s in plain80 for s in ('New Session', 'Continue Last Session', 'Logins/Keys',
-                                 'Session Manager (Concourse)', 'Boot Menu')))
+                                 'Session Manager', 'Boot Menu')))
 check('fits the 24-row window', sum(1 for l in lines if l.strip()) <= 23,
       f"lines={sum(1 for l in lines if l.strip())}")
 check('every visible line fits 80 cols', all(len(l) <= 80 for l in lines), f'max={max(len(l) for l in lines)}')
@@ -194,7 +194,7 @@ raw19 = run_pty(80, 19, env_extra={'MERCURY_HOME': pop_home, **INLINE})
 plain19 = STRIP.sub('', raw19)
 check('strip sheds FIRST under pressure at 80×19 (no Model row, all five rows survive)',
       'Model' not in plain19 and all(s in plain19 for s in ('New Session', 'Continue Last Session',
-                                                             'Logins/Keys', 'Session Manager (Concourse)', 'Boot Menu')))
+                                                             'Logins/Keys', 'Session Manager', 'Boot Menu')))
 
 print('\n── COMPACT @45×12 (one-line brand)')
 raw = run_pty(45, 12)
@@ -381,7 +381,7 @@ try:
     plain = STRIP.sub('', raw)
     check('card renders at the standard tier (new · continue · logins · concourse · menu)',
           'New Session' in plain and 'Continue Last Session' in plain and 'Logins/Keys' in plain
-          and 'Session Manager (Concourse)' in plain and 'Boot Menu' in plain)
+          and 'Session Manager' in plain and 'Boot Menu' in plain)
     check('status strip present (Model · Dir:)',
           'Model' in plain and 'Dir:' in plain)
     check('ready line advertises the card (↑↓) only when shown', '↑↓' in plain)
@@ -413,7 +413,7 @@ try:
     if os.path.exists(act_path):
         with open(act_path) as f:
             act = json.load(f)
-    check('↓×3 ↵ activates Session Manager (Concourse): splash-action.json {action: concourse}',
+    check('↓×3 ↵ activates Session Manager: splash-action.json {action: concourse}',
           bool(act) and act.get('version') == 1 and act.get('action') == 'concourse',
           json.dumps(act) if act else 'no file')
     raw = run_pty(120, 50, env2, send=[(0.6, b'\x1b[B'), (1.2, b'\r')], oneshot=False)

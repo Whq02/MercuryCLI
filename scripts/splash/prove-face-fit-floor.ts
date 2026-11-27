@@ -94,7 +94,7 @@ function compose(cols: number, rows: number): { lines: string[]; cardShown: bool
     continue: 'Continue Last Session',
     menu: 'Boot Menu',
     logins: 'Logins',
-    concourse: 'Concourse',
+    concourse: 'Session Manager',
   }
   const keys = (cardRows as Array<{ key: string }>).map(r => r.key)
   const unmapped = keys.filter(k => DOC_NEEDLE[k] === undefined)
