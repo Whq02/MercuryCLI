@@ -27,9 +27,9 @@ const libraries: {
   missingLibraryWords?: (
     failure: string,
     executablePath: string,
-    reads?: { platform?: NodeJS.Platform; run?: (file: string, args: string[]) => Promise<string> },
+    reads?: { platform?: NodeJS.Platform; run?: (file: string, args: string[]) => Promise<string>; lists?: string },
   ) => Promise<string | null>
-  missingArchiverWords?: (failure: string, reads?: { platform?: NodeJS.Platform; run?: (file: string, args: string[]) => Promise<string> }) => Promise<string | null>
+  missingArchiverWords?: (failure: string, reads?: { platform?: NodeJS.Platform; run?: (file: string, args: string[]) => Promise<string>; lists?: string }) => Promise<string | null>
 } = existsSync(join(ROOT, 'src/integrations/browser/browserLibraries.ts'))
   ? await import(join(ROOT, 'src/integrations/browser/browserLibraries.ts'))
   : {}
@@ -79,8 +79,8 @@ function probe(ldd: string, apt: string): Probe {
     },
   }
 }
-const words = async (failure: string, platform: NodeJS.Platform, reads: Probe): Promise<string | null> =>
-  libraries.missingLibraryWords === undefined ? 'this tree has no src/integrations/browser/browserLibraries.ts' : libraries.missingLibraryWords(failure, EXECUTABLE, { platform, run: reads.run })
+const words = async (failure: string, platform: NodeJS.Platform, reads: Probe, lists?: string): Promise<string | null> =>
+  libraries.missingLibraryWords === undefined ? 'this tree has no src/integrations/browser/browserLibraries.ts' : libraries.missingLibraryWords(failure, EXECUTABLE, { platform, run: reads.run, lists })
 const installLine = (text: string | null): string[] => /\n {2}the operator runs: sudo apt-get install (.+)$/.exec(text ?? '')?.[1]?.split(' ') ?? []
 
 const libraryFailure = (buildId: string): string =>
@@ -89,8 +89,8 @@ const NO_UNZIP = 'this machine lacks unzip, which unpacks the browser\'s archive
 const SERVER_HOLDS = ['libglib2.0-0t64', 'libnspr4', 'libnss3', 'libdbus-1-3', 'libexpat1', 'libxcb1', 'libxkbcommon0', 'libx11-6', 'libxext6', 'libudev1']
 const SERVER_LACKS = ['libatk1.0-0t64', 'libatk-bridge2.0-0t64', 'libatspi2.0-0t64', 'libcups2t64', 'libasound2t64', 'libgbm1', 'libcairo2', 'libpango-1.0-0', 'libxcomposite1', 'libxdamage1', 'libxfixes3', 'libxrandr2']
 const APT_SERVER = [stanza('unzip', '6.0-28ubuntu7'), ...SERVER_HOLDS.map(name => stanza(name, '1.0-1', '1.0-1')), ...SERVER_LACKS.map(name => stanza(name, '1.0-1')), ...RENAMED.map(name => stanza(name, '(none)'))].join('')
-const archiverWords = async (failure: string, platform: NodeJS.Platform, reads: Probe): Promise<string | null> =>
-  libraries.missingArchiverWords === undefined ? 'this tree words no failure to unpack' : libraries.missingArchiverWords(failure, { platform, run: reads.run })
+const archiverWords = async (failure: string, platform: NodeJS.Platform, reads: Probe, lists?: string): Promise<string | null> =>
+  libraries.missingArchiverWords === undefined ? 'this tree words no failure to unpack' : libraries.missingArchiverWords(failure, { platform, run: reads.run, lists })
 
 const context = { agentId: 'missing-libraries', abortController: new AbortController() } as never
 const opened = async (): Promise<{ result: string; outcome: string }> => (await BrowserTool.call({ op: 'open', url: 'http://127.0.0.1:9/' }, context)).data
@@ -273,6 +273,57 @@ try {
     check('the build folder the library made for it is gone', !existsSync(toolFolder), toolFolder)
     check(`${process.platform}: /browser install throws ${expected}`, told(String(typed), 'Error: ', '158.0.8127.98'), String(typed))
     check('the build folder the library made for it is gone', !existsSync(commandFolder), commandFolder)
+  }
+
+  section('14. apt holds no package list: the one command that is true there, in both sentences')
+  const UPDATE_LINE = '\n  apt holds no package list on this machine, so the same call names the packages to install only after the operator runs: sudo apt-get update'
+  const APT_ITSELF = stanza('apt', '3.2.1ubuntu0.1', '3.2.1ubuntu0.1')
+  const RELEASE_FILE = 'archive.ubuntu.com_ubuntu_dists_resolute_InRelease'
+  const listsFolder = (name: string, entries: readonly string[]): string => {
+    mkdirSync(join(home, name))
+    for (const entry of entries) writeFileSync(join(home, name, entry), '')
+    return join(home, name)
+  }
+  const asShipped = listsFolder('lists-as-shipped', [])
+  const releaseOnly = listsFolder('lists-release-only', ['lock', RELEASE_FILE])
+  const held = listsFolder('lists-held', ['lock', RELEASE_FILE, 'archive.ubuntu.com_ubuntu_dists_resolute_main_binary-arm64_Packages.lz4'])
+  const noFolder = join(home, 'lists-of-no-apt')
+  const unpackFailure = libraryFailure('158.0.8127.88')
+  const fresh = probe(lddOutput(CLEAN_SERVER_MISSING), APT_ITSELF)
+  const freshWords = await words(LOADER_FAILURE, 'linux', fresh, asShipped)
+  check('a launch on an image as it ships: the libraries, then the update line', freshWords === `${noApt}${UPDATE_LINE}`, freshWords ?? '(none)')
+  check('it is one line and the command ends it', freshWords?.endsWith('the operator runs: sudo apt-get update') === true && freshWords.split('\n').length === 2, freshWords ?? '(none)')
+  check('apt is asked once, for itself and the packages in one call, and no other program is run', fresh.calls.length === 2 && fresh.calls[1]?.file === 'apt-cache' && fresh.calls[1].args.includes('apt') && fresh.calls[1].args.includes('libgbm1'), JSON.stringify(fresh.calls.map(call => [call.file, ...call.args.slice(0, 3)])))
+  const freshUnpack = probe('', [APT_ITSELF, stanza('libexpat1', '2.7.4-1ubuntu0.3', '2.7.4-1ubuntu0.3'), stanza('libudev1', '259.9-0ubuntu0.1', '259.9-0ubuntu0.1')].join(''))
+  const freshUnpackWords = await archiverWords(unpackFailure, 'linux', freshUnpack, asShipped)
+  check('a provision there: the sentence, then the same update line', freshUnpackWords === `${NO_UNZIP}${UPDATE_LINE}`, freshUnpackWords ?? '(none)')
+  check('apt is asked once and nothing else is run', freshUnpack.calls.length === 1 && freshUnpack.calls[0]?.file === 'apt-cache', JSON.stringify(freshUnpack.calls.map(call => call.file)))
+  const releaseOnlyWords = await archiverWords(unpackFailure, 'linux', probe('', APT_ITSELF), releaseOnly)
+  check('a lists folder with a lock and a release file and no package list: the update line', releaseOnlyWords === `${NO_UNZIP}${UPDATE_LINE}`, releaseOnlyWords ?? '(none)')
+  const oneBroken = await words(LOADER_FAILURE, 'linux', probe(lddOutput(['libexpat.so.1', 'libgbm.so.1']), [APT_ITSELF, stanza('libexpat1', '2.7.4-1ubuntu0.3', '2.7.4-1ubuntu0.3')].join('')), asShipped)
+  check('one package installed and one apt does not know: the update line', oneBroken?.endsWith(UPDATE_LINE) === true && oneBroken.includes('libexpat.so.1') && oneBroken.includes('libgbm.so.1'), oneBroken ?? '(none)')
+  for (const [state, apt, lists] of [
+    ['a package list is held and apt does not offer the packages', APT_ITSELF, held],
+    ['there is no lists folder', APT_ITSELF, noFolder],
+    ['apt does not answer for itself (absent, given up)', '', asShipped],
+    ['apt answers in another language', 'apt:\n  Installiert: 3.2.1ubuntu0.1\n  Installationskandidat: 3.2.1ubuntu0.1\n  Versionstabelle:\n', asShipped],
+  ] as const) {
+    const launch = await words(LOADER_FAILURE, 'linux', probe(lddOutput(CLEAN_SERVER_MISSING), apt), lists)
+    const unpack = await archiverWords(unpackFailure, 'linux', probe('', apt), lists)
+    check(`${state}: both sentences and no line, as before`, launch === noApt && unpack === NO_UNZIP, `${launch}\n${unpack}`)
+  }
+  const unzipReported = await archiverWords(unpackFailure, 'linux', probe('', [APT_ITSELF, stanza('unzip', '6.0-29ubuntu1', '6.0-29ubuntu1')].join('')), asShipped)
+  check('apt reports unzip installed: no line, the next call would name nothing', unzipReported === NO_UNZIP, unzipReported ?? '(none)')
+  const allInstalled = await words(LOADER_FAILURE, 'linux', probe(lddOutput(['libgbm.so.1']), [APT_ITSELF, stanza('libgbm1', '25.0-1', '25.0-1')].join('')), asShipped)
+  check('every package asked for is installed: no line', allInstalled !== null && allInstalled.includes('libgbm.so.1') && !allInstalled.includes('\n'), allInstalled ?? '(none)')
+  const stranger = probe(lddOutput(['libmercury-proof-absent.so.9']), APT_ITSELF)
+  const strangerWords = await words(LOADER_FAILURE, 'linux', stranger, asShipped)
+  check('a library no package is known for: no line, and apt is not asked', strangerWords !== null && !strangerWords.includes('\n') && stranger.calls.every(call => call.file !== 'apt-cache'), strangerWords ?? '(none)')
+  const oneOffered = await words(LOADER_FAILURE, 'linux', probe(lddOutput(['libgbm.so.1', 'libcairo.so.2']), [APT_ITSELF, stanza('libgbm1', '25.0-1')].join('')), asShipped)
+  check('a package apt offers is named as before, with no update line', installLine(oneOffered).join(' ') === 'libgbm1' && oneOffered?.includes('apt-get update') === false, oneOffered ?? '(none)')
+  for (const platform of ['darwin', 'win32'] as const) {
+    const other = probe(lddOutput(CLEAN_SERVER_MISSING), APT_ITSELF)
+    check(`${platform}: no sentence and no program run`, (await words(LOADER_FAILURE, platform, other, asShipped)) === null && (await archiverWords(unpackFailure, platform, other, asShipped)) === null && other.calls.length === 0, JSON.stringify(other.calls))
   }
 } finally {
   browser.setBrowserLaunchDriverForProof(null)
