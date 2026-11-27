@@ -3,7 +3,7 @@ import { useSignInEpoch } from '../../models/sign-in/account-ledger/useSignInEpo
 import { useCatalogueEpoch } from '../model-picker/useCatalogueEpoch.js';
 import { useClaim, useLoad } from '../effects/effects.js';
 import { Box, useInput } from '../themedRenderer.js';
-import { createSplashCore, WORD_W } from '../../../assets/splash/splash-core.mjs';
+import { WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { useAnthropicLoginModel } from '../widgets/faces/anthropicLoginModel.js';
 import type { KimiRegion } from '../../models/roads/moonshot/moonshotAccounts.js';
 import { useSetAppStateMaybe } from '../app-state/AppState.js';
@@ -18,7 +18,7 @@ import { bootEnvironment } from './bootEnvironment.js';
 import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
-import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
+import { splashCoreFor, useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
 import { useBootComposition } from './useBootComposition.js';
 import { loginsSwitchableFamily, loginsFlowReady, type LoginsScreenFactsV1, loginsRosterRows, loginsRosterRowValue, loginsRosterRowLabel, collectLoginsScreenFacts, type LoginsRosterRowV1 } from './logins/facts.js';
 import { loginsPickOptions, type FaceKeyLegId, type LoginsPickId } from './logins/pickLines.js';
@@ -263,7 +263,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
 
   const { accent: coreAccent, rampStops } = useSplashCoreAccent();
   const core = useMemo(
-    () => createSplashCore({ nocolor: false, truecolor: true, accent: coreAccent }),
+    () => splashCoreFor(coreAccent),
     [coreAccent],
   );
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useInput } from '../themedRenderer.js';
-import { createSplashCore, WORD_W } from '../../../assets/splash/splash-core.mjs';
+import { WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { leaveCurrentSurface } from '../routes/surfaceRoute.js';
 import { useEngineModel } from '../model-picker/useEngineModel.js';
 import { useLoad } from '../effects/effects.js';
@@ -34,7 +34,7 @@ import { bootEnvironment } from './bootEnvironment.js';
 import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
-import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
+import { splashCoreFor, useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
 import { useBootComposition } from './useBootComposition.js';
 import { typedName } from './typedName.js';
 import { kitMenuView } from '../kit-menu/kitMenuView.js';
@@ -386,7 +386,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
 
   const { accent: coreAccent, rampStops } = useSplashCoreAccent();
   const core = useMemo(
-    () => createSplashCore({ nocolor: false, truecolor: true, accent: coreAccent }),
+    () => splashCoreFor(coreAccent),
     [coreAccent],
   );
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);

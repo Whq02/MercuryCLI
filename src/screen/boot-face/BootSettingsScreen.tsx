@@ -4,7 +4,7 @@ import { execFile } from 'node:child_process';
 import { subprocessEnv } from '../../platform/processes/subprocessEnv.js';
 import { gitArgs } from '../../platform/git/spawnArgs.js';
 import { Box, useInput } from '../themedRenderer.js';
-import { createSplashCore, WORD_W } from '../../../assets/splash/splash-core.mjs';
+import { WORD_W } from '../../../assets/splash/splash-core.mjs';
 import { getSessionId } from '../../boot/process-state/processState.js';
 import { chatOnlyBoot, leaveCurrentSurface, enterConcourse, routeSurfaceRegistered, stripFacts } from '../routes/surfaceRoute.js';
 import { STARTUP_MENU, bootEnvPath, evaluateExplicitApply, isLiveEnvRow, menuRowChoices, readBootDefaultsProfile, readBootDefaultsProfileStrict, bootAdmissionSnapshot, resolveEffectiveSettingsSnapshot, type BootDefaultsProfileV1, type ExplicitApplyReceipt, type MenuRow } from '../../platform/substrate/startupMenu.js';
@@ -22,7 +22,7 @@ import { isFullscreenEnvEnabled } from '../fullscreen-layout/fullscreen.js';
 import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
-import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
+import { splashCoreFor, useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
 import { useBootComposition } from './useBootComposition.js';
 import { useTerminalSize } from '../fullscreen-layout/useTerminalSize.js';
 import { jevBootDetailLines } from './settings/detailLines.js';
@@ -333,7 +333,7 @@ export function BootSettingsScreen({
 
   const { accent: coreAccent, rampStops } = useSplashCoreAccent();
   const core = useMemo(
-    () => createSplashCore({ nocolor: false, truecolor: true, accent: coreAccent }),
+    () => splashCoreFor(coreAccent),
     [coreAccent],
   );
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);

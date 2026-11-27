@@ -1,4 +1,7 @@
 import { useMemo } from 'react'
+import { createSplashCore } from '../../../assets/splash/splash-core.mjs'
+import { mixToward } from '../renderer/cell-grid.js'
+import { ansi16InkCode, colorDepth } from '../renderer/colorize.js'
 import { useTheme } from '../themedRenderer.js'
 import { resolveMercuryTokens } from '../theme/mercuryTokens.js'
 import { useSessionAccent } from './sessionAccent.js'
@@ -33,4 +36,11 @@ export function useSplashCoreAccent(): { accent: SplashCoreAccent; rampStops: st
     }
     return { accent: sa.key, rampStops: tok.focalRamp }
   }, [theme, sa.accent, sa.accentDeep, sa.key])
+}
+
+export function splashCoreFor(accent: SplashCoreAccent): ReturnType<typeof createSplashCore> {
+  if (colorDepth() !== '16') return createSplashCore({ nocolor: false, truecolor: true, accent })
+  if (typeof accent === 'string') return createSplashCore({ nocolor: false, truecolor: false, ansi16: true, accent })
+  const mid = mixToward(accent.deep, accent.main, 0.5)
+  return createSplashCore({ nocolor: false, truecolor: false, ansi16: true, accent: { ...accent, t16: ansi16InkCode(...accent.main), t16deep: ansi16InkCode(...accent.deep), t16mid: ansi16InkCode(...mid) } })
 }

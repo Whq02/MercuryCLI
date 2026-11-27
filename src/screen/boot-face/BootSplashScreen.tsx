@@ -37,7 +37,7 @@ import { SESSION_DEFAULTS_KEY_HINT, sessionDefaultsKeyOn } from '../../daemon/sw
 import { useGreetingShimmer } from '../widgets/useGreetingShimmer.js';
 import { useInteractiveList, type AsyncListNote } from '../widgets/useInteractiveList.js';
 import { useMercuryTokens } from '../widgets/useMercuryTokens.js';
-import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
+import { splashCoreFor, useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
 import { openProjectOf, runRowOf, type BootRow } from './splash/rowActions.js';
 import { bootSplashCompositionOf, bootSplashFaceView } from './splash/face.js';
 import { armBootSettingsLayerDeepLink, consumeBootSettingsLayerDeepLink } from './splash/settingsLayerDeepLink.js';
@@ -220,7 +220,7 @@ export function BootSplashScreen(): React.ReactNode {
   const [resolvedTheme] = useTheme();
   const core = useMemo(() => {
     adoptGroundFamily(resolvedTheme === 'true-black' ? 'true-black' : 'dark');
-    return createSplashCore({ nocolor: false, truecolor: true, accent: coreAccent });
+    return splashCoreFor(coreAccent);
   }, [coreAccent, resolvedTheme]);
   const mainModel = useEngineModel();
 
