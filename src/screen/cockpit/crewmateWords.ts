@@ -14,7 +14,7 @@ export function crewClearRefusedWords(facts: { name: string; running: boolean })
 }
 
 export function crewmateEscBackWords(name: string, state: string): string {
-  return `${name} is ${state} — back on ${LEAD_ROW_NAME}; its row stays in the CREW box until you clear it`
+  return `${name} is ${state} — back on ${LEAD_ROW_NAME}; its row stays in the crew panel until you clear it`
 }
 
 export function crewmateNextTurnWords(model: string | null, effort: string | null): string {
