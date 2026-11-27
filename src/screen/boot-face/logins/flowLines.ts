@@ -38,9 +38,9 @@ function expiryWords(expiresAtMs: number | undefined, nowMs: number): string {
   return minutes <= 0 ? ' · expiring now' : ` · expires in ${minutes}m`;
 }
 
-export function deviceWaitPaneLines(d: DeviceWaitStateV1, nowMs: number): string[] {
+export function deviceWaitPaneLines(d: DeviceWaitStateV1, nowMs: number, width = DETAIL_W): string[] {
   if (d.family === 'orcarouter') return d.phase === 'waiting'
-    ? ['On the sign-in page, enter this code:', `    ${d.userCode ?? ''}`, ...wrapHard(d.verificationUri ?? '', DETAIL_W), d.copied ? 'copied to clipboard' : 'c copies the URL · esc cancels']
+    ? ['On the sign-in page, enter this code:', `    ${d.userCode ?? ''}`, ...wrapHard(d.verificationUri ?? '', width), d.copied ? 'copied to clipboard' : 'c copies the URL · esc cancels']
     : ['Connect OrcaRouter', 'esc cancels'];
   if (d.phase === 'starting') {
     return [`Connect ${deviceFamilyWords(d.family, d.regionWords)}`, '', 'Opening sign-in…', '', 'esc cancels — nothing is stored'];
@@ -55,11 +55,11 @@ export function deviceWaitPaneLines(d: DeviceWaitStateV1, nowMs: number): string
   const lines: string[] = ['On the sign-in page, enter this code:'];
   lines.push(`    ${d.userCode ?? ''}`);
   lines.push('If nothing opened, visit:');
-  lines.push(...wrapHard(d.verificationUri ?? '', DETAIL_W));
+  lines.push(...wrapHard(d.verificationUri ?? '', width));
   lines.push(`waiting${expiryWords(d.expiresAtMs, nowMs)}`);
   if (d.note !== undefined) {
-    const wrapped = wrapPlain(d.note, DETAIL_W);
-    lines.push(...(wrapped.length > 2 ? [...wrapped.slice(0, 1), wrapped[1]!.slice(0, DETAIL_W - 1) + '…'] : wrapped));
+    const wrapped = wrapPlain(d.note, width);
+    lines.push(...(wrapped.length > 2 ? [...wrapped.slice(0, 1), wrapped[1]!.slice(0, width - 1) + '…'] : wrapped));
   }
   lines.push(d.copied ? 'copied to clipboard' : 'c copies the URL · esc cancels');
   return lines;
@@ -76,10 +76,10 @@ export interface HandlesWaitStateV1 {
   copied: boolean;
 }
 
-export function handlesWaitPaneLines(h: HandlesWaitStateV1, draftLen: number): string[] {
+export function handlesWaitPaneLines(h: HandlesWaitStateV1, draftLen: number, width = DETAIL_W): string[] {
   if (h.phase === 'exchanging') {
     const words = 'Finishing sign-in…';
-    return [...wrapPlain(words, DETAIL_W), '', 'esc cancels'];
+    return [...wrapPlain(words, width), '', 'esc cancels'];
   }
   const opening =
     h.leg === 'openrouter-headless'
@@ -89,13 +89,13 @@ export function handlesWaitPaneLines(h: HandlesWaitStateV1, draftLen: number): s
         : h.leg === 'gemini-plan'
           ? `${GEMINI_PLAN_LEG_TITLE}: ${GEMINI_PLAN_LEG_DETAIL}`
           : 'Finish signing in in the browser.';
-  const lines: string[] = [...wrapPlain(opening, DETAIL_W)];
+  const lines: string[] = [...wrapPlain(opening, width)];
   if (h.listenerNote !== undefined) {
-    const wrapped = wrapPlain(h.listenerNote, DETAIL_W);
-    lines.push(...(wrapped.length > 2 ? [...wrapped.slice(0, 1), wrapped[1]!.slice(0, DETAIL_W - 1) + '…'] : wrapped));
+    const wrapped = wrapPlain(h.listenerNote, width);
+    lines.push(...(wrapped.length > 2 ? [...wrapped.slice(0, 1), wrapped[1]!.slice(0, width - 1) + '…'] : wrapped));
   }
   lines.push(h.leg === 'openrouter-headless' ? 'URL:' : 'If nothing opened, visit:');
-  lines.push(...wrapHard(h.authorizeUrl ?? '', DETAIL_W));
+  lines.push(...wrapHard(h.authorizeUrl ?? '', width));
   lines.push(maskedDraftLine(draftLen).replace('code:', h.leg === 'openrouter-headless' ? 'code:' : 'paste:'));
   lines.push(handlesWaitWayOut(h, draftLen));
   return lines;
@@ -117,13 +117,13 @@ export interface OpenaiDeviceStateV1 {
   copied: boolean;
 }
 
-export function openaiDevicePaneLines(d: OpenaiDeviceStateV1): string[] {
+export function openaiDevicePaneLines(d: OpenaiDeviceStateV1, width = DETAIL_W): string[] {
   if (d.userCode === undefined) {
     return ['Opening sign-in…', '', 'esc cancels — nothing is stored'];
   }
   const lines: string[] = ['On any signed-in browser, enter this', 'one-time code:'];
   lines.push(`    ${d.userCode}`);
-  if (d.verifyHint !== undefined) lines.push(...wrapPlain(d.verifyHint, DETAIL_W));
+  if (d.verifyHint !== undefined) lines.push(...wrapPlain(d.verifyHint, width));
   lines.push('Waiting for approval…');
   lines.push(d.copied ? 'copied to clipboard' : 'c copies the code · esc stops watching');
   return lines;
@@ -271,20 +271,26 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
   }
 }
 
-export function loginsFlowPaneLines(pane: LoginsFlowPaneV1): string[] {
+export function loginsFlowNoticeOf(pane: LoginsFlowPaneV1): string | null {
+  return pane.kind === 'anthropic' || pane.kind === 'device' || pane.kind === 'handles' || pane.kind === 'opdevice'
+    ? loginsFlowPaneLines(pane, Number.MAX_SAFE_INTEGER).filter(Boolean).join(' ')
+    : null;
+}
+
+export function loginsFlowPaneLines(pane: LoginsFlowPaneV1, width = DETAIL_W): string[] {
   switch (pane.kind) {
     case 'anthropic':
-      return anthropicFlowPaneLines(pane.snap, pane.draftLen, pane.backToPicker === true);
+      return anthropicFlowPaneLines(pane.snap, pane.draftLen, pane.backToPicker === true, width);
     case 'pick':
       return loginsPickPaneLines(pane.pick, pane.pickSel);
     case 'key':
       return keyPromptPaneLines(pane.leg, pane.note, pane.draftLen, pane.storing, pane.opened);
     case 'device':
-      return deviceWaitPaneLines(pane.device, pane.nowMs);
+      return deviceWaitPaneLines(pane.device, pane.nowMs, width);
     case 'handles':
-      return handlesWaitPaneLines(pane.handles, pane.draftLen);
+      return handlesWaitPaneLines(pane.handles, pane.draftLen, width);
     case 'opdevice':
-      return openaiDevicePaneLines(pane.opdevice);
+      return openaiDevicePaneLines(pane.opdevice, width);
     case 'client':
       return geminiClientPaneLines(pane.client, pane.draftLen, pane.draft);
     case 'external-run':
