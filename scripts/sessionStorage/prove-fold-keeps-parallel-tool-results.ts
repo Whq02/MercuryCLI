@@ -401,6 +401,49 @@ try {
     check(scene, 'the same two named in their written order read the same line', reads('A0<- U<A0 Z<U N2*<GONE N1*<N2 C*<N1', 'A0 N2 N1 U Z', 'A0 N2 N1 C U Z'))
     check(scene, 'three listed notes in a chain, named lowest first, keep every row and the note under each', reads('A0<- U<A0 Z<U N3*<GONE N2*<N3 N1*<N2 C1*<N1 C2*<N2 C3*<N3', 'A0 N1 N2 N3 U Z', 'A0 N3 C3 N2 C2 N1 C1 U Z'))
     check(scene, 'two listed notes that name each other as parent are both kept, once', reads('A0<- U<A0 Z<U N1*<N2 N2*<N1', 'A0 N1 N2 U Z', 'A0 N1 N2 U Z'))
+    check(scene, 'a listed note that names itself as parent is kept, once', reads('A0<- U<A0 Z<U N*<N', 'A0 N U Z', 'A0 N U Z'))
+    const wide = (count: number, named: boolean): boolean => {
+      const notes = Array.from({ length: count }, (_, n) => `N${n}`), noted = new Set(notes)
+      const rows: Record<string, string | null> = { A0: null, PROMPT: 'A0', CALL: 'PROMPT', RESULT: 'CALL', REPLY: 'RESULT' }
+      try {
+        const line = keptLine(['A0', ...(named ? notes : []), 'PROMPT', 'CALL', 'RESULT', 'REPLY'], id => noted.has(id) ? 'CALL' : rows[id], id => id === 'CALL' ? notes : [], id => noted.has(id))
+        return line.length === count + 5 && line.every((id, at) => id === (at < 3 ? ['A0', 'PROMPT', 'CALL'][at] : at < count + 3 ? notes[at - 3] : at === count + 3 ? 'RESULT' : 'REPLY'))
+      } catch { return false }
+    }
+    check(scene, 'a million listed notes under one kept row are each kept, in order, with no throw', wide(1_000_000, true))
+    check(scene, 'a million unlisted notes under one kept row are each kept, in order, with no throw', wide(1_000_000, false))
+    const cheap = (listed: string[], written: string[], parentOf: (id: string) => string | null | undefined, notesUnder: (id: string) => string[], noted: (id: string) => boolean): boolean => {
+      const cost = (moves: boolean): number => {
+        let best = Infinity
+        for (let round = 0; round < 3; round++) {
+          const start = performance.now(), line = keptLine(listed, parentOf, notesUnder, id => moves && noted(id))
+          best = isDeepStrictEqual(line, moves ? written : listed) ? Math.min(best, performance.now() - start) : NaN
+        }
+        return best
+      }
+      const still = cost(false)
+      return cost(true) <= Math.max(50, still * 25)
+    }
+    const within = 'reads in the written order and costs no more than 25 times the same list with no row allowed to move (or 50 ms)'
+    for (const shape of ['on the line', 'beside the line', 'on the line, kept by the fold before', 'on the line, listed in reverse', 'on the line, listed in swapped pairs']) {
+      const count = 20_000, notes = Array.from({ length: count }, (_, n) => `N${n}`), place = new Map(notes.map((id, n) => [id, n]))
+      const rows: Record<string, string | null> = { A0: null, PROMPT: 'A0', CALL: 'PROMPT', RESULT: shape === 'beside the line' ? 'CALL' : notes[count - 1]!, REPLY: 'RESULT' }
+      const parentOf = (id: string): string | null | undefined => { const at = place.get(id); return at === undefined ? rows[id] : at === 0 ? 'CALL' : notes[at - 1] }
+      const notesUnder = (id: string): string[] => { const at = id === 'CALL' ? -1 : place.get(id); return shape.endsWith('before') || at === undefined || at + 1 >= count ? [] : [notes[at + 1]!] }
+      const named = shape.endsWith('reverse') ? notes.toReversed() : shape.endsWith('pairs') ? notes.map((_, n) => notes[n % 2 ? n - 1 : n + 1]!) : notes
+      check(scene, `a run of 20,000 listed notes ${shape} ${within}`, cheap(['A0', ...named, 'PROMPT', 'CALL', 'RESULT', 'REPLY'], ['A0', 'PROMPT', 'CALL', ...notes, 'RESULT', 'REPLY'], parentOf, notesUnder, id => place.has(id)))
+    }
+    {
+      const count = 20_000, chain = Array.from({ length: count }, (_, n) => `c${n}`), teeth = chain.map((_, n) => `t${n}`), tips = chain.map((_, n) => `s${n}`)
+      const parent = new Map<string, string | null>([['A0', null], ['PROMPT', 'A0'], ['CALL', 'PROMPT'], ['RESULT', 'CALL'], ['REPLY', 'RESULT']])
+      const below = new Map<string, string[]>([['CALL', ['c0']]])
+      chain.forEach((id, n) => {
+        parent.set(id, n ? chain[n - 1]! : 'CALL').set(teeth[n]!, id).set(tips[n]!, teeth[n]!)
+        below.set(id, n + 1 < count ? [chain[n + 1]!, teeth[n]!] : [teeth[n]!]).set(teeth[n]!, [tips[n]!])
+      })
+      const written = ['A0', 'PROMPT', 'CALL', ...chain, ...chain.flatMap((_, n) => [teeth[count - 1 - n]!, tips[count - 1 - n]!]), 'RESULT', 'REPLY']
+      check(scene, `a run of 20,000 listed notes named in reverse, a listed note under each and one under that, ${within}`, cheap(['A0', ...chain.toReversed(), ...teeth, ...tips, 'PROMPT', 'CALL', 'RESULT', 'REPLY'], written, id => parent.get(id), id => below.get(id) ?? [], id => parent.has(id) && id.length > 1 && 'cts'.includes(id[0]!)))
+    }
     let seed = 1
     const rnd = (): number => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff }
     const pick = (n: number): number => Math.floor(rnd() * n)
