@@ -404,6 +404,21 @@ check('forced-xterm: the Boot face came up and no request was written', forced.s
   check('forced-xterm: the Boot face is painted at 24-bit, by its cells', boot.has(MUTED) && boot.has(BRAND), `boostChalkLevelForMercury in ${COLORIZE} must raise level 1 as it raises level 2; inks ${[...boot].slice(0, 12).join(' ')}`)
 }
 
+section('§13 a TERM the colour library does not know is painted in 16 colours, not in none')
+{
+  const basicInk = (grid: Grid | undefined): number => (grid ?? []).flat().filter(cell => (cell.c || ' ') !== ' ' && /^(?:bright)?(?:black|red|green|brown|yellow|blue|magenta|cyan|white)$/.test(cell.fg)).length
+  const fix = `unknownTermTakesColor in ${COLORIZE} must lift level 0 to 1 on a terminal whose TERM is set and not dumb, unless NO_COLOR, FORCE_COLOR or CI says otherwise`
+  for (const term of ['alacritty', 'foot']) {
+    const arm = await capture({ name: `unknown-${term}`, env: { TERM: term }, upTo: 'boot', receipt: false })
+    check(`TERM=${term}: the Boot face came up`, arm.status === 0 && arm.marks.has('boot'), `${fix}; ${arm.log.slice(-200)}`)
+    check(`TERM=${term}: its cells hold basic ink (${basicInk(arm.marks.get('boot'))} cells) and no 256-colour or 24-bit code is written`, basicInk(arm.marks.get('boot')) > 50 && count(arm.bytes, /[34]8;[25];\d/g) === 0, `${fix}; basic cells ${basicInk(arm.marks.get('boot'))}, extended codes ${count(arm.bytes, /[34]8;[25];\d/g)}`)
+  }
+  const mute = await capture({ name: 'unknown-no-color', env: { TERM: 'alacritty', NO_COLOR: '1' }, upTo: 'boot', receipt: false })
+  check('TERM=alacritty under NO_COLOR: no colour, as before', mute.status === 0 && mute.marks.has('boot') && basicInk(mute.marks.get('boot')) === 0 && count(mute.bytes, /\x1b\[(?:3[0-7]|9[0-7])m/g) === 0, `NO_COLOR stands over the rule; basic cells ${basicInk(mute.marks.get('boot'))}`)
+  const ci = await capture({ name: 'unknown-ci', env: { TERM: 'alacritty', CI: '1' }, upTo: 'boot', receipt: false })
+  check('TERM=alacritty under CI: no colour, as before', ci.status === 0 && ci.marks.has('boot') && basicInk(ci.marks.get('boot')) === 0 && count(ci.bytes, /\x1b\[(?:3[0-7]|9[0-7])m/g) === 0, `CI stands over the rule, as it stands over a TERM the library knows; basic cells ${basicInk(ci.marks.get('boot'))}; ${ci.log.slice(-160)}`)
+}
+
 if (failures === 0) rmSync(scratch, { recursive: true, force: true })
 else console.log(`\nscratch kept: ${scratch}`)
 console.log(`\n${failures === 0 ? 'ALL HOLD' : `${failures} FAILED`} (${checks} checks)`)

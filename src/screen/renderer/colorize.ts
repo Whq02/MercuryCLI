@@ -31,6 +31,12 @@ function honorNoColor(): boolean {
 export const CHALK_DISABLED_FOR_NO_COLOR = honorNoColor()
 if (hostEnv().FORCE_COLOR !== undefined && !['', '1', '2', '3', 'true'].includes(hostEnv().FORCE_COLOR!)) chalk.level = 0
 
+function unknownTermTakesColor(env: Record<string, string | undefined>): boolean {
+  if (shouldHonorNoColor(env) || env.FORCE_COLOR !== undefined || env.CI !== undefined) return false
+  return Boolean(env.TERM) && env.TERM !== 'dumb'
+}
+if (chalk.level === 0 && process.stdout.isTTY && unknownTermTakesColor(hostEnv())) chalk.level = 1
+
 export function truecolorFingerprint(
   env: Record<string, string | undefined> = hostEnv(),
 ): string | null {
