@@ -1,6 +1,6 @@
 import { OPENAI_DEVICE_STOPPED_RECEIPT } from '../../../models/roads/openai/openaiLogin.js';
 import { writeGeminiOauthClientConfig } from '../../../models/roads/gemini/geminiAccounts.js';
-import { setClipboard } from '../../renderer/termio/osc.js';
+import { copyForSignIn, signInCopySaid, SIGN_IN_COPY_ACK_MS } from '../../../models/sign-in/signInCopy.js';
 import type { OpenFlowState } from './flowLines.js';
 import type { LoginsFlowContext } from './context.js';
 import type { Key } from '../../themedRenderer.js';
@@ -37,14 +37,14 @@ export function deviceFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFlow
     current.device.verificationUri !== undefined
   ) {
     const run = deviceRunRef.current;
-    void setClipboard(current.device.verificationUri).then(sequence => {
-      if (sequence) process.stdout.write(sequence);
+    void copyForSignIn(current.device.verificationUri).then(answer => {
       if (run !== deviceRunRef.current) return;
-      setFlow(f => (f?.kind === 'device' ? { kind: 'device', device: { ...f.device, copied: true } } : f));
+      setFlow(f => (f?.kind === 'device' ? { kind: 'device', device: { ...f.device, ...signInCopySaid(answer, 'URL') } } : f));
+      if (answer !== 'copied') return;
       startTimeout(() => {
         if (run !== deviceRunRef.current) return;
         setFlow(f => (f?.kind === 'device' ? { kind: 'device', device: { ...f.device, copied: false } } : f));
-      }, 2000);
+      }, SIGN_IN_COPY_ACK_MS);
     });
   }
 }
@@ -72,14 +72,14 @@ export function handlesFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFlo
   }
   if (input === 'c' && !key.ctrl && !key.meta && h.phase === 'waiting' && draftRef.current === '' && h.authorizeUrl !== undefined) {
     const run = deviceRunRef.current;
-    void setClipboard(h.authorizeUrl).then(sequence => {
-      if (sequence) process.stdout.write(sequence);
+    void copyForSignIn(h.authorizeUrl).then(answer => {
       if (run !== deviceRunRef.current) return;
-      setFlow(f => (f?.kind === 'handles' ? { kind: 'handles', handles: { ...f.handles, copied: true } } : f));
+      setFlow(f => (f?.kind === 'handles' ? { kind: 'handles', handles: { ...f.handles, ...signInCopySaid(answer, 'URL') } } : f));
+      if (answer !== 'copied') return;
       startTimeout(() => {
         if (run !== deviceRunRef.current) return;
         setFlow(f => (f?.kind === 'handles' ? { kind: 'handles', handles: { ...f.handles, copied: false } } : f));
-      }, 2000);
+      }, SIGN_IN_COPY_ACK_MS);
     });
     return;
   }
@@ -109,14 +109,14 @@ export function opdeviceFlowKeys(ctx: LoginsFlowContext, current: Extract<OpenFl
   }
   if (input === 'c' && !key.ctrl && !key.meta && current.opdevice.userCode !== undefined) {
     const run = deviceRunRef.current;
-    void setClipboard(current.opdevice.userCode).then(sequence => {
-      if (sequence) process.stdout.write(sequence);
+    void copyForSignIn(current.opdevice.userCode).then(answer => {
       if (run !== deviceRunRef.current) return;
-      setFlow(f => (f?.kind === 'opdevice' ? { kind: 'opdevice', opdevice: { ...f.opdevice, copied: true } } : f));
+      setFlow(f => (f?.kind === 'opdevice' ? { kind: 'opdevice', opdevice: { ...f.opdevice, ...signInCopySaid(answer, 'code') } } : f));
+      if (answer !== 'copied') return;
       startTimeout(() => {
         if (run !== deviceRunRef.current) return;
         setFlow(f => (f?.kind === 'opdevice' ? { kind: 'opdevice', opdevice: { ...f.opdevice, copied: false } } : f));
-      }, 2000);
+      }, SIGN_IN_COPY_ACK_MS);
     });
   }
 }

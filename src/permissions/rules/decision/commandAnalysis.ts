@@ -42,6 +42,7 @@ export { extractHeredocs } from '../../../platform/shell/bash/heredoc.js'
 export {
   checkSemantics,
   parseForSecurity,
+  parseForSecurityFromRoot,
   peelWrappers,
   preparedSecurityParse,
   shellCommandText,
@@ -53,6 +54,7 @@ export {
 
 export {
   splitCommand,
+  splitCommandFromRoot,
   splitCommandWithOperators,
   splitListSegments,
 } from '../../../platform/shell/bash/commands.js'

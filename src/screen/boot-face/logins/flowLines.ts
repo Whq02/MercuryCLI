@@ -20,6 +20,7 @@ export interface DeviceWaitStateV1 {
   polls: number;
   note?: string;
   copied: boolean;
+  copyNote?: string | null;
 }
 
 export function deviceFamilyWords(family: FaceDeviceFamily, regionWords?: string): string {
@@ -40,7 +41,7 @@ function expiryWords(expiresAtMs: number | undefined, nowMs: number): string {
 
 export function deviceWaitPaneLines(d: DeviceWaitStateV1, nowMs: number, width = DETAIL_W): string[] {
   if (d.family === 'orcarouter') return d.phase === 'waiting'
-    ? ['On the sign-in page, enter this code:', `    ${d.userCode ?? ''}`, ...wrapHard(d.verificationUri ?? '', width), d.copied ? 'copied to clipboard' : 'c copies the URL · esc cancels']
+    ? ['On the sign-in page, enter this code:', `    ${d.userCode ?? ''}`, ...wrapHard(d.verificationUri ?? '', width), d.copied ? 'copied to clipboard' : d.copyNote ?? 'c copies the URL · esc cancels']
     : ['Connect OrcaRouter', 'esc cancels'];
   if (d.phase === 'starting') {
     return [`Connect ${deviceFamilyWords(d.family, d.regionWords)}`, '', 'Opening sign-in…', '', 'esc cancels — nothing is stored'];
@@ -61,7 +62,7 @@ export function deviceWaitPaneLines(d: DeviceWaitStateV1, nowMs: number, width =
     const wrapped = wrapPlain(d.note, width);
     lines.push(...(wrapped.length > 2 ? [...wrapped.slice(0, 1), wrapped[1]!.slice(0, width - 1) + '…'] : wrapped));
   }
-  lines.push(d.copied ? 'copied to clipboard' : 'c copies the URL · esc cancels');
+  lines.push(d.copied ? 'copied to clipboard' : d.copyNote ?? 'c copies the URL · esc cancels');
   return lines;
 }
 
@@ -74,6 +75,7 @@ export interface HandlesWaitStateV1 {
   authorizeUrl?: string;
   listenerNote?: string;
   copied: boolean;
+  copyNote?: string | null;
 }
 
 export function handlesWaitPaneLines(h: HandlesWaitStateV1, draftLen: number, width = DETAIL_W): string[] {
@@ -103,6 +105,7 @@ export function handlesWaitPaneLines(h: HandlesWaitStateV1, draftLen: number, wi
 
 export function handlesWaitWayOut(h: HandlesWaitStateV1, draftLen: number): string {
   if (h.copied) return 'copied to clipboard';
+  if (typeof h.copyNote === 'string') return h.copyNote;
   const copy = draftLen === 0 && h.authorizeUrl !== undefined;
   const device = draftLen === 0 && h.leg === 'openai-browser';
   if (copy && device) return 'c copy · d device · esc cancel';
@@ -115,6 +118,7 @@ export interface OpenaiDeviceStateV1 {
   userCode?: string;
   verifyHint?: string;
   copied: boolean;
+  copyNote?: string | null;
 }
 
 export function openaiDevicePaneLines(d: OpenaiDeviceStateV1, width = DETAIL_W): string[] {
@@ -125,7 +129,7 @@ export function openaiDevicePaneLines(d: OpenaiDeviceStateV1, width = DETAIL_W):
   lines.push(`    ${d.userCode}`);
   if (d.verifyHint !== undefined) lines.push(...wrapPlain(d.verifyHint, width));
   lines.push('Waiting for approval…');
-  lines.push(d.copied ? 'copied to clipboard' : 'c copies the code · esc stops watching');
+  lines.push(d.copied ? 'copied to clipboard' : d.copyNote ?? 'c copies the code · esc stops watching');
   return lines;
 }
 
@@ -268,6 +272,21 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
     case 'receipt':
       if (pane.external === true) return 'Devin CLI — ↵ returns to the roster';
       return pane.ok ? `connected — ${signedInStatusWayOut(pane.backToPicker === true)}` : 'not connected — ↵ returns to the roster';
+  }
+}
+
+export function loginsFlowCopyUnconfirmed(pane: LoginsFlowPaneV1): boolean {
+  switch (pane.kind) {
+    case 'anthropic':
+      return pane.snap.flow.name === 'waiting' && typeof pane.snap.copyNote === 'string';
+    case 'device':
+      return pane.device.phase === 'waiting' && typeof pane.device.copyNote === 'string';
+    case 'handles':
+      return pane.handles.phase === 'waiting' && typeof pane.handles.copyNote === 'string';
+    case 'opdevice':
+      return typeof pane.opdevice.copyNote === 'string';
+    default:
+      return false;
   }
 }
 

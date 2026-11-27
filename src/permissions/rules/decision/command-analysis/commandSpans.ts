@@ -84,8 +84,8 @@ function goesOnAfter(node: Node): Node[] {
   return heredoc === undefined || operator === -1 ? [] : heredoc.children.slice(operator, operator + 2)
 }
 
-export function closingStatement(command: string): ClosingStatement | undefined {
-  const root = preparedCommandRoot(command)
+export function closingStatement(command: string, rootNode: unknown): ClosingStatement | undefined {
+  const root = asNode(rootNode)
   const at = root === null || root.type !== 'program' ? null : placeIn(command, root)
   if (root === null || at === null) return undefined
   let node = root.children.findLast(child => child.type !== ';' && child.type !== 'comment')
@@ -150,8 +150,8 @@ function readsTheLastStatus(node: Node, from: number): boolean {
   return (first !== undefined && readsTheLastStatus(first, 0)) || node.children.some(child => readsTheLastStatus(child, Infinity))
 }
 
-export function watchesItsShell(command: string, closing: ClosingStatement): boolean {
-  const root = preparedCommandRoot(command)
+export function watchesItsShell(command: string, closing: ClosingStatement, rootNode: unknown): boolean {
+  const root = asNode(rootNode)
   const at = root === null ? null : placeIn(command, root)
   if (root === null || at === null || NAMES_WHAT_THE_SHELL_RUNS.test(command)) return true
   const run = whatTheShellMayRun(root)

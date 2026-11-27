@@ -10,12 +10,12 @@ import type { MercuryRecord } from '../../fabric/record.js'
 import { faultPoint, fsyncEnabled, publishAtomicSync } from '../../../platform/substrate/fileStore.js'
 import { passedOver } from '../../../platform/errors/passedOver.js'
 import { foldWorkerRecord } from '../mirrorRecord.js'
-import { keptLine, sideNote } from '../rowGraph.js'
+import { keptLine, sideNote, virtualNote } from '../rowGraph.js'
 import { historyHead, historyIndex, historyPartDir, sealedExtents, sealedFile, type HistoryIndexRow } from '../historyParts.js'
 import { rangeFromFd, transcriptLineBytes } from '../transcriptBytes.js'
 
 type Range = { at: number; len: number; torn: boolean; relinkTo?: string }
-type ChainRow = Range & { parent?: string; originalParent?: string; row: boolean; note: boolean }
+type ChainRow = Range & { parent?: string; originalParent?: string; row: boolean; note: boolean; virtual: boolean }
 type Segment = NonNullable<FoldMetadata['preservedSegment']>
 const sticky = new Set(['summary', 'custom-title', 'ai-title', 'last-prompt', 'tag', 'agent-name', 'agent-color', 'agent-setting', 'session-brief', 'session-brief-add', 'mode', 'advisor-switch', 'swarm-switch', 'model', 'worktree-state', 'pr-link'])
 
@@ -132,7 +132,7 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
           else if (segment && (payload.metaKind === 'file-history-snapshot' || payload.metaKind === 'attribution-snapshot')) preservedMeta.set(JSON.stringify([payload.metaKind, payload.fields.messageId]), range)
           else if (segment && payload.metaKind === 'content-replacement') preservedMeta.set(id, range)
         } else if (segment) {
-          nodes.set(id, { ...range, parent: record.parentId, originalParent: record.parentId, row: mirror !== null || payload.kind === 'attachment', note: sideNote(shown) })
+          nodes.set(id, { ...range, parent: record.parentId, originalParent: record.parentId, row: mirror !== null || payload.kind === 'attachment', note: sideNote(shown), virtual: virtualNote(shown) })
           if (payload.kind === 'boundary' && payload.boundaryKind === 'compact') {
             folds.push(range.at)
             const prior = (payload.fields?.compactMetadata as { preservedSegment?: Segment } | undefined)?.preservedSegment
@@ -145,13 +145,14 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
     const lineOf = (listed: readonly string[], end: number): string[] => {
       const floor = folds.findLast(at => at < end) ?? -1
       const notes = new Map<string, string[]>()
+      const named = new Set(listed)
       for (const [id, row] of nodes) {
-        if (!row.note || row.parent === undefined || row.at <= floor || row.at >= end) continue
+        if (!(row.note || (row.virtual && named.has(id))) || row.parent === undefined || row.at <= floor || row.at >= end) continue
         const beside = notes.get(row.parent)
         if (beside) beside.push(id)
         else notes.set(row.parent, [id])
       }
-      return keptLine(listed, at => nodes.get(at)?.parent, at => notes.get(at) ?? [], at => nodes.get(at)?.note === true).filter(id => nodes.get(id)?.row)
+      return keptLine(listed, at => nodes.get(at)?.parent, at => notes.get(at) ?? [], at => nodes.get(at)?.note === true || nodes.get(at)?.virtual === true).filter(id => nodes.get(id)?.row)
     }
     for (const prior of segments) {
       if (!nodes.has(prior.headUuid) || !nodes.has(prior.tailUuid) || (prior.keptUuids !== undefined && (!Array.isArray(prior.keptUuids) || !prior.keptUuids.every(id => nodes.get(id)?.row)))) continue

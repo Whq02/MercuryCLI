@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import { useLoad } from '../../../screen/effects/effects.js'
 import { Box, Text, useInput } from '../../../screen/themedRenderer.js'
 import TextInput from '../../../screen/composer/text-input/TextInput.js'
-import { setClipboard } from '../../../screen/renderer/termio/osc.js'
+import { SignInCopyLine, useSignInCopy } from './SignInCopyLine.js'
 import { useMercuryTokens } from '../../../screen/widgets/useMercuryTokens.js'
 import { usePopupCompact } from '../../../screen/overlays/popupFormContext.js'
 import {
@@ -18,7 +18,6 @@ import {
   finishOpenaiSubscriptionConnect,
   openaiConnectFailedReceipt,
 } from '../../roads/openai/openaiLogin.js'
-import { startTimeout } from '../../../platform/async/timers.js'
 
 
 export function OpenaiConnect({
@@ -94,7 +93,7 @@ export function OpenaiConnect({
     }
   }, [mode])
 
-  const [copied, setCopied] = useState(false)
+  const copying = useSignInCopy()
   useInput((input, key, event) => {
     if (key.escape) {
       if (mode === 'browser') {
@@ -109,11 +108,7 @@ export function OpenaiConnect({
       const value = mode === 'browser' ? authorizeUrl : device?.userCode
       if (!value) return
       event.stopImmediatePropagation()
-      void setClipboard(value).then(sequence => {
-        if (sequence) process.stdout.write(sequence)
-        setCopied(true)
-        startTimeout(() => setCopied(false), 2000)
-      })
+      copying.copy(value, mode === 'browser' ? 'URL' : 'code')
       return
     }
     if (
@@ -159,7 +154,7 @@ export function OpenaiConnect({
           {authorizeUrl && phase !== 'exchanging' ? (
             <>
               {compact ? null : <Text color={tokens.textMuted}>If nothing opened, visit:</Text>}
-              <Text color={tokens.info} wrap={compact ? 'truncate-end' : 'wrap'}>
+              <Text color={tokens.info} wrap={compact && copying.copyNote === null ? 'truncate-end' : 'wrap'}>
                 {authorizeUrl}
               </Text>
               <Box>
@@ -175,7 +170,7 @@ export function OpenaiConnect({
               </Box>
             </>
           ) : null}
-          {copied ? <Text color={tokens.success}>Copied to clipboard</Text> : null}
+          <SignInCopyLine said={copying} />
           <Text color={tokens.textMuted}>c copies the URL{onSwitchToDevice ? ' · d device code (headless)' : ''} · ESC cancels.</Text>
         </>
       ) : (
@@ -198,7 +193,7 @@ export function OpenaiConnect({
                   {device.verifyHint}
                 </Text>
               )}
-              {copied ? <Text color={tokens.success}>Copied to clipboard</Text> : null}
+              <SignInCopyLine said={copying} />
               <Text color={tokens.textMuted}>Waiting for approval… c copies the code · ESC stops watching.</Text>
             </>
           ) : null}

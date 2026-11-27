@@ -1,4 +1,4 @@
-import { closingStatement, pinnedCommandAnalysis, preparedSecurityParse, watchesItsShell, type ClosingStatement } from '../../permissions/rules/decision/commandAnalysis.js'
+import { closingStatement, parseForSecurityFromRoot, splitCommandFromRoot, watchesItsShell, type ClosingStatement } from '../../permissions/rules/decision/commandAnalysis.js'
 import { posixExitSignalsCount } from '../../platform/host-os/processes.js'
 
 type CommandSemantic = (exitCode: number) => { isError: boolean; message?: string }
@@ -37,8 +37,8 @@ const WHICH_LONG_FLAGS: ReadonlySet<string> = new Set([
   '--tty-only',
 ])
 
-function whichOperandCount(command: string): number {
-  const parsed = preparedSecurityParse(command)
+function whichOperandCount(command: string, root: unknown): number {
+  const parsed = parseForSecurityFromRoot(command, root)
   if (parsed.kind !== 'simple' || parsed.commands.length === 0) return 0
   const last = parsed.commands[parsed.commands.length - 1]
   if (last === undefined) return 0
@@ -78,8 +78,8 @@ function whichOperandCount(command: string): number {
   return operands
 }
 
-function baseCommandFor(command: string): string {
-  const subcommands = pinnedCommandAnalysis.splitCommand(command)
+function baseCommandFor(command: string, root: unknown): string {
+  const subcommands = splitCommandFromRoot(command, root)
   const last = subcommands[subcommands.length - 1] ?? command
   return commandWord(last)
 }
@@ -98,10 +98,10 @@ function commandWord(stage: string): string {
   return words[i] ?? ''
 }
 
-export function closingTableCommand(command: string): ClosingStatement | undefined {
-  const closing = closingStatement(command)
+export function closingTableCommand(command: string, root: unknown): ClosingStatement | undefined {
+  const closing = closingStatement(command, root)
   if (closing === undefined || !Object.hasOwn(COMMAND_SEMANTICS, commandWord(closing.stage))) return undefined
-  return watchesItsShell(command, closing) ? undefined : closing
+  return watchesItsShell(command, closing, root) ? undefined : closing
 }
 
 export function interpretCommandResult(
@@ -109,7 +109,8 @@ export function interpretCommandResult(
   exitCode: number,
   _stdout: string,
   _stderr: string,
-  ran?: { stage: string; endedOnOne: boolean; pipeline: number[] | undefined },
+  ran: { stage: string; endedOnOne: boolean; pipeline: number[] | undefined } | undefined,
+  root: unknown,
 ): { isError: boolean; message?: string } {
   if (exitCode === 0) return { isError: false }
   if (exitCode === 1 && ran !== undefined) {
@@ -117,8 +118,8 @@ export function interpretCommandResult(
     const semantic = itsOwn ? COMMAND_SEMANTICS[commandWord(ran.stage)] : undefined
     return semantic === undefined ? { isError: true, message: 'failed with exit code 1' } : semantic(1)
   }
-  const base = baseCommandFor(command)
-  if (base === 'which' && exitCode > 1 && exitCode < 126 && exitCode <= whichOperandCount(command)) {
+  const base = baseCommandFor(command, root)
+  if (base === 'which' && exitCode > 1 && exitCode < 126 && exitCode <= whichOperandCount(command, root)) {
     return { isError: false, message: 'a name was not found' }
   }
   const semantic = Object.hasOwn(COMMAND_SEMANTICS, base) ? COMMAND_SEMANTICS[base] : undefined

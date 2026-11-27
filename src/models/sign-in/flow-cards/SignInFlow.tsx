@@ -311,7 +311,7 @@ export function ConsoleOAuthFlow({
     case 'waiting':
       return waitingCard({
         state: model.flow, frame, compact, model, columns, tokens,
-        pastePromptUp: model.pastePromptUp, copied: model.copied,
+        pastePromptUp: model.pastePromptUp, copied: model.copied, copyNote: model.copyNote ?? null,
         code, setCode, submitCode, codeCursor, setCodeCursor,
       })
     case 'creating-key':

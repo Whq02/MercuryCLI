@@ -26,8 +26,8 @@ console.log('============================================================')
 section('§1 the interpretation, per command')
 const { interpretCommandResult } = await import('../../src/tools/shell/commandSemantics.ts')
 const verdict = async (command: string, code: number): Promise<{ isError: boolean; message?: string }> => {
-  await (await import('../../src/permissions/rules/decision/commandAnalysis.ts')).parseForSecurity(command)
-  return interpretCommandResult(command, code, '', '')
+  const root = await (await import('../../src/permissions/rules/decision/commandAnalysis.ts')).pinnedCommandAnalysis.parseCommandRaw(command)
+  return interpretCommandResult(command, code, '', '', undefined, root)
 }
 const answers = async (command: string, code: number, words: string): Promise<boolean> => {
   const v = await verdict(command, code)

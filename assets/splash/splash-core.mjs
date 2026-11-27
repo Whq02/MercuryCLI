@@ -1056,6 +1056,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
       effectiveDetailBudget += summaryBlock.length
     }
   }
+  if (m.detailOverrideWhole && dRows.length > effectiveDetailBudget) return null
   const wholeLines = room => {
     if (m.detailOverrideConfirms) return dRows.slice(0, room)
     const kept = []
@@ -1147,7 +1148,7 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
       listLines.push('  ' + paint(AMBERC) + '▲ ' + row.warn + R)
     }
   })
-  const noticeText = m.detailOverride && m.detailOverrideConfirms ? m.detailOverride.filter(Boolean).join(' ') : m.noticeLine
+  const noticeText = m.detailOverrideWhole ?? (m.detailOverride && m.detailOverrideConfirms ? m.detailOverride.filter(Boolean).join(' ') : m.noticeLine)
   const noticeW = Math.max(20, cols - 4)
   const noticeRoom = Math.max(1, rowsAvail - 4 - 5)
   const cutToEnd = new Set()

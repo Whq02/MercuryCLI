@@ -400,7 +400,7 @@ async function signInAnthropic(code: string): Promise<string> {
       fetchRoles: async () => {},
       settings: () => ({}),
       shadowWarning: () => null,
-      clipboard: async () => null,
+      clipboard: async () => ({ sequence: '', answer: 'copied' as const }),
       writeStdout: () => {},
       log: () => {},
       mintApiKey: async () => null,

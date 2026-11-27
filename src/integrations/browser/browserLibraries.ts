@@ -1,3 +1,4 @@
+import { withDeadline } from '../../platform/async/deadline.js'
 import { errorMessage } from '../../platform/errors/errors.js'
 import { execFileNoThrow } from '../../platform/processes/execFileNoThrow.js'
 
@@ -35,6 +36,7 @@ function debianPackages(): ReadonlyMap<string, string> {
 const PROBE_TIMEOUT_MS = 5_000
 const NAMED_LIBRARIES_CAP = 40
 const LOADER_REFUSAL = /error while loading shared libraries: ([A-Za-z0-9._+-]{1,80}):/
+const NO_ARCHIVER = 'no zip archiver is available'
 const LDD_MISSING = /^\s*([A-Za-z0-9._+-]{1,80}) => not found$/gm
 const APT_STANZA = /^([a-z0-9][a-z0-9.+-]*):\n {2}Installed: (.+)\n {2}Candidate: (.+)$/gm
 
@@ -44,17 +46,21 @@ export interface LibraryReads {
 }
 
 async function runProbe(file: string, args: string[]): Promise<string> {
-  return (await execFileNoThrow(file, args, { timeout: PROBE_TIMEOUT_MS, useCwd: false })).stdout
+  const answered = execFileNoThrow(file, args, { timeout: PROBE_TIMEOUT_MS, useCwd: false }).then(run => run.stdout)
+  return withDeadline(answered, PROBE_TIMEOUT_MS, () => '', { unref: true })
 }
 
-async function aptNamesFor(packages: readonly string[], run: NonNullable<LibraryReads['run']>): Promise<string[]> {
+async function aptPackagesFor(packages: readonly string[], run: NonNullable<LibraryReads['run']>): Promise<{ name: string; installed: boolean }[]> {
   if (packages.length === 0) return []
   const answer = await run('apt-cache', ['policy', ...packages.flatMap(name => [`${name}t64`, name])])
-  const offered = new Set<string>()
+  const offered = new Map<string, boolean>()
   for (const stanza of answer.matchAll(APT_STANZA)) {
-    if (stanza[3] !== '(none)') offered.add(stanza[1]!)
+    if (stanza[3] !== '(none)') offered.set(stanza[1]!, stanza[2] !== '(none)')
   }
-  return packages.flatMap(name => (offered.has(`${name}t64`) ? [`${name}t64`] : offered.has(name) ? [name] : []))
+  return packages.flatMap(name => {
+    const pick = offered.has(`${name}t64`) ? `${name}t64` : offered.has(name) ? name : null
+    return pick === null ? [] : [{ name: pick, installed: offered.get(pick) === true }]
+  })
 }
 
 export async function missingLibraryWords(failure: string, executablePath: string, reads: LibraryReads = {}): Promise<string | null> {
@@ -67,12 +73,29 @@ export async function missingLibraryWords(failure: string, executablePath: strin
   const named = missing.slice(0, NAMED_LIBRARIES_CAP).join(', ')
   const more = missing.length > NAMED_LIBRARIES_CAP ? ` and ${missing.length - NAMED_LIBRARIES_CAP} more` : ''
   const packageOf = debianPackages()
-  const packages = await aptNamesFor([...new Set(missing.flatMap(soname => packageOf.get(soname) ?? []))], run)
-  const install = packages.length === 0 ? '' : `\n  the operator runs: sudo apt-get install ${packages.join(' ')}`
+  const offered = await aptPackagesFor([...new Set(missing.flatMap(soname => packageOf.get(soname) ?? []))], run)
+  const lacking = offered.filter(pkg => !pkg.installed).map(pkg => pkg.name)
+  const install = lacking.length === 0 ? '' : `\n  the operator runs: sudo apt-get install ${lacking.join(' ')}`
   return `the browser did not start — this machine lacks ${missing.length} shared ${missing.length === 1 ? 'library' : 'libraries'} it loads: ${named}${more}${install}`
 }
 
 export async function launchFailure(error: unknown, executablePath: string): Promise<unknown> {
   const words = await missingLibraryWords(errorMessage(error), executablePath)
+  return words === null ? error : new Error(words, { cause: error })
+}
+
+export async function missingArchiverWords(failure: string, reads: LibraryReads = {}): Promise<string | null> {
+  if ((reads.platform ?? process.platform) !== 'linux') return null
+  if (!failure.includes(NO_ARCHIVER)) return null
+  const offered = await aptPackagesFor(['unzip', ...new Set(debianPackages().values())], reads.run ?? runProbe)
+  const lacking = offered.filter(pkg => !pkg.installed).map(pkg => pkg.name)
+  if (lacking[0] !== 'unzip') return `this machine lacks unzip, which unpacks the browser's archive`
+  const libraries = lacking.length - 1
+  const beside = libraries === 0 ? '' : `, and ${libraries} ${libraries === 1 ? 'package' : 'packages'} of libraries the browser loads`
+  return `this machine lacks unzip, which unpacks the browser's archive${beside}\n  the operator runs: sudo apt-get install ${lacking.join(' ')}`
+}
+
+export async function installFailure(error: unknown): Promise<unknown> {
+  const words = await missingArchiverWords(errorMessage(error))
   return words === null ? error : new Error(words, { cause: error })
 }

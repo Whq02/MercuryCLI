@@ -17,6 +17,7 @@ process.env.MERCURY_LIVE_CLOCK = '0'
 process.env.MERCURY_LIVE_GLYPHS = '0'
 process.env.BROWSER = existsSync('/usr/bin/true') ? '/usr/bin/true' : '/bin/true'
 process.env.SSH_CONNECTION = 'proof'
+process.env.MERCURY_CLIPBOARD_FILE = join(HOME, 'clipboard.txt')
 for (const key of [
   'TMUX',
   'LC_TERMINAL',

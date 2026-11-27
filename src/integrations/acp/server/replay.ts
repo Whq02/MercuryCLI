@@ -1,7 +1,8 @@
 import type { UUID } from 'node:crypto'
 import type { SessionUpdate } from '@agentclientprotocol/sdk'
 import { buildConversationChain } from '../../../sessions/transcripts/chain.js'
-import { resumeLeafOf } from '../../../sessions/transcripts/sessionListings.js'
+import { electConversationEnd } from '../../../sessions/transcripts/conversationEnd.js'
+import { lastRowOfSessionWithNoTurn } from '../../../sessions/transcripts/sessionListings.js'
 import type { TranscriptMessage } from '../../../sessions/transcripts/transcriptEntries.js'
 import { SYNTHETIC_MODEL } from '../../../engine/message-shapes/factories.js'
 import { NO_RESPONSE_REQUESTED } from '../../../engine/message-shapes/rejectionText.js'
@@ -12,7 +13,9 @@ import { toolResultText } from '../childSession.js'
 import { toolKindOf, toolLocationsOf, toolOutputContentOf } from './toolWire.js'
 
 export function sessionLineOf(messages: Map<UUID, TranscriptMessage>): TranscriptMessage[] {
-  const leaf = resumeLeafOf(messages)
+  const elected = electConversationEnd(messages)
+  if (elected !== undefined) return elected.rows
+  const leaf = lastRowOfSessionWithNoTurn(messages)
   return leaf === undefined ? [] : buildConversationChain(messages, leaf)
 }
 
