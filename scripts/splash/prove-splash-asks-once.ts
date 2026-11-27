@@ -117,6 +117,7 @@ function hasPrintable(bytes: string): boolean {
 async function runArm(opts: {
   reply: string | readonly string[] | null
   replyDelayMs?: number
+  splitGapMs?: number
   enterDelayMs?: number
   extraEnv?: Record<string, string>
   sendEnter?: boolean
@@ -171,10 +172,11 @@ async function runArm(opts: {
                 if (!child.killed && child.exitCode === null) child.stdin.write(opts.reply)
               } else {
                 const parts = opts.reply!
+                const gap = opts.splitGapMs ?? 8
                 parts.forEach((part, idx) => {
                   setTimeout(() => {
                     if (!child.killed && child.exitCode === null) child.stdin.write(part)
-                  }, idx * 8)
+                  }, idx * gap)
                 })
               }
             }
@@ -290,6 +292,12 @@ section('§1 query arms — echo, BEL echo, split echo, 0m, refusal, sentinel al
 
   const cinematicPending = await runArm({ reply: null, extraEnv: { MERCURY_FULLSCREEN: '1' }, sendEnter: false })
   check('cinematic silence: exits 0 cleanly with screen held and truecolor: pending', cinematicPending.requestCount === 1 && cinematicPending.exitCode === 0 && cinematicPending.receipt?.screen === 'held' && cinematicPending.receipt?.truecolor === 'pending', `count=${cinematicPending.requestCount} exit=${cinematicPending.exitCode} receipt=${JSON.stringify(cinematicPending.receipt)}`)
+
+  const cinematicSplit = await runArm({ reply: ['\x1bP1$r0;48:2::1', ':2:3m\x1b\\\x1b[?62;22c'], replyDelayMs: 48, splitGapMs: 16, extraEnv: { MERCURY_FULLSCREEN: '1' }, sendEnter: false })
+  check('cinematic split echo (16ms gap across 50ms bound): holds exit until tail arrives, settles receipt to truecolor: true, exits 0', cinematicSplit.requestCount === 1 && cinematicSplit.exitCode === 0 && cinematicSplit.receipt?.screen === 'held' && cinematicSplit.receipt?.truecolor === true, `count=${cinematicSplit.requestCount} exit=${cinematicSplit.exitCode} receipt=${JSON.stringify(cinematicSplit.receipt)}`)
+
+  const cinematicDangling = await runArm({ reply: '\x1bP1$r0;48:2::1', replyDelayMs: 48, extraEnv: { MERCURY_FULLSCREEN: '1' }, sendEnter: false })
+  check('cinematic unfinished reply head with no end: hold ends at bound and exits 0 with truecolor: pending', cinematicDangling.requestCount === 1 && cinematicDangling.exitCode === 0 && cinematicDangling.receipt?.screen === 'held' && cinematicDangling.receipt?.truecolor === 'pending', `count=${cinematicDangling.requestCount} exit=${cinematicDangling.exitCode} receipt=${JSON.stringify(cinematicDangling.receipt)}`)
 
   const xtermEcho = await runArm({ reply: ECHO_REPLY, extraEnv: { TERM: 'xterm' } })
   check('TERM=xterm + echo: asks once, paints 24-bit, writes truecolor: true', xtermEcho.requestCount === 1 && xtermEcho.requestBeforePaint && xtermEcho.firstFrame.includes('\x1b[38;2;') && !xtermEcho.firstFrame.includes('\x1b[38;5;') && xtermEcho.receipt?.truecolor === true && xtermEcho.exitCode === 20, `count=${xtermEcho.requestCount} exit=${xtermEcho.exitCode} receipt=${JSON.stringify(xtermEcho.receipt)}`)

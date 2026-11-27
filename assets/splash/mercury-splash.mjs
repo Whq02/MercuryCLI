@@ -27,34 +27,17 @@ function stripTerminalReplies(buf, onDecrqss, onDa1, waiting) {
   let text = ''
   let at = 0
   while (at < buf.length) {
-    if (buf.charCodeAt(at) !== 0x1b) {
-      text += buf[at++]
-      continue
-    }
+    if (buf.charCodeAt(at) !== 0x1b) { text += buf[at++]; continue }
     const rest = buf.slice(at)
-    if (waiting && (rest === '\x1b' || rest === '\x1b[')) {
-      return { text, pending: rest }
-    }
+    if (waiting && (rest === '\x1b' || rest === '\x1b[')) return { text, pending: rest }
     if (rest.startsWith('\x1bP')) {
       const m = /^\x1bP[01](?:\$r([^\x07\x1b]*))?(?:\x07|\x1b\\)/.exec(rest)
-      if (m) {
-        onDecrqss?.(m[1] ?? '')
-        at += m[0].length
-        continue
-      }
-      if (/^\x1bP(?:[01](?:\$(?:r[^\x07\x1b]*\x1b?)?)?)?$/.test(rest)) {
-        return { text, pending: rest }
-      }
+      if (m) { onDecrqss?.(m[1] ?? ''); at += m[0].length; continue }
+      if (/^\x1bP(?:[01](?:\$(?:r[^\x07\x1b]*\x1b?)?)?)?$/.test(rest)) return { text, pending: rest }
     } else if (rest.startsWith('\x1b[?')) {
       const m = /^\x1b\[\?[\d;]*c/.exec(rest)
-      if (m) {
-        onDa1?.()
-        at += m[0].length
-        continue
-      }
-      if (/^\x1b\[\?[\d;]*$/.test(rest)) {
-        return { text, pending: rest }
-      }
+      if (m) { onDa1?.(); at += m[0].length; continue }
+      if (/^\x1b\[\?[\d;]*$/.test(rest)) return { text, pending: rest }
     }
     text += buf[at++]
   }
@@ -1315,8 +1298,21 @@ function restoreAndBrand() {
 
 let exiting = false
 let screenAtExit = null
+let pendingExit = null
+function finishPendingExit() {
+  if (!pendingExit) return
+  const fn = pendingExit; pendingExit = null; fn()
+}
 function collapse(code, drainCapMs = 2000) {
   if (exiting) return
+  if (replyPending !== '' && !cancelled) {
+    if (pendingExit) return
+    const hold = setTimeout(() => { replyPending = ''; finishPendingExit() }, TRUECOLOR_QUERY_MS)
+    hold.unref?.()
+    pendingExit = () => { clearTimeout(hold); collapse(code, drainCapMs) }
+    return
+  }
+  pendingExit = null
   exiting = true
   restoreAndBrand()
   flushBootEnv()
@@ -1431,10 +1427,11 @@ process.stdin.on('data', buf => {
   )
   replyPending = stripped.pending
   if (replyPending !== '') {
-    replyPendingTimer = setTimeout(() => { replyPending = '' }, TRUECOLOR_QUERY_MS)
+    replyPendingTimer = setTimeout(() => { replyPending = ''; finishPendingExit() }, TRUECOLOR_QUERY_MS)
     replyPendingTimer.unref?.()
   }
   if (stripped.text !== '') feedInput(stripped.text)
+  if (replyPending === '' && pendingExit) finishPendingExit()
 })
 if (!ONESHOT && queuedBeforePaint !== '') {
   const early = queuedBeforePaint
