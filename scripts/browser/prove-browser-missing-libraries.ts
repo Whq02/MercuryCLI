@@ -1,4 +1,5 @@
-import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -32,7 +33,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail.slice(0, 900)} — the sentences are made in src/integrations/browser/browserLibraries.ts`}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -52,7 +53,7 @@ const CLEAN_SERVER_MISSING = [
 ]
 const lddOutput = (missing: readonly string[]): string =>
   ['\tlinux-vdso.so.1 (0x0000ffff9f7f2000)', '\tlibdl.so.2 => /lib/aarch64-linux-gnu/libdl.so.2 (0x0000ffff8f440000)', ...missing.map(name => `\t${name} => not found`), '\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x0000ffff8f270000)', ''].join('\n')
-const stanza = (name: string, candidate: string): string => `${name}:\n  Installed: (none)\n  Candidate: ${candidate}\n  Version table:\n`
+const stanza = (name: string, candidate: string, installed = '(none)'): string => `${name}:\n  Installed: ${installed}\n  Candidate: ${candidate}\n  Version table:\n`
 const RENAMED = ['libglib2.0-0', 'libatk1.0-0', 'libatk-bridge2.0-0', 'libatspi2.0-0', 'libcups2', 'libasound2']
 const PLAIN = ['libnspr4', 'libnss3', 'libxcb1', 'libxkbcommon0', 'libgbm1', 'libx11-6', 'libxext6', 'libcairo2', 'libpango-1.0-0', 'libxcomposite1', 'libxdamage1', 'libxfixes3', 'libxrandr2']
 const APT_2604 = [...RENAMED.flatMap(name => [stanza(`${name}t64`, '2.88.0-1ubuntu0.1'), stanza(name, '(none)')]), ...PLAIN.map(name => stanza(name, '1.0-1'))].join('')
@@ -158,6 +159,35 @@ try {
     check(`the answer names every library taken away (${patched.absent.join(', ')})`, real.outcome === 'failed' && patched.absent.every(name => real.result.includes(name)), real.result)
     check('the answer is the tool\'s sentence, with no line of the driver\'s', real.result.startsWith(`open failed: the browser did not start — this machine lacks ${patched.absent.length} shared `) && !/pptr\.dev|TROUBLESHOOTING|Failed to launch/.test(real.result), real.result)
     check('a library no package is known for brings no install line', !real.result.includes('apt-get'), real.result)
+  }
+
+  section('9. a library that is there and cannot be loaded: a package apt reports installed is not named')
+  const oneHeld = await words(LOADER_FAILURE, 'linux', probe(lddOutput(['libgbm.so.1', 'libcairo.so.2']), [stanza('libgbm1', '25.0-1', '25.0-1'), stanza('libcairo2', '1.18.4-1')].join('')))
+  check('both libraries are named and the line names the one package that is not installed', oneHeld?.includes('libgbm.so.1') === true && oneHeld.includes('libcairo.so.2') && installLine(oneHeld).join(' ') === 'libcairo2', oneHeld ?? '(none)')
+  const allHeld = await words(LOADER_FAILURE, 'linux', probe(lddOutput(['libgbm.so.1', 'libasound.so.2']), [stanza('libgbm1', '25.0-1', '25.0-1'), stanza('libasound2t64', '1.2.15-1', '1.2.15-1'), stanza('libasound2', '(none)')].join('')))
+  check('every package installed: the libraries are named and no line is printed', allHeld?.includes('libgbm.so.1') === true && allHeld.includes('libasound.so.2') && !allHeld.includes('apt-get') && !allHeld.includes('\n'), allHeld ?? '(none)')
+
+  section('10. a probe whose own child keeps its pipe open is given up at the bound')
+  if (process.platform === 'win32' || libraries.missingLibraryWords === undefined) {
+    console.log(`  (not run here: ${process.platform === 'win32' ? 'the stand-in program is a POSIX shell script' : 'this tree has no sentence to bound'})`)
+  } else {
+    const programs = join(home, 'programs')
+    mkdirSync(programs)
+    const lingerer = join(programs, 'ldd.pid')
+    writeFileSync(join(programs, 'ldd'), `#!/bin/sh\n/bin/sleep 14 &\necho $! > '${lingerer}'\nwait\n`)
+    chmodSync(join(programs, 'ldd'), 0o755)
+    const reach = process.env.PATH
+    process.env.PATH = programs
+    const began = Date.now()
+    const bounded = await libraries.missingLibraryWords(LOADER_FAILURE, EXECUTABLE, { platform: 'linux' }).finally(() => {
+      process.env.PATH = reach
+    })
+    const took = Date.now() - began
+    const ran = existsSync(lingerer)
+    if (ran && took < 13_000) spawnSync('/bin/kill', [readFileSync(lingerer, 'utf8').trim()])
+    check('the stand-in ldd ran and left a child of its own holding its pipe', ran, programs)
+    check(`the answer came within the 5 s bound and a second (${took} ms)`, took < 6_000, 'the probe was waited for past its bound')
+    check('it reads as when ldd is absent: the one library the loader named and no line', bounded === 'the browser did not start — this machine lacks 1 shared library it loads: libglib-2.0.so.0', bounded ?? '(none)')
   }
 } finally {
   browser.setBrowserLaunchDriverForProof(null)

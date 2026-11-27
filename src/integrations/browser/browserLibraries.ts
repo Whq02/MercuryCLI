@@ -1,3 +1,4 @@
+import { withDeadline } from '../../platform/async/deadline.js'
 import { errorMessage } from '../../platform/errors/errors.js'
 import { execFileNoThrow } from '../../platform/processes/execFileNoThrow.js'
 
@@ -44,17 +45,21 @@ export interface LibraryReads {
 }
 
 async function runProbe(file: string, args: string[]): Promise<string> {
-  return (await execFileNoThrow(file, args, { timeout: PROBE_TIMEOUT_MS, useCwd: false })).stdout
+  const answered = execFileNoThrow(file, args, { timeout: PROBE_TIMEOUT_MS, useCwd: false }).then(run => run.stdout)
+  return withDeadline(answered, PROBE_TIMEOUT_MS, () => '', { unref: true })
 }
 
-async function aptNamesFor(packages: readonly string[], run: NonNullable<LibraryReads['run']>): Promise<string[]> {
+async function aptPackagesFor(packages: readonly string[], run: NonNullable<LibraryReads['run']>): Promise<{ name: string; installed: boolean }[]> {
   if (packages.length === 0) return []
   const answer = await run('apt-cache', ['policy', ...packages.flatMap(name => [`${name}t64`, name])])
-  const offered = new Set<string>()
+  const offered = new Map<string, boolean>()
   for (const stanza of answer.matchAll(APT_STANZA)) {
-    if (stanza[3] !== '(none)') offered.add(stanza[1]!)
+    if (stanza[3] !== '(none)') offered.set(stanza[1]!, stanza[2] !== '(none)')
   }
-  return packages.flatMap(name => (offered.has(`${name}t64`) ? [`${name}t64`] : offered.has(name) ? [name] : []))
+  return packages.flatMap(name => {
+    const pick = offered.has(`${name}t64`) ? `${name}t64` : offered.has(name) ? name : null
+    return pick === null ? [] : [{ name: pick, installed: offered.get(pick) === true }]
+  })
 }
 
 export async function missingLibraryWords(failure: string, executablePath: string, reads: LibraryReads = {}): Promise<string | null> {
@@ -67,8 +72,9 @@ export async function missingLibraryWords(failure: string, executablePath: strin
   const named = missing.slice(0, NAMED_LIBRARIES_CAP).join(', ')
   const more = missing.length > NAMED_LIBRARIES_CAP ? ` and ${missing.length - NAMED_LIBRARIES_CAP} more` : ''
   const packageOf = debianPackages()
-  const packages = await aptNamesFor([...new Set(missing.flatMap(soname => packageOf.get(soname) ?? []))], run)
-  const install = packages.length === 0 ? '' : `\n  the operator runs: sudo apt-get install ${packages.join(' ')}`
+  const offered = await aptPackagesFor([...new Set(missing.flatMap(soname => packageOf.get(soname) ?? []))], run)
+  const lacking = offered.filter(pkg => !pkg.installed).map(pkg => pkg.name)
+  const install = lacking.length === 0 ? '' : `\n  the operator runs: sudo apt-get install ${lacking.join(' ')}`
   return `the browser did not start — this machine lacks ${missing.length} shared ${missing.length === 1 ? 'library' : 'libraries'} it loads: ${named}${more}${install}`
 }
 
