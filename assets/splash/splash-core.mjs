@@ -700,15 +700,18 @@ function clipVis(s, w) {
   return acc + '…' + R
 }
 
+const HINT_GAP = '     '
+const COMPACT_HINT_GAP = '   '
+
 function composeHint(segments, withCard) {
   const red = accentFg()
   const ivory = hexFg(IVORY, T256.cream)
   const faint = hexFg(FAINT, T256.faint)
   let s = red + '>_' + R
   for (const seg of segments) {
-    s += faint + '  ·  ' + R + red + seg.key + R + (seg.tone === 'ivory' ? ivory : faint) + seg.label + R
+    s += HINT_GAP + red + seg.key + R + (seg.tone === 'ivory' ? ivory : faint) + seg.label + R
   }
-  if (withCard) s += faint + '  ·  ' + R + red + '↑↓' + R
+  if (withCard) s += HINT_GAP + red + '↑↓' + R
   return s
 }
 
@@ -1402,7 +1405,7 @@ function composeCompactFace(cols, rows, opts) {
   if (win.below > 0) list.push({ line: cut('↓', win.below), index: null })
   const hint = opts.hintSegments
     .map(seg => red + seg.key + R + (seg.tone === 'ivory' ? ivory : faint) + seg.label + R)
-    .join(faint + ' · ' + R)
+    .join(COMPACT_HINT_GAP)
   const centre = (line, width) => ' '.repeat(Math.max(0, Math.floor((cols - width) / 2))) + line
   const block = []
   const actions = []
@@ -1442,7 +1445,7 @@ function composeCompactFace(cols, rows, opts) {
     const shown = vis(keyMap) + 2 <= cols ? keyMap : clipVis(keyMap, cols)
     lines[rows - 1] = ' '.repeat(Math.max(0, cols - vis(shown) - 2)) + faint + shown + R
   }
-  const signs = red + '>_  ·  ↵' + R
+  const signs = red + '>_' + R + HINT_GAP + red + '↵' + R
   const tiny = red + '(>_) ' + ivory + 'MERCURY' + R + '  ' + red + '↵' + R
   const heroLine = banner || vis(tiny) > cols ? signs : tiny
   const hero = placed.slice(0, top + cardAt)

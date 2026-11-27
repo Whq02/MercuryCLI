@@ -26,8 +26,8 @@ const SHIFT_RIGHT = `${ESC}[1;2C`
 const TAB = '\t'
 const PHRASE = 'm to select model-default'
 const SHIFT_ARROW = keyHintLabel('⇧→')
-const CHAT_HINT = '>_  ·  ↵  ·  ↑↓'
-const FULL_HINT = '>_  ·  ↵  ·  m menu  ·  ↑↓'
+const CHAT_HINT = '>_     ↵     ↑↓'
+const FULL_HINT = '>_     ↵     m menu     ↑↓'
 const DOOR = '▸ n starts a blank session in this project'
 const DOOR_FROM_LIVE_BOX = '▸ tab to the list, then n starts a blank session'
 const CTRL_E = '\x05'
@@ -264,12 +264,12 @@ section('§2 --chat: the hint row without m menu, the bottom row names m, m open
   const face = c.marks.get('face') ?? []
   const picker = c.marks.get('picker') ?? []
   const closed = c.marks.get('closed') ?? []
-  check('the hint row reads >_  ·  ↵  ·  ↑↓, m menu gone', trimmedRow(face, '>_  ·') === CHAT_HINT, trimmedRow(face, '>_  ·'))
+  check('the hint row reads >_     ↵     ↑↓, m menu gone', trimmedRow(face, '>_     ↵') === CHAT_HINT, trimmedRow(face, '>_     ↵'))
   check('the bottom row names m beside the shift arrow', trimmedRow(face, SHIFT_ARROW) === `${SHIFT_ARROW} no chat open · ${PHRASE}`, trimmedRow(face, SHIFT_ARROW))
   check('m opens the picker over the face, centred inside its blank one-cell gutter (top row 3, its left border under its title, its bottom border inside the band)', rowWith(picker, 'Mercury · model') !== '' && pickerFrames(picker), `${pickerWords(picker)} · ${picker.slice(3, 8).join(' | ')}`)
   check('the Boot Menu did not open and no row reads frontier:', picker.length > 0 && !picker.some(l => l.includes('TRUST COMBO')) && !picker.some(l => l.includes('frontier:')))
   check('the Anthropic heading reads the key door with its tail and the live count', anthropicKeyHeading(picker), headingOf(picker, ANTHROPIC_TITLE))
-  check('esc closes the picker back to the face', trimmedRow(closed, '>_  ·') === CHAT_HINT && !closed.some(l => l.includes('Mercury · model')), trimmedRow(closed, '>_  ·'))
+  check('esc closes the picker back to the face', trimmedRow(closed, '>_     ↵') === CHAT_HINT && !closed.some(l => l.includes('Mercury · model')), trimmedRow(closed, '>_     ↵'))
 }
 
 section('§3 the face outside --chat: the same door — m menu gone from the hint row, the bottom row names m, m opens the picker')
@@ -281,7 +281,7 @@ section('§3 the face outside --chat: the same door — m menu gone from the hin
   ], { total: 200, ready: ['esc or click outside closes'] })
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
   const face = c.marks.get('face') ?? []
-  check('the hint row reads >_  ·  ↵  ·  ↑↓, m menu gone', trimmedRow(face, '>_  ·') === CHAT_HINT, trimmedRow(face, '>_  ·'))
+  check('the hint row reads >_     ↵     ↑↓, m menu gone', trimmedRow(face, '>_     ↵') === CHAT_HINT, trimmedRow(face, '>_     ↵'))
   check('the bottom row names the concourse and m', trimmedRow(face, SHIFT_ARROW) === `${SHIFT_ARROW} concourse · ${PHRASE}`, trimmedRow(face, SHIFT_ARROW))
   check('m opens the picker over the face', (c.marks.get('picker') ?? []).some(l => l.includes('Mercury · model')))
 }
@@ -327,7 +327,7 @@ section('§5 the setting off (engine.sessionDefaults false in settings.json): ev
   ], { total: 200, ready: ['TRUST COMBO'] })
   check('the drive delivered every send (exit 0)', b.status === 0, `exit ${b.status}`)
   const face = b.marks.get('face') ?? []
-  check('--chat: the hint row keeps m menu', trimmedRow(face, '>_  ·') === FULL_HINT, trimmedRow(face, '>_  ·'))
+  check('--chat: the hint row keeps m menu', trimmedRow(face, '>_     ↵') === FULL_HINT, trimmedRow(face, '>_     ↵'))
   check('--chat: the bottom row reads ⇧→ no chat open alone', trimmedRow(face, SHIFT_ARROW) === `${SHIFT_ARROW} no chat open`, trimmedRow(face, SHIFT_ARROW))
   check('--chat: m opens the Boot Menu', (b.marks.get('menu') ?? []).some(l => l.includes('TRUST COMBO')))
 }

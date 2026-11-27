@@ -55,7 +55,7 @@ type Mark = { label: string; grid: Cell[][]; atTick: number }
 const textOf = (grid: Cell[][]): string[] => grid.map(row => row.map(cell => cell.c).join(''))
 
 function paneOf(lines: string[]): { left: number; right: number; bottom: number } | null {
-  const header = lines.findIndex(line => /^(?:╭─+╮|(?:crew \d+|work|runs|recent|goal|workbench|next|files|saturn|vitals)[^╭]*)╭─+╮/.test(line))
+  const header = lines.findIndex(line => /^(?:╭─+╮|(?:crew \d+|work|runs|recent|goal|workbench|next|files|schedule|usage)[^╭]*)╭─+╮/.test(line))
   if (header < 0) return null
   const left = lines[header]!.startsWith('╭') ? lines[header]!.indexOf('╭', 1) : lines[header]!.indexOf('╭')
   const right = lines[header]!.indexOf('╮', left + 1)

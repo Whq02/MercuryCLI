@@ -9,7 +9,7 @@ next                    │ │ Mercury · config                               
 files · project         │ │ › Thinking                          off                                                  │ │
   ↵ browse              │ │   the model reasons before it answers; on is the default · off asks the model not to —   │ │
                         │ │ Sonnet 5.5 keeps thinking on at xhigh and max effort, Opus 5.5 at every effort ·         │ │
-vitals                  │ │ engine.reasoning in settings                                                             │ │
+usage                   │ │ engine.reasoning in settings                                                             │ │
   spend —               │ │                                                                                          │ │
   ctx — · —             │ │                                                                                          │ │
   health — run /health  │ │                                                                                          │ │

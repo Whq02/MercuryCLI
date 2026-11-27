@@ -283,18 +283,15 @@ function MoreRow({
   )
 }
 
-function SectionHeader({ label, width }: { label: string; width: number }): React.ReactNode {
+function SectionHeader({ label, count, countSep = ' · ', width }: { label: string; count?: string; countSep?: string; width: number }): React.ReactNode {
   const { info, textMuted } = useMercuryTokens()
-  const sep = label.indexOf(' · ')
-  const name = sep >= 0 ? label.slice(0, sep) : label
-  const tail = sep >= 0 ? label.slice(sep) : ''
   return (
     <Box width={width}>
       <Text wrap="truncate-end">
         <Text color={info} bold>
-          {name}
+          {label}
         </Text>
-        {tail ? <Text color={textMuted}>{tail}</Text> : null}
+        {count ? <Text color={textMuted}>{`${countSep}${count}`}</Text> : null}
       </Text>
     </Box>
   )
@@ -512,6 +509,7 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
           glyph={s.glyph}
           label={s.label}
           count={s.count}
+          countSep={s.countSep}
           width={width}
           headerAction={open ? { id: `helm:lane:${s.key}`, run: open === 'files' ? openFilesMenu : () => requestCommandDispatch(open) } : undefined}
         >
@@ -523,7 +521,7 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
     return (
       <Box key={s.key} flexDirection="column" flexShrink={0}>
         <Box marginTop={first && !s.marginAlways ? 0 : 1}>
-          <SectionHeader label={s.count ? `${s.label} · ${s.count}` : s.label} width={model.rowW} />
+          <SectionHeader label={s.label} count={s.count} countSep={s.countSep} width={model.rowW} />
         </Box>
         {body}
       </Box>

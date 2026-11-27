@@ -10,7 +10,7 @@ import json
 import os
 import pty
 import re
-HINT_RE = re.compile(r'(?:>_(?:\x1b\[[0-9;]*m)*\s*·\s*(?:\x1b\[[0-9;]*m)*↵|MERCURY(?:\x1b\[[0-9;]*m)*\s+(?:\x1b\[[0-9;]*m)*↵)')
+HINT_RE = re.compile(r'(?:>_(?:\x1b\[[0-9;]*m)*\s+(?:\x1b\[[0-9;]*m)*↵|MERCURY(?:\x1b\[[0-9;]*m)*\s+(?:\x1b\[[0-9;]*m)*↵)')
 import struct
 import subprocess
 import tempfile
@@ -156,7 +156,7 @@ raw = run_pty(120, 44)
 lines = vis_lines(raw)
 check('half-block head cells present', any(c in raw for c in '▀▄█'))
 check('the hairline rule present', '─' * 20 in raw)
-check('hint present (>_ · ↵)', HINT_RE.search(raw) is not None)
+check('hint present (>_     ↵)', HINT_RE.search(raw) is not None)
 check('every visible line fits 120 cols', all(len(l) <= 120 for l in lines), f'max={max(len(l) for l in lines)}')
 check('head engaged (tall lockup ≥ 20 lines)', sum(1 for l in lines if l.strip()) >= 20)
 check('cursor hidden + restored', '\x1b[?25l' in raw and '\x1b[?25h' in raw)
