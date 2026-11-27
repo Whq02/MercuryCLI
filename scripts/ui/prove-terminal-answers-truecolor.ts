@@ -93,7 +93,7 @@ section('§2 only an echo of the colour that was set counts')
   const fix = `truecolorEcho in ${COLORIZE} must accept only a report whose background is 48 2 … 1 2 3`
   check('colon form with an empty colour space (Windows Terminal 1.24, as the box read it)', says('0;48:2::1:2:3m') === true, fix)
   check('colon form with colour space 1 (iTerm2 3.7.6, as the Air read it)', says('0;48:2:1:1:2:3m') === true, fix)
-  check('colon form without a colour space', says('48:2:1:2:3m') === true, fix)
+  check('colon form with no colour-space slot (kitty 0.45.0, as the Ubuntu bed read it)', says('0;48:2:1:2:3m') === true, fix)
   check('semicolon form', says('0;48;2;1;2;3m') === true, fix)
   check('beside the launcher\'s park ink', says('0;8;30;48:2::1:2:3m') === true, fix)
   check('a bare reset is no echo (the VS Code terminal\'s answer)', says('0m') === false, fix)
