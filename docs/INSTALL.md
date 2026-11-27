@@ -220,7 +220,9 @@ compact layout.
 
 Mercury uses 24-bit colour when the terminal advertises support through
 `COLORTERM=truecolor` or is recognised as iTerm2, Ghostty, WezTerm, Kitty,
-Windows Terminal or VS Code. Other terminals use 256 colours, including
+Windows Terminal or VS Code. Over SSH or in a container those names do not
+arrive, so Mercury asks the terminal once at the start of a session and uses
+24-bit colour when it answers. Other terminals use 256 colours, including
 Apple's Terminal on macOS 15 and earlier.
 
 The health check's Terminal color row reports the detected depth and the reason.

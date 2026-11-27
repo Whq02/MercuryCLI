@@ -29,6 +29,7 @@ export const DECRPM_STATUS = {
 export type TerminalResponse =
   | { type: 'osc'; code: number; data: string }
   | { type: 'xtversion'; name: string }
+  | { type: 'decrqss'; setting: string }
   | { type: 'da1'; params: number[] }
   | { type: 'da2'; params: number[] }
   | { type: 'kittyKeyboard'; flags: number }
@@ -75,6 +76,7 @@ const PRIVATE_CPR_RE = /^\x1b\[\?(\d+);(\d+)R$/
 const PLAIN_CPR_RE = /^\x1b\[(\d+);(\d+)R$/
 const OSC_RE = /^\x1b\](\d+);([\s\S]*)(?:\x07|\x1b\\)$/
 const XTVERSION_RE = /^\x1bP>\|([\s\S]*)(?:\x07|\x1b\\)$/
+const DECRQSS_RE = /^\x1bP[01](?:\$r([\s\S]*))?(?:\x07|\x1b\\)$/
 const SGR_MOUSE_RE = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])$/
 const MODIFY_OTHER_KEYS_RE = /^\x1b\[27;(\d+);(\d+)~/
 const META_CHAR_RE = /^\x1b([a-zA-Z0-9\]\\_^])$/
@@ -127,6 +129,9 @@ export function interpretResponse(s: string): TerminalResponse | null {
 
   m = XTVERSION_RE.exec(s)
   if (m) return { type: 'xtversion', name: m[1]! }
+
+  m = DECRQSS_RE.exec(s)
+  if (m) return { type: 'decrqss', setting: m[1] ?? '' }
 
   return null
 }

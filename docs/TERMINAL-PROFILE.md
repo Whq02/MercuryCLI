@@ -43,7 +43,7 @@ report card, and the trace view.
 
 | id | What it checks |
 |---|---|
-| `truecolor` | 24-bit color: `COLORTERM=truecolor|24bit`, or a known truecolor terminal (Windows Terminal, VS Code, iTerm2, WezTerm, Ghostty, Kitty). Mercury paints in 24-bit color where this row is met and in 256 colors everywhere else (including Apple's Terminal on macOS 15 and older) with no flag needed; `MERCURY_TRUECOLOR=1` forces the full depth on a terminal that has it and does not say so, `MERCURY_TRUECOLOR=0` clamps it to 256 colors. The health check's Terminal color row names the depth and why |
+| `truecolor` | 24-bit color: `COLORTERM=truecolor|24bit`, a known truecolor terminal (Windows Terminal, VS Code, iTerm2, WezTerm, Ghostty, Kitty), or a terminal that answers the query Mercury sends once at the start of a session (over SSH or in a container the terminal's name does not arrive, so Mercury asks the terminal itself). Mercury paints in 24-bit color where this row is met and in 256 colors everywhere else (including Apple's Terminal on macOS 15 and older) with no flag needed; `MERCURY_TRUECOLOR=1` forces the full depth on a terminal that has it and does not say so, `MERCURY_TRUECOLOR=0` clamps it to 256 colors. The health check's Terminal color row names the depth and why |
 | `synchronized-output` | atomic frames (mode 2026) for tear-free rendering under load |
 | `extended-keys` | extended key reporting for distinguishable key chords |
 | `hyperlinks` | OSC 8 hyperlinks for clickable file and evidence references |

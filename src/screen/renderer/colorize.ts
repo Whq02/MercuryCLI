@@ -5,6 +5,8 @@ import instances from './instances.js'
 import type { Color, TextStyles } from './styles.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
 import { hostEnv } from '../../platform/environment/hostEnv.js'
+import { ESC } from './termio/ansi.js'
+import { csi } from './termio/csi.js'
 
 export type ColorType = 'foreground' | 'background'
 
@@ -71,8 +73,9 @@ function clampChalkLevelForMercury(): boolean {
 export const CHALK_CLAMPED_FOR_MERCURY: boolean = clampChalkLevelForMercury()
 
 function boostChalkLevelForMercury(): boolean {
-  if (CHALK_CLAMPED_FOR_MERCURY || chalk.level !== 2) return false
+  if (CHALK_CLAMPED_FOR_MERCURY || chalk.level < 1 || chalk.level > 2) return false
   if (!isEnvTruthy(readTruecolorFlag())) return false
+  if (chalk.level === 1 && hostEnv().TERM === 'linux') return false
   chalk.level = 3
   return true
 }
@@ -87,6 +90,29 @@ function clampChalkLevelForTmux(): boolean {
 export const CHALK_CLAMPED_FOR_TMUX: boolean = clampChalkLevelForTmux()
 
 export const DETECTED_CHALK_LEVEL: number = chalk.level
+
+export const TRUECOLOR_QUERY = `${ESC}7${csi('48;2;1;2;3m')}${ESC}P$qm${ESC}\\${ESC}8`
+
+export function truecolorEcho(setting: string): boolean {
+  return /(?:^|;)48[:;]2[:;](?:\d*[:;])?1[:;]2[:;]3(?:;|m|$)/.test(setting)
+}
+
+export function truecolorAskable(env: Record<string, string | undefined> = hostEnv()): boolean {
+  if (chalk.level >= 3 || shouldHonorNoColor(env) || env.FORCE_COLOR !== undefined) return false
+  if (env.TMUX || env.TERM_PROGRAM === 'Apple_Terminal' || readTruecolorFlag() !== undefined) return false
+  const term = env.TERM
+  return term !== undefined && term !== 'dumb' && term !== 'linux'
+}
+
+export function takeTruecolorAnswer(setting: string): boolean {
+  if (!truecolorAskable() || !truecolorEcho(setting)) return false
+  chalk.level = 3
+  return true
+}
+
+export function truecolorAnswered(): boolean {
+  return chalk.level > DETECTED_CHALK_LEVEL
+}
 
 let monochromeTheme = false
 
@@ -119,6 +145,7 @@ export function colorDepthWhy(): string {
   if (CHALK_CLAMPED_FOR_TMUX) return 'tmux carries 256 colors unless it is configured for 24-bit'
   if (CHALK_CLAMPED_FOR_MERCURY) return 'MERCURY_TRUECOLOR=0 clamps the depth to 256 colors'
   if (CHALK_BOOSTED_FOR_MERCURY) return 'MERCURY_TRUECOLOR=1 forces the full depth'
+  if (truecolorAnswered()) return 'the terminal answered at start that it keeps 24-bit color'
   if (CHALK_BOOSTED_FOR_FINGERPRINT) {
     return `${TRUECOLOR_FINGERPRINT} names a terminal with 24-bit color that does not advertise it`
   }
