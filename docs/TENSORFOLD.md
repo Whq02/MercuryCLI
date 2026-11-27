@@ -26,17 +26,17 @@ or a rented GPU pod).
 
 In `/model`, `TENSORFOLD` and `TENSORFOLD HOST` follow the picker's ordering
 rule: the current model's group comes first, then groups by most recent use,
-with `TENSORFOLD HOST` directly beneath `TENSORFOLD`. On a fresh install where
-no model has been chosen yet on a machine that can run TensorFold, `TENSORFOLD`
-and `TENSORFOLD HOST` appear first in `/model`, and the first-run sign-in list
-puts `TensorFold` first (`TensorFold — run <model> on this Mac, no account (/tensorfold)`
+with `TENSORFOLD HOST` directly beneath `TENSORFOLD`. Groups with no recorded
+use keep the list's own order, in which `LOCAL MODELS` stands above
+`TENSORFOLD` and `TENSORFOLD HOST`. On a machine that can run TensorFold, the
+first-run sign-in list carries `TensorFold` as its last provider row
+(`TensorFold — run <model> on this Mac, no account (/tensorfold)`
 or `TensorFold — install and run <model> on this Mac, no account (/tensorfold)`).
 In the panel that row opens, the first `↵` on a model row serves nothing and
 asks once (`first run: ↵ again downloads <size> and loads <model> (<size>)
 into memory · esc leaves this machine as it is`), so one keypress that lands
 before the list is read starts nothing; the second `↵` serves, and the ask is
 gone once that panel closes or another sign-in is picked.
-Once you pick another provider, `/model` returns to recency order.
 
 When a cloud model is current, both groups open folded in `/model`:
 
@@ -55,7 +55,7 @@ Running `/tensorfold` in chat (or `mercury /tensorfold` at launch, or
 `/tensorfold <owner/repo>` to inspect a repository id) opens the TensorFold
 control panel with `TENSORFOLD` unfolded in full, `TENSORFOLD HOST` beneath it,
 and a live status line in the footer above the key legend. In `/localsetup`,
-step 1 on macOS and Linux also includes a `TensorFold` row
+step 1 on macOS and Linux also includes a `TensorFold` row, the last of the step
 (`serve an MLX model on this Mac · /tensorfold` on macOS,
 `serve an MLX model on this machine's NVIDIA GPU · /tensorfold` on Linux) that
 opens `/tensorfold`.
@@ -375,14 +375,13 @@ On Windows with the adapter:
   discovered on every Windows machine, so `TENSORFOLD` always carries the
   adapter heading and `TENSORFOLD HOST` opens folded beneath it as usual. On a
   Windows x64 machine where `Qwen3.5 2B` fits at the `64k` floor (8 GB of RAM or
-  more), `/model` opens with `TENSORFOLD` first on a fresh install and first-run
-  sign-in lists
+  more), first-run sign-in lists
   `TensorFold — run <model> on this machine with Mercury's engine, no account (/tensorfold)`
-  (or `install and run`). On Windows ARM64, or on a machine with under 8 GB of
-  RAM where the 2B does not fit at `64k`, first-run sign-in falls back to the
-  host row (`TensorFold — on a host: a server on your network or a rented GPU pod (/tensorfold)`,
-  placed after the OpenAI and Anthropic rows), `/model` does not open with
-  `TENSORFOLD` first, and on Windows ARM64 the in-place `llama.cpp` install
+  (or `install and run`) as its last provider row. On Windows ARM64, or on a
+  machine with under 8 GB of RAM where the 2B does not fit at `64k`, first-run
+  sign-in falls back to the host row
+  (`TensorFold — on a host: a server on your network or a rented GPU pod (/tensorfold)`),
+  in the same place, and on Windows ARM64 the in-place `llama.cpp` install
   refuses (`x64` only). You can also use `/localsetup`
   ([LOCAL-SETUP.md](LOCAL-SETUP.md)) to pull any GGUF into the Bank or connect
   Ollama or LM Studio.

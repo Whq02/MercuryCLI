@@ -122,17 +122,12 @@ export function groupLiveSize<T extends PickerRow>(group: PickerGroup<T>): numbe
 
 export function orderPickerGroups<T extends PickerRow>(
   groups: readonly PickerGroup<T>[],
-  opts: { top?: string; recentAt?: (group: string) => number | undefined; pinned?: readonly string[] },
+  opts: { top?: string; recentAt?: (group: string) => number | undefined },
 ): PickerGroup<T>[] {
   const at = (group: string): number => opts.recentAt?.(group) ?? 0
-  const pin = (group: string): number => {
-    const index = opts.pinned?.indexOf(group) ?? -1
-    return index < 0 ? Number.MAX_SAFE_INTEGER : index
-  }
   return groups
     .map((group, index) => ({ group, index }))
     .sort((a, b) => {
-      if (pin(a.group.group) !== pin(b.group.group)) return pin(a.group.group) - pin(b.group.group)
       if (a.group.group === opts.top) return -1
       if (b.group.group === opts.top) return 1
       const diff = at(b.group.group) - at(a.group.group)
@@ -143,7 +138,7 @@ export function orderPickerGroups<T extends PickerRow>(
 
 export function orderPickerRows<T extends PickerRow>(
   rows: readonly T[],
-  opts: { top?: string; recentAt?: (group: string) => number | undefined; pinned?: readonly string[] },
+  opts: { top?: string; recentAt?: (group: string) => number | undefined },
 ): T[] {
   return orderPickerGroups(groupPickerRows(rows), opts).flatMap(group => (group.door === undefined ? group.rows : [...group.rows, group.door]))
 }

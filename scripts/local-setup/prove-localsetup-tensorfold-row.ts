@@ -42,6 +42,10 @@ for (const platform of ['darwin', 'linux', 'win32'] as const) {
   const want = platform === 'win32' ? ['Hugging Face', 'Bank', 'Ollama / running server'] : ['Hugging Face', 'Bank', 'Ollama / running server', 'TensorFold']
   check(`${platform}: ${want.length} rows (${want.join(' · ')})`, tags.join('|') === want.join('|'), `${tags.join('|')} — change the step 1 rows in runLocalSetupRoad or tensorFoldSourceRow in src/models/local-setup/ggufRoad.ts`)
 }
+for (const platform of ['darwin', 'linux'] as const) {
+  const tags = (await firstStep(platform, 'stop')).plan?.rows?.map(row => row.tag) ?? []
+  check(`${platform}: Mercury's own roads (Hugging Face, the Bank, Ollama or a running server) stand above the TensorFold row, which is the step's last`, tags.indexOf('TensorFold') === tags.length - 1 && tags.length === 4 && ['Hugging Face', 'Bank', 'Ollama / running server'].every(tag => tags.indexOf(tag) >= 0 && tags.indexOf(tag) < tags.indexOf('TensorFold')), `${tags.join('|')} — change: tensorFoldSourceRow is spread last into the step 1 rows of runLocalSetupRoad in src/models/local-setup/ggufRoad.ts`)
+}
 {
   const mac = (await firstStep('darwin', 'stop')).plan?.rows?.find(row => row.tag === 'TensorFold')?.words
   const linux = (await firstStep('linux', 'stop')).plan?.rows?.find(row => row.tag === 'TensorFold')?.words
