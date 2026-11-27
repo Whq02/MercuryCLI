@@ -145,11 +145,10 @@ for (const arm of basics) {
     const wrong: string[] = []
     let coloured = 0
     let turned = 0
-    const chosen = l.findIndex(row => row.some(cell => cell.c === '❯'))
-    const core = new Set(mark === 'boot' ? [...artRows(l).critter, ...artRows(l).wordmark, chosen] : [])
+    const core = new Set(mark === 'boot' ? [...artRows(l).critter, ...artRows(l).wordmark] : [])
     if (mark === 'boot') {
-      const label = (l[chosen] ?? []).filter(cell => /[A-Za-z]/.test(cell.c))
-      check(`boot: the head, the wordmark and the selected row are the splash core's own 16 tier (${core.size} rows), the selected label bright white`, core.size > 10 && label.length > 3 && label.every(cell => cell.fg === 'brightwhite'), `the selected row reads ${[...new Set(label.map(cell => cell.fg))].join(',')}; splashCoreFor in src/screen/widgets/useSplashCoreAccent.ts must hand the Boot screens the splash core's 16 tier when colorDepth() is 16`)
+      const grounded = l.flat().filter(cell => cell.bg === 'black').length
+      check(`boot: the card keeps its painted ground at 16 (${grounded} cells black) and the rows that hold nothing but the art are the splash core's 16 tier (${core.size} rows)`, grounded >= 200 && core.size > 10, 'splashCoreFor in src/screen/widgets/useSplashCoreAccent.ts must take from the 16 tier only the rows that hold nothing but the head or the wordmark')
     }
     f.forEach((row, y) => row.forEach((cell, x) => {
       if (core.has(y)) return
@@ -170,7 +169,7 @@ for (const arm of basics) {
         if (got !== INK_NAMES[code]) wrong.push(`${y}:${x} ${plane} ${want}→${got}, nearest ${INK_NAMES[code]}`)
       }
     }))
-    check(`${mark}: every coloured plane is its 24-bit ink through rgbToAnsi16, a ground through the eight (${coloured} planes; ${turned} half blocks turned over and ${core.size} rows of the splash core's own tier are not read)`, coloured > 50 && turned <= 8 && wrong.length === 0, `${wrong.length} planes differ: ${wrong.slice(0, 5).join(' · ')}; ${DEPTH}`)
+    check(`${mark}: every coloured plane is its 24-bit ink through rgbToAnsi16, a ground through the eight (${coloured} planes; ${turned} half blocks turned over and ${core.size} rows of the head and the wordmark are not read)`, coloured > 50 && turned <= 8 && wrong.length === 0, `${wrong.length} planes differ: ${wrong.slice(0, 5).join(' · ')}; ${DEPTH}`)
   }
 }
 
