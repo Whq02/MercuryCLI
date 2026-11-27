@@ -41,6 +41,7 @@ if (entryTakesProofHome) {
   installProofScratch({ ownHome: configHomeIsReal() })
   process.env.MERCURY_LOCAL_PROBE_TARGETS ??= 'none'
   process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
+  process.env.BROWSER ||= '/usr/bin/true'
   delete process.env.NO_COLOR
   delete process.env.FORCE_COLOR
 }
