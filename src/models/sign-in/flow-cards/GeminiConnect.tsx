@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import { Box, Text, useInput } from '../../../screen/themedRenderer.js'
 import TextInput from '../../../screen/composer/text-input/TextInput.js'
 import { Select } from '../../../screen/select/index.js'
-import { setClipboard } from '../../../screen/renderer/termio/osc.js'
+import { SignInCopyLine, useSignInCopy } from './SignInCopyLine.js'
 import { errorMessageWithCause } from '../../../platform/errors/errors.js'
 import { openBrowser } from '../../../platform/host-os/browser.js'
 import { useTerminalSize } from '../../../screen/fullscreen-layout/useTerminalSize.js'
@@ -51,7 +51,6 @@ import {
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { usePopupCompact } from '../../../screen/overlays/popupFormContext.js'
 import { geminiClientSteps } from '../gemini-connect/clientSteps.js'
-import { startTimeout } from '../../../platform/async/timers.js'
 
 function GuideLines({ lines }: { lines: GeminiGuideLine[] }): React.ReactNode {
   const tokens = useMercuryTokens()
@@ -147,7 +146,7 @@ export function GeminiConnect({
   const [phase, setPhase] = useState<'starting' | 'waiting' | 'exchanging'>('starting')
   const [listenerNote, setListenerNote] = useState<string | undefined>(undefined)
   const [authorizeUrl, setAuthorizeUrl] = useState<string | undefined>(undefined)
-  const [copied, setCopied] = useState(false)
+  const copying = useSignInCopy()
   const handlesRef = useRef<GeminiConnectHandles | undefined>(undefined)
   const settledRef = useRef(false)
   const openRunRef = useRef(0)
@@ -264,11 +263,7 @@ export function GeminiConnect({
     }
     if (input === 'c' && !key.ctrl && !key.meta && pasteRef.current === '' && phase !== 'exchanging' && authorizeUrl) {
       event.stopImmediatePropagation()
-      void setClipboard(authorizeUrl).then(sequence => {
-        if (sequence) process.stdout.write(sequence)
-        setCopied(true)
-        startTimeout(() => setCopied(false), 2000)
-      })
+      copying.copy(authorizeUrl)
     }
   })
 
@@ -364,7 +359,7 @@ export function GeminiConnect({
         {authorizeUrl && phase !== 'exchanging' ? (
           <>
             {popupCompact ? null : <Text color={tokens.textMuted}>If nothing opened, visit:</Text>}
-            <Text color={tokens.info} wrap={popupCompact ? 'truncate-end' : 'wrap'}>
+            <Text color={tokens.info} wrap={popupCompact && copying.copyNote === null ? 'truncate-end' : 'wrap'}>
               {authorizeUrl}
             </Text>
             <Box>
@@ -385,7 +380,7 @@ export function GeminiConnect({
             </Box>
           </>
         ) : null}
-        {copied ? <Text color={tokens.success}>Copied to clipboard</Text> : null}
+        <SignInCopyLine said={copying} />
         <Text dimColor>{geminiGuideHint(6)}</Text>
       </Box>
     )
@@ -400,7 +395,7 @@ export function GeminiConnect({
     )
   }
 
-  return geminiClientSteps({ GuideLines, step, tokens, compact, popupCompact, field, setField, clientId, setClientId, submitClientId, clientCursor, setClientCursor, stepFiveBackRef, backToChoice, enterStep, clientSecret, setClientSecret, submitClientSecret, note, setNote, phase, listenerNote, authorizeUrl, paste, setPaste, submitPaste, cursorOffset, setCursorOffset, handlesRef, settle, copied })
+  return geminiClientSteps({ GuideLines, step, tokens, compact, popupCompact, field, setField, clientId, setClientId, submitClientId, clientCursor, setClientCursor, stepFiveBackRef, backToChoice, enterStep, clientSecret, setClientSecret, submitClientSecret, note, setNote, phase, listenerNote, authorizeUrl, paste, setPaste, submitPaste, cursorOffset, setCursorOffset, handlesRef, settle, copying })
 }
 
 function GeminiKeyLeg({

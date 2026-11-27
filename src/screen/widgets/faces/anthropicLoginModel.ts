@@ -19,7 +19,7 @@ import { saveOAuthTokensIfNeeded, validateForceLoginOrg } from '../../../models/
 import type { AccountInfo } from '../../../platform/settings/config.js'
 import { getInitialSettings } from '../../../platform/settings/settings.js'
 import { recordSignIn as recordSignInLedger, type SignInKind } from '../../../models/sign-in/account-ledger/signInLedger.js'
-import { setClipboard } from '../../renderer/termio/osc.js'
+import { readSignInCopy, signInCopySaid, type SignInCopy } from '../../../models/sign-in/signInCopy.js'
 import { logError } from '../../../platform/logs/errorLog.js'
 import { getAuthScope } from '../../../platform/environment/envUtils.js'
 import { afterMicrotask, startTimeout, stopTimeout, type TimerHandle } from '../../../platform/async/timers.js'
@@ -51,6 +51,7 @@ export interface AnthropicLoginSnapshot {
   noCodeYet: boolean
   browserOpened: boolean | null
   copied: boolean
+  copyNote?: string | null
   shadowWarning: string | null
   accountLabel: string | null
 }
@@ -130,7 +131,7 @@ export interface AnthropicLoginDeps {
   recordSignIn: (kind: SignInKind) => void
   settings: () => { credentials?: { signInRoute?: 'claudeai' | 'console' | null; organisation?: string | null } }
   notify?: (notice: typeof LOGIN_SUCCESS_NOTICE) => void
-  clipboard: (text: string) => Promise<string | null>
+  clipboard: (text: string) => Promise<SignInCopy>
   writeStdout: (sequence: string) => void
   log: (error: unknown) => void
   setTimer: (fn: () => void, ms: number) => TimerHandle
@@ -150,7 +151,7 @@ function liveDeps(): AnthropicLoginDeps {
     shadowWarning: () => loginShadowWarning(),
     recordSignIn: kind => recordSignInLedger('anthropic', kind),
     settings: () => getInitialSettings(),
-    clipboard: text => setClipboard(text),
+    clipboard: text => readSignInCopy(text),
     writeStdout: sequence => process.stdout.write(sequence),
     log: error => logError(error),
     setTimer: (fn, ms) => startTimeout(fn, ms),
@@ -195,6 +196,7 @@ export function createAnthropicLoginMachine(
   let noCodeYet = false
   let browserOpened: boolean | null = null
   let copied = false
+  let copyNote: string | null = null
   let shadowWarning: string | null = null
   let accountLabel: string | null = null
   let service: AnthropicOAuthServiceLike | null = null
@@ -204,7 +206,7 @@ export function createAnthropicLoginMachine(
   let rolesRequest: AbortController | null = null
   const timers = new Set<TimerHandle>()
 
-  const snapshot = (): AnthropicLoginSnapshot => ({ flow, pastePromptUp, noCodeYet, browserOpened, copied, shadowWarning, accountLabel })
+  const snapshot = (): AnthropicLoginSnapshot => ({ flow, pastePromptUp, noCodeYet, browserOpened, copied, copyNote, shadowWarning, accountLabel })
   const publish = (): void => {
     if (!disposed) onChange(snapshot())
   }
@@ -220,6 +222,7 @@ export function createAnthropicLoginMachine(
     if (disposed) return
     flow = next
     if (next.name === 'idle') started = false
+    if (next.name !== 'waiting') copyNote = null
     publish()
     if (next.name === 'ready' && !started) {
       started = true
@@ -376,10 +379,11 @@ export function createAnthropicLoginMachine(
     },
     copyUrl(): void {
       if (flow.name !== 'waiting') return
-      void deps.clipboard(flow.url).then(sequence => {
-        if (sequence) deps.writeStdout(sequence)
-        copied = true
+      void deps.clipboard(flow.url).then(copy => {
+        if (copy.sequence) deps.writeStdout(copy.sequence)
+        ;({ copied, copyNote } = signInCopySaid(copy.answer, 'URL'))
         publish()
+        if (!copied) return
         arm(() => {
           copied = false
           publish()
@@ -400,6 +404,7 @@ export function createAnthropicLoginMachine(
       noCodeYet = false
       browserOpened = null
       copied = false
+      copyNote = null
       shadowWarning = null
       accountLabel = null
       publish()

@@ -116,7 +116,7 @@ async function signIn(tokens: Tokens, over: Partial<NonNullable<Parameters<typeo
       }),
       shadowWarning: () => null,
       settings: () => ({}),
-      clipboard: async () => null,
+      clipboard: async () => ({ sequence: '', answer: 'copied' as const }),
       writeStdout: () => {},
       log: () => {},
       setTimer: (fn: () => void) => setTimeout(fn, 0),

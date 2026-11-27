@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import { useLoad } from '../../../screen/effects/effects.js'
 import { Select } from '../../../screen/select/index.js'
 import { openBrowser } from '../../../platform/host-os/browser.js'
-import { setClipboard } from '../../../screen/renderer/termio/osc.js'
+import { SignInCopyLine, useSignInCopy } from './SignInCopyLine.js'
 import { Box, Text, useInput } from '../../../screen/themedRenderer.js'
 import TextInput from '../../../screen/composer/text-input/TextInput.js'
 import { useMercuryTokens } from '../../../screen/widgets/useMercuryTokens.js'
@@ -34,6 +34,7 @@ export function NousConnect({ onResult, onBack }: {
   const [cursor, setCursor] = useState(0)
   const [note, setNote] = useState<string | null>(null)
   const [storing, setStoring] = useState(false)
+  const copying = useSignInCopy()
   useInput((input, key, keyEvent) => {
     if (step === 'choice') return
     if (key.escape && !storing) {
@@ -42,7 +43,7 @@ export function NousConnect({ onResult, onBack }: {
     }
     if (input === 'c' && !key.ctrl && !key.meta && step === 'device' && event.phase === 'waiting') {
       keyEvent.stopImmediatePropagation()
-      void setClipboard(event.start.verificationUriComplete ?? event.start.verificationUri).then(sequence => { if (sequence) process.stdout.write(sequence) })
+      copying.copy(event.start.verificationUriComplete ?? event.start.verificationUri)
     }
   })
   const submit = (raw: string): void => {
@@ -75,6 +76,7 @@ export function NousConnect({ onResult, onBack }: {
       {event.note ? <Text>{event.note}</Text> : null}
     </> : <Text>{event.phase === 'starting' ? 'Requesting a sign-in code from the Portal…' : 'Approved — storing the sign-in and reading your account…'}</Text>}
     {note ? <Text>{note}</Text> : null}
+    <SignInCopyLine said={copying} address={compact && event.phase === 'waiting' ? event.start.verificationUriComplete ?? event.start.verificationUri : undefined} quiet />
     <Text dimColor>c copies the URL · esc cancels</Text>
   </Box>
   return (

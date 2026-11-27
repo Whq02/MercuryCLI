@@ -2,6 +2,8 @@ import * as React from 'react'
 import { Box, Text } from '../../../screen/themedRenderer.js'
 import TextInput from '../../../screen/composer/text-input/TextInput.js'
 import type { useMercuryTokens } from '../../../screen/widgets/useMercuryTokens.js'
+import { SignInCopyLine } from '../flow-cards/SignInCopyLine.js'
+import type { SignInCopySaid } from '../signInCopy.js'
 import {
   GEMINI_CLIENT_STORED_UNVERIFIED_NOTE,
   type GeminiConnectHandles,
@@ -47,10 +49,10 @@ type ClientStepsArgs = {
   setCursorOffset: Setter<number>
   handlesRef: { current: GeminiConnectHandles | undefined }
   settle: (receipt: string, ok?: boolean) => void
-  copied: boolean
+  copying: SignInCopySaid
 }
 
-export function geminiClientSteps({ GuideLines, step, tokens, compact, popupCompact, field, setField, clientId, setClientId, submitClientId, clientCursor, setClientCursor, stepFiveBackRef, backToChoice, enterStep, clientSecret, setClientSecret, submitClientSecret, note, setNote, phase, listenerNote, authorizeUrl, paste, setPaste, submitPaste, cursorOffset, setCursorOffset, handlesRef, settle, copied }: ClientStepsArgs): React.ReactNode {
+export function geminiClientSteps({ GuideLines, step, tokens, compact, popupCompact, field, setField, clientId, setClientId, submitClientId, clientCursor, setClientCursor, stepFiveBackRef, backToChoice, enterStep, clientSecret, setClientSecret, submitClientSecret, note, setNote, phase, listenerNote, authorizeUrl, paste, setPaste, submitPaste, cursorOffset, setCursorOffset, handlesRef, settle, copying }: ClientStepsArgs): React.ReactNode {
   if (step === 5) {
     return (
       <Box flexDirection="column" paddingX={1}>
@@ -117,7 +119,7 @@ export function geminiClientSteps({ GuideLines, step, tokens, compact, popupComp
       {authorizeUrl && phase !== 'exchanging' ? (
         <>
           {popupCompact ? null : <Text color={tokens.textMuted}>If nothing opened, visit:</Text>}
-          <Text color={tokens.info} wrap={popupCompact ? 'truncate-end' : 'wrap'}>
+          <Text color={tokens.info} wrap={popupCompact && copying.copyNote === null ? 'truncate-end' : 'wrap'}>
             {authorizeUrl}
           </Text>
           <Box>
@@ -138,7 +140,7 @@ export function geminiClientSteps({ GuideLines, step, tokens, compact, popupComp
           </Box>
         </>
       ) : null}
-      {copied ? <Text color={tokens.success}>Copied to clipboard</Text> : null}
+      <SignInCopyLine said={copying} />
       <Text dimColor>{geminiGuideHint(6)}</Text>
     </Box>
   )

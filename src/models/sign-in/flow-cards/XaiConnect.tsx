@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import { useLoad } from '../../../screen/effects/effects.js'
 import { Select } from '../../../screen/select/index.js'
 import { openBrowser } from '../../../platform/host-os/browser.js'
-import { setClipboard } from '../../../screen/renderer/termio/osc.js'
+import { SignInCopyLine, useSignInCopy } from './SignInCopyLine.js'
 import { runXaiDeviceLogin, XAI_CONNECT_ROWS, XAI_CONNECT_STOPPED_RECEIPT, type XaiDeviceLoginEvent } from '../../roads/xai/xaiLogin.js'
 import { Box, Text, useInput } from '../../../screen/themedRenderer.js'
 import TextInput from '../../../screen/composer/text-input/TextInput.js'
@@ -41,6 +41,7 @@ export function XaiConnect({
   const [note, setNote] = useState<string | null>(null)
   const [apiReceipt, setApiReceipt] = useState('xAI API key kept.')
   const [storing, setStoring] = useState(false)
+  const copying = useSignInCopy()
   const management = step === 'management'
   const keep = (): void => onResult({ ok: true, receipt: `${apiReceipt} Management key unchanged; add one later through /logins xai.` })
   useInput((input, key, keyEvent) => {
@@ -52,7 +53,7 @@ export function XaiConnect({
     }
     if (input === 'c' && !key.ctrl && !key.meta && step === 'device' && event.phase === 'waiting') {
       keyEvent.stopImmediatePropagation()
-      void setClipboard(event.start.verificationUriComplete ?? event.start.verificationUri).then(sequence => { if (sequence) process.stdout.write(sequence) })
+      copying.copy(event.start.verificationUriComplete ?? event.start.verificationUri)
     }
   })
   const submit = (raw: string): void => {
@@ -93,6 +94,7 @@ export function XaiConnect({
       {event.note ? <Text>{event.note}</Text> : null}
     </> : <Text>{event.phase === 'starting' ? 'Requesting a device code…' : 'Authorized — storing sign-in and reading models…'}</Text>}
     {note ? <Text>{note}</Text> : null}
+    <SignInCopyLine said={copying} address={compact && event.phase === 'waiting' ? event.start.verificationUriComplete ?? event.start.verificationUri : undefined} quiet />
     <Text dimColor>c copies the URL · esc cancels</Text>
   </Box>
   return (

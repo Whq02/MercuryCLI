@@ -19,11 +19,13 @@ export function loginsMenuModelOf(
   const roster = loginsRosterRows(facts);
   const selected = opts.selIdx >= 0 ? roster[opts.selIdx] : undefined;
   const pick = opts.flow?.kind === 'pick' ? opts.flow : null;
+  const signIn = opts.flow !== undefined ? loginsFlowNoticeOf(opts.flow) : null;
   const flowPane =
     opts.flow !== undefined
       ? {
           detailOverride: loginsFlowPaneLines(opts.flow),
-          ...((opts.flow.kind === 'key' && (opts.flow.leg === 'xai' || opts.flow.leg === 'xai-management' || opts.flow.leg === 'mistral' || opts.flow.leg === 'mistral-admin')) || (opts.flow.kind === 'receipt' && opts.flow.external === true) ? { detailOverrideConfirms: true } : {}),
+          ...((opts.flow.kind === 'key' && (opts.flow.leg === 'xai' || opts.flow.leg === 'xai-management' || opts.flow.leg === 'mistral' || opts.flow.leg === 'mistral-admin')) || (opts.flow.kind === 'receipt' && opts.flow.external === true) || signIn !== null ? { detailOverrideConfirms: true } : {}),
+          ...(signIn !== null ? { detailOverrideWhole: signIn } : {}),
           legend: loginsFlowLegendOf(opts.flow),
           statusRight: loginsFlowStatusOf(opts.flow),
         }
@@ -32,7 +34,7 @@ export function loginsMenuModelOf(
     title: 'logins',
     fitLabels: true,
     summaryRows: loginsSummaryRows(facts, opts.notice ?? null),
-    noticeLine: (opts.flow !== undefined ? loginsFlowNoticeOf(opts.flow) : null) ?? opts.notice ?? null,
+    noticeLine: opts.notice ?? null,
     environment: opts.environment,
     entries:
       pick !== null
@@ -83,6 +85,7 @@ export function loginsFlowPaneOf(flow: OpenFlowState, model: ReturnType<typeof u
             noCodeYet: model.noCodeYet,
             browserOpened: model.browserOpened,
             copied: model.copied,
+            copyNote: model.copyNote ?? null,
             shadowWarning: model.shadowWarning,
             accountLabel: model.accountLabel,
           },

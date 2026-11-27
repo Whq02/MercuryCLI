@@ -22,8 +22,9 @@ import { useSplashCoreAccent } from '../widgets/useSplashCoreAccent.js';
 import { useBootComposition } from './useBootComposition.js';
 import { loginsSwitchableFamily, loginsFlowReady, type LoginsScreenFactsV1, loginsRosterRows, loginsRosterRowValue, loginsRosterRowLabel, collectLoginsScreenFacts, type LoginsRosterRowV1 } from './logins/facts.js';
 import { loginsPickOptions, type FaceKeyLegId, type LoginsPickId } from './logins/pickLines.js';
-import type { OpenFlowState, FaceDeviceFamily, HandlesLegId } from './logins/flowLines.js';
+import { loginsFlowCopyUnconfirmed, type OpenFlowState, type FaceDeviceFamily, type HandlesLegId } from './logins/flowLines.js';
 import { loginsMenuModelOf, loginsFlowPaneOf } from './logins/menuModel.js';
+import { useMouseHandedBack } from '../../models/sign-in/flow-cards/SignInCopyLine.js';
 import { postLoginSettleOf, startDeviceRunOf, openGuideStepOf, startHandlesRunOf, startOpenaiDeviceRunOf, startDevinCliRunOf } from './logins/runs.js';
 import { openRosterFlowOf, resolvePickOf } from './logins/picks.js';
 import { submitKeyOf, keyEscapeOf } from './logins/keyLegs.js';
@@ -268,6 +269,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);
   const mainModel = useEngineModel();
 
+  useMouseHandedBack(flow !== null && loginsFlowCopyUnconfirmed(loginsFlowPaneOf(flow, model, draft, pickList, onSignedIn)));
   const menuM = useMemo(() => {
     return loginsMenuModelOf(facts, {
       selIdx: list.selectedIndex,
@@ -282,7 +284,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
           }
         : {}),
     });
-  }, [facts, devinCliMissing, list.selectedIndex, list.note, mainModel, flow, pickList.selectedIndex, model.flow, model.pastePromptUp, model.copied, model.shadowWarning, model.accountLabel, draft, wordGlow?.peakCell, wordGlow?.gainLevel]);
+  }, [facts, devinCliMissing, list.selectedIndex, list.note, mainModel, flow, pickList.selectedIndex, model.flow, model.pastePromptUp, model.copied, model.copyNote, model.shadowWarning, model.accountLabel, draft, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useBootComposition(core, columns, rows, menuM);
 
