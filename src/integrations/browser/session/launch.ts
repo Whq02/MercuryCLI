@@ -371,6 +371,9 @@ async function placeTab(
       const browser = await launch({
         executablePath: resolution!.executablePath,
         headless,
+        handleSIGINT: process.listenerCount('SIGINT') === 0,
+        handleSIGTERM: process.listenerCount('SIGTERM') === 0,
+        handleSIGHUP: process.listenerCount('SIGHUP') === 0,
         protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
         env: subprocessEnv(),
         defaultViewport: { width: 1280, height: 800 },
