@@ -25,7 +25,7 @@ import { NOUS_CONNECT_OPTION_VALUE } from '../../models/roads/nous/nousCatalogue
 import { GEMINI_CONNECT_OPTION_VALUE } from '../../models/roads/gemini/geminiCatalogue.js'
 import { HUGGINGFACE_CONNECT_OPTION_VALUE } from '../../models/roads/huggingface/huggingfaceCatalogue.js'
 import type { TensorFoldAct } from '../../screen/tensorfold/tensorfoldRows.js'
-import { pairTensorFoldHost, tensorFoldCapableMachine } from '../../screen/tensorfold/tensorfoldFacts.js'
+import { pairTensorFoldHost } from '../../screen/tensorfold/tensorfoldFacts.js'
 import { useModelTensorFoldFacts } from '../../screen/tensorfold/tensorfoldModelFacts.js'
 import { requestCommandDispatch } from '../../screen/cockpit/helmFocus.js'
 import { readModelUseLedger } from '../../models/facts/modelUseLedger.js'
@@ -342,7 +342,6 @@ function MercuryModelWrapper({
       {...(tensorfold !== undefined ? { tensorfold } : {})}
       onTensorFold={onTensorFold}
       recentAt={recentAt}
-      tensorFoldFirst={Object.keys(uses).length === 0 && tensorFoldCapableMachine()}
       onSelect={handleSelect}
       onClose={() =>
         onDone(
