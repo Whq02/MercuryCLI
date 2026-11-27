@@ -56,7 +56,9 @@ installed in `~/.local/bin` on macOS and Linux, or
 
 `mercury install` adds the command's directory to PATH once: a guarded line
 in your shell startup file, or an entry in the Windows user PATH. A new
-terminal picks up the change automatically.
+terminal picks up the change automatically. Cron, a systemd unit and a
+command passed to `ssh` start no login shell and may never reach that line:
+there, call `~/.local/bin/mercury` by its full path.
 
 ### Updates
 

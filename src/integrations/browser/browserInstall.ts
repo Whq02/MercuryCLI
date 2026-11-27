@@ -8,6 +8,7 @@ import {
   install,
   resolveBuildId,
 } from '@puppeteer/browsers'
+import { installFailure } from './browserLibraries.js'
 import { browserCacheDir, browserPlanDir, dirSizeBytes, listManagedBrowsers, type ManagedBrowser } from './browserResolver.js'
 import { withDeadline } from '../../platform/async/deadline.js'
 import { passedOver } from '../../platform/errors/passedOver.js'
@@ -155,7 +156,7 @@ export async function installManagedBrowser(
     })
   } catch (error) {
     removeIfEmptyDir(buildDir)
-    throw error
+    throw await installFailure(error)
   }
   const installed: ManagedBrowser | undefined = listManagedBrowsers().find(m => m.buildId === buildId)
   return {
