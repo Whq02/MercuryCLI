@@ -21,17 +21,13 @@ import type {
 import { compareSessionListings, sortSessionListings } from './transcriptEntries.js'
 import type { Message } from '../../engine/message-shapes/message.js'
 import { isToolUseResultMessage } from '../../engine/message-shapes/normalize.js'
-import {
-  decodeTranscriptBuffer,
-  TRANSCRIPT_FORMAT_REFUSAL,
-} from '../fabric/transcriptDecode.js'
 import { discoveryPoolWidth, mapWithConcurrency } from '../../platform/async/concurrency.js'
 import { updateSessionName } from './concurrentSessions.js'
 import { foldPathCase } from '../../platform/host-os/paths.js'
 import { logForDebugging } from '../../platform/logs/debugLog.js'
 import { getWorktreePaths } from '../../platform/git/worktree/worktreePaths.js'
 import { sanitizePath } from '../../platform/files/path.js'
-import { LITE_READ_BUF_SIZE, readSessionLite } from './sessionStoragePortable.js'
+import { LITE_READ_BUF_SIZE } from './sessionStoragePortable.js'
 import type { ContentReplacementRecord } from '../../engine/tool-dispatch/toolResultStorage.js'
 import {
   buildAttributionSnapshotChain,
@@ -104,39 +100,6 @@ function createFailureCollector(): FailureCollector {
       return count > 0 ? { count, firstPath, firstError } : undefined
     },
   }
-}
-
-export async function loadTranscriptFromFile(
-  filePath: string,
-): Promise<SessionListing> {
-  if (filePath.endsWith('.jsonl')) {
-    const fold = await loadTranscriptFile(filePath)
-    const { messages, summaries, leafUuids } = fold
-
-    if (messages.size === 0) {
-      const head = (await readSessionLite(filePath))?.head ?? ''
-      if (decodeTranscriptBuffer(head).refusal) {
-        throw new Error(TRANSCRIPT_FORMAT_REFUSAL)
-      }
-      throw new Error('No messages found in JSONL file')
-    }
-
-    const elected = electConversationEnd(messages)
-    const leafMessage = elected === undefined ? findLatestMessage(messages.values(), msg => leafUuids.has(msg.uuid)) : (elected.rows.at(-1) ?? elected.primary)
-    if (!leafMessage) {
-      throw new Error('No valid conversation chain found in JSONL file')
-    }
-
-    const transcript = elected?.rows ?? buildConversationChain(messages, leafMessage)
-    const sessionId = leafMessage.sessionId as UUID
-    return {
-      ...chainListing(transcript, transcript.at(-1)!, filePath),
-      summary: summaries.get(leafMessage.uuid),
-      ...resumeFactsOf(fold, sessionId, transcript),
-    }
-  }
-
-  throw new Error(TRANSCRIPT_FORMAT_REFUSAL)
 }
 
 function paintsConversationRow(message: TranscriptMessage): boolean {

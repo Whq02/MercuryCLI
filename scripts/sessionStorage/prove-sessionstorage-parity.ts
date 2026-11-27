@@ -155,7 +155,7 @@ const SKIPPED: Record<string, string> = Object.fromEntries(
     'recordFileHistorySnapshot', 'recordContentReplacement',
     'resetSessionFilePointer', 'adoptResumedSessionFile',
     'flushSessionStorage', 'hydrateRemoteSession',
-    'hydrateFromCCRv2InternalEvents', 'loadTranscriptFromFile', 'listSessions', 'saveCustomTitle',
+    'hydrateFromCCRv2InternalEvents', 'listSessions', 'saveCustomTitle',
     'saveTag', 'linkSessionToPR',
     'getCurrentSessionTitle', 'restoreSessionMetadata',
     'clearSessionMetadata', 'reAppendSessionMetadata', 'saveAgentName',

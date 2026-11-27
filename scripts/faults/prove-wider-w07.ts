@@ -545,9 +545,6 @@ else {
         badStore,
         badFile,
       }
-      const liteErrors = []
-      const liteNull = await portable.readSessionLite(badFile, (p, e) => liteErrors.push({ path: p, msg: String(e?.message ?? e) }))
-      out.liteCheck = { liteNull, liteErrors }
     } finally {
       fs.chmodSync(badStore, 0o700)
       fs.chmodSync(badFile, 0o600)
@@ -555,7 +552,6 @@ else {
   `)
   const rootPage = rRoads.out.rootPage as { count: number; readFailures: { count: number; firstPath: string; firstError: string } | null; projectsDir: string }
   const partialPage = rRoads.out.partialPage as { ids: string[]; readFailures: { count: number; firstPath: string; firstError: string } | null; badStore: string; badFile: string }
-  const liteCheck = rRoads.out.liteCheck as { liteNull: unknown; liteErrors: Array<{ path: string; msg: string }> }
   check('w07-1 absent projects root (ENOENT) reports no readFailures', rRoads.out.absentFailures === null, JSON.stringify(rRoads.out.absentFailures))
   check(
     'w07-1 unreadable projects root reports readFailures with count=1 and path',
@@ -569,11 +565,6 @@ else {
       partialPage.readFailures !== null &&
       partialPage.readFailures.count === 2,
     JSON.stringify(partialPage),
-  )
-  check(
-    'w07-1 readSessionLite keeps returning null and reports non-ENOENT error to callback',
-    liteCheck.liteNull === null && liteCheck.liteErrors.length === 1 && liteCheck.liteErrors[0]!.path === partialPage.badFile,
-    JSON.stringify(liteCheck),
   )
 
   const rUi = runSubprocess(`
