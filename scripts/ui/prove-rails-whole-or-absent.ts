@@ -85,8 +85,27 @@ for (const [columns, rows] of SIZES) {
   const scene = await mountOffscreen(wrap(h(Harness, { columns, cardRows: 3 })), columns, rows)
   try {
     await settledFrame(scene, frame => frame.includes(CARD) && frame.includes(BAND.repeat(8)))
+    const restLines = scene.lines()
     const rest = scene.screen()
-    if (frameDir) writeFileSync(join(frameDir, `${columns}x${rows}-rest.txt`), scene.lines().join('\n') + '\n')
+    if (frameDir) writeFileSync(join(frameDir, `${columns}x${rows}-rest.txt`), restLines.join('\n') + '\n')
+    const restTop = restLines[0] ?? ''
+    if (columns < 160) {
+      const leftRows = restLines.map(line => line.slice(0, restTop.indexOf('╭')))
+      const spendAt = leftRows.findIndex(row => row.includes('spend'))
+      check(
+        `${columns}x${rows}: merged left rail heads the spend section usage and never prints vitals`,
+        !leftRows.some(row => row.trim() === 'vitals') && spendAt > 0 && leftRows[spendAt - 1]?.trim() === 'usage',
+        leftRows.filter(row => row.trim() !== '').join(' | '),
+      )
+    } else {
+      const paneLeft = restTop.startsWith('╭') ? restTop.indexOf('╭', 1) : restTop.indexOf('╭')
+      const rightRows = restLines.map(line => line.slice(restTop.indexOf('╮', paneLeft + 1) + 1))
+      check(
+        `${columns}x${rows}: two-rail control keeps the usage box on the right rail`,
+        rightRows.some(row => row.includes('usage')) && rightRows.some(row => row.includes('spend')),
+        rightRows.slice(0, 8).join(' | '),
+      )
+    }
     for (const paneRows of PANE_ROWS) {
       scene.resize(wrap(h(Harness, { columns, cardRows: rows - paneRows })), columns, rows)
       await settledFrame(scene, frame => frame.includes(CARD) && (frame.split('\n')[paneRows] ?? '').startsWith('╭' + '─'.repeat(columns - 2) + '╮'))
@@ -110,7 +129,7 @@ for (const [columns, rows] of SIZES) {
       if (columns < 160) {
         const left = lines.slice(0, paneRows).map(line => line.slice(0, (lines[0] ?? '').indexOf('╭'))).join('\n')
         if (paneRows === 6) check(`${columns}x${rows}: the unboxed FILES section keeps its last visible row`, left.includes('files ·') && left.includes('↵ browse'), left)
-        if (paneRows === 9) check(`${columns}x${rows}: the unboxed VITALS head and spend remain visible`, left.includes('vitals') && left.includes('spend'), left)
+        if (paneRows === 9) check(`${columns}x${rows}: the unboxed usage head and spend remain visible`, left.includes('usage') && left.includes('spend') && !left.includes('vitals'), left)
         if (paneRows === 12) check(`${columns}x${rows}: the unboxed pointer keeps the last available row`, left.includes('more: /help'), left)
       }
     }

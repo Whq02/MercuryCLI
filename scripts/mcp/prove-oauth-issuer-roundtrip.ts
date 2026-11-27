@@ -2,6 +2,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const arg = process.argv.indexOf('--source-root')
 const root = arg < 0 ? resolve(dirname(fileURLToPath(import.meta.url)), '../..') : resolve(process.argv[arg + 1]!)
 const { enableConfigs } = await import(`${root}/src/platform/settings/config.ts`)

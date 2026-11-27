@@ -20,6 +20,7 @@ import type {
 } from './transcriptEntries.js'
 import { compareSessionListings, sortSessionListings } from './transcriptEntries.js'
 import type { Message } from '../../engine/message-shapes/message.js'
+import { isToolUseResultMessage } from '../../engine/message-shapes/normalize.js'
 import {
   decodeTranscriptBuffer,
   TRANSCRIPT_FORMAT_REFUSAL,
@@ -40,6 +41,7 @@ import {
   findLatestMessage,
   removeExtraFields,
 } from './chain.js'
+import { electConversationEnd } from './conversationEnd.js'
 import { loadSessionFile, loadTranscriptFile, type TranscriptFoldState } from './loading.js'
 import {
   getCrewmateTranscriptPath,
@@ -336,13 +338,10 @@ export async function fillSessionListing(log: SessionListing): Promise<SessionLi
   if (!isLiteListing(log) || !log.fullPath) return log
   try {
     const loaded = await loadTranscriptFile(log.fullPath)
-    if (loaded.messages.size === 0) return log
-    const leaf = findLatestMessage(
-      loaded.messages.values(),
-      msg => loaded.leafUuids.has(msg.uuid) && (msg.type === 'user' || msg.type === 'assistant'),
-    )
-    if (!leaf) return log
-    const chain = buildConversationChain(loaded.messages, leaf)
+    const end = electConversationEnd(loaded.messages)
+    if (end === undefined) return log
+    const leaf = end.primary
+    const chain = [...end.rows]
     const first = chain[0]
     const sessionId = (leaf.sessionId || log.sessionId) as UUID
     const summary = loaded.summaries.get(leaf.uuid)
@@ -417,13 +416,27 @@ export type ResumeFacts = Pick<
   | 'prRepository'
   | 'turnEnd'
   | 'turnOpen'
+  | 'displacedNotices'
 >
+
+function hostNoticesBehindLaterResults(messages: Map<UUID, TranscriptMessage>, chain: TranscriptMessage[]): UUID[] {
+  const graph = transcriptRows(messages)
+  const displaced: UUID[] = []
+  let newestResult = -1
+  for (const row of chain) {
+    const position = graph.positionOf(row.uuid)
+    if (row.type === 'user' && row.isVirtual === true && position < newestResult) displaced.push(row.uuid)
+    if (isToolUseResultMessage(row)) newestResult = Math.max(newestResult, position)
+  }
+  return displaced
+}
 
 export function resumeFactsOf(
   fold: Omit<TranscriptFoldState, 'progressBridge'>,
   sessionId: UUID,
   chain: TranscriptMessage[],
 ): ResumeFacts {
+  const displacedNotices = hostNoticesBehindLaterResults(fold.messages, chain)
   return {
     fileHistorySnapshots: buildFileHistorySnapshotChain(fold.fileHistorySnapshots, chain),
     attributionSnapshots: buildAttributionSnapshotChain(fold.attributionSnapshots, chain),
@@ -448,6 +461,7 @@ export function resumeFactsOf(
     prRepository: fold.prRepositories.get(sessionId),
     turnEnd: fold.turnEnds.get(sessionId),
     ...(fold.turnsOpen.has(sessionId) ? { turnOpen: true } : {}),
+    ...(displacedNotices.length > 0 ? { displacedNotices } : {}),
   }
 }
 
@@ -731,20 +745,25 @@ async function getStatOnlyListingsForWorktrees(
   return numbered(newestPerKey(perDir.flat(), log => log.sessionId))
 }
 
+function lastRowOfSeatWithNoTurn(messages: Map<UUID, TranscriptMessage>, agentId: AgentId): TranscriptMessage | undefined {
+  const own = [...messages.values()].filter(msg => msg.agentId === agentId && msg.isSidechain)
+  const parents = new Set(own.map(msg => msg.parentUuid))
+  return findLatestMessage(own, msg => !parents.has(msg.uuid))
+}
+
 export async function getCrewmateTranscript(agentId: AgentId): Promise<{
   messages: Message[]
   contentReplacements: ContentReplacementRecord[]
 } | null> {
   const agentFile = getCrewmateTranscriptPath(agentId)
   const { messages, agentContentReplacements } = await loadTranscriptFile(agentFile, { throwOnError: true })
-  const own = [...messages.values()].filter(msg => msg.agentId === agentId && msg.isSidechain)
-  const parents = new Set(own.map(msg => msg.parentUuid))
-  const leaf = findLatestMessage(own, msg => !parents.has(msg.uuid))
-  if (!leaf) return null
-  const chain = buildConversationChain(messages, leaf).filter(msg => msg.agentId === agentId)
+  const end = electConversationEnd(messages, { kind: 'crewmate', agentId })
+  const leaf = end === undefined ? lastRowOfSeatWithNoTurn(messages, agentId) : end.rows.at(-1)
+  if (leaf === undefined) return null
+  const chain = end === undefined ? buildConversationChain(messages, leaf).filter(msg => msg.agentId === agentId) : [...end.rows]
   const first = chain.find(msg => msg.type === 'assistant' || (msg.type === 'user' && msg.isMeta !== true))
-  const prefix = first === undefined ? undefined : findLatestMessage(own, msg =>
-    msg.sessionId === leaf.sessionId && msg.type === 'attachment' && msg.attachment.type === 'bound_prefix' &&
+  const prefix = first === undefined ? undefined : findLatestMessage(messages.values(), msg =>
+    msg.agentId === agentId && msg.isSidechain && msg.sessionId === leaf.sessionId && msg.type === 'attachment' && msg.attachment.type === 'bound_prefix' &&
     msg.attachment.boundKey.split('|').at(-2) === first.uuid,
   )
   if (prefix !== undefined && !chain.some(msg => msg.uuid === prefix.uuid)) chain.push(prefix)

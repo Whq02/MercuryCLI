@@ -9,7 +9,7 @@ next                    │ ╭────────────────�
 files · project         │ │ ❯ Sonnet 5.5          claude-sonnet-5-5                      1M ctx                      │ │
   ↵ browse              │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
                         │ │   Sonnet 4.6          claude-sonnet-4-6                      1M ctx                      │ │
-vitals                  │ │                                                                                          │ │
+usage                   │ │                                                                                          │ │
   spend —               │ │ context —                                                                                │ │
   ctx — · —             │ │ effort  low medium [high] xhigh max · ctrl+e changes it                                  │ │
   health — run /health  │ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │

@@ -11,20 +11,33 @@ const snipped = (row: TranscriptMessage): UUID[] | undefined => (row as { snipMe
 
 export const sideNote = (row: { type: string; subtype?: string } | null | undefined): boolean => row?.type === 'system' && row.subtype !== 'local_command' && row.subtype?.endsWith('_boundary') !== true
 
-export function keptLine<Id>(listed: readonly Id[], parentOf: (id: Id) => Id | null | undefined, notesUnder: (id: Id) => Iterable<Id>): Id[] {
+export function keptLine<Id>(listed: readonly Id[], parentOf: (id: Id) => Id | null | undefined, notesUnder: (id: Id) => Iterable<Id>, isNote: (id: Id) => boolean): Id[] {
   const named = new Set(listed)
+  const moves = new Set(listed.slice(1, -1).filter(isNote))
   const under = new Map<Id, Id[]>()
   const seen = new Set<Id>()
+  const spine: Id[] = []
   let loose: Id[] = []
   let whole = false
   for (let id: Id | null | undefined = listed.at(-1); !whole && id !== undefined && id !== null && !seen.has(id); id = parentOf(id)) {
     seen.add(id)
     if (!named.has(id)) { loose.unshift(id); continue }
     under.set(id, loose)
+    spine.unshift(id)
     loose = []
     whole = id === listed[0]
   }
-  if (!whole) under.clear()
+  if (!whole) { under.clear(); spine.length = 0 }
+  const holder = new Map<Id, Id>()
+  const hung = new Map<Id, Id[]>()
+  const hang = (note: Id, row: Id): void => {
+    if (!moves.has(note) || holder.has(note)) return
+    for (let at: Id | undefined = row; at !== undefined; at = holder.get(at)) if (at === note) return
+    holder.set(note, row)
+    const notes = hung.get(row)
+    if (notes) notes.push(note)
+    else hung.set(row, [note])
+  }
   const reached = new Set<Id>()
   for (const row of listed.slice(0, -1)) {
     const group = under.get(row) ?? []
@@ -32,7 +45,8 @@ export function keptLine<Id>(listed: readonly Id[], parentOf: (id: Id) => Id | n
     const open = [row]
     for (const from of open) {
       for (const note of notesUnder(from)) {
-        if (named.has(note) || reached.has(note)) continue
+        if (named.has(note)) { hang(note, row); continue }
+        if (reached.has(note)) continue
         reached.add(note)
         open.push(note)
         if (!line.has(note)) group.push(note)
@@ -40,7 +54,17 @@ export function keptLine<Id>(listed: readonly Id[], parentOf: (id: Id) => Id | n
     }
     under.set(row, group)
   }
-  return listed.flatMap(row => [row, ...(under.get(row) ?? [])])
+  spine.forEach((row, at) => { if (at > 0) hang(row, spine[at - 1]!) })
+  const line: Id[] = []
+  for (const top of listed) {
+    if (holder.has(top)) continue
+    const open = [top]
+    for (let row = open.pop(); row !== undefined; row = open.pop()) {
+      line.push(row, ...(under.get(row) ?? []))
+      open.push(...(hung.get(row) ?? []).toReversed())
+    }
+  }
+  return line
 }
 
 class TranscriptRows {
@@ -178,7 +202,7 @@ class TranscriptRows {
       const folds = this.boundariesOldestFirst()
       const fold = folds.findIndex(row => row.compactMetadata?.preservedSegment === segment)
       const floor = fold < 1 ? -1 : this.positionOf(folds[fold - 1]!.uuid), end = fold < 0 ? Infinity : this.positionOf(folds[fold]!.uuid)
-      const line = keptLine(ids, id => this.get(id)?.parentUuid, id => [...this.children.get(id) ?? []].filter(note => this.positionOf(note) > floor && this.positionOf(note) < end && sideNote(this.get(note))))
+      const line = keptLine(ids, id => this.get(id)?.parentUuid, id => [...this.children.get(id) ?? []].filter(note => this.positionOf(note) > floor && this.positionOf(note) < end && sideNote(this.get(note))), id => sideNote(this.get(id)))
       const kept = new Set(line)
       return kept.size === line.length && !kept.has(segment.anchorUuid) ? kept : null
     }

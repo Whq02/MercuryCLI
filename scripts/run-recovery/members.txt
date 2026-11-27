@@ -13,6 +13,7 @@ prove-queued-message-interrupt.ts
 prove-restart-completed-turn.ts
 prove-restart-interrupted-turn.ts
 prove-resume-by-id-reads-the-records-end.ts
+prove-resume-ends-on-the-live-end.ts
 prove-resume-facts-owner.ts
 prove-retracted-reply-leaves-session.ts
 prove-run-that-ended-its-turn-is-not-cut.ts

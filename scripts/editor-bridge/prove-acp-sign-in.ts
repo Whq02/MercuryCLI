@@ -56,6 +56,7 @@ guard.unref?.()
 const configHome = mkdtempSync(join(tmpdir(), 'acp-sign-in-config-'))
 const projDir = mkdtempSync(join(tmpdir(), 'acp-sign-in-proj-'))
 process.env.MERCURY_CONFIG_DIR = configHome
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 for (const name of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR']) delete process.env[name]
 const children: ChildProcess[] = []

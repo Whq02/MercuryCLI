@@ -76,7 +76,7 @@ const SHOWN_AS_BEFORE: Readonly<Record<string, string[]>> = {
 }
 
 try {
-  for (const name of [...LEAF_SCENES.filter(scene => scene !== 'large'), LEAF_UNFINISHED_SCENE] as const) {
+  for (const name of [...LEAF_SCENES, LEAF_UNFINISHED_SCENE] as const) {
     section(`${name}: the rows the daemon's transcript connector reads for the screen`)
     const scene = await writeLeafScene(name)
     const chain = await readTranscriptChainSince(scene.file, null)

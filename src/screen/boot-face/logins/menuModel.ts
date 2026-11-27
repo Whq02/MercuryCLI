@@ -2,7 +2,7 @@ import type { BootMenuData } from '../../../../assets/splash/splash-core.mjs';
 import { loginsSwitchableFamily, loginsRosterEntryOf, loginsLegendOf, loginsSummaryRows, loginsStatusLine, type LoginsScreenFactsV1, loginsRosterRows, loginsRosterDetailLines } from './facts.js';
 import { loginsPickOptions } from './pickLines.js';
 import type { useAnthropicLoginModel } from '../../widgets/faces/anthropicLoginModel.js';
-import { type LoginsFlowPaneV1, loginsFlowPaneLines, type OpenFlowState, loginsFlowStatusOf, loginsFlowLegendOf } from './flowLines.js';
+import { type LoginsFlowPaneV1, loginsFlowPaneLines, type OpenFlowState, loginsFlowStatusOf, loginsFlowLegendOf, loginsFlowNoticeOf } from './flowLines.js';
 
 export function loginsMenuModelOf(
   facts: LoginsScreenFactsV1,
@@ -32,7 +32,7 @@ export function loginsMenuModelOf(
     title: 'logins',
     fitLabels: true,
     summaryRows: loginsSummaryRows(facts, opts.notice ?? null),
-    noticeLine: opts.notice ?? null,
+    noticeLine: (opts.flow !== undefined ? loginsFlowNoticeOf(opts.flow) : null) ?? opts.notice ?? null,
     environment: opts.environment,
     entries:
       pick !== null

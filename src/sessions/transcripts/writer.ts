@@ -160,7 +160,7 @@ export function getTranscriptMessagesVisited(): number {
 function recordedBoundary(row: TranscriptMessage, recorded: ReadonlySet<string>): TranscriptMessage {
   if (!isFoldBoundaryMessage(row)) return row
   const segment = row.compactMetadata?.preservedSegment
-  if (!segment?.keptUuids) return row
+  if (!Array.isArray(segment?.keptUuids)) return row
   const keptUuids = segment.keptUuids.filter(id => recorded.has(id))
   const headUuid = keptUuids[0], tailUuid = keptUuids.at(-1)
   const preservedSegment = headUuid && tailUuid ? { ...segment, headUuid, tailUuid, keptUuids } : undefined

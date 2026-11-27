@@ -7,7 +7,7 @@ next                │ │ Mercury · usage                                    
 files · orchard     │ │ Anthropic usage                                                          │ │
   ↵ browse          │ │ API key · …-key                                                          │ │
                     │ │ credits: not reported by the provider                                    │ │
-vitals              │ │                                                                          │ │
+usage               │ │                                                                          │ │
   spend —           │ │ Subscription                                                             │ │
   ctx — · —         │ │ none — /logins anthropic connects a subscription account · n/a           │ │
   health — run…     │ │                                                                          │ │

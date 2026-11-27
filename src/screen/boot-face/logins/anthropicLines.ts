@@ -29,7 +29,7 @@ export function wrapClauses(text: string, width: number): string[] {
   return lines.flatMap(l => (l.length > width ? wrapPlain(l, width) : [l]));
 }
 
-export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: number, backToPicker = false): string[] {
+export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: number, backToPicker = false, width = DETAIL_W): string[] {
   const flow = snap.flow;
   switch (flow.name) {
     case 'idle':
@@ -38,11 +38,11 @@ export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: n
       return ['Opening your browser…', '', 'esc cancels — nothing is stored'];
     case 'waiting': {
       const headline = waitingHeadline(snap);
-      const lines: string[] = headline.warns ? wrapPlain(headline.words, DETAIL_W) : ['A browser window has been opened —', 'finish signing in there.'];
+      const lines: string[] = headline.warns ? wrapPlain(headline.words, width) : ['A browser window has been opened —', 'finish signing in there.'];
       if (flow.forcedMethod) lines.push(`(login method pre-selected: ${flow.forcedMethod})`);
       if (snap.pastePromptUp) {
         lines.push('Browser did not open? Use this URL:');
-        lines.push(...wrapHard(flow.url, DETAIL_W));
+        lines.push(...wrapHard(flow.url, width));
         lines.push(snap.copied ? 'copied to clipboard' : 'c copies the URL');
         lines.push('Paste code here if prompted:');
         lines.push(maskedDraftLine(draftLen));
@@ -59,17 +59,17 @@ export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: n
       const lines: string[] = [`Signed in${snap.accountLabel !== null ? ` as ${snap.accountLabel}` : ''}.`];
       if (flow.warning !== undefined) {
         lines.push('');
-        lines.push(...wrapPlain(flow.warning, DETAIL_W));
+        lines.push(...wrapPlain(flow.warning, width));
       }
       if (snap.shadowWarning !== null) {
         lines.push('');
-        lines.push(...wrapPlain(snap.shadowWarning, DETAIL_W));
+        lines.push(...wrapPlain(snap.shadowWarning, width));
       }
       lines.push('', signedInWayOut(backToPicker));
       return lines;
     }
     case 'error': {
-      const lines: string[] = [...wrapPlain(flow.message, DETAIL_W), ''];
+      const lines: string[] = [...wrapPlain(flow.message, width), ''];
       lines.push(flow.retry !== undefined ? '↵ retries · esc closes' : 'esc closes');
       return lines;
     }

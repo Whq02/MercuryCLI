@@ -9,7 +9,7 @@ next                    │  │ Mercury · config                              
 files · project         │  │   Session journal                   off                                                                    │  │
   ↵ browse              │  │   Journal on the entry page         off                                                                    │  │
                         │  │                                                                                                            │  │
-vitals                  │  │                                                                                                            │  │
+usage                   │  │                                                                                                            │  │
   spend $0.00           │  │                                                                                                            │  │
   ctx 0% · 1000k        │  │                                                                                                            │  │
   health — run /health  │  │                                                                                                            │  │

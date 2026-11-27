@@ -15,8 +15,8 @@ const REFUSAL = /needs \d+ rows|this window is|needs at least|terminal too small
 const CONCOURSE_HINT = '⇧→ concourse'
 const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
 const CONCOURSE_HINT_HOST = keyHintLabel(CONCOURSE_HINT)
-const HINT_ROW = '↵ start · ↑↓ choose'
-const LIVE_HINT_ROW = '>_ · ↵ · ↑↓'
+const HINT_ROW = '↵ start   ↑↓ choose'
+const LIVE_HINT_ROW = '>_   ↵   ↑↓'
 const CHAT_READY = 'Type a prompt'
 const HINT_SEGMENTS = [
   { key: '↵ ', label: 'start', tone: 'ivory' as const },
@@ -25,8 +25,8 @@ const HINT_SEGMENTS = [
 const strip = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '')
 const bottomRight = (frame: string[], cols: number, rows: number, hint: string = CONCOURSE_HINT_HOST): boolean =>
   frame[rows - 1] === ' '.repeat(cols - hint.length - 2) + hint
-const inFrameHint = (line: string): boolean => /^\s*│ ↵ start · ↑↓ choose\s*│$/.test(line)
-const liveInFrameHint = (line: string): boolean => /^\s*│ >_ · ↵ · ↑↓\s*│$/.test(line)
+const inFrameHint = (line: string): boolean => /^\s*│ ↵ start   ↑↓ choose\s*│$/.test(line)
+const liveInFrameHint = (line: string): boolean => /^\s*│ >_   ↵   ↑↓\s*│$/.test(line)
 const topBorder = (cols: number, at: number): string => ' '.repeat(at) + '╭' + '─'.repeat(cols - 2) + '╮'
 
 const APPROVED_80x21 = [
@@ -47,7 +47,7 @@ const APPROVED_80x21 = [
   "        │   Logins · 8 of 10 signed in                                 │",
   "        │   Session Concourse · the live board · 1 live                │",
   "        │   Sessions · Projects · 5 repos · pick a session             │",
-  "        │ ↵ start · ↑↓ choose                                          │",
+  "        │ ↵ start   ↑↓ choose                                          │",
   "        ╰──────────────────────────────────────────────────────────────╯",
   "",
   "                                                                  ⇧→ concourse",
@@ -64,7 +64,7 @@ const APPROVED_80x14 = [
   "        │   Logins · 8 of 10 signed in                                 │",
   "        │   Session Concourse · the live board · 1 live                │",
   "        │   Sessions · Projects · 5 repos · pick a session             │",
-  "        │ ↵ start · ↑↓ choose                                          │",
+  "        │ ↵ start   ↑↓ choose                                          │",
   "        ╰──────────────────────────────────────────────────────────────╯",
   "                                                                  ⇧→ concourse",
 ]
@@ -116,7 +116,7 @@ console.log('§0 the composer against the approved grids')
   const hero = full.hero.map(l => strip(l).trimEnd())
   const card = full.lines.map(l => strip(l).trimEnd())
   check('80×21: the splash hero keeps the banner, the rule and the blank on the rows the card view paints them', hero.length === 7 && hero.slice(0, 6).join('\n') === card.slice(0, 6).join('\n') && hero[1]!.includes('██▄██'), composerFix + hero.join('\n'))
-  check('80×21: the ready line stands where the frame top composes in beneath the banner', hero[6] === ' '.repeat(36) + '>_  ·  ↵' && card[6] === topBorder(64, 8), `${composerFix}${hero[6]} / ${card[6]}`)
+  check('80×21: the ready line stands where the frame top composes in beneath the banner', hero[6] === ' '.repeat(36) + '>_     ↵' && card[6] === topBorder(64, 8), `${composerFix}${hero[6]} / ${card[6]}`)
   const asset = readFileSync(join(ROOT, 'assets/splash/mercury-splash.mjs'), 'utf8')
   const { LAYOUT_BREAKPOINTS } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
   check('the launcher splash mirrors the cockpit gate the size latch reads', asset.includes(`const COMPACT_HOST_COLS = ${LAYOUT_BREAKPOINTS.cockpitMin}\n`) && asset.includes(`const COMPACT_HOST_ROWS = ${LAYOUT_BREAKPOINTS.cockpitMinRows}\n`) && asset.includes('const compactHost = (c, r) => CINEMATIC && !(c >= COMPACT_HOST_COLS && r >= COMPACT_HOST_ROWS)'), 'set COMPACT_HOST_COLS and COMPACT_HOST_ROWS and compactHost in assets/splash/mercury-splash.mjs to match LAYOUT_BREAKPOINTS.cockpitMin and cockpitMinRows in src/screen/fullscreen-layout/useLayoutTier.ts')

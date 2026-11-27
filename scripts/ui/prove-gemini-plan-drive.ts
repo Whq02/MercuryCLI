@@ -185,7 +185,7 @@ try {
     ]
     const out = join(ROOT, `${id}.json`)
     const cfg = join(ROOT, `${id}.cfg.json`)
-    writeFileSync(cfg, JSON.stringify({ argv: [NODE, BIN], cwd: CWD, cols, rows, total: 560, sends, readyText: '>_  ·  ↵  ·  ↑↓', stableTicks: 3, out }))
+    writeFileSync(cfg, JSON.stringify({ argv: [NODE, BIN], cwd: CWD, cols, rows, total: 560, sends, readyText: '>_     ↵     ↑↓', stableTicks: 3, out }))
     const hitsBefore = fixture.hits.length
     const result = await capture(cfg, env, vshotBudgetMs(280_000))
     await endOwnedDaemon(home)

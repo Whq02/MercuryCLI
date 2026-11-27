@@ -144,7 +144,7 @@ section('§3 the shed bills the rows it paints: a merged rail whose painted rows
   await settle(400)
   const tall = m.frame()
   const inked = tall.split('\n').filter(l => l.trim() !== '')
-  check('tall: the merged solo rail paints the WORKBENCH card at row 0, the three NEXT hints (/health, /memory, /goal), FILES and the three-row VITALS glance (12 inked rows) with no Lanes banner', tall.startsWith('workbench\n') && !tall.includes('lanes') && tall.includes('\nnext\n') && tall.includes('  /goal') && tall.includes('\nfiles ·') && tall.includes('\nvitals\n') && !tall.includes('\nrecent\n') && inked.length === 12, `${inked.length} inked: ${tall} — the merged solo rail's sections come from buildLanesModel in src/screen/cockpit-gauges/helmLanesModel.ts`)
+  check('tall: the merged solo rail paints the WORKBENCH card at row 0, the three NEXT hints (/health, /memory, /goal), FILES and the three-row usage glance (12 inked rows) with no Lanes banner', tall.startsWith('workbench\n') && !tall.includes('lanes') && tall.includes('\nnext\n') && tall.includes('  /goal') && tall.includes('\nfiles ·') && tall.includes('\nusage\n') && !tall.includes('\nvitals\n') && !tall.includes('\nrecent\n') && inked.length === 12, `${inked.length} inked: ${tall} — the merged solo rail's sections come from buildLanesModel in src/screen/cockpit-gauges/helmLanesModel.ts`)
   const glass = (1 + 2) + (1 + 2) + (1 + 2) + (3 + 2)
   await m.paint(glass)
   const exact = m.frame()

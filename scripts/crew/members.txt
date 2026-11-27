@@ -49,6 +49,7 @@ prove-resume-interrupt.ts
 prove-resume-prefix-sibling.ts
 prove-resume-structured.ts
 prove-resumed-crewmate-keeps-its-open-call.ts
+prove-resumed-crewmate-reads-its-live-end.ts
 prove-retired-cli-flags.ts
 prove-run-holds-crewmate-notice.ts
 prove-run-wake-closing-roads.ts

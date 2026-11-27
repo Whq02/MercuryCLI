@@ -32,6 +32,7 @@ for (const key of [
 }
 const scratchHome = mkdtempSync(join(tmpdir(), 'prove-usage-credential-reset-'))
 process.env.MERCURY_CONFIG_DIR = scratchHome
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_OPENAI_AUTH_BASE = 'https://fixture.invalid/oauth'
 
