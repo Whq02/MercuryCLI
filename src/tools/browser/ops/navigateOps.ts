@@ -19,7 +19,7 @@ import { carryEmulation, emulationActive, emulationSummary } from '../../../inte
 import { ensureScratchpadDir } from '../../../platform/files/scratchpad.js'
 import { getScratchpadDir } from '../../../permissions/rules/filesystem.js'
 import { RECOVERED_NOTE, isDriverTimeout, relayNamedFailure } from './failures.js'
-import { type LiveSession, MISS_LOOK_MS, coveringLayerNote, deepTextOf, failedNavigationWords, pageWhere, preview, targetSurface } from './page.js'
+import { type LiveSession, MISS_LOOK_MS, deepTextOf, failedNavigationWords, pageWhere, preview, targetSurface, titleAndLayerNote } from './page.js'
 import { downloadWords } from './downloads.js'
 import { errorPageSettled, markAct, settleAfterAct } from './settle.js'
 import { actOriginGate, selectorMissWords } from './targets.js'
@@ -139,11 +139,12 @@ export async function openOp({ input, owner, tab, context, sessionAtEntry, crash
       : `\n  page: ${textLen} chars of body text${errs > 0 ? `, ${errs} page error(s) — op:"console" reads them` : ''}${
           textLen === 0 ? ' (the app may still be rendering — waitFor a selector or text)' : ''
         }`
-  result = `open: ${s.page.url()}${statusBit} — ${await s.page.title()} (${s.resolution.source}: ${s.resolution.label})${environment}${
+  const face = await titleAndLayerNote(s)
+  result = `open: ${s.page.url()}${statusBit} — ${face.title} (${s.resolution.source}: ${s.resolution.label})${environment}${
     landed !== target && landed.startsWith('http')
       ? `\n  note: landed on ${landed} (a redirect crossed origins${originApproved(owner, landed) ? '' : ' — acts there will ask'})`
       : ''
-  }${census}${await coveringLayerNote(s)}${lease}${crashedAtEntry && s === sessionAtEntry ? RECOVERED_NOTE : ''}`
+  }${census}${face.layer}${lease}${crashedAtEntry && s === sessionAtEntry ? RECOVERED_NOTE : ''}`
   if (s === sessionAtEntry) s.crashed = false
   outcome = 'succeeded'
   return { result, outcome }
