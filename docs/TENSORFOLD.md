@@ -27,7 +27,7 @@ or a rented GPU pod).
 In `/model`, `TENSORFOLD` and `TENSORFOLD HOST` follow the picker's ordering
 rule: the current model's group comes first, then groups by most recent use,
 with `TENSORFOLD HOST` directly beneath `TENSORFOLD`. Groups with no recorded
-use keep the list's own order, in which `LOCAL MODELS` stands above
+use keep the list's own order, in which **LOCAL MODELS** stands above
 `TENSORFOLD` and `TENSORFOLD HOST`. On a machine that can run TensorFold, the
 first-run sign-in list carries `TensorFold` as its last provider row
 (`TensorFold — run <model> on this Mac, no account (/tensorfold)`
