@@ -42,6 +42,7 @@ const interpreter = await import('../../src/screen/renderer/input/interpreter.ts
 const decoder = await import('../../src/screen/renderer/input/input-decoder.ts')
 const early = await import('../../src/boot/earlyInput.ts')
 const profile = await import('../../src/screen/renderer/terminal-session/terminalProfile.ts')
+const handover = await import('../../src/platform/substrate/splashHandover.ts')
 const { InputEvent } = await import('../../src/screen/renderer/events/input-event.ts')
 const chalk = (await import('chalk')).default
 
@@ -160,19 +161,34 @@ section('§5 who is asked: nobody whose depth the environment already settles')
 
 section('§6 one reader raises the depth, and the health words and the profile row say why')
 {
-  const take = (colorize as { takeTruecolorAnswer?: (setting: string) => boolean }).takeTruecolorAnswer
+  const take = (colorize as { takeTruecolorAnswer?: (echoed: boolean) => boolean }).takeTruecolorAnswer
   const saved = chalk.level
   const levelNow = (): number => chalk.level
   chalk.level = 2
   const fix = `takeTruecolorAnswer in ${COLORIZE}`
-  check('a bare reset raises nothing', take?.('0m') === false && levelNow() === 2, `${fix} must leave the level alone without an echo`)
-  check('an echo raises the depth to 24-bit', take?.('0;48:2::1:2:3m') === true && levelNow() === 3, `${fix} must set level 3 on an echo; level ${levelNow()}`)
+  check('a bare reset raises nothing', take?.(colorize.truecolorEcho('0m')) === false && levelNow() === 2, `${fix} must leave the level alone without an echo`)
+  check('an echo raises the depth to 24-bit', take?.(colorize.truecolorEcho('0;48:2::1:2:3m')) === true && levelNow() === 3, `${fix} must set level 3 on an echo; level ${levelNow()}`)
   check('the health words say the terminal answered', colorize.colorDepthWhy().includes('answered'), `colorDepthWhy in ${COLORIZE} must say the terminal answered; got: ${colorize.colorDepthWhy()}`)
   const row = profile.resolveTerminalProfile({ platform: 'linux', isTTY: true, syncOutput: true, extendedKeys: true, hyperlinks: true, progress: true }).checks.find(c => c.id === 'truecolor')
   check('the profile\'s 24-bit row is met, with the answer as its evidence', row !== undefined && row.ok && row.evidence.includes('answered'), `the truecolor check in src/screen/renderer/terminal-session/terminalProfile.ts must be ok on an answer; evidence: ${row?.evidence}`)
   const injected = profile.resolveTerminalProfile({ env: { TERM: 'xterm-256color' }, platform: 'linux', isTTY: true, syncOutput: true, extendedKeys: true, hyperlinks: true, progress: true }).checks.find(c => c.id === 'truecolor')
   check('a profile resolved for another environment does not borrow this session\'s answer', injected !== undefined && !injected.ok, `the truecolor check must read the answer only for the live environment; evidence: ${injected?.evidence}`)
   chalk.level = saved
+}
+
+section('§7 the launcher\'s splash may have asked already: its receipt hands the answer on, for this launch alone')
+{
+  const now = Date.now()
+  const handed = (receipt: Record<string, unknown>, launch: string | null = null, at = now): unknown =>
+    (handover.decideSplashReceipt(JSON.stringify({ version: 1, ts: at, ...receipt }), now, () => true, launch) as { truecolor?: unknown }).truecolor
+  const fix = 'decideSplashReceipt in src/platform/substrate/splashHandover.ts must hand on a boolean truecolor of a fresh receipt of this launch, and nothing else'
+  check('a screen receipt that says true hands true on', handed({ screen: 'held', truecolor: true }) === true, fix)
+  check('one that says false hands false on', handed({ screen: 'restored', truecolor: false }) === false, fix)
+  check('beside an action it is handed on too', handed({ action: 'health', truecolor: true }) === true, fix)
+  check('a receipt of a splash that did not ask hands nothing on', handed({ screen: 'held' }) === undefined, fix)
+  check('a field that is no boolean hands nothing on', handed({ screen: 'held', truecolor: 'yes' }) === undefined, fix)
+  check('another launch\'s receipt hands nothing on', handed({ screen: 'held', truecolor: true, launchId: 'ops-1-1' }, 'ops-2-2') === undefined, fix)
+  check('a stale receipt hands nothing on', handed({ screen: 'held', truecolor: true }, null, now - 600_000) === undefined, fix)
 }
 
 const driver = resolveCaptureDriver()
@@ -193,7 +209,7 @@ const pty = driver
 type Cell = { c: string; fg: string; bg: string; bold: boolean; rev: boolean }
 type Grid = Cell[][]
 type Arm = { name: string; marks: Map<string, Grid>; bytes: string; status: number | null; log: string; settledAfterMs: number[]; importMs: number[] }
-type Plan = { name: string; env: Record<string, string | undefined>; reply?: string; lateReply?: string; upTo: 'boot' | 'typed'; verb?: { args: string[]; prints: string } }
+type Plan = { name: string; env: Record<string, string | undefined>; reply?: string; lateReply?: string; upTo: 'boot' | 'typed'; verb?: { args: string[]; prints: string }; receipt?: boolean }
 
 async function capture(plan: Plan): Promise<Arm> {
   const world = fixture(scratch)
@@ -203,6 +219,10 @@ async function capture(plan: Plan): Promise<Arm> {
   for (const [key, value] of Object.entries(plan.env)) {
     if (value === undefined) delete env[key]
     else env[key] = value
+  }
+  if (plan.receipt !== undefined) {
+    env.MERCURY_SPLASH_HANDOFF = '1'
+    writeFileSync(join(world.config, 'splash-action.json'), JSON.stringify({ version: 1, ts: Date.now(), screen: 'restored', truecolor: plan.receipt }) + '\n')
   }
   const tee = join(scratch, `${plan.name}.tee.bin`)
   env.VSHOT_TEE = tee
@@ -281,7 +301,7 @@ function composerClean(arm: Arm): void {
   check(`${arm.name}: what is typed after the answer is what the composer holds, and nothing else`, /❯ zq\s*│/.test(line), `no byte of the answer may reach the composer; its row reads ${JSON.stringify(line.trim().slice(0, 80))}`)
 }
 
-section('§7 a terminal that echoes: 24-bit from the first painted cell')
+section('§8 a terminal that echoes: 24-bit from the first painted cell')
 const echo = await capture({ name: 'echo', env: { TERM: 'xterm-256color' }, reply: ECHO, upTo: 'typed' })
 fullDepth(echo, 'TERM=xterm-256color, what SSH hands over')
 composerClean(echo)
@@ -290,7 +310,7 @@ fullDepth(echoBel, 'the semicolon form, ended by BEL')
 const echoXterm = await capture({ name: 'echo-xterm', env: { TERM: 'xterm' }, reply: ECHO, upTo: 'boot' })
 fullDepth(echoXterm, 'TERM=xterm, what docker exec hands over')
 
-section('§8 a terminal that answers something else, or nothing: today\'s depth, and the first paint is not held')
+section('§9 a terminal that answers something else, or nothing: today\'s depth, and the first paint is not held')
 const zero = await capture({ name: 'bare-reset', env: { TERM: 'xterm-256color' }, reply: ZERO, upTo: 'typed' })
 keptDepth(zero, 'the answer was 0m')
 composerClean(zero)
@@ -312,7 +332,7 @@ composerClean(late)
   check('a terminal that answers nothing holds the start no longer than the bound of 100 ms after the request', worst <= 100, `DEPTH_ANSWER_MS in src/boot/earlyInput.ts bounds the wait from the request; the longest wait behind the load was ${worst.toFixed(1)} ms`)
 }
 
-section('§9 nobody is asked whose depth is settled, and a verb is never asked')
+section('§10 nobody is asked whose depth is settled, and a verb is never asked')
 for (const [name, env] of [
   ['colorterm-truecolor', { TERM: 'xterm-256color', COLORTERM: 'truecolor' }],
   ['truecolor-flag-off', { TERM: 'xterm-256color', MERCURY_TRUECOLOR: '0' }],
@@ -329,7 +349,22 @@ check('--help: its words are printed and no request is written', help.bytes.incl
 const verb = await capture({ name: 'verb-extensions', env: { TERM: 'xterm-256color' }, upTo: 'boot', verb: { args: ['extensions', 'list'], prints: 'filmcraft' } })
 check('a verb: its rows are printed and no request is written', verb.bytes.includes('filmcraft') && asks(verb) === 0, `only a bare session asks (src/boot/entrypoints/cli.tsx); ${asks(verb)} requests in ${verb.bytes.length} bytes`)
 
-section('§10 MERCURY_TRUECOLOR=1 is the override at TERM=xterm too')
+section('§11 a launch whose splash asked: the app asks nothing and takes the receipt\'s answer')
+{
+  const yes = await capture({ name: 'receipt-true', env: { TERM: 'xterm-256color' }, upTo: 'boot', receipt: true })
+  const fix = 'src/boot/entrypoints/cli.tsx must hand consumeSplashHandover\'s answer to startCapturingEarlyInput, which asks nothing then and gives it to takeTruecolorAnswer'
+  check('receipt-true: the Boot face came up and no request was written', yes.status === 0 && yes.marks.has('boot') && asks(yes) === 0, `${fix}; ${asks(yes)} requests; ${yes.log.slice(-200)}`)
+  check('receipt-true: every colour code of the launch is 24-bit', count(yes.bytes, /[34]8;2;\d/g) > 100 && count(yes.bytes, /[34]8;5;\d/g) === 0, `${fix}; 24-bit ${count(yes.bytes, /[34]8;2;\d/g)}, 256-colour ${count(yes.bytes, /[34]8;5;\d/g)}`)
+  const boot = inks(yes.marks.get('boot'))
+  check('receipt-true: the Boot face is painted at 24-bit, by its cells', boot.has(MUTED) && boot.has(BRAND) && !boot.has(MUTED_256) && !boot.has(BRAND_256), `${fix}; inks ${[...boot].slice(0, 12).join(' ')}`)
+  const no = await capture({ name: 'receipt-false', env: { TERM: 'xterm-256color' }, upTo: 'boot', receipt: false })
+  check('receipt-false: the Boot face came up and no request was written', no.status === 0 && no.marks.has('boot') && asks(no) === 0, `${fix}; ${asks(no)} requests; ${no.log.slice(-200)}`)
+  check('receipt-false: the launch stays at 256 colours', count(no.bytes, /[34]8;2;\d/g) === 0 && count(no.bytes, /[34]8;5;\d/g) > 100, `a splash that asked and got no echo settles the session at the environment's depth; 24-bit ${count(no.bytes, /[34]8;2;\d/g)}, 256-colour ${count(no.bytes, /[34]8;5;\d/g)}`)
+  const off = await capture({ name: 'receipt-true-flag-off', env: { TERM: 'xterm-256color', MERCURY_TRUECOLOR: '0' }, upTo: 'boot', receipt: true })
+  check('receipt-true under MERCURY_TRUECOLOR=0: the override stands over the receipt', off.status === 0 && off.marks.has('boot') && asks(off) === 0 && count(off.bytes, /[34]8;2;\d/g) === 0, `takeTruecolorAnswer in ${COLORIZE} must not raise where truecolorAskable is false; 24-bit ${count(off.bytes, /[34]8;2;\d/g)}`)
+}
+
+section('§12 MERCURY_TRUECOLOR=1 is the override at TERM=xterm too')
 const forced = await capture({ name: 'forced-xterm', env: { TERM: 'xterm', MERCURY_TRUECOLOR: '1' }, upTo: 'boot' })
 check('forced-xterm: the Boot face came up and no request was written', forced.status === 0 && forced.marks.has('boot') && asks(forced) === 0, `an override settles the depth, so nothing is asked; ${asks(forced)} requests; ${forced.log.slice(-200)}`)
 {

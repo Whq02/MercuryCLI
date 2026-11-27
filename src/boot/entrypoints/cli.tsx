@@ -122,10 +122,10 @@ async function main(): Promise<void> {
     const { runDirectSplash } = await import('../../platform/substrate/directSplash.js')
     if (runDirectSplash({ home }).verdict === 'cancel') return
   }
-  if (flagEnv('MERCURY_SPLASH_HANDOFF', env) === '1') {
-    const { consumeSplashHandover } = await import('../../platform/substrate/splashHandover.js')
-    consumeSplashHandover()
-  }
+  const splashTruecolor =
+    flagEnv('MERCURY_SPLASH_HANDOFF', env) === '1'
+      ? (await import('../../platform/substrate/splashHandover.js')).consumeSplashHandover()
+      : undefined
 
   const { applyBankedFlagSpellings } = await import('../../platform/substrate/argvSpellings.js')
   applyBankedFlagSpellings(process.argv)
@@ -248,7 +248,7 @@ async function main(): Promise<void> {
   }
   if (readSessionOption(args, '--lean').present) stampFlagEnv('MERCURY_BARE', '1')
   const { startCapturingEarlyInput } = await import('../earlyInput.js')
-  const settleDepth = startCapturingEarlyInput(invocation.command === undefined && !invocation.outputRequest)
+  const settleDepth = startCapturingEarlyInput(invocation.command === undefined && !invocation.outputRequest, splashTruecolor)
   profileCheckpoint('before_main_import')
   const session = await import('../main.js')
   profileCheckpoint('after_main_import')

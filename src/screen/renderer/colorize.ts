@@ -104,8 +104,8 @@ export function truecolorAskable(env: Record<string, string | undefined> = hostE
   return term !== undefined && term !== 'dumb' && term !== 'linux'
 }
 
-export function takeTruecolorAnswer(setting: string): boolean {
-  if (!truecolorAskable() || !truecolorEcho(setting)) return false
+export function takeTruecolorAnswer(echoed: boolean): boolean {
+  if (!echoed || !truecolorAskable()) return false
   chalk.level = 3
   return true
 }

@@ -1,7 +1,7 @@
 import { lastGrapheme } from '../platform/text/textSegments.js'
 import { passedOver } from '../platform/errors/passedOver.js'
 import { startImmediate, startTimeout, stopTimeout } from '../platform/async/timers.js'
-import { TRUECOLOR_QUERY, takeTruecolorAnswer, truecolorAskable } from '../screen/renderer/colorize.js'
+import { TRUECOLOR_QUERY, takeTruecolorAnswer, truecolorAskable, truecolorEcho } from '../screen/renderer/colorize.js'
 import { interpretResponse } from '../screen/renderer/input/interpreter.js'
 import { isSessionRunArgv } from './sessionArgs.js'
 
@@ -71,7 +71,7 @@ function openDepthAnswer(): { onReply: () => ((reply: string) => void) | undefin
   const take = (reply: string): void => {
     const response = interpretResponse(reply)
     if (response?.type !== 'decrqss') return
-    takeTruecolorAnswer(response.setting)
+    takeTruecolorAnswer(truecolorEcho(response.setting))
     close()
   }
   return {
@@ -93,8 +93,9 @@ function openDepthAnswer(): { onReply: () => ((reply: string) => void) | undefin
   }
 }
 
-export function startCapturingEarlyInput(askDepth = false): () => Promise<void> {
+export function startCapturingEarlyInput(askDepth = false, splashAnswered?: boolean): () => Promise<void> {
   const settled = (): Promise<void> => Promise.resolve()
+  if (askDepth && splashAnswered !== undefined) takeTruecolorAnswer(splashAnswered)
   if (!process.stdin.isTTY || capturing || isSessionRunArgv()) return settled
   capturing = true
   capturedBuffer = ''
@@ -103,7 +104,7 @@ export function startCapturingEarlyInput(askDepth = false): () => Promise<void> 
     process.stdin.setRawMode?.(true)
     if (process.stdout.isTTY) process.stdout.write('\x1b[0m')
     process.stdin.ref()
-    const depth = askDepth && process.stdout.isTTY && truecolorAskable() ? openDepthAnswer() : null
+    const depth = askDepth && splashAnswered === undefined && process.stdout.isTTY && truecolorAskable() ? openDepthAnswer() : null
     let held = ''
     const drain = (): void => {
       let chunk: string | Buffer | null = process.stdin.read()
