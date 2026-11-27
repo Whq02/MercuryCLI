@@ -6,10 +6,10 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BELLY, CLAW, FAINT, IVORY, TERRA } from '../../src/screen/theme/mercuryPalette.ts'
 import { deriveFocalRamp } from '../../src/screen/theme/mercuryTokens.ts'
-import { shouldHonorNoColor, truecolorFingerprint } from '../../src/screen/renderer/colorize.ts'
+import { shouldHonorNoColor, truecolorFingerprint, TRUECOLOR_QUERY, truecolorEcho, truecolorAskable } from '../../src/screen/renderer/colorize.ts'
 import { isEnvTruthy } from '../../src/platform/environment/envUtils.ts'
 import { getFlagSpec } from '../../src/platform/substrate/flagRegistry.ts'
-import { GROUND, GROUND_FAMILIES, adoptGroundFamily, truecolorFingerprintOf } from '../../assets/splash/splash-core.mjs'
+import { GROUND, GROUND_FAMILIES, adoptGroundFamily, truecolorFingerprintOf, TRUECOLOR_QUERY as BAKED_TRUECOLOR_QUERY, TRUECOLOR_ECHO_TRUTH, truecolorEchoOf, truecolorAskableOf } from '../../assets/splash/splash-core.mjs'
 import { NIGHT, OASIS_GROUND, TRUE_BLACK_GROUND } from '../../src/screen/theme/mercuryPalette.ts'
 import { DEFAULT_THEME_SETTING } from '../../src/screen/theme/systemTheme.ts'
 import { checker } from '../engine-durability/harness.ts'
@@ -330,6 +330,67 @@ t.section('§7 — GLOW: accent families + the mirrored greeting law')
   t.check('an out-of-band phase emits the settled bytes (boost 0 everywhere)', JSON.stringify(jelly.rasterHard(core.WORD, jelly.wordToneGlow(farPhase)).lines) === wordSettled, 'out-of-band fixed point')
   const midPhase = core.glowPhaseAt(1_500, core.WORD_W)
   t.check('an in-band phase CHANGES bytes (the greeting is visible)', midPhase !== null && JSON.stringify(jelly.rasterHard(core.WORD, jelly.wordToneGlow(midPhase)).lines) !== wordSettled, 'in-band delta')
+}
+
+t.section('§8 — S3: baked TRUECOLOR_QUERY, truecolorEchoOf and truecolorAskableOf parity')
+{
+  t.check(
+    'baked TRUECOLOR_QUERY equals colorize.TRUECOLOR_QUERY byte for byte (28 bytes, nothing printable)',
+    BAKED_TRUECOLOR_QUERY === TRUECOLOR_QUERY &&
+      BAKED_TRUECOLOR_QUERY.length === 28 &&
+      BAKED_TRUECOLOR_QUERY.replace(/\x1b\[[0-9;]*m|\x1bP[^\x1b]*\x1b\\|\x1b[78]/g, '') === '',
+    JSON.stringify(BAKED_TRUECOLOR_QUERY),
+  )
+  t.check(
+    'baked TRUECOLOR_ECHO_TRUTH exercises both true and false and matches both truecolorEchoOf and colorize.truecolorEcho',
+    TRUECOLOR_ECHO_TRUTH.length >= 6 &&
+      TRUECOLOR_ECHO_TRUTH.some(([, want]) => want === true) &&
+      TRUECOLOR_ECHO_TRUTH.some(([, want]) => want === false) &&
+      TRUECOLOR_ECHO_TRUTH.every(([setting, want]) => truecolorEchoOf(setting) === want && truecolorEcho(setting) === want),
+    JSON.stringify(TRUECOLOR_ECHO_TRUTH),
+  )
+  const chalk = (await import('chalk')).default
+  const savedLevel = chalk.level
+  const savedFlag = process.env.MERCURY_TRUECOLOR
+  try {
+    const askRows: Array<{ label: string; env: Record<string, string | undefined>; level: 0 | 1 | 2 | 3 }> = [
+      { label: 'xterm-256color plain', env: { TERM: 'xterm-256color' }, level: 2 },
+      { label: 'xterm plain', env: { TERM: 'xterm' }, level: 2 },
+      { label: 'alacritty plain', env: { TERM: 'alacritty' }, level: 2 },
+      { label: 'TERM unset', env: {}, level: 2 },
+      { label: 'TERM=dumb', env: { TERM: 'dumb' }, level: 2 },
+      { label: 'TERM=linux', env: { TERM: 'linux' }, level: 2 },
+      { label: 'NO_COLOR=1', env: { TERM: 'xterm-256color', NO_COLOR: '1' }, level: 2 },
+      { label: 'FORCE_COLOR=2', env: { TERM: 'xterm-256color', FORCE_COLOR: '2' }, level: 2 },
+      { label: 'FORCE_COLOR=0', env: { TERM: 'xterm-256color', FORCE_COLOR: '0' }, level: 2 },
+      { label: 'TMUX set', env: { TERM: 'tmux-256color', TMUX: '/tmp/tmux/1,0' }, level: 2 },
+      { label: 'Apple_Terminal', env: { TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal' }, level: 2 },
+      { label: 'MERCURY_TRUECOLOR=0', env: { TERM: 'xterm-256color', MERCURY_TRUECOLOR: '0' }, level: 2 },
+      { label: 'MERCURY_TRUECOLOR=1', env: { TERM: 'xterm-256color', MERCURY_TRUECOLOR: '1' }, level: 2 },
+      { label: 'COLORTERM=truecolor', env: { TERM: 'xterm-256color', COLORTERM: 'truecolor' }, level: 3 },
+      { label: 'TERM_PROGRAM=iTerm.app', env: { TERM: 'xterm-256color', TERM_PROGRAM: 'iTerm.app' }, level: 3 },
+      { label: 'TERM=xterm-kitty', env: { TERM: 'xterm-kitty' }, level: 3 },
+    ]
+    const mismatches: string[] = []
+    for (const row of askRows) {
+      chalk.level = row.level
+      if (row.env.MERCURY_TRUECOLOR === undefined) delete process.env.MERCURY_TRUECOLOR
+      else process.env.MERCURY_TRUECOLOR = row.env.MERCURY_TRUECOLOR
+      const appAns = truecolorAskable(row.env)
+      const splashAns = truecolorAskableOf(row.env, 'linux')
+      if (appAns !== splashAns) mismatches.push(`${row.label}: app=${appAns} splash=${splashAns}`)
+    }
+    t.check(`truecolorAskableOf equals colorize.truecolorAskable over ${askRows.length} environments`, mismatches.length === 0, mismatches.join(' · '))
+    t.check(
+      'splash-specific guards: win32 and MERCURY_SPLASH_ONESHOT=1 never ask',
+      truecolorAskableOf({ TERM: 'xterm-256color' }, 'win32') === false &&
+        truecolorAskableOf({ TERM: 'xterm-256color', MERCURY_SPLASH_ONESHOT: '1' }, 'linux') === false,
+    )
+  } finally {
+    chalk.level = savedLevel
+    if (savedFlag === undefined) delete process.env.MERCURY_TRUECOLOR
+    else process.env.MERCURY_TRUECOLOR = savedFlag
+  }
 }
 
 t.finish('prove-ramp-parity')

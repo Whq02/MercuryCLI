@@ -208,7 +208,11 @@ export const MODEL_NAMES: Record<string, string>
 export const RAMP: number[][]
 export const RAMP_FIXTURE: number[][]
 export const CAPABILITY_TRUTH: Array<Array<string | null>>
+export const TRUECOLOR_QUERY: string
+export const TRUECOLOR_ECHO_TRUTH: Array<[string, boolean]>
 export function truecolorFingerprintOf(env: Record<string, string | undefined>): string | null
+export function truecolorEchoOf(setting: string): boolean
+export function truecolorAskableOf(env: Record<string, string | undefined>, platform?: string): boolean
 export const ACCENT_FAMILIES: Record<string, SplashAccentFamily>
 export const DEFAULT_CRITTER: string
 export function accentFamilyKeyOf(raw: unknown): string
