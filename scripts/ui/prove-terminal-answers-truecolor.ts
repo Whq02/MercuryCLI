@@ -496,6 +496,19 @@ section('§15 one depth a launch: the splash and the session behind it paint at 
   check('TERM=xterm with FORCE_COLOR=2: no request was written', asks(forced256) === 0, `FORCE_COLOR settles the depth without asking; found ${asks(forced256)}`)
   check('TERM=xterm with FORCE_COLOR=2: the splash paints 256-colour codes and no 24-bit code', count(forced256P.splash, /[34]8;5;\d/g) >= 20 && count(forced256P.splash, /[34]8;2;\d/g) === 0, `${fix}; the splash wrote ${tally(forced256P.splash)}`)
   check('TERM=xterm with FORCE_COLOR=2: the session paints 256-colour codes and no 24-bit code', count(forced256P.session, /[34]8;5;\d/g) >= 50 && count(forced256P.session, /[34]8;2;\d/g) === 0, `${fix}; the session wrote ${tally(forced256P.session)}`)
+  for (const extra of [
+    { name: 'one-depth-dumb-forced-256', label: 'dumb with FORCE_COLOR=2', env: { TERM: 'dumb', FORCE_COLOR: '2' }, dumb: true },
+    { name: 'one-depth-xterm-clamped-colorterm', label: 'xterm with MERCURY_TRUECOLOR=0 and COLORTERM=truecolor', env: { TERM: 'xterm', MERCURY_TRUECOLOR: '0', COLORTERM: 'truecolor' } },
+    { name: 'one-depth-xterm-apple-terminal', label: 'xterm with TERM_PROGRAM=Apple_Terminal', env: { TERM: 'xterm', TERM_PROGRAM: 'Apple_Terminal' } },
+    { name: 'one-depth-xterm-256-upper', label: 'XTERM-256COLOR', env: { TERM: 'XTERM-256COLOR' } },
+  ]) {
+    const c = await capture({ name: extra.name, env: extra.env, upTo: 'boot', ...(extra.dumb ? { verb: { args: [], prints: 'terminal check', mark: true } } : {}) })
+    const p = painters(c)
+    if (extra.dumb) check(`TERM=${extra.label}: the splash ran and the session came up behind it`, c.status === 0 && c.marks.has('shown') && p.splash.includes(`${ESC}[?1049h`), `a bare launch on a terminal runs dist/splash.mjs before the session; ${c.log.slice(-200)}`)
+    else ran(extra.label, c, p.splash)
+    check(`TERM=${extra.label}: the splash paints 256-colour codes and no 24-bit code`, count(p.splash, /[34]8;5;\d/g) >= 20 && count(p.splash, /[34]8;2;\d/g) === 0, `${fix}; the splash wrote ${tally(p.splash)}`)
+    check(`TERM=${extra.label}: the session paints 256-colour codes and no 24-bit code`, count(p.session, /[34]8;5;\d/g) >= 50 && count(p.session, /[34]8;2;\d/g) === 0, `${fix}; the session wrote ${tally(p.session)}`)
+  }
 }
 
 section('§16 a window that time closes: nothing but Mercury\'s own bytes reaches the terminal before the first paint')
