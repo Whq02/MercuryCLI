@@ -3,7 +3,7 @@
 
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 
 delete process.env.NODE_ENV
 for (const key of ['MERCURY_HOME', 'MERCURY_OAUTH_TOKEN', 'MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_SM_COMPACT', 'ANTHROPIC_API_KEY', 'MERCURY_COMPACT_KEEP_TAIL', 'MERCURY_BLOCKING_LIMIT_OVERRIDE', 'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_CTX_COMPACTION']) delete process.env[key]
@@ -43,7 +43,7 @@ const { createUserMessage } = await import('../../src/engine/messages/messages.t
 const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
 const { foldConversation, buildPostFoldMessages, PROSE_SKIPPED_KEY } = await import('../../src/engine/compaction/foldConversation.ts')
-const { loadTranscriptFromFile } = await import('../../src/sessions/transcripts/sessionListings.ts')
+const { loadConversationForResume } = await import('../../src/sessions/resume/conversationRecovery.ts')
 type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const SHAPE_PATH = join(import.meta.dir, 'fixtures', 'argon-seat-shape-2026-10-17.json')
@@ -212,8 +212,9 @@ section('F2 the recorded transcript itself when the box carries it (MERCURY_COMP
 {
   const path = process.env.MERCURY_COMPACTION_FIXTURE
   if (path !== undefined && path !== '' && existsSync(path)) {
-    const listing = await loadTranscriptFromFile(path)
-    const messages = (listing.messages as Message[]).filter(row => (row as { isApiErrorMessage?: boolean }).isApiErrorMessage !== true)
+    const resumed = await loadConversationForResume(basename(path, '.jsonl'), path)
+    if (resumed === null) throw new Error(`loadConversationForResume in src/sessions/resume/conversationRecovery.ts answered null for ${path}: the recorded transcript did not resume`)
+    const messages = resumed.messages.filter(row => (row as { isApiErrorMessage?: boolean }).isApiErrorMessage !== true)
     record(`recorded transcript: ${path}`)
     await replay('recorded transcript', messages)
   } else {
