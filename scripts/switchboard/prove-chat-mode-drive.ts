@@ -207,7 +207,7 @@ const hintRows = (text: string): string => text.split('\n').filter(l => /Concour
 const isFace = (text: string): boolean => text.includes('New Session') && paintsBootFaceReady(text)
 const isChat = (text: string): boolean => text.includes(COMPOSER) && !paintsBootFaceReady(text)
 const isChatWorldFace = (text: string): boolean => text.includes('New Session') && paintsBootFaceReady(text) && !text.includes('m menu')
-const isChatFace = (text: string): boolean => isChatWorldFace(text) && !text.includes('Session Manager (Concourse)') && !text.includes('Session Concourse') && text.includes(FACE_NO_CHAT)
+const isChatFace = (text: string): boolean => isChatWorldFace(text) && !text.includes('Session Manager') && !text.includes('Session Concourse') && text.includes(FACE_NO_CHAT)
 
 async function feltEnter(id: string, argv: string[]): Promise<{ c: Capture; face: string; ms: number | null; claims: number; log: string }> {
   const home = freshHome(id)
@@ -252,7 +252,7 @@ console.log('F2 — the control: a bare boot\'s face and the felt ↵ (the fleet
   const home = (r as { home?: string }).home!
   printFrame('f2 (the chat after ↵)', r.c.lines)
   console.log(`  [FELT] bare ↵ → composer ready: ${r.ms === null ? '∅' : `${r.ms} ms`} · --chat ↵: ${chatMs ?? '∅'} ms (budget ${ENTER_BUDGET_TICKS * 200} ms each)`)
-  check('F2 the bare boot landed on the face first, with its concourse row', isFace(r.face) && r.face.includes('Session Manager (Concourse)'), firstRows(r.face))
+  check('F2 the bare boot landed on the face first, with its concourse row', isFace(r.face) && r.face.includes('Session Manager'), firstRows(r.face))
   check(`F2 ↵ reached the composer within the budget (${r.ms ?? '∅'} ms ≤ ${ENTER_BUDGET_TICKS * 200})`, r.ms !== null && r.ms <= ENTER_BUDGET_TICKS * 200, r.c.tail.slice(-200))
   check('F2 the plain world\'s first answer is the fleet world\'s: both ↵ within the one budget', chatMs !== null && r.ms !== null && chatMs <= ENTER_BUDGET_TICKS * 200 && r.ms <= ENTER_BUDGET_TICKS * 200)
   reapHome(home)
@@ -285,7 +285,7 @@ for (const size of [
   check(`${size.id.toUpperCase()} the landing is the face with New Session · Logins/Keys · Boot Menu`, isChatWorldFace(landing) && landing.includes('Logins/Keys') && landing.includes('Boot Menu'), firstRows(landing))
   check(`${size.id.toUpperCase()} NO concourse row on the --chat card; the key-map row says "⇧→ no chat open"`, isChatFace(landing), hintRows(landing))
   check(`${size.id.toUpperCase()} ↵ births the chat`, isChat(markText(c, 'chat')), firstRows(markText(c, 'chat')))
-  check(`${size.id.toUpperCase()} ⇧← from the chat is the same face — still no concourse row — whose row now names the chat ("⇧→ chat")`, isChatWorldFace(again) && !again.includes('Session Manager (Concourse)') && !again.includes('Session Concourse') && again.includes(FACE_TO_CHAT) && !again.includes(FACE_TO_CONCOURSE), again.split('\n').filter(l => /Concourse|⇧/.test(l)).join(' | '))
+  check(`${size.id.toUpperCase()} ⇧← from the chat is the same face — still no concourse row — whose row now names the chat ("⇧→ chat")`, isChatWorldFace(again) && !again.includes('Session Manager') && !again.includes('Session Concourse') && again.includes(FACE_TO_CHAT) && !again.includes(FACE_TO_CONCOURSE), again.split('\n').filter(l => /Concourse|⇧/.test(l)).join(' | '))
   reapHome(home)
 }
 
@@ -305,7 +305,7 @@ console.log('P3 — --concourse-off at 100×30: the face keeps the row as its li
   })
   printFrame('p3 (--concourse-off, 100×30)', c.lines)
   check('P3 the switch boot landed the face', isFace(c.text), firstRows(c.text))
-  check('P3 the face KEEPS the Session Manager (Concourse) row as the live-view door', c.text.includes('Session Manager (Concourse)'), c.lines.filter(l => /live|concourse/i.test(l)).join(' | '))
+  check('P3 the face KEEPS the Session Manager row as the live-view door', c.text.includes('Session Manager'), c.lines.filter(l => /live|concourse/i.test(l)).join(' | '))
   check('P3 with no chat the key-map row says "⇧→ no chat open" — no concourse stop, no chat yet', c.text.includes(FACE_NO_CHAT), hintRows(c.text))
   reapHome(home)
 }

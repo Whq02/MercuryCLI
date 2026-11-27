@@ -34,7 +34,7 @@ kept. Next, Mercury asks whether you trust the folder you opened; nothing
 requested by a workspace configuration runs before you grant that trust, which
 covers the whole repository ([TRUST.md](TRUST.md)).
 
-Running `mercury` with no arguments opens the home screen, with no chat behind it. The rows are **New Session**, **Continue Last Session** (once history exists), **Logins/Keys**, **Session Manager (Concourse)**, **Boot Menu**, and **Profiles**. The line below shows the model and the current folder.
+Running `mercury` with no arguments opens the home screen, with no chat behind it. The rows are **New Session**, **Continue Last Session** (once history exists), **Logins/Keys**, **Session Manager**, **Boot Menu**, and **Profiles**. The line below shows the model and the current folder.
 
 In Boot Menu, **MCPs & Skills** and **Agents** set up the next session. Inside a chat, use `/mcp`, `/skills` or `/agents`. Use `/health` for diagnostics (`mercury health` also runs from a terminal) and `/schedule` for the [scheduler](SATURN.md). To reopen another folder’s chat before starting one, open Session Manager, press `Ctrl+G`, choose the folder, then open a parked chat or press `Enter` on **older chats** to browse. Inside a chat, `/sessions` opens the session picker.
 
@@ -524,7 +524,7 @@ until the session is resumed from the screen.
 
 ## The concourse shows the project you are in
 
-`/concourse`, the home screen's Session Manager (Concourse) row, or `Shift+→` from the
+`/concourse`, the home screen's Session Manager row, or `Shift+→` from the
 home screen opens the Session Concourse: the control board for the project
 you are in, and its resume screen. On the first visit to the Session Concourse,
 a one-time `"FIRST BOOT — capacity check"` dialog asks whether to probe the
@@ -856,7 +856,7 @@ the current size and the limit in **State cleanup**. Pruned backups cannot be re
 ## `mercury --chat`
 
 Passing `--chat` opens only the home screen and the chat, without the Session
-Concourse board on the navigation strip or the Session Manager (Concourse) row on the
+Concourse board on the navigation strip or the Session Manager row on the
 home screen (New Session is the entry point). A `--chat` launch
 opens on the home screen like a bare launch, and pressing `Enter` on New Session starts the chat.
 From the chat, `Shift+←` returns to the home screen directly and `Shift+→` moves nothing;
@@ -876,7 +876,7 @@ command line, the later one wins.
 With it off, the navigation strip has only the home screen and
 the chat, with no concourse stop (`Shift+→` walks only screens that exist). The
 live view of your sessions remains available through the
-home screen's Session Manager (Concourse) row or `/concourse`. It shows the rows and their tiles with `Enter` to open one and no composer or new-session tab.
+home screen's Session Manager row or `/concourse`. It shows the rows and their tiles with `Enter` to open one and no composer or new-session tab.
 
 Both flags also accept single-dash spellings (`-chat`,
 `-concourse-off` and `-concourse-on`).

@@ -510,7 +510,7 @@ export function assembleCardRows(facts) {
   if (facts.concourse) {
     rows.push({
       key: 'concourse',
-      label: 'Session Manager (Concourse)',
+      label: 'Session Manager',
       ctx: facts.concourse.ctx,
       ...(facts.concourse.dim ? { dim: true } : {}),
     })

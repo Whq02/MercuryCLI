@@ -236,7 +236,7 @@ def mark(label):
 
 
 def face_row(target):
-    labels = ["New Session", "Continue Last Session", "Logins/Keys", "Session Manager (Concourse)", "Boot Menu"]
+    labels = ["New Session", "Continue Last Session", "Logins/Keys", "Session Manager", "Boot Menu"]
     shown = [label for label in labels if any(label in line for line in text().splitlines())]
     if target not in shown:
         raise ValueError("Boot face has no row named " + target + "; visible: " + ", ".join(shown))
